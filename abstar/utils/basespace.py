@@ -27,6 +27,7 @@ from __future__ import print_function, absolute_import
 import json
 import os
 import platform
+import sys
 import time
 
 from BaseSpacePy.api.BaseSpaceAPI import BaseSpaceAPI
@@ -35,7 +36,7 @@ from BaseSpacePy.model.QueryParameters import QueryParameters as qp
 
 class BaseSpace(object):
 	"""docstring for BaseSpace"""
-	def __init__(self, log, project_id=None, undetermined=False):
+	def __init__(self, log, project_id=None, project_name=None, undetermined=False):
 		super(BaseSpace, self).__init__()
 		self.log = log
 		# BaseSpace credentials
@@ -47,9 +48,12 @@ class BaseSpace(object):
 		self.api_server = creds['api_server']
 		self.api = BaseSpaceAPI(self.client_key, self.client_secret, self.api_server, self.version, AccessToken=self.access_token)
 		self.params = qp(pars={'Limit': 1024, 'SortDir': 'Desc'})
-		if project_id:
+		if project_id is not None:
 			self.project_id = project_id
 			self.project_name = None
+		elif project_name is not None:
+			self.project_name = project_name
+			self.project_id = self._get_project_id_from_name(project_name)
 		else:
 			self.project_id, self.project_name = self._user_selected_project_id()
 
@@ -57,13 +61,18 @@ class BaseSpace(object):
 	def _get_credentials(self):
 		# BaseSpace credentials file should be in JSON format
 		cred_file = os.path.expanduser('~/.abstar/basespace_credentials')
-		# if platform.system().lower() == 'darwin':
-		# 	cred_file = os.path.expanduser('~/.abstar/basespace_credentials')
-		# elif platform.system().lower() == 'linux':
-		# 	cred_file = '/usr/share/abstar/basespace_credentials'
 		cred_handle = open(cred_file, 'r')
 		return json.load(cred_handle)
 
+
+	def _get_project_id_from_name(self):
+		projects = self.api.getProjectByUser(queryPars=self.params)
+		for project in projects:
+			name = project.Name.encode('ascii', 'ignore')
+			if name == self.project_name:
+				return project.Id
+		print('No projects matched the given project name ({})'.format(name))
+		sys.exit(1)
 
 
 	def _user_selected_project_id(self):
@@ -83,6 +92,7 @@ class BaseSpace(object):
 				offset += 1
 		return projects[project_index].Id, projects[project_index].Name.encode('ascii', 'ignore')
 
+
 	def _get_projects(self, start=0):
 		projects = self.api.getProjectByUser(queryPars=self.params)
 		self.print_basespace_project()
@@ -91,6 +101,7 @@ class BaseSpace(object):
 			print('[ {} ] {}'.format(i, project_name))
 		print('')
 		return projects
+
 
 	def _get_samples(self, project_id):
 		samples = []
@@ -104,12 +115,14 @@ class BaseSpace(object):
 			offset += 1
 		return samples
 
+
 	def _get_files(self):
 		files = []
 		samples = self._get_samples(self.project_id)
 		for sample in samples:
 			files.extend(self.api.getFilesBySample(sample.Id, queryPars=self.params))
 		return files
+
 
 	def download(self, direc):
 		files = self._get_files()
@@ -142,6 +155,24 @@ class BaseSpace(object):
 		self.log.write('Identified {0} files for download.\n'.format(len(files)))
 		self.log.write('\n')
 
+
 	def print_completed_download_info(self, start, end):
 		self.log.write('\n')
 		self.log.write('Download completed in {0} seconds\n'.format(end - start))
+
+
+def download(direc, log, project_id=None, project_name=None, undetermined=False):
+	bs = BaseSpace(log, project_id, project_name, undetermined)
+	return bs.download(direc)
+
+
+if __name__ == '__main__':
+	import argparse
+	parser = argparse.ArgumentParser("Parses the output of IgBLAST into something suitable for import into a MySQL database")
+	parser.add_argument('-i', '--in',
+						dest='input',
+						required=True,
+						help="The input file, to be split and processed in parallel. \
+						If a directory is given, all files in the directory will be iteratively processed.")
+	args = parser.parse_args()
+	download(args.input, sys.stdout)

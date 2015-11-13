@@ -38,213 +38,181 @@ import multiprocessing as mp
 from Bio import SeqIO
 
 
-parser = argparse.ArgumentParser("Performs germline assignment and other relevant annotation on antibody sequence data from NGS platforms.")
-parser.add_argument('-d', '--data',
-					dest='data_dir',
-					default=None,
-					help="The data directory, where files will be downloaded (or have previously \
-					been download), temp files will be stored, and output files will be \
-					written. During StarCluster configuration, all ephemeral drives on the master \
-					node will be combined into a single RAID volume and mounted at the data directory. \
-					Not necessary if '-o', '-t' and '-i' are provided. \
-					Default is '/data'.")
 
-parser.add_argument('-i', '--in',
-					dest='input',
-					default=None,
-					help="The input file or directory, to be split and processed in parallel. \
-					If a directory is given, all files in the directory will be iteratively processed. \
-					Required.")
 
-parser.add_argument('-o', '--out',
-					dest='output',
-					default=None,
-					help="The output directory, into which the JSON-formatted output files will be deposited. \
-					If the directory does not exist, it will be created. \
-					Required.")
 
-parser.add_argument('-l', '--log',
-					dest='log',
-					default=None,
-					help="The log file, to which log info will be written. \
-					Default is <output_directory>/abstar.log if '-o/--out' is specificied. \
-					If '-o/--out' isn't provided, default is <data_directory>/abstar.log")
+#####################################################################
+#
+#                        FILES AND DIRECTORIES
+#
+#####################################################################
 
-parser.add_argument('-t', '--temp',
-					dest='temp',
-					default=None,
-					help="The directory in which temp files will be stored. If the directory doesn't exist, \
-					it will be created. Required.")
 
-parser.add_argument('-k', '--chunksize',
-					dest='chunksize',
-					default=250,
-					type=int,
-					help="Approximate number of sequences in each distributed job. \
-					Defaults to 250. \
-					Don't change unless you know what you're doing.")
 
-parser.add_argument('-T', '--output_type',
-					dest="output_type",
-					choices=['json', 'imgt', 'hadoop'],
-					default='json',
-					help="Select the output type. Options are 'json', 'imgt' and 'impala'. \
-					IMGT output mimics the Summary table produced by IMGT High-V/Quest, \
-					to maintain some level of compatibility with existing IMGT-based pipelines. \
-					JSON output is much more detailed. \
-					Hadoop output is columnar and easily converted to binary HDFS-friendly formats \
-					(Parquet, Avro) for use in Impala or other Hadoop query engines (Pig, Hive, Spark). \
-					Defaults to JSON output.")
+def parse_arguments():
+	parser = argparse.ArgumentParser("Performs germline assignment and other relevant annotation on antibody sequence data from NGS platforms.")
+	parser.add_argument('-d', '--data',
+						dest='data_dir',
+						default=None,
+						help="The data directory, where files will be downloaded (or have previously \
+						been download), temp files will be stored, and output files will be \
+						written. During StarCluster configuration, all ephemeral drives on the master \
+						node will be combined into a single RAID volume and mounted at the data directory. \
+						Not necessary if '-o', '-t' and '-i' are provided. \
+						Default is '/data'.")
 
-parser.add_argument('-m', '--merge',
-					dest="merge",
-					action='store_true',
-					default=False,
-					help="Use if the input files are paired-end FASTQs \
-					(either gzip compressed or uncompressed) from Illumina platforms. \
-					Prior to running the germline assignment pipeline, \
-					paired reads will be merged with PANDAseq.")
+	parser.add_argument('-i', '--in',
+						dest='input',
+						default=None,
+						help="The input file or directory, to be split and processed in parallel. \
+						If a directory is given, all files in the directory will be iteratively processed. \
+						Required.")
 
-parser.add_argument('-p', '--pandaseq_algo',
-					dest="pandaseq_algo",
-					default='simple_bayesian',
-					choices=['simple_bayesian', 'ea_util', 'flash', 'pear', 'rdp_mle', 'stitch', 'uparse'],
-					help="Define merging algorithm to be used by PANDAseq.\
-					Options are 'simple_bayesian', 'ea_util', 'flash', 'pear', 'rdp_mle', 'stitch', or 'uparse'.\
-					Default is 'simple_bayesian', which is the default PANDAseq algorithm.")
+	parser.add_argument('-o', '--out',
+						dest='output',
+						default=None,
+						help="The output directory, into which the JSON-formatted output files will be deposited. \
+						If the directory does not exist, it will be created. \
+						Required.")
 
-parser.add_argument('-n', '--next_seq',
-					dest="next_seq",
-					action='store_true',
-					default=False,
-					help="Use if the run was performed on a NextSeq sequencer.")
+	parser.add_argument('-l', '--log',
+						dest='log',
+						default=None,
+						help="The log file, to which log info will be written. \
+						Default is <output_directory>/abstar.log if '-o/--out' is specificied. \
+						If '-o/--out' isn't provided, default is <data_directory>/abstar.log")
 
-parser.add_argument('-u', '--uaid',
-					dest="uaid",
-					type=int,
-					default=0,
-					help="Length of the unique antibody identifiers (UAIDs) \
-					used when preparing samples, if used. \
-					Default is unbarcoded (UAID length of 0).")
+	parser.add_argument('-t', '--temp',
+						dest='temp',
+						default=None,
+						help="The directory in which temp files will be stored. If the directory doesn't exist, \
+						it will be created. Required.")
 
-parser.add_argument('-I', '--isotype',
-					dest="isotype",
-					action='store_false',
-					default=True,
-					help="If set, the isotype will not be determined for heavy chains.\
-					If not set, isotyping sequences for the appropriate species will be used.")
+	parser.add_argument('-k', '--chunksize',
+						dest='chunksize',
+						default=250,
+						type=int,
+						help="Approximate number of sequences in each distributed job. \
+						Defaults to 250. \
+						Don't change unless you know what you're doing.")
 
-parser.add_argument('-b', '--basespace',
-					dest="basespace",
-					default=False,
-					action='store_true',
-					help="Use if files should be downloaded directly from BaseSpace. \
-					Files will be downloaded into the input directory.")
+	parser.add_argument('-T', '--output_type',
+						dest="output_type",
+						choices=['json', 'imgt', 'hadoop'],
+						default='json',
+						help="Select the output type. Options are 'json', 'imgt' and 'impala'. \
+						IMGT output mimics the Summary table produced by IMGT High-V/Quest, \
+						to maintain some level of compatibility with existing IMGT-based pipelines. \
+						JSON output is much more detailed. \
+						Hadoop output is columnar and easily converted to binary HDFS-friendly formats \
+						(Parquet, Avro) for use in Impala or other Hadoop query engines (Pig, Hive, Spark). \
+						Defaults to JSON output.")
 
-parser.add_argument('-c', '--cluster',
-					dest="cluster",
-					default=False,
-					action='store_true',
-					help="Use if performing computation on a Celery cluster. \
-					If set, input files will be split into many subfiles and passed \
-					to a Celery queue. If not set, input files will still be split, but \
-					will be distributed to local processors using multiprocessing.")
+	parser.add_argument('-m', '--merge',
+						dest="merge",
+						action='store_true',
+						default=False,
+						help="Use if the input files are paired-end FASTQs \
+						(either gzip compressed or uncompressed) from Illumina platforms. \
+						Prior to running the germline assignment pipeline, \
+						paired reads will be merged with PANDAseq.")
 
-parser.add_argument('-S', '--starcluster',
-					dest="starcluster",
-					default=False,
-					action='store_true',
-					help="Use if performing analysis on a StarCluster instance. \
-					If set, the cluster will be configured to NFS share all ephemeral drives \
-					on the master node and Celery workers will be started on all worker nodes. \
-					Configuration only needs to be run once per cluster, so additional runs on\
-					an already-configured cluster should be run without this option.")
+	parser.add_argument('-p', '--pandaseq_algo',
+						dest="pandaseq_algo",
+						default='simple_bayesian',
+						choices=['simple_bayesian', 'ea_util', 'flash', 'pear', 'rdp_mle', 'stitch', 'uparse'],
+						help="Define merging algorithm to be used by PANDAseq.\
+						Options are 'simple_bayesian', 'ea_util', 'flash', 'pear', 'rdp_mle', 'stitch', or 'uparse'.\
+						Default is 'simple_bayesian', which is the default PANDAseq algorithm.")
 
-parser.add_argument('-D', '--debug',
-					dest="debug",
-					action='count',
-					default=0,
-					help="If set, logs additional debug information. \
-					Use -DD to set log level to 'DEVEL', which also prints verbose exception information")
+	parser.add_argument('-n', '--next_seq',
+						dest="next_seq",
+						action='store_true',
+						default=False,
+						help="Use if the run was performed on a NextSeq sequencer.")
 
-parser.add_argument('-s', '--species',
-					dest='species',
-					default='human',
-					choices=['human', 'macaque', 'mouse', 'rabbit', 'b12mouse', 'vrc01mouse', '9114mouse'])
+	parser.add_argument('-u', '--uaid',
+						dest="uaid",
+						type=int,
+						default=0,
+						help="Length of the unique antibody identifiers (UAIDs) \
+						used when preparing samples, if used. \
+						Default is unbarcoded (UAID length of 0).")
 
-parser.add_argument('--mongoimport',
-					dest='do_mongoimport',
-					default=False,
-					action='store_true')
+	parser.add_argument('-I', '--isotype',
+						dest="isotype",
+						action='store_false',
+						default=True,
+						help="If set, the isotype will not be determined for heavy chains.\
+						If not set, isotyping sequences for the appropriate species will be used.")
 
-# parser.add_argument('--ip',
-# 					dest='ip',
-# 					default='localhost',
-# 					help="The IP address of the MongoDB server. Defaults to 'localhost'.")
+	parser.add_argument('-b', '--basespace',
+						dest="basespace",
+						default=False,
+						action='store_true',
+						help="Use if files should be downloaded directly from BaseSpace. \
+						Files will be downloaded into the input directory.")
 
-# parser.add_argument('--user',
-# 					dest='user',
-# 					default=None,
-# 					help="Username for the MongoDB server. Not used if not provided.")
+	parser.add_argument('-c', '--cluster',
+						dest="cluster",
+						default=False,
+						action='store_true',
+						help="Use if performing computation on a Celery cluster. \
+						If set, input files will be split into many subfiles and passed \
+						to a Celery queue. If not set, input files will still be split, but \
+						will be distributed to local processors using multiprocessing.")
 
-# parser.add_argument('--password',
-# 					dest='password',
-# 					default=None,
-# 					help="Password for the MongoDB server. Not used if not provided.")
+	parser.add_argument('-S', '--starcluster',
+						dest="starcluster",
+						default=False,
+						action='store_true',
+						help="Use if performing analysis on a StarCluster instance. \
+						If set, the cluster will be configured to NFS share all ephemeral drives \
+						on the master node and Celery workers will be started on all worker nodes. \
+						Configuration only needs to be run once per cluster, so additional runs on\
+						an already-configured cluster should be run without this option.")
 
-# parser.add_argument('--mongo_input_dir',
-# 					dest='mongo_input_dir',
-# 					default=None,
-# 					help="A directory containing multiple JSON files for import to MongoDB. \
-# 					If not provided, defaults to the AbStar output directory. \
-# 					Typically, the default shouldn't be changed.")
+	parser.add_argument('-D', '--debug',
+						dest="debug",
+						action='count',
+						default=0,
+						help="If set, logs additional debug information. \
+						Use -DD to set log level to 'DEVEL', which also prints verbose exception information")
 
-# parser.add_argument('--db', dest='db',
-# 					required=True,
-# 					help="The MongoDB database for import.")
+	parser.add_argument('-s', '--species',
+						dest='species',
+						default='human',
+						choices=['human', 'macaque', 'mouse', 'rabbit', 'b12mouse', 'vrc01mouse', '9114mouse'])
+	args = parser.parse_args()
+	return args
 
-# parser.add_argument('--mongo-log',
-# 					dest='mongo_log',
-# 					required=True,
-# 					help="Log file for the mongoimport stdout.")
 
-# parser.add_argument('--delim1',
-# 					dest='delim1',
-# 					default=None,
-# 					help="The first character delimiter used to split the filename to get the collection name. \
-# 					If splitting with a single delimiter, use this option to provide the delimiter. Required.")
-
-# parser.add_argument('--delim2',
-# 					dest='delim2',
-# 					default=None,
-# 					help="If splitting with two different delimiters, use this option to provide the second delimiter. \
-# 					Required if splitting with two delimiters.")
-
-# parser.add_argument('--split1',
-# 					dest='split1_pos',
-# 					default=1,
-# 					type=int,
-# 					help="Builds the collection name by truncating at the <split> occurance of the <delim> character. \
-# 					If splitting with multiple delimiters, this option is used to specifiy the occurance of the first delimiter. \
-# 					Default is 1.")
-
-# parser.add_argument('--split2',
-# 					dest='split2_pos',
-# 					default=1,
-# 					type=int,
-# 					help="If splitting with multiple delimiters, this option is used to specify the occurance of the \
-# 					second delimiter at which to split. \
-# 					Required if splitting with two different delimiters.")
-
-# parser.add_argument('--split-only',
-# 					dest='split_only',
-# 					default=False,
-# 					action='store_true',
-# 					help="Instead of truncating the filename to get the collection name, takes only the split for the collection. \
-# 					Default is False.")
-
-args = parser.parse_args()
-
+class Args(object):
+	"""Holds arguments, mimics argparse's Namespace when running abstar as an imported module"""
+	def __init__(self, data_dir=None, input=None, output=None, log=None, temp=None,
+				 chunksize=250, output_type='json',
+				 merge=False, pandaseq_algo='simple_bayesian',
+				 next_seq=False, uaid=0, isotype=False,
+				 basespace=False, cluster=False, starcluster=False,
+				 debug=False, species='human'):
+		super(Args, self).__init__()
+		self.data_dir = data_dir
+		self.input = input
+		self.output = output
+		self.log = log
+		self.temp = temp
+		self.chunksize = int(chunksize)
+		self.output_type = str(output_type)
+		self.merge = True if basespace else merge
+		self.pandaseq_algo = str(pandaseq_algo)
+		self.next_seq = next_seq
+		self.uaid = int(uaid)
+		self.isotype = isotype
+		self.basespace = basespace
+		self.cluster = cluster
+		self.starcluster = starcluster
+		self.debug = 1 if debug else 0
+		self.species = species
 
 
 
@@ -257,7 +225,7 @@ args = parser.parse_args()
 
 
 
-def make_directories():
+def make_directories(args):
 	full_paths = []
 	indir = args.input if args.input else os.path.join(args.data_dir, 'input')
 	outdir = args.output if args.output else os.path.join(args.data_dir, 'output')
@@ -283,18 +251,7 @@ def make_merge_dir():
 	return merge_dir
 
 
-def devel_log(self, message, *args, **kws):
-    # Yes, logger takes its '*args' as 'args'.
-    if self.isEnabledFor(logging.DEVEL):
-        self._log(logging.DEVEL, message, args, **kws) 
-
-
-def setup_logging():
-	# logging.DEVEL = 5
-	# logging.addLevelName(logging.DEVEL, "DEVEL")
-	# # logging.Logger.devel = devel_log
-	# logging.Logger.devel = lambda inst, msg, *args, **kwargs: inst.log(logging.DEVEL, msg, *args, **kwargs)
-	# logging.devel = lambda msg, *args, **kwargs: logging.log(logging.DEVEL, msg, *args, **kwargs)
+def setup_logging(args):
 	log_dir = args.output if args.output else args.data_dir
 	logfile = args.log if args.log else os.path.join(log_dir, 'abstar.log')
 	if args.debug >= 1:
@@ -302,21 +259,16 @@ def setup_logging():
 							filemode='w',
 							format='[%(levelname)s] %(asctime)s %(message)s',
 							level=logging.DEBUG)
-	# if args.debug == 2:
-	# 	logging.basicConfig(filename=logfile,
-	# 						filemode='w',
-	# 						format='[%(levelname)s] %(asctime)s %(message)s',
-	# 						level=logging.DEVEL)
 	else:
 		logging.basicConfig(filename=logfile,
 							filemode='w',
 							format='[%(levelname)s] %(asctime)s %(message)s',
 							level=logging.INFO)
 	logging.info('LOG LOCATION: {}'.format(logfile))
-	log_options()
+	log_options(args)
 
 
-def log_options():
+def log_options(args):
 	logging.info('SPECIES: {}'.format(args.species))
 	logging.info('CHUNKSIZE: {}'.format(args.chunksize))
 	logging.info('OUTPUT TYPE: {}'.format(args.output_type))
@@ -340,7 +292,7 @@ def list_files(d, log=False):
 	return files
 
 
-def concat_output(input_file, temp_dir, output_dir):
+def concat_output(input_file, temp_dir, output_dir, args):
 	bname = os.path.basename(input_file)
 	if '.' in bname:
 		split_name = bname.split('.')
@@ -392,13 +344,12 @@ def download_files(input_dir):
 	from utils.basespace import BaseSpace
 	bs = BaseSpace(sys.stdout)
 	num_files = bs.download(input_dir)
-	args.merge = True
 	logging.info('BASESPACE PROJECT NAME: {}'.format(bs.project_name))
 	logging.info('BASESPACE PROJECT ID: {}'.format(bs.project_id))
 	logging.info('BASESPACE FILE DOWNLOAD COUNT: {}'.format(num_files))
 
 
-def merge_reads(input_dir):
+def merge_reads(input_dir, args):
 	from utils import pandaseq
 	merge_dir = make_merge_dir()
 	pandaseq.run(input_dir,
@@ -418,17 +369,17 @@ def format_check(input_list):
 def _get_format(in_file):
 	with open(in_file) as f:
 		line = f.next()
-		while line == '':
+		while line.strip() == '':
 			line = f.next()
-		if line.startswith('>'):
+		if line.lstrip().startswith('>'):
 			return 'fasta'
-		elif line.startswith('@'):
+		elif line.lstrip().startswith('@'):
 			return 'fastq'
 		else:
-			raise RuntimeError('Input files must be in either FASTA or FASTQ format.')
+			return None
 
 
-def split_file(f, fmt, temp_dir):
+def split_file(f, fmt, temp_dir, args):
 	# if args.one_job_per_file:
 	# 	sys.stdout.write('Processing each input file as a single job.\n')
 	# 	logging.info('Processing each input file as a single job.')
@@ -524,11 +475,6 @@ def update_progress(finished, jobs, failed=None):
 
 
 
-def configure_starcluster():
-	from utils import starcluster
-	starcluster.run(data_dir=args.data_dir, log=sys.stdout)
-
-
 def run_jobs(files, output_dir, args):
 	sys.stdout.write('Running VDJ...\n')
 	if args.cluster:
@@ -605,39 +551,39 @@ def monitor_celery_jobs(results):
 	return succeeded, failed
 
 
+def run(**kwargs):
+	args = Args(kwargs)
+	output_dir = main(args)
+	return list_files(output_dir)
 
-def _mongoimport(abstar_output_dir):
-	from utils import mongoimport
-	args.mongo_input_dir = abstar_output_dir
-	mongoimport.run(args)
 
-
-def main():
-	setup_logging()
-	if args.starcluster:
-		configure_starcluster()
-	input_dir, output_dir, temp_dir = make_directories()
+def main(args):
+	setup_logging(args)
+	input_dir, output_dir, temp_dir = make_directories(args)
 	if args.basespace:
+		args.merge = True
 		download_files(input_dir)
 	if args.merge:
-		input_dir = merge_reads(input_dir)
+		input_dir = merge_reads(input_dir, args)
 	if args.isotype:
 		args.isotype = args.species
 	input_files = list_files(input_dir, log=True)
 	for f, fmt in zip(input_files, format_check(input_files)):
+		if fmt is None:
+			continue
 		start_time = time.time()
 		print_input_file_info(f, fmt)
-		subfiles, seq_count = split_file(f, fmt, temp_dir)
+		subfiles, seq_count = split_file(f, fmt, temp_dir, args)
 		job_stats = run_jobs(subfiles, temp_dir, args)
 		vdj_end_time = time.time()
-		concat_output(f, temp_dir, output_dir)
+		concat_output(f, temp_dir, output_dir, args)
 		clear_temp_dir(temp_dir)
 		print_job_stats(seq_count, sum(job_stats), start_time, vdj_end_time)
 	sys.stdout.write('\n\n')
-	if args.mongoimport:
-		_mongoimport(output_dir)
+	return output_dir
 
 
 if __name__ == '__main__':
 	warnings.filterwarnings("ignore")
-	main()
+	args = parse_arguments()
+	output_dir = main(args)
