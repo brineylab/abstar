@@ -43,7 +43,7 @@ from Bio import SeqIO
 
 #####################################################################
 #
-#                        FILES AND DIRECTORIES
+#                             ARGUMENTS
 #
 #####################################################################
 
@@ -213,6 +213,12 @@ class Args(object):
 		self.starcluster = starcluster
 		self.debug = 1 if debug else 0
 		self.species = species
+
+
+def validate_args(args):
+	if not args.data_dir and not all([args.input, args.output, args.temp]):
+		print("\nERROR: you must provide either a data directory or separate input/output/temp directories.\n")
+		sys.exit(1)
 
 
 
@@ -553,6 +559,7 @@ def monitor_celery_jobs(results):
 
 def run(**kwargs):
 	args = Args(kwargs)
+	validate_args(args)
 	output_dir = main(args)
 	return list_files(output_dir)
 
