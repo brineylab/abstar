@@ -1,5 +1,6 @@
-#!/usr/bin/python
-# filename: bs_downloader.py
+#!/usr/bin/env python
+# filename: abstar.py
+
 
 #
 # Copyright (c) 2015 Bryan Briney
@@ -22,21 +23,15 @@
 #
 
 
-import sys
-import argparse
+from __future__ import print_function, unicode_literals
 
-from basespace import BaseSpace
+import warnings
 
-parser = argparse.ArgumentParser("Parses the output of IgBLAST into something suitable for import into a MySQL database")
-parser.add_argument('-i', '--in', dest='input', required=True, help="The input file, to be split and processed in parallel. If a directory is given, all files in the directory will be iteratively processed.")
-args = parser.parse_args()
+import abstar
 
-
-def main():
-	bs = BaseSpace(sys.stdout)
-	bs.download(args.input)
 
 if __name__ == '__main__':
-	main()
-
-
+	warnings.filterwarnings("ignore")
+	args = abstar.parse_arguments()
+	abstar.validate_args(args)
+	output_dir = abstar.main(args)
