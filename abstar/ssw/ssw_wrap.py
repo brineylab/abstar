@@ -13,6 +13,7 @@ library and update the cache by using /sbin/ldconfig as root
 # Standard library packages
 from ctypes import *
 
+import os
 import platform
 
 
@@ -51,7 +52,9 @@ class Aligner(object):
     int_to_base = { 0:'A', 1:'C', 2:'G', 3:'T', 4:'N'}
 
     # Load the ssw library using ctypes
-    libssw = cdll.LoadLibrary('ssw/libssw_{}.so'.format(platform.system().lower()))
+    _mod_dir = os.path.dirname(os.path.abspath(__file__))
+    _ssw_path = os.path.join(_mod_dir, 'libssw_{}.so'.format(platform.system().lower()))
+    libssw = cdll.LoadLibrary(_ssw_path)
 
     # Init and setup the functions pointer to map the one specified in the SSW lib
     # ssw_init method
@@ -270,7 +273,10 @@ class PyAlignRes(object):
     #~~~~~~~CLASS VARIABLES~~~~~~~#
 
     # Load the ssw library using ctypes
-    libssw = cdll.LoadLibrary('ssw/libssw_{}.so'.format(platform.system().lower()))
+    _mod_dir = os.path.dirname(os.path.abspath(__file__))
+    _ssw_path = os.path.join(_mod_dir, 'libssw_{}.so'.format(platform.system().lower()))
+    libssw = cdll.LoadLibrary(_ssw_path)
+    # libssw = cdll.LoadLibrary('ssw/libssw_{}.so'.format(platform.system().lower()))
     # libssw = cdll.LoadLibrary('libssw.so')
 
     # Init and setup the functions pointer to map the one specified in the SSW lib

@@ -14,6 +14,7 @@
 ###########################################################################
 
 
+import os
 import re
 import sys
 import traceback
@@ -66,7 +67,8 @@ class VarRegions(object):
 		sequence is truncated and doesn't contain FR1)
 		'''
 		region_positions = []
-		regions_file = 'utils/germline_data/v_region_info_{}'.format(br.species.lower())
+		mod_dir = os.path.dirname(os.path.abspath(__file__))
+		regions_file = os.path.join(mod_dir, 'utils/germline_data/v_region_info_{}'.format(br.species.lower()))
 		with open(regions_file) as f:
 			for line in f:
 				if line.startswith('#'):
@@ -281,7 +283,8 @@ class JoinRegions(object):
 
 		Input is a BlastResult object.
 		'''
-		regions_file = 'utils/germline_data/j_region_info_{}'.format(br.species.lower())
+		mod_dir = os.path.dirname(os.path.abspath(__file__))
+		regions_file = os.path.join(mod_dir, 'utils/germline_data/j_region_info_{}'.format(br.species.lower()))
 		with open(regions_file) as f:
 			for line in f:
 				if line.startswith('#'):

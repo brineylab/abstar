@@ -67,5 +67,3 @@ class Sequence(object):
 		rev_comp = s.reverse_complement()
 		return SeqRecord(rev_comp,
 						 id=self.id)
-
-

@@ -22,10 +22,11 @@
 #
 
 
+import os
 import re
 
 import nwalign as nw
-from ssw.ssw_wrap import Aligner
+from abstar.ssw.ssw_wrap import Aligner
 
 
 class NWAlignment(object):
@@ -40,6 +41,8 @@ class NWAlignment(object):
 		self.query = query
 		self.germ = germ
 		self.position = position
+		mod_dir = os.path.dirname(os.path.abspath(__file__))
+		self.matrix = os.path.join(mod_dir, 'nw/blosum62')
 		self.alignment = self._nw_alignment()
 		self.score = self._score_alignment()
 
@@ -49,7 +52,7 @@ class NWAlignment(object):
 							   self.germ,
 							   gap_open=-100,
 							   gap_extend=-50,
-							   matrix='nw/blosum62')
+							   matrix=self.matrix)
 
 
 	def _score_alignment(self):
@@ -59,7 +62,7 @@ class NWAlignment(object):
 								  aligned_germ,
 								  gap_open=-100,
 								  gap_extend=-50,
-								  matrix='nw/blosum62')
+								  matrix=self.matrix)
 
 
 class SSWAlignment(object):

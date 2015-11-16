@@ -8,7 +8,7 @@
 #
 # @version: 1.0.0
 # @author: Bryan Briney
-# @license: MIT (http://opensource.org/licenses/MIT) 
+# @license: MIT (http://opensource.org/licenses/MIT)
 #
 ###########################################################################
 
@@ -20,11 +20,11 @@ from celery import Celery
 
 
 # instantiate Celery object
-celery = Celery(include=['utils.vdj'])
+celery = Celery(include=['abstar.utils.vdj'])
 
 
 # import celery config file
-celery.config_from_object('celeryconfig')
+celery.config_from_object('abstar.celeryconfig')
 
 
 if __name__ == '__main__':

@@ -28,7 +28,7 @@ from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.Alphabet import generic_dna
 
-from ssw.ssw_wrap import Aligner
+from abstar.ssw.ssw_wrap import Aligner
 
 
 def get_isotype(vdj):

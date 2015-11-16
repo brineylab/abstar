@@ -25,13 +25,14 @@
 
 from __future__ import print_function, unicode_literals
 
+import argparse
+import glob
+import logging
 import os
 import sys
-import glob
 import time
-import logging
+import traceback
 import warnings
-import argparse
 import subprocess as sp
 import multiprocessing as mp
 
@@ -196,11 +197,11 @@ class Args(object):
 				 basespace=False, cluster=False, starcluster=False,
 				 debug=False, species='human'):
 		super(Args, self).__init__()
-		self.data_dir = data_dir
-		self.input = input
-		self.output = output
-		self.log = log
-		self.temp = temp
+		self.data_dir = str(data_dir) if data_dir is not None else data_dir
+		self.input = str(input) if input is not None else input
+		self.output = str(output) if output is not None else output
+		self.log = str(log) if log is not None else log
+		self.temp = str(temp) if temp is not None else temp
 		self.chunksize = int(chunksize)
 		self.output_type = str(output_type)
 		self.merge = True if basespace else merge
@@ -238,11 +239,11 @@ def make_directories(args):
 	tempdir = args.temp if args.temp else os.path.join(args.data_dir, 'temp')
 	for d in [indir, outdir, tempdir]:
 		full_paths.append(d)
-		_make_direc(d)
+		_make_direc(d, args)
 	return full_paths
 
 
-def _make_direc(d):
+def _make_direc(d, args):
 	if not os.path.exists(d):
 		os.makedirs(d)
 	if args.cluster:
@@ -251,7 +252,7 @@ def _make_direc(d):
 		stdout, stderr = p.communicate()
 
 
-def make_merge_dir():
+def make_merge_dir(args):
 	merge_dir = os.path.join(args.data_dir, 'merged')
 	_make_direc(merge_dir)
 	return merge_dir
@@ -347,7 +348,7 @@ def clear_temp_dir(temp_dir):
 
 
 def download_files(input_dir):
-	from utils.basespace import BaseSpace
+	from abstar.utils.basespace import BaseSpace
 	bs = BaseSpace(sys.stdout)
 	num_files = bs.download(input_dir)
 	logging.info('BASESPACE PROJECT NAME: {}'.format(bs.project_name))
@@ -356,8 +357,8 @@ def download_files(input_dir):
 
 
 def merge_reads(input_dir, args):
-	from utils import pandaseq
-	merge_dir = make_merge_dir()
+	from abstar.utils import pandaseq
+	merge_dir = make_merge_dir(args)
 	pandaseq.run(input_dir,
 				 merge_dir,
 				 args,
@@ -386,9 +387,6 @@ def _get_format(in_file):
 
 
 def split_file(f, fmt, temp_dir, args):
-	# if args.one_job_per_file:
-	# 	sys.stdout.write('Processing each input file as a single job.\n')
-	# 	logging.info('Processing each input file as a single job.')
 	sys.stdout.write('Splitting the input file into subfiles with {} sequences each.\n'.format(args.chunksize))
 	file_counter = 0
 	seq_counter = 0
@@ -491,18 +489,20 @@ def run_jobs(files, output_dir, args):
 
 def _run_jobs_via_multiprocessing(files, output_dir, args):
 	from utils.vdj import run as run_vdj
-	p = mp.Pool(maxtasksperchild=32)
+	p = mp.Pool(maxtasksperchild=50)
 	async_results = []
 	for f in files:
-		async_results.append(p.apply_async(run_vdj, (f,
+		async_results.append((f, p.apply_async(run_vdj, (f,
 													 output_dir,
-													 args)))
-	monitor_mp_jobs(async_results)
+													 args))))
+	monitor_mp_jobs([ar[1] for ar in async_results])
 	results = []
 	for a in async_results:
 		try:
-			results.append(a.get())
+			results.append(a[1].get())
 		except:
+			logging.info('FILE-LEVEL EXCEPTION: {}'.format(a[0]))
+			logging.debug(traceback.format_exc())
 			continue
 	p.close()
 	p.join()
@@ -530,17 +530,20 @@ def _run_jobs_via_celery(files, output_dir, args):
 	succeeded, failed = monitor_celery_jobs(async_results)
 
 	# retry any failed jobs
-	if failed:
-		retry_results = []
-		sys.stdout.write('{} jobs failed and will be retried:\n'.format(len(failed)))
-		files_to_retry = [f for i, f in enumerate(files) if async_results[i].failed()]
-		for f in files_to_retry:
-			retry_results.append(run_vdj.delay(f,
-											 output_dir,
-											 args))
-		retry_succeeded, retry_failed = monitor_celery_jobs(retry_results)
-		succeeded.extend(retry_succeeded)
+	# if failed:
+	# 	retry_results = []
+	# 	sys.stdout.write('{} jobs failed and will be retried:\n'.format(len(failed)))
+	# 	files_to_retry = [f for i, f in enumerate(files) if async_results[i].failed()]
+	# 	for f in files_to_retry:
+	# 		retry_results.append(run_vdj.delay(f,
+	# 										 output_dir,
+	# 										 args))
+	# 	retry_succeeded, retry_failed = monitor_celery_jobs(retry_results)
+	# 	succeeded.extend(retry_succeeded)
 
+	failed_files = [f for i, f in enumerate(files) if async_results[i].failed()]
+	for ff in failed_files:
+		logging.info('FAILED FILE: {}'.format(f))
 	return [s.get() for s in succeeded]
 
 
@@ -558,7 +561,8 @@ def monitor_celery_jobs(results):
 
 
 def run(**kwargs):
-	args = Args(kwargs)
+	warnings.filterwarnings("ignore")
+	args = Args(**kwargs)
 	validate_args(args)
 	output_dir = main(args)
 	return list_files(output_dir)

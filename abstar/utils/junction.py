@@ -25,7 +25,7 @@
 import logging
 import traceback
 
-from utils.alignment import Alignment, SSWAlignment, NWAlignment
+from abstar.utils.alignment import Alignment, SSWAlignment, NWAlignment
 
 
 def get_junction(vdj):

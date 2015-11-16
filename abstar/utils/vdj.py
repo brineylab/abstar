@@ -38,9 +38,9 @@ from Bio.Blast import NCBIXML
 from Bio.Seq import Seq
 from Bio.Alphabet import generic_dna
 
-from ssw.ssw_wrap import Aligner
-from utils.queue.celery import celery
-from utils.sequence import Sequence
+from abstar.ssw.ssw_wrap import Aligner
+from abstar.utils.queue.celery import celery
+from abstar.utils.sequence import Sequence
 
 
 class VDJ(object):
@@ -70,6 +70,8 @@ class VDJ(object):
 				self._get_attributes()
 			except:
 				self.rearrangement = False
+				logging.info('VDJ ATTRIBUTE ERROR: {}'.format(seq.id))
+				logging.debug(traceback.format_exc())
 		else:
 			if not v:
 				logging.debug('V ASSIGNMENT ERROR: {}'.format(seq.id))
@@ -112,7 +114,7 @@ class VDJ(object):
 		self.junction = self._get_junction()
 		self.productive = self._check_productivity()
 		if self._isotype:
-			from isotype import get_isotype
+			from abstar.utils.isotype import get_isotype
 			self.isotype = get_isotype(self)
 		else:
 			self.isotype = ''
@@ -160,7 +162,7 @@ class VDJ(object):
 		return str(translated_seq)
 
 	def _get_junction(self):
-		from utils import junction
+		from abstar.utils import junction
 		return junction.get_junction(self)
 
 	def _get_v_start(self):
@@ -212,12 +214,12 @@ class VDJ(object):
 		return region_string
 
 	def _check_productivity(self):
-		from utils import productivity
+		from abstar.utils import productivity
 		return productivity.check_productivity(self)
 
 
 	def _build_output(self, output_type):
-		from utils import output
+		from abstar.utils import output
 		return output.build_output(self, output_type)
 
 
@@ -366,7 +368,8 @@ class BlastResult(object):
 
 		Output is the germline sequence.
 		'''
-		db_file = '{}/ssw/dbs/{}_{}.fasta'.format(os.getcwd(), self.species.lower(), gene)
+		mod_dir = os.path.dirname(os.path.abspath(__file__))
+		db_file = os.path.join(mod_dir, 'ssw/dbs/{}_{}.fasta'.format(self.species.lower(), gene))
 		for s in SeqIO.parse(open(db_file), 'fasta'):
 			if s.id == germ:
 				return str(s.seq)
@@ -447,7 +450,7 @@ class BlastResult(object):
 		self.insertions = []
 		self.deletions = []
 		if self._indel_check():
-			from utils import indels
+			from abstar.utils import indels
 			self.insertions = indels.find_insertions(self)
 			self.deletions = indels.find_deletions(self)
 
@@ -465,21 +468,21 @@ class BlastResult(object):
 		'''
 		Identifies and annotates variable/joining gene regions.
 		'''
-		from utils import regions
+		from abstar.utils import regions
 		return regions.regions(self)
 
 	def _nt_mutations(self):
 		'''
 		Identifies and annotates nucleotide mutations.
 		'''
-		from utils import mutations
+		from abstar.utils import mutations
 		return mutations.nt_mutations(self)
 
 	def _aa_mutations(self):
 		'''
 		Identifies and annotates amino acid mutations.
 		'''
-		from utils import mutations
+		from abstar.utils import mutations
 		return mutations.aa_mutations(self)
 
 	def _get_top_germline(self):
@@ -717,7 +720,7 @@ class DiversityResult(object):
 		'''
 		Identifies and annotates nucleotide mutations.
 		'''
-		from utils import mutations
+		from abstar.utils import mutations
 		return mutations.nt_mutations(self)
 
 
@@ -746,23 +749,19 @@ def run(seq_file, output_dir, args):
 		clean_vdjs = [vdj for vdj in vdj_output if vdj.rearrangement]
 		output_count = write_output(clean_vdjs, output_file, args.output_type)
 		return output_count
-	except Exception, exc:
-		raise
-		run.retry(exc=exc, countdown=5)
-
+	except:
+		raise Exception("".join(traceback.format_exception(*sys.exc_info())))
+		# run.retry(exc=exc, countdown=5)
 
 
 def write_output(output, outfile, output_type):
-	from utils.output import build_output
+	from abstar.utils.output import build_output
 	output_data = build_output(output, output_type)
 	open(outfile, 'w').write('\n'.join(output_data))
 	if output_type in ['json', 'hadoop']:
 		return len(output_data)
 	else:
 		return len(output_data) - 1
-
-
-
 
 
 def process_sequence_file(seq_file, args):
@@ -821,6 +820,8 @@ def process_sequence_file(seq_file, args):
 				logging.debug('NO ASSIGNED J-GENE: {}'.format(j_seq.id))
 			logging.debug('ASSIGNED J-GENE: {}, {}'.format(j_seq.id, j.top_germline))
 		except:
+			logging.debug('J-GENE ASSIGNMENT ERROR: {}'.format(j_seq.id))
+			logging.debug(traceback.format_exc())
 			try:
 				vbr = v_blast_records[i]
 				vseq = seqs[i]
@@ -829,6 +830,7 @@ def process_sequence_file(seq_file, args):
 																		   vbr.query_alignment))
 			except:
 				logging.debug('J-GENE ASSIGNMENT ERROR: {}, could not print query info'.format(j_seq.id))
+				logging.debug(traceback.format_exc())
 			j = None
 		finally:
 			js.append(j)
@@ -847,11 +849,13 @@ def process_sequence_file(seq_file, args):
 				junction = seq.sequence[junc_start:junc_end]
 				if junction:
 					d = assign_d(seq.id, junction, args.species)
+					logging.debug('ASSIGNED D-GENE: {}, {}'.format(seq.id, d.top_germline))
 					vdjs.append(VDJ(seq, args, v, j, d))
 					continue
 				vdjs.append(VDJ(seq, args, v, j))
 			else:
 				vdjs.append(VDJ(seq, args, v, j))
+			logging.debug('VDJ SUCCESS: {}'.format(seq.id))
 		except:
 			logging.debug('VDJ ERROR: {}'.format(seq.id))
 	return vdjs
@@ -868,65 +872,6 @@ def build_j_blast_input(seqs, v_blast_results):
 	return j_blastin
 
 
-
-
-
-
-
-
-# def process_sequence(seq, species, uaid, debug):
-# 	'''
-# 	Runs BLASTn to identify germline V, D, and J genes.
-	
-# 	Input is a Sequence object.
-	
-# 	Output is a list of VDJ objects.
-# 	'''
-# 	if debug:
-# 		print(seq.id)
-# 	try:
-# 		v = assign_germline(seq, species, 'V')
-# 		if v.strand == 'minus':
-# 			seq.reverse_complement()
-# 	except:
-# 		v = None
-# 		if debug:
-# 			print(seq.id)
-# 			print(sys.exc_info()[0])
-# 			print(sys.exc_info()[1])
-# 			traceback.print_tb(sys.exc_info()[2])
-# 	try:
-# 		j = assign_germline(seq, 
-# 							species, 
-# 							'J', 
-# 							start=(len(v.query_alignment) + v.query_start))
-# 	except:
-# 		j = None
-# 		if debug:
-# 			print(seq.id)
-# 			print(sys.exc_info()[0])
-# 			print(sys.exc_info()[1])
-# 			traceback.print_tb(sys.exc_info()[2])
-# 	if not v or not j:
-# 		return VDJ(seq, v, j, uaid=uaid)
-# 	if v.chain == 'heavy':
-# 		junc_start = len(v.query_alignment) + v.query_start
-# 		junc_end = junc_start + j.query_start
-# 		junction = seq.sequence[junc_start:junc_end]
-# 		if junction:
-# 			d = assign_d(junction, species)
-# 			return VDJ(seq, v, j, d, uaid=uaid)
-# 		return VDJ(seq, v, j, uaid=uaid)
-# 	else:
-# 		return VDJ(seq, v, j, uaid=uaid)
-
-
-
-
-
-
-
-
 def blast(seq_file, species, segment):
 	'''
 	Runs BLASTn against an antibody germline database.
@@ -934,9 +879,14 @@ def blast(seq_file, species, segment):
 	Input is a FASTA file of sequences (the file path, not a handle), the species of origin
 	of the sequences to be queried, and the gene segment (options are: 'V', 'D', or 'J')
 	'''
+	mod_dir = os.path.dirname(os.path.abspath(__file__))
+	blast_path = os.path.join(mod_dir, 'blast/blastn_{}'.format(platform.system().lower()))
+	blast_db_path = os.path.join(mod_dir, 'blast/dbs/{}_gl_{}'.format(species.lower(), segment.upper()))
 	blastout = tempfile.NamedTemporaryFile(delete=False)
-	blastn_cmd = NcbiblastnCommandline(cmd='{}/blast/blastn_{}'.format(os.getcwd(), platform.system().lower()),
-									   db='{}/blast/dbs/{}_gl_{}'.format(os.getcwd(), species.lower(), segment.upper()),
+	blastn_cmd = NcbiblastnCommandline(cmd=blast_path,
+									   db=blast_db_path,
+									   # cmd='{}/blast/blastn_{}'.format(os.getcwd(), platform.system().lower()),
+									   # db='{}/blast/dbs/{}_gl_{}'.format(os.getcwd(), species.lower(), segment.upper()),
 									   query=seq_file,
 									   out=blastout.name,
 									   outfmt=5,
@@ -1030,7 +980,8 @@ def assign_d(seq_id, seq, species):
 
 	Output is a DiversityResult object.
 	'''
-	db_file = '{}/ssw/dbs/{}_D.fasta'.format(os.getcwd(), species.lower())
+	mod_dir = os.path.dirname(os.path.abspath(__file__))
+	db_file = os.path.join(mod_dir, 'ssw/dbs/{}_D.fasta'.format(species.lower()))
 	db_handle = open(db_file, 'r')
 	seqs = [s for s in SeqIO.parse(db_handle, 'fasta')]
 	rc_seqs = [Sequence(s).rc() for s in seqs]
