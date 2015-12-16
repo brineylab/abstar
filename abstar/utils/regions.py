@@ -67,7 +67,7 @@ class VarRegions(object):
 		sequence is truncated and doesn't contain FR1)
 		'''
 		region_positions = []
-		mod_dir = os.path.dirname(os.path.abspath(__file__))
+		mod_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 		regions_file = os.path.join(mod_dir, 'utils/germline_data/v_region_info_{}'.format(br.species.lower()))
 		with open(regions_file) as f:
 			for line in f:
@@ -283,7 +283,7 @@ class JoinRegions(object):
 
 		Input is a BlastResult object.
 		'''
-		mod_dir = os.path.dirname(os.path.abspath(__file__))
+		mod_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 		regions_file = os.path.join(mod_dir, 'utils/germline_data/j_region_info_{}'.format(br.species.lower()))
 		with open(regions_file) as f:
 			for line in f:

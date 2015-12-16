@@ -33,7 +33,8 @@ from abstar.ssw.ssw_wrap import Aligner
 
 def get_isotype(vdj):
 	try:
-		isotype_file = 'ssw/isotypes/{}_isotypes.fasta'.format(vdj.species)
+		mod_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+		isotype_file = os.path.join(mod_dir, 'ssw/isotypes/{}_isotypes.fasta'.format(vdj.species))
 		isotypes = [Isotype(i) for i in SeqIO.parse(open(isotype_file, 'r'), 'fasta')]
 		for i in isotypes:
 			i.align(vdj.raw_query)

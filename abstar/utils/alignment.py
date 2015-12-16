@@ -41,7 +41,7 @@ class NWAlignment(object):
 		self.query = query
 		self.germ = germ
 		self.position = position
-		mod_dir = os.path.dirname(os.path.abspath(__file__))
+		mod_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 		self.matrix = os.path.join(mod_dir, 'nw/blosum62')
 		self.alignment = self._nw_alignment()
 		self.score = self._score_alignment()

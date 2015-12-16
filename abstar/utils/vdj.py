@@ -368,7 +368,7 @@ class BlastResult(object):
 
 		Output is the germline sequence.
 		'''
-		mod_dir = os.path.dirname(os.path.abspath(__file__))
+		mod_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 		db_file = os.path.join(mod_dir, 'ssw/dbs/{}_{}.fasta'.format(self.species.lower(), gene))
 		for s in SeqIO.parse(open(db_file), 'fasta'):
 			if s.id == germ:
@@ -879,7 +879,7 @@ def blast(seq_file, species, segment):
 	Input is a FASTA file of sequences (the file path, not a handle), the species of origin
 	of the sequences to be queried, and the gene segment (options are: 'V', 'D', or 'J')
 	'''
-	mod_dir = os.path.dirname(os.path.abspath(__file__))
+	mod_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 	blast_path = os.path.join(mod_dir, 'blast/blastn_{}'.format(platform.system().lower()))
 	blast_db_path = os.path.join(mod_dir, 'blast/dbs/{}_gl_{}'.format(species.lower(), segment.upper()))
 	blastout = tempfile.NamedTemporaryFile(delete=False)
@@ -980,7 +980,7 @@ def assign_d(seq_id, seq, species):
 
 	Output is a DiversityResult object.
 	'''
-	mod_dir = os.path.dirname(os.path.abspath(__file__))
+	mod_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 	db_file = os.path.join(mod_dir, 'ssw/dbs/{}_D.fasta'.format(species.lower()))
 	db_handle = open(db_file, 'r')
 	seqs = [s for s in SeqIO.parse(db_handle, 'fasta')]

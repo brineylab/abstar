@@ -28,15 +28,16 @@ from __future__ import print_function, unicode_literals
 import argparse
 import glob
 import logging
+import multiprocessing as mp
 import os
+import subprocess as sp
 import sys
 import time
 import traceback
 import warnings
-import subprocess as sp
-import multiprocessing as mp
 
 from Bio import SeqIO
+import skbio
 
 
 
@@ -254,7 +255,7 @@ def _make_direc(d, args):
 
 def make_merge_dir(args):
 	merge_dir = os.path.join(args.data_dir, 'merged')
-	_make_direc(merge_dir)
+	_make_direc(merge_dir, args)
 	return merge_dir
 
 
@@ -271,6 +272,19 @@ def setup_logging(args):
 							filemode='w',
 							format='[%(levelname)s] %(asctime)s %(message)s',
 							level=logging.INFO)
+
+	# set up a streamHandler so that all logged messages also print to console
+	rootLogger = logging.getLogger()
+	streamFormatter = logging.Formatter("%(message)s")
+	consoleHandler = logging.StreamHandler()
+	consoleHandler.setFormatter(streamFormatter)
+	rootLogger.addHandler(consoleHandler)
+
+	print('\n')
+	print('--------------')
+	print('Run parameters')
+	print('--------------')
+	print('')
 	logging.info('LOG LOCATION: {}'.format(logfile))
 	log_options(args)
 
@@ -296,6 +310,7 @@ def list_files(d, log=False):
 	if log:
 		fnames = [os.path.basename(f) for f in files]
 		logging.info('FILES: {}'.format(', '.join(fnames)))
+		print('')
 	return files
 
 
@@ -311,7 +326,7 @@ def concat_output(input_file, temp_dir, output_dir, args):
 	ofile = os.path.join(output_dir, oname)
 	open(ofile, 'w').write('')
 	jsons = [f for f in list_files(temp_dir) if os.path.basename(f).startswith(oprefix) and f.endswith(osuffix)]
-	sys.stdout.write('Concatenating {} job outputs into a single output file.\n'.format(len(jsons)))
+	logging.info('Concatenating {} job outputs into a single output file.\n'.format(len(jsons)))
 	ohandle = open(ofile, 'a')
 	if args.output_type in ['json', 'hadoop']:
 		for json in jsons:
@@ -348,7 +363,7 @@ def clear_temp_dir(temp_dir):
 
 
 def download_files(input_dir):
-	from abstar.utils.basespace import BaseSpace
+	from utils.basespace import BaseSpace
 	bs = BaseSpace(sys.stdout)
 	num_files = bs.download(input_dir)
 	logging.info('BASESPACE PROJECT NAME: {}'.format(bs.project_name))
@@ -357,7 +372,7 @@ def download_files(input_dir):
 
 
 def merge_reads(input_dir, args):
-	from abstar.utils import pandaseq
+	from utils import pandaseq
 	merge_dir = make_merge_dir(args)
 	pandaseq.run(input_dir,
 				 merge_dir,
@@ -387,7 +402,7 @@ def _get_format(in_file):
 
 
 def split_file(f, fmt, temp_dir, args):
-	sys.stdout.write('Splitting the input file into subfiles with {} sequences each.\n'.format(args.chunksize))
+	logging.info('JOB SIZE: {} sequences'.format(args.chunksize))
 	file_counter = 0
 	seq_counter = 0
 	total_seq_counter = 0
@@ -397,8 +412,13 @@ def split_file(f, fmt, temp_dir, args):
 		out_prefix = '.'.join(os.path.basename(f).split('.')[:-1])
 	else:
 		out_prefix = os.path.basename(f)
-	for seq in SeqIO.parse(open(f, 'r'), fmt.lower()):
-		fastas.append('>{}\n{}'.format(seq.id, str(seq.seq)))
+
+	for seq in skbio.read(f, fmt.lower()):
+		fastas.append('>{}\n{}'.format(seq.metadata['id'], str(seq)))
+
+
+	# for seq in SeqIO.parse(open(f, 'r'), fmt.lower()):
+	# 	fastas.append('>{}\n{}'.format(seq.id, str(seq.seq)))
 		seq_counter += 1
 		total_seq_counter += 1
 		if seq_counter == args.chunksize:
@@ -419,7 +439,8 @@ def split_file(f, fmt, temp_dir, args):
 		open(out_file, 'w').write('\n' + '\n'.join(fastas))
 		subfiles.append(out_file)
 
-	sys.stdout.write('Divided {} sequences into {} files.\n\n'.format(total_seq_counter, file_counter))
+	logging.info('TOTAL JOBS: {} sequences split into {} jobs'.format(total_seq_counter, file_counter))
+	print('')
 	return subfiles, total_seq_counter
 
 
@@ -435,22 +456,27 @@ def split_file(f, fmt, temp_dir, args):
 
 
 def print_input_file_info(f, fmt):
-	s = '\n\n'
-	s += '=' * 25 + '\n\n'
-	s += os.path.basename(f) + '\n\n'
-	s += '=' * 25 + '\n\n'
-	s += 'Input file is in {} format.\n'.format(fmt.upper())
-	sys.stdout.write(s)
-	logging.info('FILE NAME: {}'.format(os.path.basename(f)))
+	fname_string = 'FILE NAME: {}'.format(os.path.basename(f))
+	print('\n')
+	print('=' * (len(fname_string) + 5))
+	print('')
+	logging.info(fname_string)
 	logging.info('FORMAT: {}'.format(fmt.lower()))
+	# s += os.path.basename(f) + '\n\n'
+	print('')
+	print('=' * (len(fname_string) + 5))
+	print('')
+	# s += 'Input file is in {} format.\n'.format(fmt.upper())
+	# sys.stdout.write(s)
+	# logging.info('FILE NAME: {}'.format(os.path.basename(f)))
 
 
 def print_job_stats(total_seqs, good_seqs, start_time, end_time):
 	run_time = end_time - start_time
-	s = '\n'
-	s += 'Of {} input sequences, {} contained an identifiable rearrangement and were processed.\n'.format(total_seqs, good_seqs)
-	s += 'Run completed in {0:.2f} seconds ({1:.2f} sequences per second).\n'.format(run_time, total_seqs / run_time)
-	sys.stdout.write(s)
+	# s = '\n'
+	# s += 'Of {} input sequences, {} contained an identifiable rearrangement and were processed.\n'.format(total_seqs, good_seqs)
+	# s += 'Run completed in {0:.2f} seconds ({1:.2f} sequences per second).\n'.format(run_time, total_seqs / run_time)
+	# sys.stdout.write(s)
 	logging.info('RESULTS: {} total input sequences'.format(total_seqs))
 	logging.info('RESULTS: {} sequences contained an identifiable rearrangement'.format(good_seqs))
 	logging.info('RESULTS: run completed in {} seconds'.format(run_time))
@@ -578,8 +604,9 @@ def main(args):
 		input_dir = merge_reads(input_dir, args)
 	if args.isotype:
 		args.isotype = args.species
-	input_files = list_files(input_dir, log=True)
+	input_files = [f for f in list_files(input_dir, log=True) if os.stat(f).st_size > 0]
 	for f, fmt in zip(input_files, format_check(input_files)):
+		# skip the non-FASTA/Q and empty files
 		if fmt is None:
 			continue
 		start_time = time.time()

@@ -147,12 +147,12 @@ def main(args):
 	log_handle = open(args.mongo_log, 'a')
 	open(args.mongo_log, 'w').write('')
 	for i, f in enumerate(in_files):
-		coll = get_collection(i, args)
-		print "\n[ {} ] Importing {0} into collection {1}.".format(i + 1, os.path.basename(f), coll)
+		coll = get_collection(f, args)
+		print "\n[ {} ] Importing {} into collection {}.".format(i + 1, os.path.basename(f), coll)
 		log_handle.write('\n\n----------------------------------------')
 		log_handle.write('File: {0}\nCollection: {1}'.format(f, coll))
 		log_handle.write('----------------------------------------\n')
-		mongo_import(i, args.db, coll, log_handle, args)
+		mongo_import(f, args.db, coll, log_handle, args)
 	print "\nDone. {0} files were imported into MongoDB.\n\n".format(len(in_files))
 
 
