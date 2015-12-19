@@ -36,9 +36,9 @@ from BaseSpacePy.model.QueryParameters import QueryParameters as qp
 
 class BaseSpace(object):
 	"""docstring for BaseSpace"""
-	def __init__(self, log, project_id=None, project_name=None, undetermined=False):
+	def __init__(self, project_id=None, project_name=None, undetermined=False):
 		super(BaseSpace, self).__init__()
-		self.log = log
+		# self.log = log
 		# BaseSpace credentials
 		creds = self._get_credentials()
 		self.client_key = creds['client_id']
@@ -146,23 +146,42 @@ class BaseSpace(object):
 
 
 	def print_download_info(self, files):
-		self.log.write('\n')
-		self.log.write('\n')
-		self.log.write('========================================\n')
-		self.log.write('Downloading files from BaseSpace\n')
-		self.log.write('========================================\n')
-		self.log.write('\n')
-		self.log.write('Identified {0} files for download.\n'.format(len(files)))
-		self.log.write('\n')
+		logger.info('')
+		logger.info('')
+		logger.info('========================================')
+		logger.info('Downloading files from BaseSpace')
+		logger.info('========================================')
+		logger.info('')
+		logger.info('Identified {0} files for download.'.format(len(files)))
+		logger.info('')
 
 
 	def print_completed_download_info(self, start, end):
-		self.log.write('\n')
-		self.log.write('Download completed in {0} seconds\n'.format(end - start))
+		logger.info('')
+		logger.info('Download completed in {0} seconds'.format(end - start))
 
 
-def download(direc, log, project_id=None, project_name=None, undetermined=False):
-	bs = BaseSpace(log, project_id, project_name, undetermined)
+def _setup_logging():
+	try:
+		from abtools.utils import log
+		global logger
+		logger = log.get_logger('basespace')
+	except ImportError:
+		import logging
+		fmt = '[%(levelname)s] %(name)s %(asctime)s %(message)s'
+		logging.basicConfig()
+		global logger
+		logger = logging.getLogger('basespace')
+		formatter = logging.Formatter("%(message)s")
+		ch = logging.StreamHandler()
+		ch.setFormatter(formatter)
+		ch.setLevel(logging.INFO)
+		logger.addHandler(ch)
+
+
+def download(direc, project_id=None, project_name=None, undetermined=False):
+	_setup_logging()
+	bs = BaseSpace(project_id, project_name, undetermined)
 	return bs.download(direc)
 
 
@@ -175,4 +194,4 @@ if __name__ == '__main__':
 						help="The input file, to be split and processed in parallel. \
 						If a directory is given, all files in the directory will be iteratively processed.")
 	args = parser.parse_args()
-	download(args.input, sys.stdout)
+	download(args.input)

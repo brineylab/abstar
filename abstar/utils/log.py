@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# filename: abstar.py
+# filename: log.py
 
 
 #
@@ -23,15 +23,39 @@
 #
 
 
-from __future__ import print_function, unicode_literals
+from __future__ import print_function
 
-import warnings
-
-import abstar
+import logging
 
 
-if __name__ == '__main__':
-	warnings.filterwarnings("ignore")
-	args = abstar.parse_arguments()
-	abstar.validate_args(args)
-	output_dir = abstar.run_standalone(args)
+def setup_logging(logfile, debug=False):
+	fmt = '[%(levelname)s] %(name)s %(asctime)s %(message)s'
+	if debug:
+		logging.basicConfig(filename=logfile,
+							filemode='w',
+							format=fmt,
+							level=logging.DEBUG)
+	else:
+		logging.basicConfig(filename=logfile,
+							filemode='w',
+							format=fmt,
+							level=logging.INFO)
+	logger = logging.getLogger('log')
+	logger = add_stream_handler(logger)
+	logger.info('LOG LOCATION: {}'.format(logfile))
+
+
+def get_logger(name=None):
+	logger = logging.getLogger(name)
+	if len(logger.handlers) == 0:
+		logger = add_stream_handler(logger)
+	return logger
+
+
+def add_stream_handler(logger):
+	formatter = logging.Formatter("%(message)s")
+	ch = logging.StreamHandler()
+	ch.setFormatter(formatter)
+	ch.setLevel(logging.INFO)
+	logger.addHandler(ch)
+	return logger

@@ -300,6 +300,7 @@ class BlastResult(object):
 	def annotate(self):
 		self.fs_indel_adjustment = 0
 		self.nfs_indel_adjustment = 0
+		self._fix_ambigs()
 		self._find_indels()
 		self.regions = self._regions()
 		self.nt_mutations = self._nt_mutations()
@@ -441,6 +442,14 @@ class BlastResult(object):
 			query += '-' * clength
 			germline += alignment.aligned_target[g:g + clength]
 		return query, germline
+
+
+	def _fix_ambigs(self):
+		'''
+		Fixes ambiguous nucleotides by replacing them with the germline nucleotide.
+		'''
+		from abstar.utils import ambigs
+		self.query_alignment = ambigs.fix_ambigs(self)
 
 
 	def _find_indels(self):

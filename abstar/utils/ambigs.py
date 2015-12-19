@@ -1,6 +1,5 @@
 #!/usr/bin/env python
-# filename: abstar.py
-
+# filename: ambigs.py
 
 #
 # Copyright (c) 2015 Bryan Briney
@@ -23,15 +22,13 @@
 #
 
 
-from __future__ import print_function, unicode_literals
-
-import warnings
-
-import abstar
-
-
-if __name__ == '__main__':
-	warnings.filterwarnings("ignore")
-	args = abstar.parse_arguments()
-	abstar.validate_args(args)
-	output_dir = abstar.run_standalone(args)
+def fix_ambigs(blast_result):
+	new = ''
+	germ = blast_result.germline_alignment
+	query = blast_result.query_alignment
+	for q, g in zip(query, germ):
+		if q.upper() == 'N':
+			new += g
+		else:
+			new += q
+	return new

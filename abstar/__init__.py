@@ -1,2 +1,2 @@
-from abstar import run, main, parse_arguments, validate_args
+from abstar import run, run_standalone, main, parse_arguments, validate_args
 # import utils

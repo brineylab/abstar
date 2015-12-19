@@ -39,6 +39,11 @@ import warnings
 from Bio import SeqIO
 import skbio
 
+try:
+	from abtools.utils import log
+except ImportError:
+	from utils import log
+
 
 
 
@@ -262,42 +267,45 @@ def make_merge_dir(args):
 def setup_logging(args):
 	log_dir = args.output if args.output else args.data_dir
 	logfile = args.log if args.log else os.path.join(log_dir, 'abstar.log')
-	if args.debug >= 1:
-		logging.basicConfig(filename=logfile,
-							filemode='w',
-							format='[%(levelname)s] %(asctime)s %(message)s',
-							level=logging.DEBUG)
-	else:
-		logging.basicConfig(filename=logfile,
-							filemode='w',
-							format='[%(levelname)s] %(asctime)s %(message)s',
-							level=logging.INFO)
+	log.setup_logging(logfile, args.debug)
+	global logger
+	logger = log.get_logger('abstar')
+	# if args.debug >= 1:
+	# 	logging.basicConfig(filename=logfile,
+	# 						filemode='w',
+	# 						format='[%(levelname)s] %(asctime)s %(message)s',
+	# 						level=logging.DEBUG)
+	# else:
+	# 	logging.basicConfig(filename=logfile,
+	# 						filemode='w',
+	# 						format='[%(levelname)s] %(asctime)s %(message)s',
+	# 						level=logging.INFO)
 
-	# set up a streamHandler so that all logged messages also print to console
-	rootLogger = logging.getLogger()
-	streamFormatter = logging.Formatter("%(message)s")
-	consoleHandler = logging.StreamHandler()
-	consoleHandler.setFormatter(streamFormatter)
-	rootLogger.addHandler(consoleHandler)
-
-	print('\n')
-	print('--------------')
-	print('Run parameters')
-	print('--------------')
-	print('')
-	logging.info('LOG LOCATION: {}'.format(logfile))
-	log_options(args)
+	# # set up a streamHandler so that all logged messages also print to console
+	# rootLogger = logging.getLogger()
+	# streamFormatter = logging.Formatter("%(message)s")
+	# consoleHandler = logging.StreamHandler()
+	# consoleHandler.setFormatter(streamFormatter)
+	# rootLogger.addHandler(consoleHandler)
+	# log_options(args)
 
 
 def log_options(args):
-	logging.info('SPECIES: {}'.format(args.species))
-	logging.info('CHUNKSIZE: {}'.format(args.chunksize))
-	logging.info('OUTPUT TYPE: {}'.format(args.output_type))
+	logger.info('')
+	logger.info('')
+	logger.info('-' * 25)
+	logger.info('ABSTAR')
+	logger.info('-' * 25)
+	logger.info('')
+	# logger.info('LOG LOCATION: {}'.format(logfile))
+	logger.info('SPECIES: {}'.format(args.species))
+	logger.info('CHUNKSIZE: {}'.format(args.chunksize))
+	logger.info('OUTPUT TYPE: {}'.format(args.output_type))
 	if args.merge or args.basespace:
-		logging.info('PANDASEQ ALGORITHM: {}'.format(args.pandaseq_algo))
-	logging.info('UAID: {}'.format(args.uaid))
-	logging.info('ISOTYPE: {}'.format('yes' if args.isotype else 'no'))
-	logging.info('EXECUTION: {}'.format('cluster' if args.cluster else 'local'))
+		logger.info('PANDASEQ ALGORITHM: {}'.format(args.pandaseq_algo))
+	logger.info('UAID: {}'.format(args.uaid))
+	logger.info('ISOTYPE: {}'.format('yes' if args.isotype else 'no'))
+	logger.info('EXECUTION: {}'.format('cluster' if args.cluster else 'local'))
 
 
 
@@ -309,8 +317,7 @@ def list_files(d, log=False):
 		files = [d, ]
 	if log:
 		fnames = [os.path.basename(f) for f in files]
-		logging.info('FILES: {}'.format(', '.join(fnames)))
-		print('')
+		logger.info('FILES: {}'.format(', '.join(fnames)))
 	return files
 
 
@@ -326,7 +333,7 @@ def concat_output(input_file, temp_dir, output_dir, args):
 	ofile = os.path.join(output_dir, oname)
 	open(ofile, 'w').write('')
 	jsons = [f for f in list_files(temp_dir) if os.path.basename(f).startswith(oprefix) and f.endswith(osuffix)]
-	logging.info('Concatenating {} job outputs into a single output file.\n'.format(len(jsons)))
+	logger.info('Concatenating {} job outputs into a single output file.\n'.format(len(jsons)))
 	ohandle = open(ofile, 'a')
 	if args.output_type in ['json', 'hadoop']:
 		for json in jsons:
@@ -365,10 +372,12 @@ def clear_temp_dir(temp_dir):
 def download_files(input_dir):
 	from utils.basespace import BaseSpace
 	bs = BaseSpace(sys.stdout)
+	logger.info('')
+	logger.info('BASESPACE PROJECT NAME: {}'.format(bs.project_name))
+	logger.info('BASESPACE PROJECT ID: {}'.format(bs.project_id))
 	num_files = bs.download(input_dir)
-	logging.info('BASESPACE PROJECT NAME: {}'.format(bs.project_name))
-	logging.info('BASESPACE PROJECT ID: {}'.format(bs.project_id))
-	logging.info('BASESPACE FILE DOWNLOAD COUNT: {}'.format(num_files))
+	logger.info('')
+	logger.info('BASESPACE FILE DOWNLOAD COUNT: {}'.format(num_files))
 
 
 def merge_reads(input_dir, args):
@@ -402,7 +411,7 @@ def _get_format(in_file):
 
 
 def split_file(f, fmt, temp_dir, args):
-	logging.info('JOB SIZE: {} sequences'.format(args.chunksize))
+	# logger.info('JOB SIZE: {} sequences'.format(args.chunksize))
 	file_counter = 0
 	seq_counter = 0
 	total_seq_counter = 0
@@ -413,12 +422,12 @@ def split_file(f, fmt, temp_dir, args):
 	else:
 		out_prefix = os.path.basename(f)
 
-	for seq in skbio.read(f, fmt.lower()):
-		fastas.append('>{}\n{}'.format(seq.metadata['id'], str(seq)))
+	# for seq in skbio.read(f, fmt.lower()):
+	# 	fastas.append('>{}\n{}'.format(seq.metadata['id'], str(seq)))
 
 
-	# for seq in SeqIO.parse(open(f, 'r'), fmt.lower()):
-	# 	fastas.append('>{}\n{}'.format(seq.id, str(seq.seq)))
+	for seq in SeqIO.parse(open(f, 'r'), fmt.lower()):
+		fastas.append('>{}\n{}'.format(seq.id, str(seq.seq)))
 		seq_counter += 1
 		total_seq_counter += 1
 		if seq_counter == args.chunksize:
@@ -438,9 +447,8 @@ def split_file(f, fmt, temp_dir, args):
 		out_file = os.path.join(temp_dir, '{}_{}'.format(out_prefix, file_counter))
 		open(out_file, 'w').write('\n' + '\n'.join(fastas))
 		subfiles.append(out_file)
-
-	logging.info('TOTAL JOBS: {} sequences split into {} jobs'.format(total_seq_counter, file_counter))
-	print('')
+	logger.info('SEQUENCES: {}'.format(total_seq_counter))
+	logger.info('JOBS: {}'.format(file_counter))
 	return subfiles, total_seq_counter
 
 
@@ -456,30 +464,19 @@ def split_file(f, fmt, temp_dir, args):
 
 
 def print_input_file_info(f, fmt):
-	fname_string = 'FILE NAME: {}'.format(os.path.basename(f))
-	print('\n')
-	print('=' * (len(fname_string) + 5))
-	print('')
-	logging.info(fname_string)
-	logging.info('FORMAT: {}'.format(fmt.lower()))
-	# s += os.path.basename(f) + '\n\n'
-	print('')
-	print('=' * (len(fname_string) + 5))
-	print('')
-	# s += 'Input file is in {} format.\n'.format(fmt.upper())
-	# sys.stdout.write(s)
-	# logging.info('FILE NAME: {}'.format(os.path.basename(f)))
+	fname = os.path.basename(f)
+	logger.info('')
+	logger.info('')
+	logger.info(fname)
+	logger.info('-' * len(fname))
+	logger.info('FORMAT: {}'.format(fmt.lower()))
 
 
 def print_job_stats(total_seqs, good_seqs, start_time, end_time):
 	run_time = end_time - start_time
-	# s = '\n'
-	# s += 'Of {} input sequences, {} contained an identifiable rearrangement and were processed.\n'.format(total_seqs, good_seqs)
-	# s += 'Run completed in {0:.2f} seconds ({1:.2f} sequences per second).\n'.format(run_time, total_seqs / run_time)
-	# sys.stdout.write(s)
-	logging.info('RESULTS: {} total input sequences'.format(total_seqs))
-	logging.info('RESULTS: {} sequences contained an identifiable rearrangement'.format(good_seqs))
-	logging.info('RESULTS: run completed in {} seconds'.format(run_time))
+	# logger.info('{} total input sequences'.format(total_seqs))
+	logger.info('{} sequences contained an identifiable rearrangement'.format(good_seqs))
+	logger.info('AbStar completed in {} seconds'.format(run_time))
 
 
 def update_progress(finished, jobs, failed=None):
@@ -506,7 +503,7 @@ def update_progress(finished, jobs, failed=None):
 
 
 def run_jobs(files, output_dir, args):
-	sys.stdout.write('Running VDJ...\n')
+	sys.stdout.write('\nRunning VDJ...\n')
 	if args.cluster:
 		return _run_jobs_via_celery(files, output_dir, args)
 	else:
@@ -527,7 +524,7 @@ def _run_jobs_via_multiprocessing(files, output_dir, args):
 		try:
 			results.append(a[1].get())
 		except:
-			logging.info('FILE-LEVEL EXCEPTION: {}'.format(a[0]))
+			logger.info('FILE-LEVEL EXCEPTION: {}'.format(a[0]))
 			logging.debug(traceback.format_exc())
 			continue
 	p.close()
@@ -569,7 +566,7 @@ def _run_jobs_via_celery(files, output_dir, args):
 
 	failed_files = [f for i, f in enumerate(files) if async_results[i].failed()]
 	for ff in failed_files:
-		logging.info('FAILED FILE: {}'.format(f))
+		logger.info('FAILED FILE: {}'.format(f))
 	return [s.get() for s in succeeded]
 
 
@@ -587,15 +584,55 @@ def monitor_celery_jobs(results):
 
 
 def run(**kwargs):
+	'''
+	Runs AbStar.
+
+	Either ::data_dir:: or all of ::input::, ::output::, and ::temp::
+	are required.
+
+	To parse unique antibody IDs (UAIDs, or molecular barcodes), set ::uaid::
+	to the length of the barcode. It is assumed that the barcode is at the start
+	if the sequence.
+
+	Default options:
+
+	data_dir=None
+	input=None
+	output=None
+	log=None
+	temp=None
+	chunksize=250
+	output_type='json'
+	merge=False
+	pandaseq_algo='simple_bayesian'
+	next_seq=False
+	uaid=0
+	isotype=False
+	basespace=False
+	cluster=False
+	starcluster=False
+	species='human'
+	debug=False
+	'''
 	warnings.filterwarnings("ignore")
 	args = Args(**kwargs)
 	validate_args(args)
+	global logger
+	logger = log.get_logger('abstar')
 	output_dir = main(args)
 	return list_files(output_dir)
 
 
-def main(args):
+def run_standalone(args):
 	setup_logging(args)
+	global logger
+	logger = log.get_logger('abstar')
+	output_dir = main(args)
+
+
+
+def main(args):
+	log_options(args)
 	input_dir, output_dir, temp_dir = make_directories(args)
 	if args.basespace:
 		args.merge = True
@@ -606,7 +643,7 @@ def main(args):
 		args.isotype = args.species
 	input_files = [f for f in list_files(input_dir, log=True) if os.stat(f).st_size > 0]
 	for f, fmt in zip(input_files, format_check(input_files)):
-		# skip the non-FASTA/Q and empty files
+		# skip the non-FASTA/Q files
 		if fmt is None:
 			continue
 		start_time = time.time()
@@ -617,11 +654,12 @@ def main(args):
 		concat_output(f, temp_dir, output_dir, args)
 		clear_temp_dir(temp_dir)
 		print_job_stats(seq_count, sum(job_stats), start_time, vdj_end_time)
-	sys.stdout.write('\n\n')
 	return output_dir
 
 
 if __name__ == '__main__':
 	warnings.filterwarnings("ignore")
 	args = parse_arguments()
+	setup_logging(args)
 	output_dir = main(args)
+	sys.stdout.write('\n\n')
