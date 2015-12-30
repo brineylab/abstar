@@ -108,10 +108,14 @@ class VDJ(object):
 			self.n_start = self._get_n_start()
 			self.n_end = self._get_n_end()
 
-		self.vdj_region_string = self._get_vdj_region_string()
 		self.vdj_nt = self._vdj_nt()
+		self.gapped_vdj_nt = self._gapped_vdj_nt()
+		self.gapped_vdj_region_string = self._get_gapped_vdj_region_string()
+		self.vdj_region_string = self._get_vdj_region_string()
 		self.vdj_aa = self._vdj_aa()
 		self.junction = self._get_junction()
+		self.codons = self._get_codons()
+		self.gapped_codons = self._get_codons(gapped=True)
 		self.productive = self._check_productivity()
 		if self._isotype:
 			from abstar.utils.isotype import get_isotype
@@ -144,6 +148,14 @@ class VDJ(object):
 		except:
 			logging.debug('QUERY READING FRAME ERROR: {}, {}'.format(self.id,
 																	 self.v.germline_start))
+
+	def _gapped_vdj_nt(self):
+		try:
+			gapped_vdj_nt = self.v.query_alignment + \
+				self.j.input_sequence[:self.j.query_start + len(self.j.query_alignment)]
+			return gapped_vdj_nt
+		except:
+			logging.debug('VDJ NT ERROR: {}, {}'.format(self.id, self.raw_query))
 
 	def _vdj_nt(self):
 		'Returns the nucleotide sequence of the VDJ region.'
@@ -202,6 +214,14 @@ class VDJ(object):
 		return self.j_start
 
 	def _get_vdj_region_string(self):
+		rstring = ''
+		for s, r in zip(self.gapped_vdj_nt, self.gapped_vdj_region_string):
+			if s == '-':
+				continue
+			rstring += r
+		return rstring
+
+	def _get_gapped_vdj_region_string(self):
 		region_string = ''
 		region_string += 'V' * self.v_end
 		if self.d:
@@ -212,6 +232,10 @@ class VDJ(object):
 			region_string += 'N' * (self.j_start - self.v_end)
 		region_string += 'J' * (self.j_end - self.j_start)
 		return region_string
+
+	def _get_codons(self, gapped=False):
+		from abstar.utils import codons
+		return codons.parse_codons(self, gapped=gapped)
 
 	def _check_productivity(self):
 		from abstar.utils import productivity
