@@ -61,6 +61,7 @@ class VDJ(object):
 		self.uaid = seq.input[:args.uaid] if args.uaid else ''
 		self.strand = seq.strand
 		self._isotype = args.isotype
+		self.debug = args.debug
 		self.v = v
 		self.j = j
 		self.d = d
@@ -69,6 +70,9 @@ class VDJ(object):
 				self.rearrangement = True
 				self._get_attributes()
 			except:
+				if args.debug:
+					print('GET ATTRIBUTES ERROR:')
+					traceback.print_exc()
 				self.rearrangement = False
 				logging.info('VDJ ATTRIBUTE ERROR: {}'.format(seq.id))
 				logging.debug(traceback.format_exc())
@@ -114,6 +118,10 @@ class VDJ(object):
 		self.vdj_region_string = self._get_vdj_region_string()
 		self.vdj_aa = self._vdj_aa()
 		self.junction = self._get_junction()
+		self.gapped_vdj_germ_nt = self._gapped_vdj_germ_nt()
+		self.vdj_germ_nt = self.gapped_vdj_germ_nt.replace('-', '')
+		self.vdj_germ_aa = self._vdj_germ_aa()
+		self.germ_junction = self._get_junction(germ=True)
 		self.codons = self._get_codons()
 		self.gapped_codons = self._get_codons(gapped=True)
 		self.productive = self._check_productivity()
@@ -173,9 +181,33 @@ class VDJ(object):
 		translated_seq = Seq(self.vdj_nt[offset:trim], generic_dna).translate()
 		return str(translated_seq)
 
-	def _get_junction(self):
+	def _gapped_vdj_germ_nt(self):
+		'Returns the nucleotide sequence of the VDJ region.'
+		try:
+			if self.d:
+				germ_junction = self.junction.n1_nt + \
+								self.d.germline_alignment + \
+								self.junction.n2_nt
+			else:
+				germ_junction = self.junction.n_nt
+			germ_vdj_nt = self.v.germline_alignment + \
+				germ_junction + self.j.germline_alignment
+			return germ_vdj_nt
+		except:
+			if self.debug:
+				traceback.print_exc()
+			logging.debug('VDJ GERM NT ERROR: {}, {}'.format(self.id, self.raw_query))
+
+	def _vdj_germ_aa(self):
+		'Returns the amino acid sequence of the VDJ region.'
+		offset = (self.query_reading_frame * 2) % 3
+		trim = len(self.vdj_germ_nt) - (len(self.vdj_germ_nt[offset:]) % 3)
+		translated_seq = Seq(self.vdj_germ_nt[offset:trim], generic_dna).translate()
+		return str(translated_seq)
+
+	def _get_junction(self, germ=False):
 		from abstar.utils import junction
-		return junction.get_junction(self)
+		return junction.get_junction(self, germ=germ)
 
 	def _get_v_start(self):
 		return self.v.query_start
@@ -190,7 +222,7 @@ class VDJ(object):
 		return self.j_start + len(self.j.query_alignment)
 
 	def _get_n1_start(self):
-		return self.v_end + 1
+		return self.v_end
 
 	def _get_n1_end(self):
 		return self.d_start
@@ -202,13 +234,13 @@ class VDJ(object):
 		return self.d_start + len(self.d.query_alignment)
 
 	def _get_n2_start(self):
-		return self.d_end + 1
+		return self.d_end
 
 	def _get_n2_end(self):
 		return self.j_start
 
 	def _get_n_start(self):
-		return self.v_end + 1
+		return self.v_end
 
 	def _get_n_end(self):
 		return self.j_start

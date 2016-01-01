@@ -42,11 +42,12 @@ class Codons(object):
 		self.gapped = gapped
 		try:
 			self.vdj_codons = self._get_vdj_codons(vdj)
+			self.vdj_germ_codons = self._get_vdj_codons(vdj)
 			self.vdj_codon_regions = self._get_vdj_codon_regions(vdj)
 			self.v_codons = self._get_v_codons(vdj)
 			self.v_germ_codons = self._get_v_germ_codons(vdj)
-			# self.j_codons = self._get_j_codons(vdj)
-			# self.j_germ_codons = self._get_j_germ_codons(vdj)
+			self.j_codons = self._get_j_codons(vdj)
+			self.j_germ_codons = self._get_j_germ_codons(vdj)
 		except:
 			traceback.print_exc()
 
@@ -57,6 +58,17 @@ class Codons(object):
 			trunc_vdj = vdj.gapped_vdj_nt[offset:]
 		else:
 			trunc_vdj = vdj.vdj_nt[offset:]
+		codons = [trunc_vdj[i:i + 3] for i in range(0, len(trunc_vdj), 3)]
+		if len(codons[-1]) != 3:
+			codons = codons[:-1]
+		return codons
+
+	def _get_vdj_codons(self, vdj):
+		offset = (vdj.query_reading_frame * 2) % 3
+		if self.gapped:
+			trunc_vdj = vdj.gapped_vdj_germ_nt[offset:]
+		else:
+			trunc_vdj = vdj.vdj_germ_nt[offset:]
 		codons = [trunc_vdj[i:i + 3] for i in range(0, len(trunc_vdj), 3)]
 		if len(codons[-1]) != 3:
 			codons = codons[:-1]

@@ -28,9 +28,9 @@ import traceback
 from abstar.utils.alignment import Alignment, SSWAlignment, NWAlignment
 
 
-def get_junction(vdj):
+def get_junction(vdj, germ=False):
 	try:
-		return Junction(vdj)
+		return Junction(vdj, germ)
 	except Exception, err:
 		logging.debug('JUNCTION ERROR: {id}'.format(id=vdj.id))
 		logging.debug('\n>{id}\n{query}\nvdj_aa = {vdj_aa}\nvdj_nt = {vdj_nt}\nexception = {e}'.format(
@@ -40,7 +40,8 @@ def get_junction(vdj):
 
 class Junction(object):
 	"""docstring for Junction"""
-	def __init__(self, vdj):
+	def __init__(self, vdj, germ):
+		self.is_germ = germ
 		self.junction_aa_start_pos = self._find_junction_aa_start(vdj)
 		self.junction_aa_end_pos = self._find_junction_aa_end(vdj)
 		self.junction_aa = self._get_junction_aa_sequence(vdj)
@@ -100,6 +101,8 @@ class Junction(object):
 	def _get_junction_aa_sequence(self, vdj):
 		start = self.junction_aa_start_pos
 		end = self.junction_aa_end_pos
+		if self.is_germ:
+			return vdj.vdj_germ_aa[start:end]
 		return vdj.vdj_aa[start:end]
 
 
@@ -116,6 +119,8 @@ class Junction(object):
 	def _get_junction_nt_sequence(self, vdj):
 		start = self.junction_nt_start_pos
 		end = self.junction_nt_end_pos
+		if self.is_germ:
+			return vdj.vdj_germ_nt[start:end]
 		return vdj.vdj_nt[start:end]
 
 	def _get_d_start_position_nt(self, vdj):

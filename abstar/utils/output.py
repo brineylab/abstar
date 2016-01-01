@@ -113,11 +113,19 @@ def _json_output(vdj):
 				  			   'end': vdj.junction.d_end_position_nt},
 				'd_dist_from_cdr3_start': vdj.junction.d_dist_from_cdr3_start_nt,
 				'd_dist_from_cdr3_end': vdj.junction.d_dist_from_cdr3_end_nt}
+		germ_junc = {'n1_nt': vdj.germ_junction.n1_nt,
+					 'n2_nt': vdj.germ_junction.n2_nt,
+					 'd_nt': vdj.germ_junction.d_nt,
+					 'd_cdr3_pos': {'start': vdj.germ_junction.d_start_position_nt,
+					  			    'end': vdj.germ_junction.d_end_position_nt},
+					 'd_dist_from_cdr3_start': vdj.germ_junction.d_dist_from_cdr3_start_nt,
+					 'd_dist_from_cdr3_end': vdj.germ_junction.d_dist_from_cdr3_end_nt}
 		exo_trim['div_5'] = vdj.d.germline_start
 		exo_trim['div_3'] = vdj.d.germline_end
 
 	else:
 		junc = {'n_nt': vdj.junction.n1_nt}
+		germ_junc = {'n_nt': vdj.germ_junction.n1_nt}
 
 	output = collections.OrderedDict([
 		('seq_id', vdj.id),
@@ -161,6 +169,14 @@ def _json_output(vdj):
 		('fr3_nt', vdj.v.regions.nt_seqs['FR3']),
 		('cdr3_nt', vdj.junction.cdr3_nt),
 		('fr4_nt', vdj.j.regions.nt_seqs['FR4']),
+		('vdj_germ_nt', vdj.vdj_germ_nt),
+		('gapped_vdj_germ_nt', vdj.gapped_vdj_germ_nt),
+		('fr1_germ_nt', vdj.v.regions.germline_nt_seqs['FR1']),
+		('cdr1_germ_nt', vdj.v.regions.germline_nt_seqs['CDR1']),
+		('fr2_germ_nt', vdj.v.regions.germline_nt_seqs['FR2']),
+		('cdr2_germ_nt', vdj.v.regions.germline_nt_seqs['CDR2']),
+		('fr3_germ_nt', vdj.v.regions.germline_nt_seqs['FR3']),
+		('fr4_germ_nt', vdj.j.regions.germline_nt_seqs['FR4']),
 		('junc_nt', vdj.junction.junction_nt),
 		('region_len_nt', {	'fr1': int(vdj.v.regions.nt_lengths['FR1']),
 							'cdr1': int(vdj.v.regions.nt_lengths['CDR1']),
@@ -185,6 +201,13 @@ def _json_output(vdj):
 		('fr3_aa', vdj.v.regions.aa_seqs['FR3']),
 		('cdr3_aa', vdj.junction.cdr3_aa),
 		('fr4_aa', vdj.j.regions.aa_seqs['FR4']),
+		('vdj_germ_aa', vdj.vdj_germ_aa),
+		('fr1_germ_aa', vdj.v.regions.germline_aa_seqs['FR1']),
+		('cdr1_germ_aa', vdj.v.regions.germline_aa_seqs['CDR1']),
+		('fr2_germ_aa', vdj.v.regions.germline_aa_seqs['FR2']),
+		('cdr2_germ_aa', vdj.v.regions.germline_aa_seqs['CDR2']),
+		('fr3_germ_aa', vdj.v.regions.germline_aa_seqs['FR3']),
+		('fr4_germ_aa', vdj.j.regions.germline_aa_seqs['FR4']),
 		('junc_aa', vdj.junction.junction_aa),
 		('region_len_aa', {	'fr1': int(vdj.v.regions.aa_lengths['FR1']),
 							'cdr1': int(vdj.v.regions.aa_lengths['CDR1']),
@@ -251,14 +274,19 @@ def _json_output(vdj):
 		('codons', {'vdj': vdj.codons.vdj_codons,
 					'vdj_regions': vdj.codons.vdj_codon_regions,
 					'v': vdj.codons.v_codons,
-					'v_germ': vdj.codons.v_germ_codons}),
+					'v_germ': vdj.codons.v_germ_codons,
+					'j': vdj.codons.j_codons,
+					'j_germ': vdj.codons.j_germ_codons}),
 		('gapped_codons', {'vdj': vdj.gapped_codons.vdj_codons,
 						   'vdj_regions': vdj.gapped_codons.vdj_codon_regions,
 						   'v': vdj.gapped_codons.v_codons,
-						   'v_germ': vdj.gapped_codons.v_germ_codons}),
+						   'v_germ': vdj.gapped_codons.v_germ_codons,
+						   'j': vdj.gapped_codons.j_codons,
+						   'j_germ': vdj.gapped_codons.j_germ_codons}),
 		('germ_alignments_nt', germ_alignments_nt),
 		('exo_trim', exo_trim),
 		('junc', junc),
+		('germ_junc', germ_junc),
 		('align_info', align_info),  # TODO!!  Add things like V/D/J start and end positions, etc.
 		('vdj_region_string', vdj.vdj_region_string),
 		('gapped_vdj_region_string', vdj.gapped_vdj_region_string),
