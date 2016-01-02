@@ -333,7 +333,8 @@ def concat_output(input_file, temp_dir, output_dir, args):
 	ofile = os.path.join(output_dir, oname)
 	open(ofile, 'w').write('')
 	jsons = [f for f in list_files(temp_dir) if os.path.basename(f).startswith(oprefix) and f.endswith(osuffix)]
-	logger.info('Concatenating {} job outputs into a single output file.\n'.format(len(jsons)))
+	logger.info('Concatenating {} job outputs into a single output file.'.format(len(jsons)))
+	logger.info('')
 	ohandle = open(ofile, 'a')
 	if args.output_type in ['json', 'hadoop']:
 		for json in jsons:
@@ -524,17 +525,9 @@ def _run_jobs_via_multiprocessing(files, output_dir, args):
 		try:
 			results.append(a[1].get())
 		except:
-			logger.info('FILE-LEVEL EXCEPTION: {}'.format(a[0]))
-
-
-
-
+			logger.debug('FILE-LEVEL EXCEPTION: {}'.format(a[0]))
 			if args.debug:
 				traceback.print_exc()
-
-
-
-
 			logging.debug(''.join(traceback.format_exc()))
 			continue
 	p.close()
