@@ -23,14 +23,19 @@
 
 
 import re
-import logging
+# import logging
+import traceback
+
+from abtools.utils import log
+
+logger = log.get_logger(__name__)
 
 
 def nt_mutations(blast_result):
 	try:
 		return MutationsNT(blast_result)
 	except:
-		logging.debug('NT MUTATIONS ERROR: {}, {}\n'.format(blast_result.id,
+		logger.debug('NT MUTATIONS ERROR: {}, {}\n'.format(blast_result.id,
 														  blast_result.input_sequence))
 
 
@@ -38,7 +43,7 @@ def aa_mutations(blast_result):
 	try:
 		return MutationsAA(blast_result)
 	except:
-		logging.debug('AA MUTATIONS ERROR: {}, {}\n'.format(blast_result.id,
+		logger.debug('AA MUTATIONS ERROR: {}, {}\n'.format(blast_result.id,
 														  blast_result.input_sequence))
 
 

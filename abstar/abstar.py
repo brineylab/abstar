@@ -39,10 +39,7 @@ import warnings
 from Bio import SeqIO
 import skbio
 
-try:
-	from abtools.utils import log
-except ImportError:
-	from utils import log
+from abtools.utils import log
 
 
 
@@ -224,8 +221,8 @@ class Args(object):
 
 def validate_args(args):
 	if not args.data_dir and not all([args.input, args.output, args.temp]):
-		print("\nERROR: you must provide either a data directory or separate input/output/temp directories.\n")
-		sys.exit(1)
+		err = "ERROR: you must provide either a data directory or separate input/output/temp directories."
+		raise RuntimeError(err)
 
 
 
