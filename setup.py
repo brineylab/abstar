@@ -11,7 +11,6 @@ config = {
 						 # 'abtools',
 						 'biopython',
 						 'celery',
-						 'nose',
 						 'nwalign',
 						 'pymongo',
 						 'scikit-bio'],
