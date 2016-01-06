@@ -25,14 +25,17 @@
 import logging
 import traceback
 
+from abtools.utils import log
+
 
 def parse_codons(vdj, gapped):
-	logger = logging.getLogger()
+	logger = log.get_logger(__name__)
 	try:
 		codons = Codons(vdj, gapped)
 		return codons
 	except:
 		logger.debug('PARSE CODONS ERROR: {}, {}'.format(vdj.id, vdj.raw_input))
+		logger.debug(traceback.format_exc())
 
 
 class Codons(object):
@@ -40,16 +43,13 @@ class Codons(object):
 	def __init__(self, vdj, gapped=False):
 		super(Codons, self).__init__()
 		self.gapped = gapped
-		try:
-			self.vdj_codons = self._get_vdj_codons(vdj)
-			self.vdj_germ_codons = self._get_vdj_codons(vdj)
-			self.vdj_codon_regions = self._get_vdj_codon_regions(vdj)
-			self.v_codons = self._get_v_codons(vdj)
-			self.v_germ_codons = self._get_v_germ_codons(vdj)
-			self.j_codons = self._get_j_codons(vdj)
-			self.j_germ_codons = self._get_j_germ_codons(vdj)
-		except:
-			traceback.print_exc()
+		self.vdj_codons = self._get_vdj_codons(vdj)
+		self.vdj_germ_codons = self._get_vdj_codons(vdj)
+		self.vdj_codon_regions = self._get_vdj_codon_regions(vdj)
+		self.v_codons = self._get_v_codons(vdj)
+		self.v_germ_codons = self._get_v_germ_codons(vdj)
+		self.j_codons = self._get_j_codons(vdj)
+		self.j_germ_codons = self._get_j_germ_codons(vdj)
 
 
 	def _get_vdj_codons(self, vdj):

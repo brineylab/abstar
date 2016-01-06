@@ -22,6 +22,8 @@ import traceback
 from Bio.Seq import Seq
 from Bio.Alphabet import generic_dna
 
+from abtools.utils import log
+
 
 def regions(blast_result):
 	'''
@@ -31,10 +33,15 @@ def regions(blast_result):
 
 	Input is a BlastResult object for a variable gene.
 	'''
-	if blast_result.gene_type == 'variable':
-		return VarRegions(blast_result)
-	if blast_result.gene_type == 'joining':
-		return JoinRegions(blast_result)
+	logger = log.get_logger(__name__)
+	try:
+		if blast_result.gene_type == 'variable':
+			return VarRegions(blast_result)
+		if blast_result.gene_type == 'joining':
+			return JoinRegions(blast_result)
+	except Exception:
+		logger.debug('REGIONS ERROR: {} {}'.format(blast_result.id, blast_result.seq))
+		logger.debug(traceback.format_exc())
 
 
 
