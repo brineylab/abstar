@@ -1,7 +1,6 @@
 #!/usr/bin/python
 # filename: abstar.py
 
-
 #
 # Copyright (c) 2015 Bryan Briney
 # License: The MIT license (http://opensource.org/licenses/MIT)
@@ -40,8 +39,6 @@ from Bio import SeqIO
 import skbio
 
 from abtools.utils import log
-
-
 
 
 
@@ -211,24 +208,6 @@ def setup_logging(args):
 	log.setup_logging(logfile, debug=args.debug, print_debug=print_debug)
 	global logger
 	logger = log.get_logger('abstar')
-	# if args.debug >= 1:
-	# 	logging.basicConfig(filename=logfile,
-	# 						filemode='w',
-	# 						format='[%(levelname)s] %(asctime)s %(message)s',
-	# 						level=logging.DEBUG)
-	# else:
-	# 	logging.basicConfig(filename=logfile,
-	# 						filemode='w',
-	# 						format='[%(levelname)s] %(asctime)s %(message)s',
-	# 						level=logging.INFO)
-
-	# # set up a streamHandler so that all logged messages also print to console
-	# rootLogger = logging.getLogger()
-	# streamFormatter = logging.Formatter("%(message)s")
-	# consoleHandler = logging.StreamHandler()
-	# consoleHandler.setFormatter(streamFormatter)
-	# rootLogger.addHandler(consoleHandler)
-	# log_options(args)
 
 
 def log_options(args):
@@ -238,7 +217,6 @@ def log_options(args):
 	logger.info('ABSTAR')
 	logger.info('-' * 25)
 	logger.info('')
-	# logger.info('LOG LOCATION: {}'.format(logfile))
 	logger.info('SPECIES: {}'.format(args.species))
 	logger.info('CHUNKSIZE: {}'.format(args.chunksize))
 	logger.info('OUTPUT TYPE: {}'.format(args.output_type))
@@ -250,7 +228,6 @@ def log_options(args):
 	logger.info('DEBUG: {}'.format('True' if args.debug > 0 else 'False'))
 	if args.debug > 0:
 		logger.info('DEBUG LEVEL: {}'.format('print exceptions' if args.debug == 2 else 'log exceptions'))
-
 
 
 def list_files(d, log=False):
@@ -304,8 +281,6 @@ def clear_temp_dir(temp_dir):
 
 
 
-
-
 #####################################################################
 #
 #                       INPUT PROCESSING
@@ -356,7 +331,6 @@ def _get_format(in_file):
 
 
 def split_file(f, fmt, temp_dir, args):
-	# logger.info('JOB SIZE: {} sequences'.format(args.chunksize))
 	file_counter = 0
 	seq_counter = 0
 	total_seq_counter = 0
@@ -366,11 +340,6 @@ def split_file(f, fmt, temp_dir, args):
 		out_prefix = '.'.join(os.path.basename(f).split('.')[:-1])
 	else:
 		out_prefix = os.path.basename(f)
-
-	# for seq in skbio.read(f, fmt.lower()):
-	# 	fastas.append('>{}\n{}'.format(seq.metadata['id'], str(seq)))
-
-
 	for seq in SeqIO.parse(open(f, 'r'), fmt.lower()):
 		fastas.append('>{}\n{}'.format(seq.id, str(seq.seq)))
 		seq_counter += 1
@@ -419,7 +388,6 @@ def print_input_file_info(f, fmt):
 
 def print_job_stats(total_seqs, good_seqs, start_time, end_time):
 	run_time = end_time - start_time
-	# logger.info('{} total input sequences'.format(total_seqs))
 	logger.info('{} sequences contained an identifiable rearrangement'.format(good_seqs))
 	logger.info('AbStar completed in {} seconds'.format(run_time))
 
@@ -434,8 +402,6 @@ def update_progress(finished, jobs, failed=None):
 		prog_bar = '\r({}/{}) |{}{}|  {}%'.format(finished, jobs, '|' * ticks, ' ' * spaces, pct)
 	sys.stdout.write(prog_bar)
 	sys.stdout.flush()
-
-
 
 
 
@@ -498,19 +464,6 @@ def _run_jobs_via_celery(files, output_dir, args):
 										   output_dir,
 										   args))
 	succeeded, failed = monitor_celery_jobs(async_results)
-
-	# retry any failed jobs
-	# if failed:
-	# 	retry_results = []
-	# 	sys.stdout.write('{} jobs failed and will be retried:\n'.format(len(failed)))
-	# 	files_to_retry = [f for i, f in enumerate(files) if async_results[i].failed()]
-	# 	for f in files_to_retry:
-	# 		retry_results.append(run_vdj.delay(f,
-	# 										 output_dir,
-	# 										 args))
-	# 	retry_succeeded, retry_failed = monitor_celery_jobs(retry_results)
-	# 	succeeded.extend(retry_succeeded)
-
 	failed_files = [f for i, f in enumerate(files) if async_results[i].failed()]
 	for ff in failed_files:
 		logger.info('FAILED FILE: {}'.format(f))
