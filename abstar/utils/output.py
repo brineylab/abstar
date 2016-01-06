@@ -24,12 +24,14 @@
 
 import json
 import uuid
-import logging
 import collections
 import traceback
 
+from abtools.utils import log
+
 
 def build_output(vdjs, output_type):
+	logger = log.get_logger()
 	try:
 		vdjs = [vdj for vdj in vdjs if vdj.rearrangement]
 		if output_type.lower() == 'json':
@@ -47,10 +49,10 @@ def build_output(vdjs, output_type):
 				output.append(_hadoop_minimal_output(vdj))
 		return output
 	except:
-		traceback.print_exc()
-		logging.debug('OUTPUT ERROR: sequences {} - {}, output_type = {}'.format(vdjs[0].id,
+		logger.debug('OUTPUT ERROR: sequences {} - {}, output_type = {}'.format(vdjs[0].id,
 																				 vdjs[-1].id,
 																				 output_type))
+		logger.debug(traceback.format_exc())
 
 
 def output_func(output_type):

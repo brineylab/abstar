@@ -23,15 +23,21 @@
 
 
 import logging
+import os
+import traceback
 
 from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.Alphabet import generic_dna
 
-from abstar.ssw.ssw_wrap import Aligner
+# from abstar.ssw.ssw_wrap import Aligner
+
+from abtools.utils import log
+from abtools.utils.alignment import local_alignment
 
 
 def get_isotype(vdj):
+	logger = log.get_logger(__name__)
 	try:
 		mod_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 		isotype_file = os.path.join(mod_dir, 'ssw/isotypes/{}_isotypes.fasta'.format(vdj.species))
@@ -41,7 +47,8 @@ def get_isotype(vdj):
 		isotypes.sort(key=lambda x: x.top_score, reverse=True)
 		return isotypes[0].name
 	except:
-		logging.debug('ISOTYPE ERROR: {}'.format(vdj.id))
+		logger.debug('ISOTYPE ERROR: {}'.format(vdj.id))
+		logger.debug(traceback.format_exc())
 
 
 class Isotype(object):
@@ -71,14 +78,18 @@ class Isotype(object):
 
 
 	def _score_alignment(self, query, seq):
-		ssw = Aligner(query,
-					  match=3,
-					  mismatch=2,
-				  	  gap_open=22,
-				  	  gap_extend=1,
-				  	  report_cigar=True)
-		alignment = ssw.align(seq)
-		return alignment.score
+		# ssw = Aligner(query,
+		# 			  match=3,
+		# 			  mismatch=2,
+		# 		  	  gap_open=22,
+		# 		  	  gap_extend=1,
+		# 		  	  report_cigar=True)
+		# alignment = ssw.align(seq)
+		# return alignment.score
+
+		aln = local_alignment(self.d_nt, self.cdr3_nt,
+							  gap_open_penalty=22, gap_extend_penalty=1)
+		return aln.score
 
 	def _rev_comp(self, seq):
 		'''

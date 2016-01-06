@@ -23,7 +23,9 @@
 
 
 import re
-import logging
+import traceback
+
+from abtools.utils import log
 
 
 # ------------
@@ -40,6 +42,7 @@ def find_insertions(blast_result):
 	Output is a list of insertion annotations, or None if there were no codon-length
 	insertions.
 	'''
+	logger = log.get_logger(__name__)
 	try:
 		insertions = []
 		o = 0
@@ -54,8 +57,9 @@ def find_insertions(blast_result):
 				o += l
 		return insertions if insertions else []
 	except:
-		logging.debug('FIND INSERTIONS ERROR: {}, {}'.format(blast_result.id,
+		logger.debug('FIND INSERTIONS ERROR: {}, {}'.format(blast_result.id,
 															 blast_result.input_sequence))
+		logger.debug(traceback.format_exc())
 
 
 def _nonframeshift_insertion(br, s, e):
@@ -104,6 +108,7 @@ def find_deletions(blast_result):
 	Output is a list of deletion annotations, or None if there were no codon-length
 	deletions.
 	'''
+	logger = log.get_logger(__name__)
 	try:
 		deletions = []
 		o = 0
@@ -118,8 +123,9 @@ def find_deletions(blast_result):
 				o += l
 		return deletions if deletions else []
 	except:
-		logging.debug('FIND DELETIONS ERROR: {}, {}'.format(blast_result.id,
+		logger.debug('FIND DELETIONS ERROR: {}, {}'.format(blast_result.id,
 															 blast_result.input_sequence))
+		logger.debug(traceback.format_exc())
 
 
 def _nonframeshift_deletion(br, s, e):

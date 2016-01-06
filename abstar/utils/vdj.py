@@ -27,7 +27,7 @@ from __future__ import print_function
 import os
 import re
 import sys
-# import logging
+import logging
 import platform
 import tempfile
 import traceback
@@ -40,9 +40,7 @@ from Bio.Alphabet import generic_dna
 
 from celery.utils.log import get_task_logger
 
-# from abstar.ssw.ssw_wrap import Aligner  # THIS SHOULD GO AWAY
 from abstar.utils.queue.celery import celery
-# from abstar.utils.sequence import Sequence  # SO SHOULD THIS
 
 from abtools.utils import log
 from abtools.utils.alignment import local_alignment, global_alignment
@@ -83,9 +81,6 @@ class VDJ(object):
 				self.rearrangement = True
 				self._get_attributes()
 			except:
-				# logging.debug('GET ATTRIBUTES ERROR:')
-				# if args.debug:
-				# 	traceback.print_exc()
 				self.rearrangement = False
 				logger.debug('VDJ ATTRIBUTE ERROR: {}'.format(seq.id))
 				logger.debug(traceback.format_exc())
@@ -147,7 +142,6 @@ class VDJ(object):
 			self.rearrangement = False
 
 
-
 	def _get_chain(self):
 		'Returns the antibody chain.'
 		try:
@@ -207,9 +201,8 @@ class VDJ(object):
 				germ_junction + self.j.germline_alignment
 			return germ_vdj_nt
 		except:
-			if self.debug:
-				traceback.print_exc()
 			logger.debug('VDJ GERM NT ERROR: {}, {}'.format(self.id, self.raw_query))
+			logger.debug(traceback.format_exc())
 
 	def _vdj_germ_aa(self):
 		'Returns the amino acid sequence of the VDJ region.'
@@ -295,49 +288,49 @@ class VDJ(object):
 
 # I DON'T THINK THIS IS USED ANYWHERE. COMMENT OUT AND SEE
 # IF THINGS STILL WORK, THEN REMOVE.
-class NullVDJ(object):
-	'''
-	Structure for holding a sequence that didn't pass quality checks.
-	Essentailly it's an indicator for downstream operations that a
-	rearrangement wasn't identified.
-	'''
-	def __init__(self):
-		self.rearrangement = False
+# class NullVDJ(object):
+# 	'''
+# 	Structure for holding a sequence that didn't pass quality checks.
+# 	Essentailly it's an indicator for downstream operations that a
+# 	rearrangement wasn't identified.
+# 	'''
+# 	def __init__(self):
+# 		self.rearrangement = False
 
 
 
 # THIS SHOULD EVENTUALLY BE REMOVED, REPLACED WITH ABTOOLS' SSWALIGNMENT
 # AND NWALIGNMENT CLASSES
-class Alignment(object):
-	'''
-	Data structure to hold the result of a SSW local alignment. Parses the
-	raw data from the output of a ssw.Aligner alignment (a PyAlignRes object)
-	into something more useful.
+# class Alignment(object):
+# 	'''
+# 	Data structure to hold the result of a SSW local alignment. Parses the
+# 	raw data from the output of a ssw.Aligner alignment (a PyAlignRes object)
+# 	into something more useful.
 
-	Input is the ID of the top-scoring target, the query sequence, the target
-	sequence and the PyAlignRes object.
-	'''
-	def __init__(self, target_id, query_seq, target_seq, alignment):
-		super(Alignment, self).__init__()
-		self.target_id = target_id
-		self.query_seq = query_seq
-		self.target_seq = target_seq
-		self.alignment = alignment
-		self.cigar = alignment.cigar_string
-		self.query_begin = alignment.ref_begin
-		self.query_end = alignment.ref_end + 1
-		self.target_begin = alignment.query_begin
-		self.target_end = alignment.query_end + 1
-		self.aligned_query = self._get_aligned_query()
-		self.aligned_target = self._get_aligned_target()
+# 	Input is the ID of the top-scoring target, the query sequence, the target
+# 	sequence and the PyAlignRes object.
+# 	'''
+# 	def __init__(self, target_id, query_seq, target_seq, alignment):
+# 		super(Alignment, self).__init__()
+# 		self.target_id = target_id
+# 		self.query_seq = query_seq
+# 		self.target_seq = target_seq
+# 		self.alignment = alignment
+# 		self.cigar = alignment.cigar_string
+# 		self.query_begin = alignment.ref_begin
+# 		self.query_end = alignment.ref_end + 1
+# 		self.target_begin = alignment.query_begin
+# 		self.target_end = alignment.query_end + 1
+# 		self.aligned_query = self._get_aligned_query()
+# 		self.aligned_target = self._get_aligned_target()
 
-	def _get_aligned_query(self):
-		'Returns the aligned portion of the query sequence'
-		return self.query_seq[self.query_begin:self.query_end]
+# 	def _get_aligned_query(self):
+# 		'Returns the aligned portion of the query sequence'
+# 		return self.query_seq[self.query_begin:self.query_end]
 
-	def _get_aligned_target(self):
-		'Returns the aligned portion of the target sequence'
-		return self.target_seq[self.target_begin:self.target_end]
+# 	def _get_aligned_target(self):
+# 		'Returns the aligned portion of the target sequence'
+# 		return self.target_seq[self.target_begin:self.target_end]
 
 
 
@@ -386,31 +379,17 @@ class BlastResult(object):
 
 	# REALIGN_JOINING IS COMMENTED OUT OF THE GERMLINE ASSIGNMENT SECTION,
 	# SO THIS FUNCTION CAN LIKELY BE REMOVED.
-	def realign_joining(self, germline_gene):
-		'''
-		Due to restrictions on the available scoring parameters in BLASTn, incorrect annotation of
-		indels in the j-gene alignment can occur. This function re-aligns the query sequence with
-		the identified germline joining gene using more appropriate alignment parameters.
+	# def realign_joining(self, germline_gene):
+	# 	'''
+	# 	Due to restrictions on the available scoring parameters in BLASTn, incorrect annotation of
+	# 	indels in the j-gene alignment can occur. This function re-aligns the query sequence with
+	# 	the identified germline joining gene using more appropriate alignment parameters.
 
-		Input is the name of the germline joining gene (ex: 'IGHJ6*02').
-		'''
-		self.germline_seq = self._get_germline_sequence_for_realignment(germline_gene, 'J')
-
-		# New AbTools Alignment
-		alignment = local_alignment(self.input_sequence, self.germline_seq)
-		self._process_realignment(alignment)
-
-		# ABTOOLS LOCAL ALIGNMENT NEEDED HERE
-		# ssw = Aligner(self.input_sequence[self.query_start:],
-		# 			  match=3,
-		# 			  mismatch=2,
-		# 		  	  gap_open=12,
-		# 		  	  gap_extend=1,
-		# 		  	  report_cigar=True)
-		# alignment = ssw.align(self.germline_seq[self.germline_start:])
-		# self._process_realignment(Alignment(germline_gene,
-		# 									self.input_sequence[self.query_start:],
-		# 									self.germline_seq[self.germline_start:], alignment))
+	# 	Input is the name of the germline joining gene (ex: 'IGHJ6*02').
+	# 	'''
+	# 	self.germline_seq = self._get_germline_sequence_for_realignment(germline_gene, 'J')
+	# 	alignment = local_alignment(self.input_sequence, self.germline_seq)
+	# 	self._process_realignment(alignment)
 
 
 	def realign_variable(self, germline_gene):
@@ -422,19 +401,11 @@ class BlastResult(object):
 		Input is the name of the germline variable gene (ex: 'IGHV1-2*02').
 		'''
 		self.germline_seq = self._get_germline_sequence_for_realignment(germline_gene, 'V')
-
-
-		# New AbTools Alignment
 		alignment = local_alignment(self.seq.sequence, self.germline_seq,
 									gap_open_penalty=22, gap_extend_penalty=1)
-
-		# TODO
-		# need make check with AbTools Sequence, make sure reverse_complement is a property
-		# rc = str(Seq(self.input_sequence, generic_dna).reverse_complement())
 		rc = self.seq.reverse_complement
 		alignment_rc = local_alignment(rc, self.germline_seq,
 									   gap_open_penalty=22, gap_extend_penalty=1)
-
 		if alignment.score > alignment_rc.score:
 			self._process_realignment(alignment)
 		else:
@@ -442,33 +413,6 @@ class BlastResult(object):
 			self.input_sequence = rc
 			self._process_realignment(alignment_rc)
 
-
-		# ABTOOLS LOCAL ALIGNMENT NEEDED HERE
-		# ssw = Aligner(self.input_sequence,
-		# 			  match=3,
-		# 			  mismatch=2,
-		# 		  	  gap_open=22,
-		# 		  	  gap_extend=1,
-		# 		  	  report_cigar=True)
-		# alignment = ssw.align(self.germline_seq)
-		# rc = str(Seq(self.input_sequence, generic_dna).reverse_complement())
-
-
-		# # ABTOOLS LOCAL ALIGNMENT NEEDED HERE
-		# ssw_rc = Aligner(rc,
-		# 				 match=3,
-		# 				 mismatch=2,
-		# 				 gap_open=22,
-		# 				 gap_extend=1,
-		# 				 report_cigar=True)
-		# alignment_rc = ssw_rc.align(self.germline_seq)
-
-		# if alignment.score > alignment_rc.score:
-		# 	self._process_realignment(Alignment(germline_gene, self.input_sequence, self.germline_seq, alignment))
-		# else:
-		# 	self.strand = 'minus'
-		# 	self.input_sequence = rc
-		# 	self._process_realignment(Alignment(germline_gene, self.input_sequence, self.germline_seq, alignment_rc))
 
 	def _get_germline_sequence_for_realignment(self, germ, gene):
 		'''
@@ -486,6 +430,7 @@ class BlastResult(object):
 				return str(s.seq)
 		return None
 
+
 	def _process_realignment(self, alignment):
 		'''
 		Processes the result of variable gene realignment and updates BlastResult
@@ -493,16 +438,6 @@ class BlastResult(object):
 
 		Input is an Alignment object.
 		'''
-
-		# VERIFY THAT ABTOOLS SSWALIGNMENT PROPERTIES MATCH WHAT'S BEING CALLED HERE
-		# self.query_alignment, self.germline_alignment = self._cigar_to_alignment(alignment)
-		# self.alignment_midline = self._get_realignment_midline()
-		# if self.gene_type == 'variable':
-		# 	self.query_start = alignment.query_begin
-		# 	self.germline_start = alignment.target_begin
-		# self.query_end = alignment.query_end
-		# self.germline_end = alignment.target_end
-
 		self.query_alignment = alignment.aligned_query
 		self.germline_alignment = alignment.aligned_target
 		self.alignment_midline = alignment.alignment_midline
@@ -511,61 +446,6 @@ class BlastResult(object):
 			self.germline_start = alignment.target_begin
 		self.query_end = alignment.query_end
 		self.germline_end = alignment.target_end
-
-
-	# LIKELY DON'T NEED THIS AFTER SCIKIT-BIO IS ADDED
-	# def _cigar_to_alignment(self, alignment):
-	# 	'''
-	# 	Converts the cigar string and aligned region from the query and target
-	# 	sequences into a gapped alignment.
-
-	# 	Input is an Alignment object.
-
-	# 	Output is a gapped query sequence and a gapped target sequence.
-	# 	'''
-	# 	query = ''
-	# 	germline = ''
-	# 	pattern = re.compile('([MIDNSHPX=])')
-	# 	values = pattern.split(alignment.cigar)[:-1]
-	# 	pairs = zip(*2*[iter(values)])
-	# 	for p in pairs:
-	# 		query, germline = self._alignment_chunk_from_cigar_pair(alignment,
-	# 																p,
-	# 																query,
-	# 																germline)
-	# 	return query, germline
-
-
-	# LIKELY DON'T NEED THIS AFTER SCIKIT-BIO IS ADDED
-	# def _alignment_chunk_from_cigar_pair(self, alignment, pair, query, germline):
-	# 	'''
-	# 	Processes a single 'pair' of a cigar string and lengthens the gapped query
-	# 	and targed alignment strings.
-
-	# 	Input is an Alignment object, the cigar pair, the partial gapped alignment
-	# 	strings for the query and target. If 30M3I250M were to be a cigar string,
-	# 	it would have three pairs -- (30, 'M'), (3, 'I') and (250, 'M') --
-	# 	which are each formatted as tuples.
-
-	# 	Output is a gapped query alignment and gapped germline alignment that incorporate
-	# 	the data from the given cigar string.
-	# 	'''
-	# 	q = len(query.replace('-', ''))
-	# 	g = len(germline.replace('-', ''))
-	# 	clength = int(pair[0])
-	# 	ctype = pair[1]
-	# 	if ctype.upper() == 'S':
-	# 		return query, germline
-	# 	if ctype.upper() == 'M':
-	# 		query += alignment.aligned_query[q:q + clength]
-	# 		germline += alignment.aligned_target[g:g + clength]
-	# 	elif ctype.upper() == 'D':
-	# 		query += alignment.aligned_query[q:q + clength]
-	# 		germline += '-' * clength
-	# 	elif ctype.upper() == 'I':
-	# 		query += '-' * clength
-	# 		germline += alignment.aligned_target[g:g + clength]
-	# 	return query, germline
 
 
 	def _fix_ambigs(self):
@@ -671,14 +551,6 @@ class BlastResult(object):
 		top scoring germline gene alignment'''
 		top_alignment = self.alignments[0]
 		return top_alignment.hsps[0].match
-
-	# def _get_realignment_midline(self):
-	# 	'''Returns the alignment midline string for variable gene realignment'''
-	# 	length = min(len(self.query_alignment), len(self.germline_alignment))
-	# 	query = self.query_alignment
-	# 	germ = self.germline_alignment
-	# 	midline = ['|' if query[i] == germ[i] else ' ' for i in range(length)]
-	# 	return ''.join(midline)
 
 	def _get_alignment_length(self):
 		'Returns the alignment length for the top scoring germline gene alignment'
@@ -813,10 +685,6 @@ class DiversityResult(object):
 	def _get_alignment_midline(self):
 		'''Returns the alignment midline string for the
 		top scoring germline gene alignment'''
-		# length = min(len(self.query_alignment), len(self.germline_alignment))
-		# query = self.query_alignment
-		# germ = self.germline_alignment
-		# midline = ['|' if query[i] == germ[i] else ' ' for i in range(length)]
 		query = self.query_alignment
 		germ = self.germline_alignment
 		midline = ['|' if q == g else ' ' for q, g in zip(query, germ)]
@@ -884,7 +752,7 @@ def run(seq_file, output_dir, args):
 		if args.cluster:
 			logger = get_task_logger(__name__)
 		else:
-			logger = log.get_logger('vdj')
+			logger = log.get_logger(__name__)
 		output_filename = os.path.basename(seq_file)
 		if args.output_type == 'json':
 			output_file = os.path.join(output_dir, output_filename + '.json')
@@ -897,7 +765,7 @@ def run(seq_file, output_dir, args):
 		output_count = write_output(clean_vdjs, output_file, args.output_type)
 		return output_count
 	except:
-		traceback.print_exc()
+		logger.debug(traceback.format_exc())
 		raise Exception("".join(traceback.format_exception(*sys.exc_info())))
 		# run.retry(exc=exc, countdown=5)
 
@@ -931,10 +799,9 @@ def process_sequence_file(seq_file, args):
 			if v.strand == 'minus':
 				seq.sequence = seq.reverse_complement
 			logger.debug('ASSIGNED V-GENE: {}, {}'.format(seq.id, v.top_germline))
-		except Exception, err:
+		except Exception:
 			logger.debug('V-GENE ASSIGNMENT ERROR: {}'.format(seq.id))
-			logger.debug('\n>{s}\n{q}\nexception = {e}'.format(
-				s=seq.id, q=seq.sequence, e=traceback.format_exc().strip()))
+			logger.debug(traceback.format_exc())
 			v = None
 		finally:
 			if v:
@@ -948,8 +815,7 @@ def process_sequence_file(seq_file, args):
 	logger.debug('V-ASSIGNMENT RESULT: for {}, {} of {} sequences failed v-gene assignment'.format(
 		os.path.basename(seq_file), len(failed_seqs), len(seqs) + len(failed_seqs)))
 	for fs in failed_seqs:
-		pass
-		# logger.debug('NO V-GENE ASSIGNMENT: {}'.format(seq.id))
+		logger.debug('NO V-GENE ASSIGNMENT: {}'.format(seq.id))
 	if not v_blast_results:
 		seq_filename = os.path.basename(seq_file)
 		logger.debug('NO VALID REARRANGEMENTS IN FILE: {}'.format(seq_filename))
@@ -994,7 +860,6 @@ def process_sequence_file(seq_file, args):
 			if v.chain == 'heavy':
 				junc_start = len(v.query_alignment) + v.query_start
 				junc_end = junc_start + j.query_start
-				# junction = seq.sequence[junc_start:junc_end]
 				junction = seq[junc_start:junc_end]
 				if junction:
 					d = assign_d(junction, args.species)
@@ -1004,17 +869,10 @@ def process_sequence_file(seq_file, args):
 				vdjs.append(VDJ(seq, args, v, j))
 			else:
 				vdjs.append(VDJ(seq, args, v, j))
-			logger.debug('VDJ SUCCESS: {}'.format(seq.id))
+			# logger.debug('VDJ SUCCESS: {}'.format(seq.id))
 		except:
 			logger.debug('VDJ ERROR: {}'.format(seq.id))
-
-
-			if args.debug:
-				traceback.print_exc()
-
-
-
-
+			logger.debug(traceback.format_exc())
 	return vdjs
 
 
@@ -1023,7 +881,6 @@ def build_j_blast_input(seqs, v_blast_results):
 	j_fastas = []
 	for seq, vbr in zip(seqs, v_blast_results):
 		start = len(vbr.query_alignment) + vbr.query_start + vbr.fs_indel_adjustment + vbr.nfs_indel_adjustment
-		# j_fastas.append(seq.as_fasta(start=start))
 		j_fastas.append(seq[start:].fasta)
 	j_blastin = tempfile.NamedTemporaryFile(delete=False)
 	j_blastin.write('\n'.join(j_fastas))
@@ -1118,7 +975,6 @@ def _evalue(segment):
 	return evalue[segment]
 
 
-# THIS SHOULD EVENTUALLY BE MOVED TO THE NEW BLAST MODULE
 def assign_germline(seq, blast_record, species, segment):
 	'''
 	Identifies germline genes for a given antibody sequence (seq).
@@ -1129,13 +985,9 @@ def assign_germline(seq, blast_record, species, segment):
 
 	Output is a BlastResult object.
 	'''
-
-	# SEQUENCE OBJECTS ARE THE INPUT HERE, MAKE SURE IT MATCHES ABTOOLS' SEQUENCE PROPERTIES/FUNCTIONS
 	blast_result = BlastResult(seq, blast_record, species)
 	if blast_result.gene_type == 'variable':
 		blast_result.realign_variable(blast_result.top_germline)
-	# if blast_result.gene_type == 'joining':
-	# 	blast_result.realign_joining(blast_result.top_germline)
 	blast_result.annotate()
 	return blast_result
 
@@ -1152,35 +1004,11 @@ def assign_d(seq, species):
 	mod_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 	db_file = os.path.join(mod_dir, 'ssw/dbs/{}_D.fasta'.format(species.lower()))
 	db_handle = open(db_file, 'r')
-
-	# GERMLINE D GENES ARE ALL SEQUENCE OBJECTS, AS WELL AS THEIR REV-COMPS.
-	# MAKE SURE EVERYTHING MATCHES UP
 	germs = [Sequence(s) for s in SeqIO.parse(db_handle, 'fasta')]
 	rc_germs = [Sequence(s.reverse_complement, id=s.id) for s in germs]
 	germs.extend(rc_germs)
 	db_handle.close()
-
-
-	# SWITCH OUT THIS ALIGNMENT BLOCK WITH ABTOOLS LOCAL ALIGNMENT
-	# MAKE SURE THE PROPERTY/FUNCTION CALLS MATCH
 	alignments = local_alignment(seq, targets=germs,
 								 gap_open_penalty=20, gap_extend_penalty=2)
 	alignments.sort(key=lambda x: x.score, reverse=True)
-
-	# ssw = Aligner(seq,
-	# 			  match=3,
-	# 			  mismatch=2,
-	# 			  gap_open=20,
-	# 			  gap_extend=2,
-	# 			  report_cigar=True)
-	# alignments = []
-	# for s in seqs:
-	# 	alignments.append(Alignment(s.id,
-	# 								seq,
-	# 								str(s.seq),
-	# 								ssw.align(str(s.seq),
-	# 										  min_score=0,
-	# 										  min_len=0)))
-	# alignments.sort(key=lambda x: x.alignment.score,
-	# 				reverse=True)
 	return DiversityResult(seq, alignments[:5])

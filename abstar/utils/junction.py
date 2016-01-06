@@ -22,20 +22,20 @@
 #
 
 
-import logging
+import os
 import traceback
 
-from abstar.utils.alignment import Alignment, SSWAlignment, NWAlignment
+from abtools.utils import log
+from abtools.utils.alignment import global_alignment, local_alignment
 
 
 def get_junction(vdj, germ=False):
+	logger = log.get_logger(__name__)
 	try:
 		return Junction(vdj, germ)
 	except Exception, err:
-		logging.debug('JUNCTION ERROR: {id}'.format(id=vdj.id))
-		logging.debug('\n>{id}\n{query}\nvdj_aa = {vdj_aa}\nvdj_nt = {vdj_nt}\nexception = {e}'.format(
-			id=vdj.id, query=vdj.raw_query, vdj_aa=vdj.vdj_aa,
-			vdj_nt=vdj.vdj_nt, e=traceback.format_exc().strip()))
+		logger.debug('JUNCTION ERROR: {id}'.format(id=vdj.id))
+		logger.debug(traceback.format_exc())
 
 
 class Junction(object):
@@ -72,30 +72,33 @@ class Junction(object):
 		germ = self._get_v_chunk(vdj)
 		for i in range(fr3_start, len(vdj.vdj_aa) - 4):
 			chunk = vdj.vdj_aa[i:i + 6]
-			alignments.append(NWAlignment(chunk, germ, i))
+			alignments.append(global_alignment((str(i), chunk), ('germ', germ),
+											   aa=True, matrix='blosum62',
+											   gap_open=-100, gap_extend=-50))
 		alignments.sort(key=lambda x: x.score, reverse=True)
-		if vdj.vdj_aa[alignments[0].position + 4].upper() != 'C':
+		top = alignments[0]
+		if vdj.vdj_aa[int(top.query.id) + 4] != 'C':
 			start_pos = self._verify_junction_aa_start(vdj, alignments)
 		else:
-			start_pos = alignments[0].position + 4
+			start_pos = int(top.query.id) + 4
 		return start_pos
 
 
 	def _verify_junction_aa_start(self, vdj, alignments):
 		if alignments[1].score / alignments[0].score >= 0.75:
-			if alignments[1].position < alignments[0].position and vdj.vdj_aa[alignments[1].position + 4] == 'C':
-				return alignments[1].position + 4
-		return alignments[0].position + 4
+			if int(alignments[1].query.id) < int(alignments[0].query.id) and vdj.vdj_aa[int(alignments[1].query.id) + 4] == 'C':
+				return int(alignments[1].query.id) + 4
+		return int(alignments[0].query.id) + 4
 
 
 	def _find_junction_aa_end(self, vdj):
 		alignments = []
 		germ = self._get_j_chunk(vdj)
 		for i in range(self.junction_aa_start_pos, len(vdj.vdj_aa) - 4):
-			chunk = vdj.vdj_aa[i:i + 5]
-			alignments.append(NWAlignment(chunk, germ, i))
+			chunk = (i, vdj.vdj_aa[i:i + 5])
+			alignments.append(global_alignment(chunk, germ, aa=True, matrix='blosum62'))
 		alignments.sort(key=lambda x: x.score, reverse=True)
-		return alignments[0].position + 1
+		return int(alignments[0].query.id) + 1
 
 
 	def _get_junction_aa_sequence(self, vdj):
@@ -107,13 +110,11 @@ class Junction(object):
 
 
 	def _find_junction_nt_start(self, vdj):
-		return self.junction_aa_start_pos * 3 + \
-			   (vdj.query_reading_frame * 2) % 3
+		return self.junction_aa_start_pos * 3 + (vdj.query_reading_frame * 2) % 3
 
 
 	def _find_junction_nt_end(self, vdj):
-		return self.junction_nt_start_pos + \
-			   len(self.junction_aa) * 3
+		return self.junction_nt_start_pos + len(self.junction_aa) * 3
 
 
 	def _get_junction_nt_sequence(self, vdj):
@@ -123,13 +124,17 @@ class Junction(object):
 			return vdj.vdj_germ_nt[start:end]
 		return vdj.vdj_nt[start:end]
 
+
 	def _get_d_start_position_nt(self, vdj):
-		a = SSWAlignment(self.d_nt, self.cdr3_nt)
-		d_start = a.seq2_start
+		a = local_alignment(self.d_nt, self.cdr3_nt,
+							gap_open_penalty=22, gap_extend_penalty=1)
+		d_start = a.target_begin
 		return d_start
+
 
 	def _get_d_end_position(self, vdj):
 		return self.d_start_position_nt + len(vdj.d.sequence)
+
 
 	def _get_d_dist_from_cdr3_end_nt(self, vdj):
 		return len(self.cdr3_nt) - (self.d_dist_from_cdr3_start_nt + len(self.d_nt))
@@ -408,6 +413,3 @@ class Junction(object):
 			}
 
 		return germs[vdj.species][trunc_gene]
-
-
-

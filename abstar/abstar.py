@@ -55,55 +55,33 @@ from abtools.utils import log
 
 def parse_arguments():
 	parser = argparse.ArgumentParser("Performs germline assignment and other relevant annotation on antibody sequence data from NGS platforms.")
-	parser.add_argument('-d', '--data',
-						dest='data_dir',
-						default=None,
+	parser.add_argument('-d', '--data', dest='data_dir', default=None,
 						help="The data directory, where files will be downloaded (or have previously \
 						been download), temp files will be stored, and output files will be \
 						written. During StarCluster configuration, all ephemeral drives on the master \
 						node will be combined into a single RAID volume and mounted at the data directory. \
 						Not necessary if '-o', '-t' and '-i' are provided. \
 						Default is '/data'.")
-
-	parser.add_argument('-i', '--in',
-						dest='input',
-						default=None,
+	parser.add_argument('-i', '--in', dest='input', default=None,
 						help="The input file or directory, to be split and processed in parallel. \
 						If a directory is given, all files in the directory will be iteratively processed. \
 						Required.")
-
-	parser.add_argument('-o', '--out',
-						dest='output',
-						default=None,
+	parser.add_argument('-o', '--out', dest='output', default=None,
 						help="The output directory, into which the JSON-formatted output files will be deposited. \
 						If the directory does not exist, it will be created. \
 						Required.")
-
-	parser.add_argument('-l', '--log',
-						dest='log',
-						default=None,
+	parser.add_argument('-l', '--log', dest='log', default=None,
 						help="The log file, to which log info will be written. \
 						Default is <output_directory>/abstar.log if '-o/--out' is specificied. \
 						If '-o/--out' isn't provided, default is <data_directory>/abstar.log")
-
-	parser.add_argument('-t', '--temp',
-						dest='temp',
-						default=None,
+	parser.add_argument('-t', '--temp', dest='temp', default=None,
 						help="The directory in which temp files will be stored. If the directory doesn't exist, \
 						it will be created. Required.")
-
-	parser.add_argument('-k', '--chunksize',
-						dest='chunksize',
-						default=250,
-						type=int,
+	parser.add_argument('-k', '--chunksize', dest='chunksize', default=250, type=int,
 						help="Approximate number of sequences in each distributed job. \
 						Defaults to 250. \
 						Don't change unless you know what you're doing.")
-
-	parser.add_argument('-T', '--output_type',
-						dest="output_type",
-						choices=['json', 'imgt', 'hadoop'],
-						default='json',
+	parser.add_argument('-T', '--output_type', dest="output_type", choices=['json', 'imgt', 'hadoop'], default='json',
 						help="Select the output type. Options are 'json', 'imgt' and 'impala'. \
 						IMGT output mimics the Summary table produced by IMGT High-V/Quest, \
 						to maintain some level of compatibility with existing IMGT-based pipelines. \
@@ -111,81 +89,43 @@ def parse_arguments():
 						Hadoop output is columnar and easily converted to binary HDFS-friendly formats \
 						(Parquet, Avro) for use in Impala or other Hadoop query engines (Pig, Hive, Spark). \
 						Defaults to JSON output.")
-
-	parser.add_argument('-m', '--merge',
-						dest="merge",
-						action='store_true',
-						default=False,
+	parser.add_argument('-m', '--merge', dest="merge", action='store_true', default=False,
 						help="Use if the input files are paired-end FASTQs \
 						(either gzip compressed or uncompressed) from Illumina platforms. \
 						Prior to running the germline assignment pipeline, \
 						paired reads will be merged with PANDAseq.")
-
-	parser.add_argument('-p', '--pandaseq_algo',
-						dest="pandaseq_algo",
-						default='simple_bayesian',
+	parser.add_argument('-p', '--pandaseq_algo', dest="pandaseq_algo", default='simple_bayesian',
 						choices=['simple_bayesian', 'ea_util', 'flash', 'pear', 'rdp_mle', 'stitch', 'uparse'],
 						help="Define merging algorithm to be used by PANDAseq.\
 						Options are 'simple_bayesian', 'ea_util', 'flash', 'pear', 'rdp_mle', 'stitch', or 'uparse'.\
 						Default is 'simple_bayesian', which is the default PANDAseq algorithm.")
-
-	parser.add_argument('-n', '--next_seq',
-						dest="next_seq",
-						action='store_true',
-						default=False,
+	parser.add_argument('-n', '--next_seq', dest="next_seq", action='store_true', default=False,
 						help="Use if the run was performed on a NextSeq sequencer.")
-
-	parser.add_argument('-u', '--uaid',
-						dest="uaid",
-						type=int,
-						default=0,
+	parser.add_argument('-u', '--uaid', dest="uaid", type=int, default=0,
 						help="Length of the unique antibody identifiers (UAIDs) \
 						used when preparing samples, if used. \
 						Default is unbarcoded (UAID length of 0).")
-
-	parser.add_argument('-I', '--isotype',
-						dest="isotype",
-						action='store_false',
-						default=True,
+	parser.add_argument('-I', '--isotype', dest="isotype", action='store_false', default=True,
 						help="If set, the isotype will not be determined for heavy chains.\
 						If not set, isotyping sequences for the appropriate species will be used.")
-
-	parser.add_argument('-b', '--basespace',
-						dest="basespace",
-						default=False,
-						action='store_true',
+	parser.add_argument('-b', '--basespace', dest="basespace", default=False, action='store_true',
 						help="Use if files should be downloaded directly from BaseSpace. \
 						Files will be downloaded into the input directory.")
-
-	parser.add_argument('-c', '--cluster',
-						dest="cluster",
-						default=False,
-						action='store_true',
+	parser.add_argument('-c', '--cluster', dest="cluster", default=False, action='store_true',
 						help="Use if performing computation on a Celery cluster. \
 						If set, input files will be split into many subfiles and passed \
 						to a Celery queue. If not set, input files will still be split, but \
 						will be distributed to local processors using multiprocessing.")
-
-	parser.add_argument('-S', '--starcluster',
-						dest="starcluster",
-						default=False,
-						action='store_true',
+	parser.add_argument('-S', '--starcluster', dest="starcluster", default=False, action='store_true',
 						help="Use if performing analysis on a StarCluster instance. \
 						If set, the cluster will be configured to NFS share all ephemeral drives \
 						on the master node and Celery workers will be started on all worker nodes. \
 						Configuration only needs to be run once per cluster, so additional runs on\
 						an already-configured cluster should be run without this option.")
-
-	parser.add_argument('-D', '--debug',
-						dest="debug",
-						action='count',
-						default=0,
+	parser.add_argument('-D', '--debug', dest="debug", action='count', default=0,
 						help="If set, logs additional debug information. \
-						Use -DD to set log level to 'DEVEL', which also prints verbose exception information")
-
-	parser.add_argument('-s', '--species',
-						dest='species',
-						default='human',
+						Use -DD to print verbose exception information to screen in addition to writing to log.")
+	parser.add_argument('-s', '--species', dest='species', default='human',
 						choices=['human', 'macaque', 'mouse', 'rabbit', 'b12mouse', 'vrc01mouse', '9114mouse'])
 	args = parser.parse_args()
 	return args
@@ -198,7 +138,7 @@ class Args(object):
 				 merge=False, pandaseq_algo='simple_bayesian',
 				 next_seq=False, uaid=0, isotype=False,
 				 basespace=False, cluster=False, starcluster=False,
-				 debug=False, species='human'):
+				 debug=False, print_debug=False, species='human'):
 		super(Args, self).__init__()
 		self.data_dir = str(data_dir) if data_dir is not None else data_dir
 		self.input = str(input) if input is not None else input
@@ -216,6 +156,8 @@ class Args(object):
 		self.cluster = cluster
 		self.starcluster = starcluster
 		self.debug = 1 if debug else 0
+		if print_debug and self.debug > 0:
+			self.debug == 2
 		self.species = species
 
 
@@ -264,7 +206,9 @@ def make_merge_dir(args):
 def setup_logging(args):
 	log_dir = args.output if args.output else args.data_dir
 	logfile = args.log if args.log else os.path.join(log_dir, 'abstar.log')
-	log.setup_logging(logfile, args.debug)
+	debug = True if args.debug > 0 else False
+	print_debug = True if args.debug == 2 else False
+	log.setup_logging(logfile, debug=args.debug, print_debug=print_debug)
 	global logger
 	logger = log.get_logger('abstar')
 	# if args.debug >= 1:
@@ -303,6 +247,9 @@ def log_options(args):
 	logger.info('UAID: {}'.format(args.uaid))
 	logger.info('ISOTYPE: {}'.format('yes' if args.isotype else 'no'))
 	logger.info('EXECUTION: {}'.format('cluster' if args.cluster else 'local'))
+	logger.info('DEBUG: {}'.format('True' if args.debug > 0 else 'False'))
+	if args.debug > 0:
+		logger.info('DEBUG LEVEL: {}'.format('print exceptions' if args.debug == 2 else 'log exceptions'))
 
 
 
