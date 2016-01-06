@@ -30,8 +30,6 @@ from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.Alphabet import generic_dna
 
-# from abstar.ssw.ssw_wrap import Aligner
-
 from abtools.utils import log
 from abtools.utils.alignment import local_alignment
 

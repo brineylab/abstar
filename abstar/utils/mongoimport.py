@@ -1,7 +1,6 @@
 #!/usr/bin/python
 # filename: mongoimport.py
 
-
 #
 # Copyright (c) 2015 Bryan Briney
 # License: The MIT license (http://opensource.org/licenses/MIT)

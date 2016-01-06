@@ -22,10 +22,13 @@
 #
 
 
-import logging
+import traceback
+
+from abtools.utils import log
 
 
 def check_productivity(vdj):
+	logger = log.get_logger(__name__)
 	try:
 		problems = 0
 		problems += stop_codons(vdj)
@@ -37,7 +40,8 @@ def check_productivity(vdj):
 			return 'no'
 		return 'yes'
 	except:
-		logging.debug('PRODUCTIVITY CHECK ERROR: {}'.format(vdj.id))
+		logger.debug('PRODUCTIVITY CHECK ERROR: {}'.format(vdj.id))
+		logger.debug(traceback.format_exc())
 
 
 def stop_codons(vdj):
