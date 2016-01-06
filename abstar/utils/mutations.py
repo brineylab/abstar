@@ -78,9 +78,7 @@ class MutationsNT(object):
 
 
 	def _total_mutation_count(self, br):
-		ins_count = len(re.findall('-+', br.germline_alignment))
-		del_count = len(re.findall('-+', br.query_alignment))
-		return len(self.all_mutations) + ins_count + del_count
+		return len(self.all_mutations)
 
 
 	def _find_region_mutations(self, br):
@@ -114,10 +112,9 @@ class MutationsNT(object):
 		mutation_counts = {}
 		for r in self._region_list(br.gene_type):
 			if br.regions.nt_seqs[r]:
-				ins_count = len(re.findall('-+', br.regions.germline_nt_seqs[r]))
-				del_count = len(re.findall('-+', br.regions.nt_seqs[r]))
-				mutation_counts[r] = len(self.region_mutations[r]) + ins_count + del_count
-			mutation_counts[r] = 0
+				mutation_counts[r] = len(self.region_mutations[r])
+			else:
+				mutation_counts[r] = 0
 		return mutation_counts
 
 
@@ -191,9 +188,7 @@ class MutationsAA(object):
 		mutation_counts = {}
 		for r in self._region_list(br.gene_type):
 			if br.regions.aa_seqs[r]:
-				ins_count = len(re.findall('-+', br.regions.germline_nt_seqs[r]))
-				del_count = len(re.findall('-+', br.regions.nt_seqs[r]))
-				mutation_counts[r] = len(self.region_mutations[r]) + ins_count + del_count
+				mutation_counts[r] = len(self.region_mutations[r])
 			else:
 				mutation_counts[r] = 0
 		return mutation_counts
@@ -227,9 +222,7 @@ class MutationsAA(object):
 
 
 	def _total_mutation_count(self, br):
-		ins_count = len(re.findall('-+', br.germline_alignment))
-		del_count = len(re.findall('-+', br.query_alignment))
-		return len(self.all_mutations) + ins_count + del_count
+		return len(self.all_mutations)
 
 
 	def _germline_divergence(self, br):

@@ -417,8 +417,23 @@ def run_jobs(files, output_dir, args):
 	sys.stdout.write('\nRunning VDJ...\n')
 	if args.cluster:
 		return _run_jobs_via_celery(files, output_dir, args)
+	elif args.debug:
+		return _run_jobs_singlethreaded(files, output_dir, args)
 	else:
 		return _run_jobs_via_multiprocessing(files, output_dir, args)
+
+
+def _run_jobs_singlethreaded(files, output_dir, args):
+	from utils.vdj import run as run_vdj
+	results = []
+	for i, f in enumerate(files):
+		try:
+			results.append(run_vdj(f, output_dir, args))
+			update_progress(i, len(files))
+		except:
+			logger.debug('FILE-LEVEL EXCEPTION: {}'.format(f))
+			logging.debug(traceback.format_exc())
+	return results
 
 
 def _run_jobs_via_multiprocessing(files, output_dir, args):

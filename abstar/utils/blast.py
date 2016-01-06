@@ -104,7 +104,8 @@ class BlastResult(object):
 		Identifies the appropriate germline variable gene from a database of all
 		germline variable genes.
 
-		Input is the name of the germline variable gene (ex: 'IGHV1-2*02').
+		Input is the name of the germline variable gene (ex: 'IGHV1-2*02') and
+		the gene region ('V' or 'J').
 
 		Output is the germline sequence.
 		'''
@@ -121,7 +122,7 @@ class BlastResult(object):
 		Processes the result of variable gene realignment and updates BlastResult
 		attributes accordingly.
 
-		Input is an Alignment object.
+		Input is an AbTools SSWAlignment object.
 		'''
 		self.query_alignment = alignment.aligned_query
 		self.germline_alignment = alignment.aligned_target
