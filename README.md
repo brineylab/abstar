@@ -1,6 +1,6 @@
 # abstar  
   
-VDJ assignment and antibody seuqence annotation. Scalable from a single sequence to billions of sequences.  
+VDJ assignment and antibody sequence annotation. Scalable from a single sequence to billions of sequences.  
   
 ### install  
 `pip install abstar`  
