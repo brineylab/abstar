@@ -59,10 +59,6 @@ def main():
 def write_cred_file(creds):
 	jcreds = json.dumps(creds)
 	cred_file = os.path.expanduser('~/.abstar/basespace_credentials')
-	# if platform.system().lower() == 'darwin':
-	# 	cred_file = os.path.expanduser('~/.abstar/basespace_credentials')
-	# elif platform.system().lower() == 'linux':
-	# 	cred_file = '/usr/share/abstar/basespace_credentials'
 	if not os.path.exists(os.path.dirname(cred_file)):
 		os.makedirs(os.path.dirname(cred_file))
 	cred_handle = open(cred_file, 'w')
