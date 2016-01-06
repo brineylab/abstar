@@ -127,16 +127,19 @@ def get_collection(i, args):
 
 def preflight_checks(args):
 	if not args.db:
-		print("ERROR: a MongoDB database name must be provided.")
+		err = "ERROR: a MongoDB database name must be provided."
+		raise RuntimeError(err)
 	if not args.mongo_input_dir:
-		print("ERROR: a directory of JSON files must be provided.")
+		err = "ERROR: a directory of JSON files must be provided."
+		raise RuntimeError(err)
 	if args.delim2 and not args.delim1:
-		print("ERROR: --delim1 must be provided with --delim2")
-		sys.exit(1)
+		err = "ERROR: --delim1 must be provided with --delim2.\n"
+		err += "If you only want to use one delimiter, use --delim1."
+		raise RuntimeError(err)
 
 
 def run(**kwargs):
-	args = Args(kwargs)
+	args = Args(**kwargs)
 	main(args)
 
 
