@@ -33,6 +33,9 @@ import time
 from BaseSpacePy.api.BaseSpaceAPI import BaseSpaceAPI
 from BaseSpacePy.model.QueryParameters import QueryParameters as qp
 
+from abtools.utils import log
+logger = log.get_logger('basespace')
+
 
 class BaseSpace(object):
 	"""docstring for BaseSpace"""
@@ -129,7 +132,8 @@ class BaseSpace(object):
 		self.print_download_info(files)
 		start = time.time()
 		for i, f in enumerate(files):
-			self.log.write('[ {} ] {}\n'.format(i, str(f)))
+			# self.log.write('[ {} ] {}\n'.format(i, str(f)))
+			logger.info('[ {} ] {}\n'.format(i, str(f)))
 			f.downloadFile(self.api, direc)
 		end = time.time()
 		self.print_completed_download_info(start, end)
@@ -161,26 +165,26 @@ class BaseSpace(object):
 		logger.info('Download completed in {0} seconds'.format(end - start))
 
 
-def _setup_logging():
-	try:
-		from abtools.utils import log
-		global logger
-		logger = log.get_logger('basespace')
-	except ImportError:
-		import logging
-		fmt = '[%(levelname)s] %(name)s %(asctime)s %(message)s'
-		logging.basicConfig()
-		global logger
-		logger = logging.getLogger('basespace')
-		formatter = logging.Formatter("%(message)s")
-		ch = logging.StreamHandler()
-		ch.setFormatter(formatter)
-		ch.setLevel(logging.INFO)
-		logger.addHandler(ch)
+# def _setup_logging():
+# 	try:
+# 		from abtools.utils import log
+# 		global logger
+# 		logger = log.get_logger('basespace')
+# 	except ImportError:
+# 		import logging
+# 		fmt = '[%(levelname)s] %(name)s %(asctime)s %(message)s'
+# 		logging.basicConfig()
+# 		global logger
+# 		logger = logging.getLogger('basespace')
+# 		formatter = logging.Formatter("%(message)s")
+# 		ch = logging.StreamHandler()
+# 		ch.setFormatter(formatter)
+# 		ch.setLevel(logging.INFO)
+# 		logger.addHandler(ch)
 
 
 def download(direc, project_id=None, project_name=None, undetermined=False):
-	_setup_logging()
+	# _setup_logging()
 	bs = BaseSpace(project_id, project_name, undetermined)
 	return bs.download(direc)
 
