@@ -1,9 +1,11 @@
 # abstar  
   
-## install  
+VDJ assignment and antibody seuqence annotation. Scalable from a single sequence to billions of sequences.  
+  
+### install  
 `pip install abstar`  
   
-## use  
+### use  
 
 To run AbStar on a single FASTA or FASTQ file:  
 `abstar -i <input-file> -o <output-directory> -t <temp-directory>`
@@ -11,10 +13,8 @@ To run AbStar on a single FASTA or FASTQ file:
 To iteratively run AbStar on all files in an input directory:  
 `abstar -i <input-directory> -o <output-directory> -t <temp-directory>`
 
-## additional options  
+### additional options  
 `-l, --log` Change the log file location. Default is `<output_directory>/mongo.log`.  
-  
-`-D --debug` Much more verbose logging.  
   
 `-m, --merge` Input directory should contain paired FASTQ (or gzipped FASTQ) files. Paired files will be merged with PANDAseq prior to processing with AbAnalysis.  
   
@@ -26,12 +26,18 @@ To iteratively run AbStar on all files in an input directory:
    
 `-c, --cluster` Runs AbStar in distributed mode on a Celery cluster.  
   
-## helper scripts  
+`-h, --help` Prints detailed information about all runtime options.
+  
+`-D --debug` Much more verbose logging.  
+  
+  
+### helper scripts  
 Two helper scripts are included:  
 `batch_mongoimport` automates the import of multiple JSON output files into a MongoDB database.  
 `make_basespace_credfile` makes a credentials file for BaseSpace, which is required if downloading sequences from BaseSpace with Abstar. Developer credentials are required, and the process for obtaining them is explained here: https://support.basespace.illumina.com/knowledgebase/articles/403618-python-run-downloader  
   
-## requirements  
+  
+### requirements  
 Python >= 2.7 (3.x probably doesn't work, but hasn't been tested)  
 abtools  
 biopython  
@@ -39,7 +45,8 @@ celery
 scikit-bio  
 pymongo  
 
-All of the above dependencies can be installed with pip, and will be installed automatically when installing AbStar with pip. If you're new to Python, a great way to get started is to install the Anaconda distribution (https://www.continuum.io/downloads), which includes pip as well as a ton of useful scientific Python packages.
+All of the above dependencies can be installed with pip, and will be installed automatically when installing AbStar with pip.  
+If you're new to Python, a great way to get started is to install the Anaconda Python distribution (https://www.continuum.io/downloads), which includes pip as well as a ton of useful scientific Python packages.
   
 sequence merging requires PANDAseq (https://github.com/neufeld/pandaseq)  
 batch_mongoimport requires MongoDB (http://www.mongodb.org/)  
