@@ -291,7 +291,7 @@ def clear_temp_dir(temp_dir):
 
 def download_files(input_dir):
 	from utils.basespace import BaseSpace
-	bs = BaseSpace(sys.stdout)
+	bs = BaseSpace()
 	logger.info('')
 	logger.info('BASESPACE PROJECT NAME: {}'.format(bs.project_name))
 	logger.info('BASESPACE PROJECT ID: {}'.format(bs.project_id))
