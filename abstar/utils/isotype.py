@@ -85,7 +85,7 @@ class Isotype(object):
 		# alignment = ssw.align(seq)
 		# return alignment.score
 
-		aln = local_alignment(self.d_nt, self.cdr3_nt,
+		aln = local_alignment(query, seq,
 							  gap_open_penalty=22, gap_extend_penalty=1)
 		return aln.score
 
