@@ -133,7 +133,7 @@ class BaseSpace(object):
 		start = time.time()
 		for i, f in enumerate(files):
 			# self.log.write('[ {} ] {}\n'.format(i, str(f)))
-			logger.info('[ {} ] {}\n'.format(i, str(f)))
+			logger.info('[ {} ] {}'.format(i, str(f)))
 			f.downloadFile(self.api, direc)
 		end = time.time()
 		self.print_completed_download_info(start, end)
