@@ -38,7 +38,7 @@ Two helper scripts are included:
   
   
 ### requirements  
-Python >= 2.7 (3.x probably doesn't work, but hasn't been tested)  
+Python 2.7 (3.x probably doesn't work, but hasn't been tested)  
 abtools  
 biopython  
 celery  
