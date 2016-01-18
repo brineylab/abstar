@@ -42,8 +42,8 @@ Python 2.7 (3.x probably doesn't work, but hasn't been tested)
 abtools  
 biopython  
 celery  
-scikit-bio  
 pymongo  
+scikit-bio  
 
 All of the above dependencies can be installed with pip, and will be installed automatically when installing AbStar with pip.  
 If you're new to Python, a great way to get started is to install the Anaconda Python distribution (https://www.continuum.io/downloads), which includes pip as well as a ton of useful scientific Python packages.
