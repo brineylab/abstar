@@ -1,4 +1,4 @@
-# abstar  
+# AbStar  
   
 VDJ assignment and antibody sequence annotation. Scalable from a single sequence to billions of sequences.  
   
