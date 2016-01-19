@@ -27,7 +27,7 @@ import uuid
 import collections
 import traceback
 
-from abtools.utils import log
+from abtools import log
 
 
 def build_output(vdjs, output_type):

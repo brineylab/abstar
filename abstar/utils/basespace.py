@@ -33,7 +33,7 @@ import time
 from BaseSpacePy.api.BaseSpaceAPI import BaseSpaceAPI
 from BaseSpacePy.model.QueryParameters import QueryParameters as qp
 
-from abtools.utils import log
+from abtools import log
 logger = log.get_logger('basespace')
 
 

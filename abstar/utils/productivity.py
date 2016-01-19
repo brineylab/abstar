@@ -24,7 +24,7 @@
 
 import traceback
 
-from abtools.utils import log
+from abtools import log
 
 
 def check_productivity(vdj):

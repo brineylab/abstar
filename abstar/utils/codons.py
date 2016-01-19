@@ -25,7 +25,7 @@
 import logging
 import traceback
 
-from abtools.utils import log
+from abtools import log
 
 
 def parse_codons(vdj, gapped):

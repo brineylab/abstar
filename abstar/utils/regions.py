@@ -30,7 +30,7 @@ import traceback
 from Bio.Seq import Seq
 from Bio.Alphabet import generic_dna
 
-from abtools.utils import log
+from abtools import log
 
 
 def regions(blast_result):

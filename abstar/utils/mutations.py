@@ -25,7 +25,7 @@
 import re
 import traceback
 
-from abtools.utils import log
+from abtools import log
 
 
 def nt_mutations(blast_result):

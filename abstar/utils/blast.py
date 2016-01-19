@@ -32,7 +32,7 @@ from Bio import SeqIO
 from Bio.Blast.Applications import NcbiblastnCommandline
 from Bio.Blast import NCBIXML
 
-from abtools.utils.alignment import local_alignment
+from abtools.alignment import local_alignment
 
 
 class BlastResult(object):

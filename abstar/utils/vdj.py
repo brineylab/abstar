@@ -37,9 +37,9 @@ from celery.utils.log import get_task_logger
 from abstar.utils import blast
 from abstar.utils.queue.celery import celery
 
-from abtools.utils import log
-from abtools.utils.alignment import local_alignment
-from abtools.utils.sequence import Sequence
+from abtools import log
+from abtools.alignment import local_alignment
+from abtools.sequence import Sequence
 
 
 class VDJ(object):

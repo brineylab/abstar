@@ -25,8 +25,8 @@
 import os
 import traceback
 
-from abtools.utils import log
-from abtools.utils.alignment import global_alignment, local_alignment
+from abtools import log
+from abtools.alignment import global_alignment, local_alignment
 
 
 def get_junction(vdj, germ=False):

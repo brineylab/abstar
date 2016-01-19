@@ -38,7 +38,7 @@ import warnings
 from Bio import SeqIO
 import skbio
 
-from abtools.utils import log
+from abtools import log
 
 
 

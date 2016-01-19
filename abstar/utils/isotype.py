@@ -30,9 +30,9 @@ from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.Alphabet import generic_dna
 
-from abtools.utils import log
-from abtools.utils.alignment import local_alignment
-from abtools.utils.sequence import Sequence
+from abtools import log
+from abtools.alignment import local_alignment
+from abtools.sequence import Sequence
 
 
 def get_isotype(vdj):
