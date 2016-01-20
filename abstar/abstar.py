@@ -180,6 +180,7 @@ def make_directories(args):
 	outdir = args.output if args.output else os.path.join(args.data_dir, 'output')
 	tempdir = args.temp if args.temp else os.path.join(args.data_dir, 'temp')
 	for d in [indir, outdir, tempdir]:
+		d = os.path.abspath(d)
 		full_paths.append(d)
 		_make_direc(d, args)
 	return full_paths

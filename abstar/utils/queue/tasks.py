@@ -14,9 +14,9 @@
 
 
 from abstar.utils.vdj import run
-from abstar.utils.celery.celery import celery
+from abstar.utils.queue.celery import celery
 
 
-# @celery.task
-# def run_vdj(*args):
-# 	return run(*args)
+@celery.task
+def run_vdj(*args):
+	return run(*args)
