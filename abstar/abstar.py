@@ -50,7 +50,7 @@ from abtools import log
 
 
 
-def parse_arguments():
+def parse_arguments(print_help=False):
 	parser = argparse.ArgumentParser("Performs germline assignment and other relevant annotation on antibody sequence data from NGS platforms.")
 	parser.add_argument('-d', '--data', dest='data_dir', default=None,
 						help="The data directory, where files will be downloaded (or have previously \
@@ -124,8 +124,11 @@ def parse_arguments():
 						Use -DD to print verbose exception information to screen in addition to writing to log.")
 	parser.add_argument('-s', '--species', dest='species', default='human',
 						choices=['human', 'macaque', 'mouse', 'rabbit', 'b12mouse', 'vrc01mouse', '9114mouse'])
-	args = parser.parse_args()
-	return args
+	if print_help:
+		parser.print_help()
+	else:
+		args = parser.parse_args()
+		return args
 
 
 class Args(object):
@@ -160,8 +163,8 @@ class Args(object):
 
 def validate_args(args):
 	if not args.data_dir and not all([args.input, args.output, args.temp]):
-		err = "ERROR: you must provide either a data directory or separate input/output/temp directories."
-		raise RuntimeError(err)
+		parse_arguments(print_help=True)
+		sys.exit(1)
 
 
 
