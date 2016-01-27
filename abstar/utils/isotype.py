@@ -36,17 +36,17 @@ from abtools.sequence import Sequence
 
 
 def get_isotype(vdj):
-	logger = log.get_logger(__name__)
-	try:
-		mod_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-		isotype_file = os.path.join(mod_dir, 'ssw/isotypes/{}_isotypes.fasta'.format(vdj.species))
+    logger = log.get_logger(__name__)
+    try:
+        mod_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        isotype_file = os.path.join(mod_dir, 'ssw/isotypes/{}_isotypes.fasta'.format(vdj.species))
 
-		isotype_seqs = [Sequence(s) for s in SeqIO.parse(open(isotype_file, 'r'), 'fasta')]
-		isotype_seqs += [Sequence((s.id, s.reverse_complement)) for s in isotype_seqs]
-		alignments = local_alignment(vdj.raw_query, targets=isotype_seqs,
-									 gap_open_penalty=22, gap_extend_penalty=1)
-		alignments.sort(key=lambda x: x.score, reverse=True)
-		return(alignments[0].target.id)
-	except:
-		logger.debug('ISOTYPE ERROR: {}\t{}'.format(vdj.id, vdj.raw_query))
-		logger.debug(traceback.format_exc())
+        isotype_seqs = [Sequence(s) for s in SeqIO.parse(open(isotype_file, 'r'), 'fasta')]
+        isotype_seqs += [Sequence((s.id, s.reverse_complement)) for s in isotype_seqs]
+        alignments = local_alignment(vdj.raw_query, targets=isotype_seqs,
+                                     gap_open_penalty=22, gap_extend_penalty=1)
+        alignments.sort(key=lambda x: x.score, reverse=True)
+        return(alignments[0].target.id)
+    except:
+        logger.debug('ISOTYPE ERROR: {}\t{}'.format(vdj.id, vdj.raw_query))
+        logger.debug(traceback.format_exc())

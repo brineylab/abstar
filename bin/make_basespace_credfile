@@ -28,4 +28,4 @@ from abstar.utils import make_basespace_credfile
 
 
 if __name__ == '__main__':
-	make_basespace_credfile.main()
+    make_basespace_credfile.main()

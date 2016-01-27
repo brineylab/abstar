@@ -29,33 +29,33 @@ import logging
 
 
 def setup_logging(logfile, debug=False):
-	fmt = '[%(levelname)s] %(name)s %(asctime)s %(message)s'
-	if debug:
-		logging.basicConfig(filename=logfile,
-							filemode='w',
-							format=fmt,
-							level=logging.DEBUG)
-	else:
-		logging.basicConfig(filename=logfile,
-							filemode='w',
-							format=fmt,
-							level=logging.INFO)
-	logger = logging.getLogger('log')
-	logger = add_stream_handler(logger)
-	logger.info('LOG LOCATION: {}'.format(logfile))
+    fmt = '[%(levelname)s] %(name)s %(asctime)s %(message)s'
+    if debug:
+        logging.basicConfig(filename=logfile,
+                            filemode='w',
+                            format=fmt,
+                            level=logging.DEBUG)
+    else:
+        logging.basicConfig(filename=logfile,
+                            filemode='w',
+                            format=fmt,
+                            level=logging.INFO)
+    logger = logging.getLogger('log')
+    logger = add_stream_handler(logger)
+    logger.info('LOG LOCATION: {}'.format(logfile))
 
 
 def get_logger(name=None):
-	logger = logging.getLogger(name)
-	if len(logger.handlers) == 0:
-		logger = add_stream_handler(logger)
-	return logger
+    logger = logging.getLogger(name)
+    if len(logger.handlers) == 0:
+        logger = add_stream_handler(logger)
+    return logger
 
 
 def add_stream_handler(logger):
-	formatter = logging.Formatter("%(message)s")
-	ch = logging.StreamHandler()
-	ch.setFormatter(formatter)
-	ch.setLevel(logging.INFO)
-	logger.addHandler(ch)
-	return logger
+    formatter = logging.Formatter("%(message)s")
+    ch = logging.StreamHandler()
+    ch.setFormatter(formatter)
+    ch.setLevel(logging.INFO)
+    logger.addHandler(ch)
+    return logger

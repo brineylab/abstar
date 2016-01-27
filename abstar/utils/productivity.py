@@ -28,56 +28,56 @@ from abtools import log
 
 
 def check_productivity(vdj):
-	logger = log.get_logger(__name__)
-	try:
-		problems = 0
-		problems += stop_codons(vdj)
-		problems += ambig_codons(vdj)
-		problems += vdj_agreement(vdj)
-		problems += conserved_junc_residues(vdj)
-		problems += rearrangement(vdj)
-		if problems:
-			return 'no'
-		return 'yes'
-	except:
-		logger.debug('PRODUCTIVITY CHECK ERROR: {}'.format(vdj.id))
-		logger.debug(traceback.format_exc())
+    logger = log.get_logger(__name__)
+    try:
+        problems = 0
+        problems += stop_codons(vdj)
+        problems += ambig_codons(vdj)
+        problems += vdj_agreement(vdj)
+        problems += conserved_junc_residues(vdj)
+        problems += rearrangement(vdj)
+        if problems:
+            return 'no'
+        return 'yes'
+    except:
+        logger.debug('PRODUCTIVITY CHECK ERROR: {}'.format(vdj.id))
+        logger.debug(traceback.format_exc())
 
 
 def stop_codons(vdj):
-	if '*' in vdj.vdj_aa:
-		return 1
-	return 0
+    if '*' in vdj.vdj_aa:
+        return 1
+    return 0
 
 
 def ambig_codons(vdj):
-	if 'X' in vdj.vdj_aa.upper():
-		return 1
-	return 0
+    if 'X' in vdj.vdj_aa.upper():
+        return 1
+    return 0
 
 
 def vdj_agreement(vdj):
-	if vdj.v.top_germline[:3] != vdj.j.top_germline[:3]:
-		return 1
-	if vdj.d:
-		if not vdj.d.top_germline:
-			return 0
-		if vdj.v.top_germline[:3] != vdj.d.top_germline[:3]:
-			return 1
-	return 0
+    if vdj.v.top_germline[:3] != vdj.j.top_germline[:3]:
+        return 1
+    if vdj.d:
+        if not vdj.d.top_germline:
+            return 0
+        if vdj.v.top_germline[:3] != vdj.d.top_germline[:3]:
+            return 1
+    return 0
 
 
 def conserved_junc_residues(vdj):
-	if not vdj.junction:
-		return 1
-	start = 'C'
-	end = 'W' if vdj.chain == 'heavy' else 'F'
-	if vdj.junction.junction_aa[0] != start or vdj.junction.junction_aa[-1] != end:
-		return 1
-	return 0
+    if not vdj.junction:
+        return 1
+    start = 'C'
+    end = 'W' if vdj.chain == 'heavy' else 'F'
+    if vdj.junction.junction_aa[0] != start or vdj.junction.junction_aa[-1] != end:
+        return 1
+    return 0
 
 
 def rearrangement(vdj):
-	if not vdj.rearrangement:
-		return 1
-	return 0
+    if not vdj.rearrangement:
+        return 1
+    return 0

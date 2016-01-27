@@ -30,7 +30,7 @@ import abstar
 
 
 if __name__ == '__main__':
-	warnings.filterwarnings("ignore")
-	args = abstar.parse_arguments()
-	abstar.validate_args(args)
-	output_dir = abstar.run_standalone(args)
+    warnings.filterwarnings("ignore")
+    args = abstar.parse_arguments()
+    abstar.validate_args(args)
+    output_dir = abstar.run_standalone(args)

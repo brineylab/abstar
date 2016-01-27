@@ -23,12 +23,12 @@
 
 
 def fix_ambigs(blast_result):
-	new = ''
-	germ = blast_result.germline_alignment
-	query = blast_result.query_alignment
-	for q, g in zip(query, germ):
-		if q.upper() == 'N':
-			new += g
-		else:
-			new += q
-	return new
+    new = ''
+    germ = blast_result.germline_alignment
+    query = blast_result.query_alignment
+    for q, g in zip(query, germ):
+        if q.upper() == 'N':
+            new += g
+        else:
+            new += q
+    return new
