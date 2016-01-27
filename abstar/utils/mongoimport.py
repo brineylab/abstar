@@ -22,9 +22,14 @@
 #
 
 
+import itertools
 import os
 import subprocess
 import sys
+import uuid
+
+from abtools.pipeline import make_dir
+from abtools.utils import progbar
 
 
 def parse_arguments():
@@ -42,6 +47,9 @@ def parse_arguments():
 						help="The MongoDB database for import.")
 	parser.add_argument('-l', '--log', dest='mongo_log', required=True,
 						help="Log file for the mongoimport stdout.")
+	parser.add_argument('-t', '--temp', dest='temp', default=None,
+						help="Temp directory if splitting JSON files prior to mongoimport. \
+						if not provided, a temp directory will be created in the --in directory.")
 	parser.add_argument('-e', '--delim1', dest='delim1', default=None,
 						help="The first character delimiter used to split the filename to get the collection name. \
 						If splitting with a single delimiter, use this option to provide the delimiter. Required.")
@@ -56,6 +64,12 @@ def parse_arguments():
 						help="If splitting with multiple delimiters, this option is used to specify the occurance of the \
 						second delimiter at which to split. \
 						Required if splitting with two different delimiters.")
+	parser.add_argument('--split-file', dest='split_file', action='store_true', default=False,
+						help="Splits each input file into subfiles containing --split_file_lines lines. \
+						Useful when performing mongoimport via an SSH tunnel, where for some reason MongoDB \
+						errors when importing files greater than 16MB (even if no individual documents are >16MB).")
+	parser.add_argument('--split=file-lines', dest='split_file_lines', type=int, default=500,
+						help="Number of lines in each mongoimport subfile (each line should be a complete JSON document).")
 	parser.add_argument('-x', '--split-only', dest='split_only', default=False, action='store_true',
 						help="Instead of truncating the filename to get the collection name, takes only the split for the collection. \
 						Default is False.")
@@ -65,7 +79,7 @@ def parse_arguments():
 class Args(object):
 	"""Holds arguments, mimics argparse's Namespace when running mongoimport as an imported module"""
 	def __init__(self, ip='localhost', user=None, password=None, db=None,
-				 mongo_input_dir=None, mongo_log=None,
+				 mongo_input_dir=None, mongo_log=None, split_file=False, split_file_lines=500,
 				 delim1=None, delim2=None,
 				 split1_pos=1, split2_pos=1, split_only=False):
 		super(Args, self).__init__()
@@ -75,6 +89,8 @@ class Args(object):
 		self.mongo_input_dir = mongo_input_dir
 		self.db = db
 		self.mongo_log = mongo_log if mongo_log else sys.stdout
+		self.split_file = split_file
+		self.split_file_lines = int(split_file_lines)
 		self.delim1 = delim1
 		self.delim2 = delim2
 		self.split1_pos = int(split1_pos)
@@ -83,13 +99,24 @@ class Args(object):
 
 
 def mongo_import(json, db, coll, log, args):
+	if args.split_file:
+		jsons = split_file(json, args)
+		progbar.progress_bar(0, len(jsons))
+	else:
+		jsons = [json, ]
 	username = " -u {}".format(args.user) if args.user else ""
 	password = " -p {}".format(args.password) if args.password else ""
 	# user_password = "{}{} --authenticationDatabase admin".format(username, password)
-	mongo_cmd = "mongoimport --host {}:27017{}{} --db {} --collection {} --file {}".format(
-		args.ip, username, password, db, coll, json)
-	mongo = subprocess.Popen(mongo_cmd, shell=True, stdout=log)
-	mongo.communicate()
+	for i, json in enumerate(jsons):
+		mongo_cmd = "mongoimport --host {}:27017{}{} --db {} --collection {} --file {}".format(
+			args.ip, username, password, db, coll, json)
+		mongo = subprocess.Popen(mongo_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+		mongo.communicate()
+		if args.split_file:
+			progbar.progress_bar(i + 1, len(jsons))
+	if args.split_file:
+		print('')
+		remove_temp_files(args)
 
 
 def listdir_fullpath(d):
@@ -102,6 +129,27 @@ def listdir_fullpath(d):
 			return [d, ]
 	print("ERROR: no importable JSON files were found. Double-check your input file/directory")
 	sys.exit(1)
+
+
+def split_file(json, args):
+	split_files = []
+	temp_dir = args.temp if args.temp is not None else os.path.join(args.mongo_input_dir, 'temp')
+	make_dir(temp_dir)
+	with open(json) as f:
+		for chunk in itertools.izip_longest(*[f] * args.split_file_lines):
+			chunk = [c for c in chunk if c is not None]
+			fname = os.path.join(temp_dir, str(uuid.uuid4()) + '.json')
+			open(fname, 'w').write(''.join(chunk))
+			split_files.append(fname)
+	return split_files
+
+
+def remove_temp_files(args):
+	temp_dir = args.temp if args.temp is not None else os.path.join(args.mongo_input_dir, 'temp')
+	files = listdir_fullpath(temp_dir)
+	for f in files:
+		os.unlink(f)
+
 
 
 def get_collection(i, args):
