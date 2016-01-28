@@ -23,9 +23,11 @@
 
 
 import itertools
+import multiprocessing as mp
 import os
 import subprocess
 import sys
+import time
 import uuid
 
 from abtools.pipeline import make_dir
@@ -37,6 +39,8 @@ def parse_arguments():
     parser = argparse.ArgumentParser("Performs the mongoimport operation on all files in the input directory.  Determines the appropriate collection using the filename.")
     parser.add_argument('-i', '--ip', dest='ip', default='localhost',
                         help="The IP address of the MongoDB server. Defaults to 'localhost'.")
+    parser.add_argument('--port', dest='port', type=int, default=27017,
+                        help="The MongoDB port. Defaults to 27017.")
     parser.add_argument('-u', '--user', dest='user', default=None,
                         help="Username for the MongoDB server. Not used if not provided.")
     parser.add_argument('-p', '--password', dest='password', default=None,
@@ -101,22 +105,56 @@ class Args(object):
 def mongo_import(json, db, coll, log, args):
     if args.split_file:
         jsons = split_file(json, args)
-        progbar.progress_bar(0, len(jsons))
+        multiprocess_mongoimport(jsons, db, coll, args)
     else:
-        jsons = [json, ]
-    username = " -u {}".format(args.user) if args.user else ""
-    password = " -p {}".format(args.password) if args.password else ""
-    # user_password = "{}{} --authenticationDatabase admin".format(username, password)
-    for i, json in enumerate(jsons):
-        mongo_cmd = "mongoimport --host {}:27017{}{} --db {} --collection {} --file {}".format(
-            args.ip, username, password, db, coll, json)
-        mongo = subprocess.Popen(mongo_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        mongo.communicate()
-        if args.split_file:
-            progbar.progress_bar(i + 1, len(jsons))
-    if args.split_file:
-        print('')
-        remove_temp_files(args)
+        do_mongoimport(json, args.ip, args.port, db, coll, args.user, args.password)
+
+    #     jsons = [json, ]
+    # username = " -u {}".format(args.user) if args.user else ""
+    # password = " -p {}".format(args.password) if args.password else ""
+    # # user_password = "{}{} --authenticationDatabase admin".format(username, password)
+    # for i, json in enumerate(jsons):
+    #     mongo_cmd = "mongoimport --host {}:27017{}{} --db {} --collection {} --file {}".format(
+    #         args.ip, username, password, db, coll, json)
+    #     mongo = subprocess.Popen(mongo_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    #     mongo.communicate()
+    #     if args.split_file:
+    #         progbar.progress_bar(i + 1, len(jsons))
+    # if args.split_file:
+    #     print('')
+    #     remove_temp_files(args)
+
+
+def multiprocess_mongoimport(jsons, db, coll, args):
+    progbar.progress_bar(0, len(jsons))
+    async_results = []
+    p = mp.Pool()
+    for j in jsons:
+        async_results.append(p.apply_async(do_mongoimport, args=(j, args.ip, args.port, db, coll, args.user, args.password)))
+    monitor_results(async_results)
+    remove_temp_files(args)
+    print('')
+
+
+def monitor_results(results):
+    finished = 0
+    jobs = len(results)
+    while finished < jobs:
+        time.sleep(1)
+        ready = [ar for ar in results if ar.ready()]
+        finished = len(ready)
+        progbar.progress_bar(finished, jobs)
+    progbar.progress_bar(finished, jobs)
+
+
+def do_mongoimport(json, ip, port, db, coll, user, password):
+    username = " -u {}".format(user) if user else ""
+    password = " -p {}".format(password) if password else ""
+    mongo_cmd = "mongoimport --host {}:{}{}{} --db {} --collection {} --file {}".format(
+        ip, port, username, password, db, coll, json)
+    mongo = subprocess.Popen(mongo_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    mongo.communicate()
+
 
 
 def listdir_fullpath(d):

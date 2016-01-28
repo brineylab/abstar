@@ -28,5 +28,5 @@ from abstar.utils import mongoimport
 
 
 if __name__ == '__main__':
-	args = mongoimport.parse_arguments()
-	mongoimport.main(args)
+    args = mongoimport.parse_arguments()
+    mongoimport.main(args)
