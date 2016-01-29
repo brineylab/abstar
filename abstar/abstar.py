@@ -485,7 +485,7 @@ def _run_jobs_via_celery(files, output_dir, args):
     succeeded, failed = monitor_celery_jobs(async_results)
     failed_files = [f for i, f in enumerate(files) if async_results[i].failed()]
     for ff in failed_files:
-        logger.info('FAILED FILE: {}'.format(f))
+        logger.debug('FAILED FILE: {}'.format(f))
     return [s.get() for s in succeeded]
 
 
