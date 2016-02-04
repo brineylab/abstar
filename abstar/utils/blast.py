@@ -417,7 +417,7 @@ def build_j_blast_input(seqs, v_blast_results):
     j_fastas = []
     for seq, vbr in zip(seqs, v_blast_results):
         start = len(vbr.query_alignment) + vbr.query_start + vbr.fs_indel_adjustment + vbr.nfs_indel_adjustment
-        j_fastas.append(seq[start:].fasta)
+        j_fastas.append('>{}\n{}'.format(seq.id, seq.sequence[start:]))
     j_blastin = tempfile.NamedTemporaryFile(delete=False)
     j_blastin.write('\n'.join(j_fastas))
     j_blastin.close()

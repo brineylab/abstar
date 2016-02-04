@@ -415,7 +415,7 @@ def process_sequence_file(seq_file, args):
             if v.chain == 'heavy':
                 junc_start = len(v.query_alignment) + v.query_start
                 junc_end = junc_start + j.query_start
-                junction = seq[junc_start:junc_end]
+                junction = Sequence(seq.id, seq.sequence[junc_start:junc_end])
                 if junction:
                     d = assign_d(junction, args.species)
                     logger.debug('ASSIGNED D-GENE: {}, {}'.format(seq.id, d.top_germline))

@@ -37,21 +37,31 @@ def build_output(vdjs, output_type):
         if output_type.lower() == 'json':
             output = []
             for vdj in vdjs:
-                output.append(_json_output(vdj))
+                try:
+                    output.append(_json_output(vdj))
+                except AttributeError:
+                    logger.debug('OUTPUT ERROR: {}'.format(vdj.id))
         elif output_type.lower() == 'imgt':
             header, firstvals = _imgt_summary_output(vdjs[0], header=True)
             output = [header, firstvals, ]
             for vdj in vdjs[1:]:
-                output.append(_imgt_summary_output(vdj))
+                try:
+                    output.append(_imgt_summary_output(vdj))
+                except AttributeError:
+                    logger.debug('OUTPUT ERROR: {}'.format(vdj.id))
         elif output_type.lower() == 'hadoop':
             output = []
             for vdj in vdjs:
-                output.append(_hadoop_minimal_output(vdj))
+                try:
+                    output.append(_hadoop_minimal_output(vdj))
+                except AttributeError:
+                    logger.debug('OUTPUT ERROR: {}'.format(vdj.id))
         return output
     except:
-        logger.debug('OUTPUT ERROR: sequences {} - {}, output_type = {}'.format(vdjs[0].id,
-                                                                                 vdjs[-1].id,
-                                                                                 output_type))
+        logger.debug('FILE-LEVEL OUTPUT ERROR: sequences {} - {}, output_type = {}'.format(
+            vdjs[0].id,
+            vdjs[-1].id,
+            output_type))
         logger.debug(traceback.format_exc())
 
 
