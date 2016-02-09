@@ -1,7 +1,7 @@
 from setuptools import setup
 
 config = {
-	'description': 'AbStar',
+	'description': 'VDJ assignment and antibody sequence annotation. Scalable from a single sequence to billions of sequences.',
 	'author': 'Bryan Briney',
 	'url': 'www.github.com/briney/abstar/',
 	# 'download_url': 'www.github.com/briney/abstar/',
