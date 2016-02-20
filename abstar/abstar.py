@@ -433,10 +433,11 @@ def _run_jobs_singlethreaded(files, output_dir, args):
     for i, f in enumerate(files):
         try:
             results.append(run_vdj(f, output_dir, args))
-            update_progress(i, len(files))
+            update_progress(i + 1, len(files))
         except:
             logger.debug('FILE-LEVEL EXCEPTION: {}'.format(f))
             logging.debug(traceback.format_exc())
+    logger.info('')
     return results
 
 

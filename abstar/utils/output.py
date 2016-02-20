@@ -333,7 +333,7 @@ def _imgt_summary_output(vdj, header=False):
             ('J-REGION score', vdj.j.top_score),
             ('J-REGION identity %', round(vdj.j.nt_mutations.germline_identity, 2)),
             ('J-REGION identity nt', _get_iden_nt(vdj.j)),
-            ('D-GENE and allele', vdj.d.top_germline if vdj.d else ''),
+            ('D-GENE and allele', vdj.d.top_germline if vdj.d is not None else ''),
             ('D-REGION reading frame', vdj.d.reading_frame if vdj.d else ''),
             ('CDR1-IMGT length', vdj.v.regions.aa_lengths['CDR1']),
             ('CDR2-IMGT length', vdj.v.regions.aa_lengths['CDR2']),

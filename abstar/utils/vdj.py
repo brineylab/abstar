@@ -415,10 +415,11 @@ def process_sequence_file(seq_file, args):
             if v.chain == 'heavy':
                 junc_start = len(v.query_alignment) + v.query_start
                 junc_end = junc_start + j.query_start
-                junction = Sequence(seq.id, seq.sequence[junc_start:junc_end])
+                junction = Sequence(seq.sequence[junc_start:junc_end], id=seq.id)
                 if junction:
                     d = assign_d(junction, args.species)
-                    logger.debug('ASSIGNED D-GENE: {}, {}'.format(seq.id, d.top_germline))
+                    if d is not None:
+                    	logger.debug('ASSIGNED D-GENE: {}, {}'.format(seq.id, d.top_germline))
                     vdjs.append(VDJ(seq, args, v, j, d))
                     continue
                 vdjs.append(VDJ(seq, args, v, j))
@@ -466,4 +467,7 @@ def assign_d(seq, species):
     alignments = local_alignment(seq, targets=germs,
                                  gap_open_penalty=20, gap_extend_penalty=2)
     alignments.sort(key=lambda x: x.score, reverse=True)
-    return blast.DiversityResult(seq, alignments[:5])
+    try:
+    	return blast.DiversityResult(seq, alignments[:5])
+    except IndexError:
+    	return None
