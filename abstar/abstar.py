@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 # filename: abstar.py
 
 #
@@ -24,23 +24,25 @@
 
 from __future__ import print_function, unicode_literals
 
-import argparse
-import glob
-import logging
-import multiprocessing as mp
-import os
-import subprocess as sp
-import sys
-import time
-import traceback
-import warnings
+from argparse import ArgumentParser
+from glob import glob
+from multiprocessing import Pool
+from subprocess import Popen, PIPE
 
+# External
 from Bio import SeqIO
-import skbio
-
 from abtools import log
 
+import sys
+import traceback
+import warnings
+import logging
+import os
+import time
 
+
+# External
+#import skbio
 
 #####################################################################
 #
@@ -49,9 +51,8 @@ from abtools import log
 #####################################################################
 
 
-
 def parse_arguments(print_help=False):
-    parser = argparse.ArgumentParser("Performs germline assignment and other relevant annotation on antibody sequence data from NGS platforms.")
+    parser = ArgumentParser("Performs germline assignment and other relevant annotation on antibody sequence data from NGS platforms.")
     parser.add_argument('-d', '--data', dest='data_dir', default=None,
                         help="The data directory, where files will be downloaded (or have previously \
                         been download), temp files will be stored, and output files will be \
@@ -77,6 +78,7 @@ def parse_arguments(print_help=False):
     parser.add_argument('-k', '--chunksize', dest='chunksize', default=250, type=int,
                         help="Approximate number of sequences in each distributed job. \
                         Defaults to 250. \
+                        Set to 0 if you want file splittint to be turned off \
                         Don't change unless you know what you're doing.")
     parser.add_argument('-T', '--output_type', dest="output_type", choices=['json', 'imgt', 'hadoop'], default='json',
                         help="Select the output type. Options are 'json', 'imgt' and 'impala'. \
@@ -133,6 +135,7 @@ def parse_arguments(print_help=False):
 
 class Args(object):
     """Holds arguments, mimics argparse's Namespace when running abstar as an imported module"""
+
     def __init__(self, data_dir=None, input=None, output=None, log=None, temp=None,
                  chunksize=250, output_type='json',
                  merge=False, pandaseq_algo='simple_bayesian',
@@ -167,8 +170,6 @@ def validate_args(args):
         sys.exit(1)
 
 
-
-
 #####################################################################
 #
 #                        FILES AND DIRECTORIES
@@ -176,9 +177,10 @@ def validate_args(args):
 #####################################################################
 
 
-
 def make_directories(args):
     full_paths = []
+    if args.data_dir and not os.path.exists(args.data_dir):
+        _make_direc(args.data_dir, args)
     indir = args.input if args.input else os.path.join(args.data_dir, 'input')
     outdir = args.output if args.output else os.path.join(args.data_dir, 'output')
     tempdir = args.temp if args.temp else os.path.join(args.data_dir, 'temp')
@@ -194,7 +196,7 @@ def _make_direc(d, args):
         os.makedirs(d)
     if args.cluster:
         cmd = 'sudo chmod 777 {}'.format(d)
-        p = sp.Popen(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+        p = Popen(cmd, shell=True, stdout=PIPE, stderr=PIPE)
         stdout, stderr = p.communicate()
 
 
@@ -237,7 +239,7 @@ def log_options(args):
 def list_files(d, log=False):
     if os.path.isdir(d):
         expanded_dir = os.path.expanduser(d)
-        files = sorted(glob.glob(expanded_dir + '/*'))
+        files = sorted(glob(expanded_dir + '/*'))
     else:
         files = [d, ]
     if log:
@@ -284,13 +286,11 @@ def clear_temp_dir(temp_dir):
         os.unlink(f)
 
 
-
 #####################################################################
 #
 #                       INPUT PROCESSING
 #
 #####################################################################
-
 
 
 def download_files(input_dir):
@@ -344,19 +344,27 @@ def split_file(f, fmt, temp_dir, args):
         out_prefix = '.'.join(os.path.basename(f).split('.')[:-1])
     else:
         out_prefix = os.path.basename(f)
-    for seq in SeqIO.parse(open(f, 'r'), fmt.lower()):
-        fastas.append('>{}\n{}'.format(seq.id, str(seq.seq)))
-        seq_counter += 1
-        total_seq_counter += 1
-        if seq_counter == args.chunksize:
-            out_file = os.path.join(temp_dir, '{}_{}'.format(out_prefix, file_counter))
-            ohandle = open(out_file, 'w')
-            ohandle.write('\n'.join(fastas))
-            ohandle.close()
-            fastas = []
-            seq_counter = 0
-            file_counter += 1
-            subfiles.append(out_file)
+    if args.chunksize != 0:
+        for seq in SeqIO.parse(open(f, 'r'), fmt.lower()):
+            fastas.append('>{}\n{}'.format(seq.id, str(seq.seq)))
+            seq_counter += 1
+            total_seq_counter += 1
+            if seq_counter == args.chunksize:
+                out_file = os.path.join(temp_dir, '{}_{}'.format(out_prefix, file_counter))
+                ohandle = open(out_file, 'w')
+                ohandle.write('\n'.join(fastas))
+                ohandle.close()
+                fastas = []
+                seq_counter = 0
+                file_counter += 1
+                subfiles.append(out_file)
+
+        # We don't want our files split
+    else:
+        for seq in SeqIO.parse(open(f, 'r'), fmt.lower()):
+            total_seq_counter += 1
+        subfiles.append(f)
+        file_counter = 1
 
     # unless the input file is an exact multiple of args.chunksize,
     # need to write the last few sequences to a split file.
@@ -370,15 +378,11 @@ def split_file(f, fmt, temp_dir, args):
     return subfiles, total_seq_counter
 
 
-
-
-
 #####################################################################
 #
 #                            PRINTING
 #
 #####################################################################
-
 
 
 def print_input_file_info(f, fmt):
@@ -408,7 +412,6 @@ def update_progress(finished, jobs, failed=None):
     sys.stdout.flush()
 
 
-
 #####################################################################
 #
 #                             JOBS
@@ -416,12 +419,11 @@ def update_progress(finished, jobs, failed=None):
 #####################################################################
 
 
-
 def run_jobs(files, output_dir, args):
     sys.stdout.write('\nRunning VDJ...\n')
     if args.cluster:
         return _run_jobs_via_celery(files, output_dir, args)
-    elif args.debug:
+    elif args.debug or args.chunksize == 0:
         return _run_jobs_singlethreaded(files, output_dir, args)
     else:
         return _run_jobs_via_multiprocessing(files, output_dir, args)
@@ -443,12 +445,12 @@ def _run_jobs_singlethreaded(files, output_dir, args):
 
 def _run_jobs_via_multiprocessing(files, output_dir, args):
     from utils.vdj import run as run_vdj
-    p = mp.Pool(maxtasksperchild=50)
+    p = Pool(maxtasksperchild=50)
     async_results = []
     for f in files:
         async_results.append((f, p.apply_async(run_vdj, (f,
-                                                     output_dir,
-                                                     args))))
+                                                         output_dir,
+                                                         args))))
     monitor_mp_jobs([ar[1] for ar in async_results])
     results = []
     for a in async_results:
@@ -544,16 +546,13 @@ def run(**kwargs):
 
 
 def run_standalone(args):
-    setup_logging(args)
-    global logger
-    logger = log.get_logger('abstar')
     output_dir = main(args)
 
 
-
 def main(args):
-    log_options(args)
     input_dir, output_dir, temp_dir = make_directories(args)
+    setup_logging(args)
+    log_options(args)
     if args.basespace:
         args.merge = True
         download_files(input_dir)
@@ -580,6 +579,5 @@ def main(args):
 if __name__ == '__main__':
     warnings.filterwarnings("ignore")
     args = parse_arguments()
-    setup_logging(args)
     output_dir = main(args)
     sys.stdout.write('\n\n')
