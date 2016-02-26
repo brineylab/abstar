@@ -8,7 +8,7 @@ config = {
 	'author_email': 'briney@scripps.edu',
 	'version': '0.1.0',
 	'install_requires': [
-						 # 'abtools',
+						 'abtools',
 						 'biopython',
 						 'celery',
 						 'nwalign',
