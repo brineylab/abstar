@@ -78,6 +78,7 @@ def parse_arguments(print_help=False):
     parser.add_argument('-k', '--chunksize', dest='chunksize', default=250, type=int,
                         help="Approximate number of sequences in each distributed job. \
                         Defaults to 250. \
+                        Set to 0 if you want file splittint to be turned off \
                         Don't change unless you know what you're doing.")
     parser.add_argument('-T', '--output_type', dest="output_type", choices=['json', 'imgt', 'hadoop'], default='json',
                         help="Select the output type. Options are 'json', 'imgt' and 'impala'. \
@@ -343,19 +344,27 @@ def split_file(f, fmt, temp_dir, args):
         out_prefix = '.'.join(os.path.basename(f).split('.')[:-1])
     else:
         out_prefix = os.path.basename(f)
-    for seq in SeqIO.parse(open(f, 'r'), fmt.lower()):
-        fastas.append('>{}\n{}'.format(seq.id, str(seq.seq)))
-        seq_counter += 1
-        total_seq_counter += 1
-        if seq_counter == args.chunksize:
-            out_file = os.path.join(temp_dir, '{}_{}'.format(out_prefix, file_counter))
-            ohandle = open(out_file, 'w')
-            ohandle.write('\n'.join(fastas))
-            ohandle.close()
-            fastas = []
-            seq_counter = 0
-            file_counter += 1
-            subfiles.append(out_file)
+    if args.chunksize != 0:
+        for seq in SeqIO.parse(open(f, 'r'), fmt.lower()):
+            fastas.append('>{}\n{}'.format(seq.id, str(seq.seq)))
+            seq_counter += 1
+            total_seq_counter += 1
+            if seq_counter == args.chunksize:
+                out_file = os.path.join(temp_dir, '{}_{}'.format(out_prefix, file_counter))
+                ohandle = open(out_file, 'w')
+                ohandle.write('\n'.join(fastas))
+                ohandle.close()
+                fastas = []
+                seq_counter = 0
+                file_counter += 1
+                subfiles.append(out_file)
+
+        # We don't want our files split
+    else:
+        for seq in SeqIO.parse(open(f, 'r'), fmt.lower()):
+            total_seq_counter += 1
+        subfiles.append(f)
+        file_counter = 1
 
     # unless the input file is an exact multiple of args.chunksize,
     # need to write the last few sequences to a split file.
@@ -414,7 +423,7 @@ def run_jobs(files, output_dir, args):
     sys.stdout.write('\nRunning VDJ...\n')
     if args.cluster:
         return _run_jobs_via_celery(files, output_dir, args)
-    elif args.debug:
+    elif args.debug or args.chunksize == 0:
         return _run_jobs_singlethreaded(files, output_dir, args)
     else:
         return _run_jobs_via_multiprocessing(files, output_dir, args)
@@ -537,9 +546,6 @@ def run(**kwargs):
 
 
 def run_standalone(args):
-    # setup_logging(args)
-    #global logger
-    #logger = log.get_logger('abstar')
     output_dir = main(args)
 
 
