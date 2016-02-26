@@ -7,8 +7,7 @@ config = {
 	# 'download_url': 'www.github.com/briney/abstar/',
 	'author_email': 'briney@scripps.edu',
 	'version': '0.1.0',
-	'install_requires': [
-						 # 'abtools',
+	'install_requires': ['abtools',
 						 'biopython',
 						 'celery',
 						 'nwalign',
