@@ -98,7 +98,7 @@ def parse_arguments(print_help=False):
                         help="Define merging algorithm to be used by PANDAseq.\
                         Options are 'simple_bayesian', 'ea_util', 'flash', 'pear', 'rdp_mle', 'stitch', or 'uparse'.\
                         Default is 'simple_bayesian', which is the default PANDAseq algorithm.")
-    parser.add_argument('-n', '--next_seq', dest="next_seq", action='store_true', default=False,
+    parser.add_argument('-n', '--nextseq', dest="nextseq", action='store_true', default=False,
                         help="Use if the run was performed on a NextSeq sequencer.")
     parser.add_argument('-u', '--uaid', dest="uaid", type=int, default=0,
                         help="Length of the unique antibody identifiers (UAIDs) \
@@ -139,7 +139,7 @@ class Args(object):
     def __init__(self, data_dir=None, input=None, output=None, log=None, temp=None,
                  chunksize=250, output_type='json',
                  merge=False, pandaseq_algo='simple_bayesian',
-                 next_seq=False, uaid=0, isotype=False,
+                 nextseq=False, uaid=0, isotype=False,
                  basespace=False, cluster=False, starcluster=False,
                  debug=False, print_debug=False, species='human'):
         super(Args, self).__init__()
@@ -152,7 +152,7 @@ class Args(object):
         self.output_type = str(output_type)
         self.merge = True if basespace else merge
         self.pandaseq_algo = str(pandaseq_algo)
-        self.next_seq = next_seq
+        self.nextseq = nextseq
         self.uaid = int(uaid)
         self.isotype = isotype
         self.basespace = basespace
