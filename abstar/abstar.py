@@ -178,7 +178,6 @@ def validate_args(args):
 
 def make_directories(args):
     full_paths = []
-    print(args.data_dir)
     if args.data_dir and not os.path.exists(args.data_dir):
         _make_direc(args.data_dir, args)
     indir = args.input if args.input else os.path.join(args.data_dir, 'input')
