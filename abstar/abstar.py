@@ -39,6 +39,7 @@ import warnings
 import logging
 import os
 import time
+import gzip
 
 
 # External
@@ -126,6 +127,10 @@ def parse_arguments(print_help=False):
                         Use -DD to print verbose exception information to screen in addition to writing to log.")
     parser.add_argument('-s', '--species', dest='species', default='human',
                         choices=['human', 'macaque', 'mouse', 'rabbit', 'b12mouse', 'vrc01mouse', '9114mouse'])
+    parser.add_argument('-z', '--gzip', dest='gzip', default=False, action='store_true',
+                        help="Compress the output to a gzipped file")
+    parser.add_argument('--pretty', dest='pretty', default=False, action='store_true',
+                        help='Pretty format json file')
     if print_help:
         parser.print_help()
     else:
@@ -141,7 +146,7 @@ class Args(object):
                  merge=False, pandaseq_algo='simple_bayesian',
                  nextseq=False, uaid=0, isotype=False,
                  basespace=False, cluster=False, starcluster=False,
-                 debug=False, print_debug=False, species='human'):
+                 debug=False, print_debug=False, species='human', gzip=False):
         super(Args, self).__init__()
         self.data_dir = str(data_dir) if data_dir is not None else data_dir
         self.input = str(input) if input is not None else input
@@ -159,6 +164,7 @@ class Args(object):
         self.cluster = cluster
         self.starcluster = starcluster
         self.debug = 1 if debug else 0
+        self.gzip = gzip
         if print_debug and self.debug > 0:
             self.debug == 2
         self.species = species
@@ -258,27 +264,31 @@ def concat_output(input_file, temp_dir, output_dir, args):
     osuffix = '.json' if args.output_type == 'json' else '.txt'
     oname = oprefix + osuffix
     ofile = os.path.join(output_dir, oname)
-    open(ofile, 'w').write('')
+    #open(ofile, 'w').write('')
     jsons = [f for f in list_files(temp_dir) if os.path.basename(f).startswith(oprefix) and f.endswith(osuffix)]
     logger.info('Concatenating {} job outputs into a single output file.'.format(len(jsons)))
     logger.info('')
-    ohandle = open(ofile, 'a')
-    if args.output_type in ['json', 'hadoop']:
-        for json in jsons:
-            with open(json) as f:
-                for line in f:
-                    ohandle.write(line)
-            ohandle.write('\n')
-    if args.output_type == 'imgt':
-        for i, json in enumerate(jsons):
-            with open(json) as f:
-                for j, line in enumerate(f):
-                    if i == 0:
-                        ohandle.write(line)
-                    elif j >= 1:
-                        ohandle.write(line)
-            ohandle.write('\n')
-    ohandle.close()
+    if args.gzip:
+        ohandle = gzip.open(ofile+".gz", 'wb')
+    else:
+        ohandle = open(ofile, 'w')
+
+    with ohandle as out_file:
+        if args.output_type in ['json', 'hadoop']:
+            for json in jsons:
+                with open(json) as f:
+                    for line in f:
+                        out_file.write(line)
+                out_file.write('\n')
+        if args.output_type == 'imgt':
+            for i, json in enumerate(jsons):
+                with open(json) as f:
+                    for j, line in enumerate(f):
+                        if i == 0:
+                            out_file.write(line)
+                        elif j >= 1:
+                            out_file.write(line)
+                    out_file.write('\n')
 
 
 def clear_temp_dir(temp_dir):

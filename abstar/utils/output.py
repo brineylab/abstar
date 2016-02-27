@@ -30,7 +30,7 @@ import traceback
 from abtools import log
 
 
-def build_output(vdjs, output_type):
+def build_output(vdjs, output_type, pretty=False):
     logger = log.get_logger()
     try:
         vdjs = [vdj for vdj in vdjs if vdj.rearrangement]
@@ -38,7 +38,7 @@ def build_output(vdjs, output_type):
             output = []
             for vdj in vdjs:
                 try:
-                    output.append(_json_output(vdj))
+                    output.append(_json_output(vdj, pretty=pretty))
                 except AttributeError:
                     logger.debug('OUTPUT ERROR: {}'.format(vdj.id))
         elif output_type.lower() == 'imgt':
@@ -72,7 +72,7 @@ def output_func(output_type):
     return outputs[output_type]
 
 
-def _json_output(vdj):
+def _json_output(vdj, pretty):
     '''
     Assembles AbAnalyze output in JSON format.
 
@@ -93,25 +93,25 @@ def _json_output(vdj):
     germ_alignments_nt = {'var': {'query': vdj.v.query_alignment,
                                   'germ': vdj.v.germline_alignment,
                                   'midline': vdj.v.alignment_midline},
-                           'join': {'query': vdj.j.query_alignment,
-                                    'germ': vdj.j.germline_alignment,
-                                    'midline': vdj.j.alignment_midline}}
+                          'join': {'query': vdj.j.query_alignment,
+                                   'germ': vdj.j.germline_alignment,
+                                   'midline': vdj.j.alignment_midline}}
     exo_trim = {'var_3': len(vdj.v.germline_seq) - vdj.v.germline_end,
                 'join_5': vdj.j.germline_start}
 
     if vdj.d:
         d_info = {'full': vdj.d.top_germline,
-                    'fam': vdj.d.top_germline.split('-')[0] if vdj.d.top_germline else None,
-                    'gene': vdj.d.top_germline.split('*')[0] if vdj.d.top_germline else None,
-                    'score': vdj.d.top_score,
-                    'frame': vdj.d.reading_frame,
-                    'others': [{'full': germ,
-                                'score': score}
-                                 for germ, score in zip(vdj.d.all_germlines[1:], vdj.d.all_scores[1:])]}
+                  'fam': vdj.d.top_germline.split('-')[0] if vdj.d.top_germline else None,
+                  'gene': vdj.d.top_germline.split('*')[0] if vdj.d.top_germline else None,
+                  'score': vdj.d.top_score,
+                  'frame': vdj.d.reading_frame,
+                  'others': [{'full': germ,
+                              'score': score}
+                             for germ, score in zip(vdj.d.all_germlines[1:], vdj.d.all_scores[1:])]}
         mut_count_nt += vdj.d.nt_mutations.mutation_count
         div_muts_nt = {'num': vdj.d.nt_mutations.mutation_count,
                        'muts': [{'loc': m['pos'],
-                                  'mut': m['mut']} for m in vdj.d.nt_mutations.all_mutations]}
+                                 'mut': m['mut']} for m in vdj.d.nt_mutations.all_mutations]}
         nt_identity['d'] = vdj.d.nt_mutations.germline_identity
         align_info['d_start'] = vdj.d.germline_start
         align_info['d_end'] = vdj.d.germline_end
@@ -122,14 +122,14 @@ def _json_output(vdj):
                 'n2_nt': vdj.junction.n2_nt,
                 'd_nt': vdj.junction.d_nt,
                 'd_cdr3_pos': {'start': vdj.junction.d_start_position_nt,
-                                 'end': vdj.junction.d_end_position_nt},
+                               'end': vdj.junction.d_end_position_nt},
                 'd_dist_from_cdr3_start': vdj.junction.d_dist_from_cdr3_start_nt,
                 'd_dist_from_cdr3_end': vdj.junction.d_dist_from_cdr3_end_nt}
         germ_junc = {'n1_nt': vdj.germ_junction.n1_nt,
                      'n2_nt': vdj.germ_junction.n2_nt,
                      'd_nt': vdj.germ_junction.d_nt,
                      'd_cdr3_pos': {'start': vdj.germ_junction.d_start_position_nt,
-                                      'end': vdj.germ_junction.d_end_position_nt},
+                                    'end': vdj.germ_junction.d_end_position_nt},
                      'd_dist_from_cdr3_start': vdj.germ_junction.d_dist_from_cdr3_start_nt,
                      'd_dist_from_cdr3_end': vdj.germ_junction.d_dist_from_cdr3_end_nt}
         exo_trim['div_5'] = vdj.d.germline_start
@@ -149,19 +149,19 @@ def _json_output(vdj):
                     'gene': vdj.v.top_germline.split('*')[0],
                     'score': vdj.v.top_score,
                     'others': [{'full': germ,
-                                 # 'fam': germ.split('-')[0],
-                                 # 'gene': germ.split('*')[0],
-                                 'score': score}
-                                 for germ, score in zip(vdj.v.all_germlines[1:], vdj.v.all_scores[1:])]
+                                # 'fam': germ.split('-')[0],
+                                # 'gene': germ.split('*')[0],
+                                'score': score}
+                               for germ, score in zip(vdj.v.all_germlines[1:], vdj.v.all_scores[1:])]
                     }),
         ('d_gene', d_info),
         ('j_gene', {'full': vdj.j.top_germline,
                     'gene': vdj.j.top_germline.split('*')[0],
                     'score': vdj.j.top_score,
                     'others': [{'full': germ,
-                                 # 'fam': germ.split('*')[0],
-                                 'score': score}
-                                 for germ, score in zip(vdj.j.all_germlines[1:], vdj.j.all_scores[1:])]
+                                # 'fam': germ.split('*')[0],
+                                'score': score}
+                               for germ, score in zip(vdj.j.all_germlines[1:], vdj.j.all_scores[1:])]
                     }),
         ('bitscores', {'v': vdj.v.top_bitscore,
                        'j': vdj.j.top_bitscore}),
@@ -190,19 +190,19 @@ def _json_output(vdj):
         ('fr3_germ_nt', vdj.v.regions.germline_nt_seqs['FR3']),
         ('fr4_germ_nt', vdj.j.regions.germline_nt_seqs['FR4']),
         ('junc_nt', vdj.junction.junction_nt),
-        ('region_len_nt', {    'fr1': int(vdj.v.regions.nt_lengths['FR1']),
-                            'cdr1': int(vdj.v.regions.nt_lengths['CDR1']),
-                            'fr2': int(vdj.v.regions.nt_lengths['FR2']),
-                            'cdr2': int(vdj.v.regions.nt_lengths['CDR2']),
-                            'fr3': int(vdj.v.regions.nt_lengths['FR3']),
-                            'cdr3': len(vdj.junction.cdr3_nt),
-                            'fr4': int(vdj.j.regions.nt_lengths['FR4'])}),
+        ('region_len_nt', {'fr1': int(vdj.v.regions.nt_lengths['FR1']),
+                           'cdr1': int(vdj.v.regions.nt_lengths['CDR1']),
+                           'fr2': int(vdj.v.regions.nt_lengths['FR2']),
+                           'cdr2': int(vdj.v.regions.nt_lengths['CDR2']),
+                           'fr3': int(vdj.v.regions.nt_lengths['FR3']),
+                           'cdr3': len(vdj.junction.cdr3_nt),
+                           'fr4': int(vdj.j.regions.nt_lengths['FR4'])}),
         ('var_muts_nt', {'num': vdj.v.nt_mutations.mutation_count,
                          'muts': [{'loc': m['pos'],
-                                    'mut': m['mut']} for m in vdj.v.nt_mutations.all_mutations]}),
+                                   'mut': m['mut']} for m in vdj.v.nt_mutations.all_mutations]}),
         ('div_muts_nt', div_muts_nt),
         ('join_muts_nt', {'num': vdj.j.nt_mutations.mutation_count,
-                         'muts': [{'loc': m['pos'],
+                          'muts': [{'loc': m['pos'],
                                     'mut': m['mut']} for m in vdj.j.nt_mutations.all_mutations]}),
         ('mut_count_nt', mut_count_nt),
         ('vdj_aa', vdj.vdj_aa),
@@ -221,16 +221,16 @@ def _json_output(vdj):
         ('fr3_germ_aa', vdj.v.regions.germline_aa_seqs['FR3']),
         ('fr4_germ_aa', vdj.j.regions.germline_aa_seqs['FR4']),
         ('junc_aa', vdj.junction.junction_aa),
-        ('region_len_aa', {    'fr1': int(vdj.v.regions.aa_lengths['FR1']),
-                            'cdr1': int(vdj.v.regions.aa_lengths['CDR1']),
-                            'fr2': int(vdj.v.regions.aa_lengths['FR2']),
-                            'cdr2': int(vdj.v.regions.aa_lengths['CDR2']),
-                            'fr3': int(vdj.v.regions.aa_lengths['FR3']),
-                            'cdr3': len(vdj.junction.cdr3_aa),
-                            'fr4': int(vdj.j.regions.aa_lengths['FR4'])}),
+        ('region_len_aa', {'fr1': int(vdj.v.regions.aa_lengths['FR1']),
+                           'cdr1': int(vdj.v.regions.aa_lengths['CDR1']),
+                           'fr2': int(vdj.v.regions.aa_lengths['FR2']),
+                           'cdr2': int(vdj.v.regions.aa_lengths['CDR2']),
+                           'fr3': int(vdj.v.regions.aa_lengths['FR3']),
+                           'cdr3': len(vdj.junction.cdr3_aa),
+                           'fr4': int(vdj.j.regions.aa_lengths['FR4'])}),
         ('var_muts_aa', {'num': vdj.v.aa_mutations.mutation_count,
                          'muts': [{'loc': m['pos'],
-                                    'mut': m['mut']} for m in vdj.v.aa_mutations.all_mutations]}),
+                                   'mut': m['mut']} for m in vdj.v.aa_mutations.all_mutations]}),
         ('v_ins', [{'loc': i['pos'],
                     'len': i['len'],
                     'seq': i['seq']} for i in vdj.v.insertions]),
@@ -243,42 +243,42 @@ def _json_output(vdj):
         ('j_del', [{'loc': d['pos'],
                     'len': d['len'],
                     'seq': d['seq']} for d in vdj.j.deletions]),
-        ('region_muts_nt', {    'fr1': {'num': vdj.v.nt_mutations.region_mutation_count['FR1'],
-                                         'muts': [{'loc': m['pos'],
-                                                       'mut': m['mut']} for m in vdj.v.nt_mutations.region_mutations['FR1']]},
-                                'cdr1': {'num': vdj.v.nt_mutations.region_mutation_count['CDR1'],
-                                         'muts': [{'loc': m['pos'],
-                                                       'mut': m['mut']} for m in vdj.v.nt_mutations.region_mutations['CDR1']]},
-                                'fr2': {'num': vdj.v.nt_mutations.region_mutation_count['FR2'],
-                                         'muts': [{'loc': m['pos'],
-                                                       'mut': m['mut']} for m in vdj.v.nt_mutations.region_mutations['FR2']]},
-                                'cdr2': {'num': vdj.v.nt_mutations.region_mutation_count['CDR2'],
-                                         'muts': [{'loc': m['pos'],
-                                                       'mut': m['mut']} for m in vdj.v.nt_mutations.region_mutations['CDR2']]},
-                                'fr3': {'num': vdj.v.nt_mutations.region_mutation_count['FR3'],
-                                         'muts': [{'loc': m['pos'],
-                                                       'mut': m['mut']} for m in vdj.v.nt_mutations.region_mutations['FR3']]},
-                                'fr4': {'num': vdj.j.nt_mutations.region_mutation_count['FR4'],
-                                         'muts': [{'loc': m['pos'],
-                                                       'mut': m['mut']} for m in vdj.j.nt_mutations.region_mutations['FR4']]}}),
-        ('region_muts_aa', {    'fr1': {'num': vdj.v.aa_mutations.region_mutation_count['FR1'],
-                                         'muts': [{'loc': m['pos'],
-                                                       'mut': m['mut']} for m in vdj.v.aa_mutations.region_mutations['FR1']]},
-                                'cdr1': {'num': vdj.v.aa_mutations.region_mutation_count['CDR1'],
-                                         'muts': [{'loc': m['pos'],
-                                                       'mut': m['mut']} for m in vdj.v.aa_mutations.region_mutations['CDR1']]},
-                                'fr2': {'num': vdj.v.aa_mutations.region_mutation_count['FR2'],
-                                         'muts': [{'loc': m['pos'],
-                                                       'mut': m['mut']} for m in vdj.v.aa_mutations.region_mutations['FR2']]},
-                                'cdr2': {'num': vdj.v.aa_mutations.region_mutation_count['CDR2'],
-                                         'muts': [{'loc': m['pos'],
-                                                       'mut': m['mut']} for m in vdj.v.aa_mutations.region_mutations['CDR2']]},
-                                'fr3': {'num': vdj.v.aa_mutations.region_mutation_count['FR3'],
-                                         'muts': [{'loc': m['pos'],
-                                                       'mut': m['mut']} for m in vdj.v.aa_mutations.region_mutations['FR3']]},
-                                'fr4': {'num': vdj.j.aa_mutations.region_mutation_count['FR4'],
-                                         'muts': [{'loc': m['pos'],
-                                                       'mut': m['mut']} for m in vdj.j.aa_mutations.region_mutations['FR4']]}}),
+        ('region_muts_nt', {'fr1': {'num': vdj.v.nt_mutations.region_mutation_count['FR1'],
+                                    'muts': [{'loc': m['pos'],
+                                              'mut': m['mut']} for m in vdj.v.nt_mutations.region_mutations['FR1']]},
+                            'cdr1': {'num': vdj.v.nt_mutations.region_mutation_count['CDR1'],
+                                     'muts': [{'loc': m['pos'],
+                                               'mut': m['mut']} for m in vdj.v.nt_mutations.region_mutations['CDR1']]},
+                            'fr2': {'num': vdj.v.nt_mutations.region_mutation_count['FR2'],
+                                    'muts': [{'loc': m['pos'],
+                                              'mut': m['mut']} for m in vdj.v.nt_mutations.region_mutations['FR2']]},
+                            'cdr2': {'num': vdj.v.nt_mutations.region_mutation_count['CDR2'],
+                                     'muts': [{'loc': m['pos'],
+                                               'mut': m['mut']} for m in vdj.v.nt_mutations.region_mutations['CDR2']]},
+                            'fr3': {'num': vdj.v.nt_mutations.region_mutation_count['FR3'],
+                                    'muts': [{'loc': m['pos'],
+                                              'mut': m['mut']} for m in vdj.v.nt_mutations.region_mutations['FR3']]},
+                            'fr4': {'num': vdj.j.nt_mutations.region_mutation_count['FR4'],
+                                    'muts': [{'loc': m['pos'],
+                                              'mut': m['mut']} for m in vdj.j.nt_mutations.region_mutations['FR4']]}}),
+        ('region_muts_aa', {'fr1': {'num': vdj.v.aa_mutations.region_mutation_count['FR1'],
+                                    'muts': [{'loc': m['pos'],
+                                              'mut': m['mut']} for m in vdj.v.aa_mutations.region_mutations['FR1']]},
+                            'cdr1': {'num': vdj.v.aa_mutations.region_mutation_count['CDR1'],
+                                     'muts': [{'loc': m['pos'],
+                                               'mut': m['mut']} for m in vdj.v.aa_mutations.region_mutations['CDR1']]},
+                            'fr2': {'num': vdj.v.aa_mutations.region_mutation_count['FR2'],
+                                    'muts': [{'loc': m['pos'],
+                                              'mut': m['mut']} for m in vdj.v.aa_mutations.region_mutations['FR2']]},
+                            'cdr2': {'num': vdj.v.aa_mutations.region_mutation_count['CDR2'],
+                                     'muts': [{'loc': m['pos'],
+                                               'mut': m['mut']} for m in vdj.v.aa_mutations.region_mutations['CDR2']]},
+                            'fr3': {'num': vdj.v.aa_mutations.region_mutation_count['FR3'],
+                                    'muts': [{'loc': m['pos'],
+                                              'mut': m['mut']} for m in vdj.v.aa_mutations.region_mutations['FR3']]},
+                            'fr4': {'num': vdj.j.aa_mutations.region_mutation_count['FR4'],
+                                    'muts': [{'loc': m['pos'],
+                                              'mut': m['mut']} for m in vdj.j.aa_mutations.region_mutations['FR4']]}}),
         ('prod', vdj.productive),
         ('raw_input', vdj.raw_input),
         ('raw_query', vdj.raw_query),
@@ -303,7 +303,7 @@ def _json_output(vdj):
         ('vdj_region_string', vdj.vdj_region_string),
         ('gapped_vdj_region_string', vdj.gapped_vdj_region_string),
         ('padding', ['n' * 100] * 10)
-        ])
+    ])
 
     # remove empty entries to save MongoDB space
     for i in output.keys():
@@ -315,46 +315,49 @@ def _json_output(vdj):
             del output[i]
         elif output[i] == None:
             del output[i]
-    return json.dumps(output)
+    if pretty:
+        return json.dumps(output, indent=4)
+    else:
+        return json.dumps(output)
 
 
 def _imgt_summary_output(vdj, header=False):
     output = collections.OrderedDict([
-            ('Sequence number', uuid.uuid4()),
-            ('Sequence ID', vdj.id),
-            ('Functionality', 'productive' if vdj.productive == 'yes' else 'non-productive'),
-            ('V-GENE and allele', vdj.v.top_germline),
-            ('V-REGION score', vdj.v.top_score),
-            ('V-REGION identity %', round(vdj.v.nt_mutations.germline_identity, 2)),
-            ('V-REGION identity nt', _get_iden_nt(vdj.v)),
-            ('V-REGION identity % (with ins/del events)', round(vdj.v.nt_mutations.germline_identity, 2)),
-            ('V-REGION identity nt (with ins/del events)', _get_iden_nt(vdj.v)),
-            ('J-GENE and allele', vdj.j.top_germline),
-            ('J-REGION score', vdj.j.top_score),
-            ('J-REGION identity %', round(vdj.j.nt_mutations.germline_identity, 2)),
-            ('J-REGION identity nt', _get_iden_nt(vdj.j)),
-            ('D-GENE and allele', vdj.d.top_germline if vdj.d is not None else ''),
-            ('D-REGION reading frame', vdj.d.reading_frame if vdj.d else ''),
-            ('CDR1-IMGT length', vdj.v.regions.aa_lengths['CDR1']),
-            ('CDR2-IMGT length', vdj.v.regions.aa_lengths['CDR2']),
-            ('CDR3-IMGT length', len(vdj.junction.cdr3_aa)),
-            ('CDR-IMGT lengths', '{}.{}.{}'.format(vdj.v.regions.aa_lengths['CDR1'],
-                                                   vdj.v.regions.aa_lengths['CDR2'],
-                                                   len(vdj.junction.cdr3_aa))),
-            ('FR-IMGT lengths', '[{}.{}.{}.{}]'.format(vdj.v.regions.aa_lengths['FR1'],
-                                                       vdj.v.regions.aa_lengths['FR2'],
-                                                       vdj.v.regions.aa_lengths['FR3'],
-                                                       vdj.j.regions.aa_lengths['FR4'])),
-            ('AA JUNCTION', vdj.junction.junction_aa),
-            ('JUNCTION frame', 'in-frame' if vdj.junction.junction_aa[0] == 'C' and vdj.junction.junction_aa[-1] in ['W', 'F'] else 'out-of-frame'),
-            ('Orientation', '+' if vdj.strand == 'plus' else '-'),
-            ('Functionality comment', ''),
-            ('V-REGION potential ins/del', ''),
-            ('J-GENE and allele comment', ''),
-            ('V-REGION insertions', _get_imgt_indel_string(vdj.v, 'ins')),
-            ('V-REGION deletions', _get_imgt_indel_string(vdj.v, 'del')),
-            ('Sequence', vdj.vdj_nt)
-            ])
+        ('Sequence number', uuid.uuid4()),
+        ('Sequence ID', vdj.id),
+        ('Functionality', 'productive' if vdj.productive == 'yes' else 'non-productive'),
+        ('V-GENE and allele', vdj.v.top_germline),
+        ('V-REGION score', vdj.v.top_score),
+        ('V-REGION identity %', round(vdj.v.nt_mutations.germline_identity, 2)),
+        ('V-REGION identity nt', _get_iden_nt(vdj.v)),
+        ('V-REGION identity % (with ins/del events)', round(vdj.v.nt_mutations.germline_identity, 2)),
+        ('V-REGION identity nt (with ins/del events)', _get_iden_nt(vdj.v)),
+        ('J-GENE and allele', vdj.j.top_germline),
+        ('J-REGION score', vdj.j.top_score),
+        ('J-REGION identity %', round(vdj.j.nt_mutations.germline_identity, 2)),
+        ('J-REGION identity nt', _get_iden_nt(vdj.j)),
+        ('D-GENE and allele', vdj.d.top_germline if vdj.d is not None else ''),
+        ('D-REGION reading frame', vdj.d.reading_frame if vdj.d else ''),
+        ('CDR1-IMGT length', vdj.v.regions.aa_lengths['CDR1']),
+        ('CDR2-IMGT length', vdj.v.regions.aa_lengths['CDR2']),
+        ('CDR3-IMGT length', len(vdj.junction.cdr3_aa)),
+        ('CDR-IMGT lengths', '{}.{}.{}'.format(vdj.v.regions.aa_lengths['CDR1'],
+                                               vdj.v.regions.aa_lengths['CDR2'],
+                                               len(vdj.junction.cdr3_aa))),
+        ('FR-IMGT lengths', '[{}.{}.{}.{}]'.format(vdj.v.regions.aa_lengths['FR1'],
+                                                   vdj.v.regions.aa_lengths['FR2'],
+                                                   vdj.v.regions.aa_lengths['FR3'],
+                                                   vdj.j.regions.aa_lengths['FR4'])),
+        ('AA JUNCTION', vdj.junction.junction_aa),
+        ('JUNCTION frame', 'in-frame' if vdj.junction.junction_aa[0] == 'C' and vdj.junction.junction_aa[-1] in ['W', 'F'] else 'out-of-frame'),
+        ('Orientation', '+' if vdj.strand == 'plus' else '-'),
+        ('Functionality comment', ''),
+        ('V-REGION potential ins/del', ''),
+        ('J-GENE and allele comment', ''),
+        ('V-REGION insertions', _get_imgt_indel_string(vdj.v, 'ins')),
+        ('V-REGION deletions', _get_imgt_indel_string(vdj.v, 'del')),
+        ('Sequence', vdj.vdj_nt)
+    ])
     data = '\t'.join([str(v) for v in output.values()])
     if not header:
         return data
@@ -389,31 +392,31 @@ def _get_imgt_indel_string(v, indel_type, hadoop=False):
 
 def _hadoop_minimal_output(vdj):
     output = collections.OrderedDict([
-            ('seq_uuid', uuid.uuid4()),
-            ('seq_id', vdj.id),
-            ('chain', vdj.chain),
-            ('productive', vdj.productive),
-            ('vgene_fam', vdj.v.top_germline.split('-')[0]),
-            ('vgene_gene', vdj.v.top_germline.split('*')[0]),
-            ('vgene_allele', vdj.v.top_germline.split('*')[-1]),
-            # ('dgene_fam', '' if not vdj.d or vdj.d.top_germline == None else vdj.d.top_germline.split('-')[0]),
-            # ('dgene_gene', '' if not vdj.d or vdj.d.top_germline == None else vdj.d.top_germline.split('*')[0]),
-            # ('dgene_allele', '' if not vdj.d or vdj.d.top_germline == None else vdj.d.top_germline.split('*')[-1]),
-            ('jgene_gene', vdj.j.top_germline.split('*')[0]),
-            ('jgene_allele', vdj.j.top_germline.split('*')[-1]),
-            ('junction_aa', vdj.junction.junction_aa),
-            ('junction_nt', vdj.junction.junction_nt),
-            ('cdr3_length', len(vdj.junction.cdr3_aa)),
-            ('fr1_aa', vdj.v.regions.aa_seqs['FR1']),
-            ('fr2_aa', vdj.v.regions.aa_seqs['FR2']),
-            ('fr3_aa', vdj.v.regions.aa_seqs['FR3']),
-            ('fr4_aa', vdj.j.regions.aa_seqs['FR4']),
-            ('cdr1_aa', vdj.v.regions.aa_seqs['CDR1']),
-            ('cdr2_aa', vdj.v.regions.aa_seqs['CDR2']),
-            ('cdr3_aa', vdj.junction.cdr3_aa),
-            ('vdj_nt', vdj.vdj_nt),
-            ('vj_aa', vdj.vdj_aa),
-            ('var_ins', _get_imgt_indel_string(vdj.v, 'ins', hadoop=True)),
-            ('var_del', _get_imgt_indel_string(vdj.v, 'del', hadoop=True))
-            ])
+        ('seq_uuid', uuid.uuid4()),
+        ('seq_id', vdj.id),
+        ('chain', vdj.chain),
+        ('productive', vdj.productive),
+        ('vgene_fam', vdj.v.top_germline.split('-')[0]),
+        ('vgene_gene', vdj.v.top_germline.split('*')[0]),
+        ('vgene_allele', vdj.v.top_germline.split('*')[-1]),
+        # ('dgene_fam', '' if not vdj.d or vdj.d.top_germline == None else vdj.d.top_germline.split('-')[0]),
+        # ('dgene_gene', '' if not vdj.d or vdj.d.top_germline == None else vdj.d.top_germline.split('*')[0]),
+        # ('dgene_allele', '' if not vdj.d or vdj.d.top_germline == None else vdj.d.top_germline.split('*')[-1]),
+        ('jgene_gene', vdj.j.top_germline.split('*')[0]),
+        ('jgene_allele', vdj.j.top_germline.split('*')[-1]),
+        ('junction_aa', vdj.junction.junction_aa),
+        ('junction_nt', vdj.junction.junction_nt),
+        ('cdr3_length', len(vdj.junction.cdr3_aa)),
+        ('fr1_aa', vdj.v.regions.aa_seqs['FR1']),
+        ('fr2_aa', vdj.v.regions.aa_seqs['FR2']),
+        ('fr3_aa', vdj.v.regions.aa_seqs['FR3']),
+        ('fr4_aa', vdj.j.regions.aa_seqs['FR4']),
+        ('cdr1_aa', vdj.v.regions.aa_seqs['CDR1']),
+        ('cdr2_aa', vdj.v.regions.aa_seqs['CDR2']),
+        ('cdr3_aa', vdj.junction.cdr3_aa),
+        ('vdj_nt', vdj.vdj_nt),
+        ('vj_aa', vdj.vdj_aa),
+        ('var_ins', _get_imgt_indel_string(vdj.v, 'ins', hadoop=True)),
+        ('var_del', _get_imgt_indel_string(vdj.v, 'del', hadoop=True))
+    ])
     return ','.join([str(v) for v in output.values()])
