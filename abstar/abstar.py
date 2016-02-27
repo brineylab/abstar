@@ -131,6 +131,9 @@ def parse_arguments(print_help=False):
                         help="Compress the output to a gzipped file")
     parser.add_argument('--pretty', dest='pretty', default=False, action='store_true',
                         help='Pretty format json file')
+    parser.add_argument('--no-padding', dest='padding', default=True, action='store_false',
+                        help="If passed, will eliminate padding from json file. \
+                        Don't use if you don't know what you are doing")
     if print_help:
         parser.print_help()
     else:
@@ -269,7 +272,7 @@ def concat_output(input_file, temp_dir, output_dir, args):
     logger.info('Concatenating {} job outputs into a single output file.'.format(len(jsons)))
     logger.info('')
     if args.gzip:
-        ohandle = gzip.open(ofile+".gz", 'wb')
+        ohandle = gzip.open(ofile + ".gz", 'wb')
     else:
         ohandle = open(ofile, 'w')
 

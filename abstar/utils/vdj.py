@@ -316,7 +316,7 @@ def run(seq_file, output_dir, args):
         if not vdj_output:
             return 0
         clean_vdjs = [vdj for vdj in vdj_output if vdj.rearrangement]
-        output_count = write_output(clean_vdjs, output_file, args.output_type, pretty=args.pretty)
+        output_count = write_output(clean_vdjs, output_file, args.output_type, args.pretty, args.padding)
         return output_count
     except:
         logger.debug(traceback.format_exc())
@@ -324,9 +324,10 @@ def run(seq_file, output_dir, args):
         # run.retry(exc=exc, countdown=5)
 
 
-def write_output(output, outfile, output_type, pretty=False):
+def write_output(output, outfile, output_type, pretty, padding):
     from abstar.utils.output import build_output
-    output_data = build_output(output, output_type, pretty=pretty)
+    logger.debug("Padding - {}\t Pretty - {}\t".format(padding, pretty))
+    output_data = build_output(output, output_type, pretty, padding)
     open(outfile, 'w').write('\n'.join(output_data))
     if output_type in ['json', 'hadoop']:
         return len(output_data)

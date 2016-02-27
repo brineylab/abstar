@@ -30,7 +30,7 @@ import traceback
 from abtools import log
 
 
-def build_output(vdjs, output_type, pretty=False):
+def build_output(vdjs, output_type, pretty, padding):
     logger = log.get_logger()
     try:
         vdjs = [vdj for vdj in vdjs if vdj.rearrangement]
@@ -38,7 +38,7 @@ def build_output(vdjs, output_type, pretty=False):
             output = []
             for vdj in vdjs:
                 try:
-                    output.append(_json_output(vdj, pretty=pretty))
+                    output.append(_json_output(vdj, pretty, padding))
                 except AttributeError:
                     logger.debug('OUTPUT ERROR: {}'.format(vdj.id))
         elif output_type.lower() == 'imgt':
@@ -72,7 +72,7 @@ def output_func(output_type):
     return outputs[output_type]
 
 
-def _json_output(vdj, pretty):
+def _json_output(vdj, pretty, padding):
     '''
     Assembles AbAnalyze output in JSON format.
 
@@ -302,8 +302,10 @@ def _json_output(vdj, pretty):
         ('align_info', align_info),  # TODO!!  Add things like V/D/J start and end positions, etc.
         ('vdj_region_string', vdj.vdj_region_string),
         ('gapped_vdj_region_string', vdj.gapped_vdj_region_string),
-        ('padding', ['n' * 100] * 10)
     ])
+
+    if padding:
+        output['padding'] = ['n' * 100] * 10
 
     # remove empty entries to save MongoDB space
     for i in output.keys():
