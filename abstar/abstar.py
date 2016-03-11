@@ -33,14 +33,14 @@ from subprocess import Popen, PIPE
 from Bio import SeqIO
 from abtools import log
 
-import sys
-import traceback
-import warnings
+import gzip
 import logging
 import os
+import re
+import sys
 import time
-import gzip
-
+import traceback
+import warnings
 
 # External
 #import skbio
@@ -225,7 +225,7 @@ def setup_logging(args):
     logger = log.get_logger('abstar')
 
 
-def log_options(args):
+def log_options(input_dir, output_dir, temp_dir, args):
     logger.info('')
     logger.info('')
     logger.info('-' * 25)
@@ -241,14 +241,19 @@ def log_options(args):
     logger.info('ISOTYPE: {}'.format('yes' if args.isotype else 'no'))
     logger.info('EXECUTION: {}'.format('cluster' if args.cluster else 'local'))
     logger.info('DEBUG: {}'.format('True' if args.debug > 0 else 'False'))
-    if args.debug > 0:
-        logger.info('DEBUG LEVEL: {}'.format('print exceptions' if args.debug == 2 else 'log exceptions'))
+    logger.debug('INPUT: {}'.format(input_dir))
+    logger.debug('OUTPUT: {}'.format(output_dir))
+    logger.debug('TEMP: {}'.format(temp_dir))
 
 
 def list_files(d, log=False):
     if os.path.isdir(d):
-        expanded_dir = os.path.expanduser(d)
-        files = sorted(glob(expanded_dir + '/*'))
+        glob_pattern = os.path.join(os.path.expanduser(d), '*')
+        # need to fix square brackets, or glob freaks out
+        if any(['[' in glob_pattern, ']' in glob_pattern]):
+            glob_pattern = re.sub(r'\[', '[[]', glob_pattern)
+            glob_pattern = re.sub(r'(?<!\[)\]', '[]]', glob_pattern)
+        files = sorted(glob(glob_pattern))
     else:
         files = [d, ]
     if log:
@@ -257,7 +262,7 @@ def list_files(d, log=False):
     return files
 
 
-def concat_output(input_file, temp_dir, output_dir, args):
+def concat_output(input_file, jsons, output_dir, args):
     bname = os.path.basename(input_file)
     if '.' in bname:
         split_name = bname.split('.')
@@ -267,8 +272,6 @@ def concat_output(input_file, temp_dir, output_dir, args):
     osuffix = '.json' if args.output_type == 'json' else '.txt'
     oname = oprefix + osuffix
     ofile = os.path.join(output_dir, oname)
-    #open(ofile, 'w').write('')
-    jsons = [f for f in list_files(temp_dir) if os.path.basename(f).startswith(oprefix) and f.endswith(osuffix)]
     logger.info('Concatenating {} job outputs into a single output file.'.format(len(jsons)))
     logger.info('')
     if args.gzip:
@@ -294,8 +297,8 @@ def concat_output(input_file, temp_dir, output_dir, args):
                     out_file.write('\n')
 
 
-def clear_temp_dir(temp_dir):
-    for f in list_files(temp_dir):
+def clear_temp_files(temp_files):
+    for f in temp_files:
         os.unlink(f)
 
 
@@ -565,7 +568,7 @@ def run_standalone(args):
 def main(args):
     input_dir, output_dir, temp_dir = make_directories(args)
     setup_logging(args)
-    log_options(args)
+    log_options(input_dir, output_dir, temp_dir, args)
     if args.basespace:
         args.merge = True
         download_files(input_dir)
@@ -581,11 +584,14 @@ def main(args):
         start_time = time.time()
         print_input_file_info(f, fmt)
         subfiles, seq_count = split_file(f, fmt, temp_dir, args)
-        job_stats = run_jobs(subfiles, temp_dir, args)
+        run_info = run_jobs(subfiles, temp_dir, args)
+        temp_json_files = [r[0] for r in run_info]
+        processed_seq_counts = [r[1] for r in run_info]
         vdj_end_time = time.time()
-        concat_output(f, temp_dir, output_dir, args)
-        clear_temp_dir(temp_dir)
-        print_job_stats(seq_count, sum(job_stats), start_time, vdj_end_time)
+        concat_output(f, temp_json_files, output_dir, args)
+        if not args.debug:
+        	clear_temp_files(subfiles + temp_json_files)
+        print_job_stats(seq_count, sum(processed_seq_counts), start_time, vdj_end_time)
     return output_dir
 
 

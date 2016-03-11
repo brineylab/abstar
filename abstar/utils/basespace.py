@@ -191,7 +191,7 @@ def download(direc, project_id=None, project_name=None, undetermined=False):
 
 if __name__ == '__main__':
     import argparse
-    parser = argparse.ArgumentParser("Parses the output of IgBLAST into something suitable for import into a MySQL database")
+    parser = argparse.ArgumentParser("Downloads sequencing data from BaseSpace, Illumina's cloud storage environment.")
     parser.add_argument('-i', '--in',
                         dest='input',
                         required=True,
