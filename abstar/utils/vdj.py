@@ -317,7 +317,7 @@ def run(seq_file, output_dir, args):
             return 0
         clean_vdjs = [vdj for vdj in vdj_output if vdj.rearrangement]
         output_count = write_output(clean_vdjs, output_file, args.output_type, args.pretty, args.padding)
-        return output_count
+        return (output_file, output_count)
     except:
         logger.debug(traceback.format_exc())
         raise Exception("".join(traceback.format_exception(*sys.exc_info())))
