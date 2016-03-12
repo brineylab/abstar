@@ -312,7 +312,7 @@ def run(seq_file, output_dir, args):
             output_file = os.path.join(output_dir, output_filename + '.json')
         elif args.output_type in ['imgt', 'hadoop']:
             output_file = os.path.join(output_dir, output_filename + '.txt')
-        vdj_output = process_sequence_file(seq_file, args)
+        vdj_output = process_sequence_file(seq_file, args, output_dir)
         if not vdj_output:
             return 0
         clean_vdjs = [vdj for vdj in vdj_output if vdj.rearrangement]
@@ -335,7 +335,7 @@ def write_output(output, outfile, output_type, pretty, padding):
         return len(output_data) - 1
 
 
-def process_sequence_file(seq_file, args):
+def process_sequence_file(seq_file, args, temp_dir):
     '''
     Runs BLASTn to identify germline V, D, and J genes.
 
@@ -345,9 +345,10 @@ def process_sequence_file(seq_file, args):
     '''
 
     # Variable gene assignment
+    #print("Temp Dir -> {}".format(temp_dir))
     vs = []
     seqs = [Sequence(s) for s in SeqIO.parse(open(seq_file, 'r'), 'fasta')]
-    v_blast_records = blast.blast(seq_file, args.species, 'V')
+    v_blast_records = blast.blast(seq_file, args.species, 'V', args.cluster, temp_dir)
     for seq, vbr in zip(seqs, v_blast_records):
         try:
             v = assign_germline(seq, vbr, args.species, 'V')
@@ -379,7 +380,7 @@ def process_sequence_file(seq_file, args):
     # Joining gene assignment
     js = []
     j_blastin = blast.build_j_blast_input(seqs, v_blast_results)
-    j_blast_records = blast.blast(j_blastin.name, args.species, 'J')
+    j_blast_records = blast.blast(j_blastin.name, args.species, 'J', args.cluster, temp_dir)
     j_seqs = [Sequence(s) for s in SeqIO.parse(open(j_blastin.name, 'r'), 'fasta')]
     for i, jdata in enumerate(zip(j_seqs, j_blast_records)):
         j_seq, jbr = jdata

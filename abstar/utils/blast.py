@@ -34,12 +34,16 @@ from Bio.Blast import NCBIXML
 
 from abtools.alignment import local_alignment
 
+from abtools import log
+from celery.utils.log import get_task_logger
+
 
 class BlastResult(object):
     '''
     Data structure for parsing and holding a BLASTn result.
     Input is a file handle for the XML-formatted BLASTn output file.
     '''
+
     def __init__(self, seq, blastout, species):
         super(BlastResult, self).__init__()
         self.seq = seq
@@ -76,7 +80,6 @@ class BlastResult(object):
         self.nt_mutations = self._nt_mutations()
         self.aa_mutations = self._aa_mutations()
 
-
     def realign_variable(self, germline_gene):
         '''
         Due to restrictions on the available scoring parameters in BLASTn, incorrect truncation
@@ -98,7 +101,6 @@ class BlastResult(object):
             self.input_sequence = rc
             self._process_realignment(alignment_rc)
 
-
     def _get_germline_sequence_for_realignment(self, germ, gene):
         '''
         Identifies the appropriate germline variable gene from a database of all
@@ -116,7 +118,6 @@ class BlastResult(object):
                 return str(s.seq)
         return None
 
-
     def _process_realignment(self, alignment):
         '''
         Processes the result of variable gene realignment and updates BlastResult
@@ -133,14 +134,12 @@ class BlastResult(object):
         self.query_end = alignment.query_end
         self.germline_end = alignment.target_end
 
-
     def _fix_ambigs(self):
         '''
         Fixes ambiguous nucleotides by replacing them with the germline nucleotide.
         '''
         from abstar.utils import ambigs
         self.query_alignment = ambigs.fix_ambigs(self)
-
 
     def _find_indels(self):
         '''
@@ -298,6 +297,7 @@ class DiversityResult(object):
 
     Input is a list of Alignment objects, representing the top-scoring diversity genes.
     """
+
     def __init__(self, seq, alignments):
         super(DiversityResult, self).__init__()
         self.id = seq.id
@@ -424,17 +424,23 @@ def build_j_blast_input(seqs, v_blast_results):
     return j_blastin
 
 
-def blast(seq_file, species, segment):
+def blast(seq_file, species, segment, cluster, temp_dir):
     '''
     Runs BLASTn against an antibody germline database.
 
     Input is a FASTA file of sequences (the file path, not a handle), the species of origin
     of the sequences to be queried, and the gene segment (options are: 'V', 'D', or 'J')
     '''
+    global logger
+    if cluster:
+        logger = get_task_logger(__name__)
+    else:
+        logger = log.get_logger(__name__)
+
     mod_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     blast_path = os.path.join(mod_dir, 'blast/blastn_{}'.format(platform.system().lower()))
     blast_db_path = os.path.join(mod_dir, 'blast/dbs/{}_gl_{}'.format(species.lower(), segment.upper()))
-    blastout = tempfile.NamedTemporaryFile(delete=False)
+    blastout = tempfile.NamedTemporaryFile(delete=False, dir=temp_dir)
     blastn_cmd = NcbiblastnCommandline(cmd=blast_path,
                                        db=blast_db_path,
                                        query=seq_file,
@@ -448,6 +454,7 @@ def blast(seq_file, species, segment):
                                        penalty=_mismatch_penalty(segment),
                                        gapopen=_gap_open(segment),
                                        gapextend=_gap_extend(segment))
+    logger.debug('BLAST COMMAND - {} : {}'.format(segment, blastn_cmd))
     stdout, stderr = blastn_cmd()
     blast_records = [br for br in NCBIXML.parse(blastout)]
     os.unlink(blastout.name)

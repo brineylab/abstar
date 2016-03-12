@@ -33,6 +33,7 @@ from subprocess import Popen, PIPE
 from Bio import SeqIO
 from abtools import log
 
+import datetime
 import sys
 import traceback
 import warnings
@@ -174,10 +175,20 @@ class Args(object):
 
 
 def validate_args(args):
-    if not args.data_dir and not all([args.input, args.output, args.temp]):
-        parse_arguments(print_help=True)
-        sys.exit(1)
+    if not args.data_dir:
+        if not args.input:
+            print("Must specify input or a data direcotry. Use --help")
+            sys.exit()
+        if not args.output:
+            print("Must specify output or a data direcotry. Use --help")
+            sys.exit()
+        if not args.temp:
+            print("Must specify temp or a data direcotry. Use --help")
+            sys.exit()
 
+    if args.input and not os.path.exists(args.input):
+        print("Input file or directory does not exist {}".format(args.input))
+        sys.exit()
 
 #####################################################################
 #
@@ -193,7 +204,8 @@ def make_directories(args):
     indir = args.input if args.input else os.path.join(args.data_dir, 'input')
     outdir = args.output if args.output else os.path.join(args.data_dir, 'output')
     tempdir = args.temp if args.temp else os.path.join(args.data_dir, 'temp')
-    for d in [indir, outdir, tempdir]:
+    full_paths.append(os.path.abspath(indir))
+    for d in [outdir, tempdir]:
         d = os.path.abspath(d)
         full_paths.append(d)
         _make_direc(d, args)
@@ -225,7 +237,7 @@ def setup_logging(args):
     logger = log.get_logger('abstar')
 
 
-def log_options(args):
+def log_options(args, input_dir, output_dir, temp_dir):
     logger.info('')
     logger.info('')
     logger.info('-' * 25)
@@ -240,6 +252,9 @@ def log_options(args):
     logger.info('UAID: {}'.format(args.uaid))
     logger.info('ISOTYPE: {}'.format('yes' if args.isotype else 'no'))
     logger.info('EXECUTION: {}'.format('cluster' if args.cluster else 'local'))
+    logger.info('INPUT: {}'.format(input_dir))
+    logger.info('OUTPUT DIRECTORY: {}'.format(output_dir))
+    logger.info('TEMP DIRECTORY: {}'.format(temp_dir))
     logger.info('DEBUG: {}'.format('True' if args.debug > 0 else 'False'))
     if args.debug > 0:
         logger.info('DEBUG LEVEL: {}'.format('print exceptions' if args.debug == 2 else 'log exceptions'))
@@ -276,22 +291,23 @@ def concat_output(input_file, temp_dir, output_dir, args):
     else:
         ohandle = open(ofile, 'w')
 
-    with ohandle as out_file:
-        if args.output_type in ['json', 'hadoop']:
-            for json in jsons:
-                with open(json) as f:
-                    for line in f:
-                        out_file.write(line)
-                out_file.write('\n')
-        if args.output_type == 'imgt':
-            for i, json in enumerate(jsons):
-                with open(json) as f:
-                    for j, line in enumerate(f):
-                        if i == 0:
-                            out_file.write(line)
-                        elif j >= 1:
-                            out_file.write(line)
-                    out_file.write('\n')
+    if args.output_type in ['json', 'hadoop']:
+        for json in jsons:
+            with open(json) as f:
+                for line in f:
+                    ohandle.write(line)
+            ohandle.write('\n')
+    if args.output_type == 'imgt':
+        for i, json in enumerate(jsons):
+            with open(json) as f:
+                for j, line in enumerate(f):
+                    if i == 0:
+                        ohandle.write(line)
+                    elif j >= 1:
+                        ohandle.write(line)
+                ohandle.write('\n')
+    ohandle.close()
+    logger.info('Files merged to {} at {}'.format(ofile, get_timestamp()))
 
 
 def clear_temp_dir(temp_dir):
@@ -425,6 +441,10 @@ def update_progress(finished, jobs, failed=None):
     sys.stdout.flush()
 
 
+def get_timestamp():
+    ts = time.time()
+    return datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
+
 #####################################################################
 #
 #                             JOBS
@@ -445,6 +465,8 @@ def run_jobs(files, output_dir, args):
 def _run_jobs_singlethreaded(files, output_dir, args):
     from utils.vdj import run as run_vdj
     results = []
+    logger.debug("SINGLETHREADED FILES:{}".format(files))
+    logger.debug("SINGLETHREADED OUT DIR:{}".format(output_dir))
     for i, f in enumerate(files):
         try:
             results.append(run_vdj(f, output_dir, args))
@@ -565,7 +587,7 @@ def run_standalone(args):
 def main(args):
     input_dir, output_dir, temp_dir = make_directories(args)
     setup_logging(args)
-    log_options(args)
+    log_options(args, input_dir, output_dir, temp_dir)
     if args.basespace:
         args.merge = True
         download_files(input_dir)
@@ -584,6 +606,7 @@ def main(args):
         job_stats = run_jobs(subfiles, temp_dir, args)
         vdj_end_time = time.time()
         concat_output(f, temp_dir, output_dir, args)
+        # if not args.debug:
         clear_temp_dir(temp_dir)
         print_job_stats(seq_count, sum(job_stats), start_time, vdj_end_time)
     return output_dir
