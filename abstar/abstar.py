@@ -361,19 +361,27 @@ def split_file(f, fmt, temp_dir, args):
     else:
         out_prefix = os.path.basename(f)
     if args.chunksize != 0:
-        for seq in SeqIO.parse(open(f, 'r'), fmt.lower()):
-            fastas.append('>{}\n{}'.format(seq.id, str(seq.seq)))
-            seq_counter += 1
-            total_seq_counter += 1
-            if seq_counter == args.chunksize:
-                out_file = os.path.join(temp_dir, '{}_{}'.format(out_prefix, file_counter))
-                ohandle = open(out_file, 'w')
-                ohandle.write('\n'.join(fastas))
-                ohandle.close()
-                fastas = []
-                seq_counter = 0
-                file_counter += 1
-                subfiles.append(out_file)
+        try:
+            for seq in SeqIO.parse(open(f, 'r'), fmt.lower()):
+                fastas.append('>{}\n{}'.format(seq.id, str(seq.seq)))
+                seq_counter += 1
+                total_seq_counter += 1
+                if seq_counter == args.chunksize:
+                    out_file = os.path.join(temp_dir, '{}_{}'.format(out_prefix, file_counter))
+                    ohandle = open(out_file, 'w')
+                    ohandle.write('\n'.join(fastas))
+                    ohandle.close()
+                    fastas = []
+                    seq_counter = 0
+                    file_counter += 1
+                    subfiles.append(out_file)
+        except ValueError:
+            print('')
+            print('ERROR: invalid file.')
+            print('{} is not properly formatted'.format(f))
+            print(traceback.format_exception_only)
+            clear_temp_files(subfiles)
+            sys.exit(1)
 
         # We don't want our files split
     else:
@@ -590,7 +598,7 @@ def main(args):
         vdj_end_time = time.time()
         concat_output(f, temp_json_files, output_dir, args)
         if not args.debug:
-        	clear_temp_files(subfiles + temp_json_files)
+            clear_temp_files(subfiles + temp_json_files)
         print_job_stats(seq_count, sum(processed_seq_counts), start_time, vdj_end_time)
     return output_dir
 
