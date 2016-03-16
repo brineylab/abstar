@@ -6,7 +6,7 @@ config = {
 	'url': 'www.github.com/briney/abstar/',
 	# 'download_url': 'www.github.com/briney/abstar/',
 	'author_email': 'briney@scripps.edu',
-	'version': '0.1.1',
+	'version': '0.1.2',
 	'install_requires': ['abtools',
 						 'biopython',
 						 'celery',
