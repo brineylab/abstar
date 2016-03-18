@@ -24,8 +24,10 @@
 
 from __future__ import print_function
 
+import logging
 import os
 import sys
+import tempfile
 import traceback
 
 from Bio import SeqIO
@@ -333,6 +335,17 @@ def write_output(output, outfile, output_type, pretty, padding):
         return len(output_data)
     else:
         return len(output_data) - 1
+
+
+def process_sequences(sequences, args):
+	global logger
+	logger = logging.getLogger()
+	seq_file = tempfile.NamedTemporaryFile(delete=False)
+	seq_file.write('\n'.join([s.fasta for s in sequences]))
+	seq_file.close()
+	vdjs = process_sequence_file(seq_file.name, args)
+	os.unlink(seq_file.name)
+	return vdjs
 
 
 def process_sequence_file(seq_file, args):
