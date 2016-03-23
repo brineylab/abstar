@@ -77,10 +77,12 @@ def parse_arguments(print_help=False):
     parser.add_argument('-t', '--temp', dest='temp', default=None,
                         help="The directory in which temp files will be stored. If the directory doesn't exist, \
                         it will be created. Required.")
+    parser.add_argument('--sequences', dest='sequences', default=None,
+                        help="Only used when passing sequences directly through the API.")
     parser.add_argument('-k', '--chunksize', dest='chunksize', default=250, type=int,
                         help="Approximate number of sequences in each distributed job. \
                         Defaults to 250. \
-                        Set to 0 if you want file splittint to be turned off \
+                        Set to 0 if you want file splitting to be turned off \
                         Don't change unless you know what you're doing.")
     parser.add_argument('-T', '--output_type', dest="output_type", choices=['json', 'imgt', 'hadoop'], default='json',
                         help="Select the output type. Options are 'json', 'imgt' and 'impala'. \
@@ -568,9 +570,11 @@ def run(*args, **kwargs):
     '''
     warnings.filterwarnings("ignore")
     if len(args) == 1:
+        # if there's a single arg, need to check if it's a single sequence...
         try:
             sequences = [Sequence(args[0]), ]
         except:
+            # ...or a list of sequences
             try:
                 sequences = [Sequence(s) for s in args[0]]
             except:
@@ -578,6 +582,7 @@ def run(*args, **kwargs):
                 for a in args:
                     print(a)
                 sys.exit(1)
+    # if multiple args, assume each is a sequence
     elif len(args) > 1:
         try:
             sequences = [Sequence(s) for s in args]
