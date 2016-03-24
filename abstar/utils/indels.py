@@ -50,8 +50,8 @@ def find_insertions(blast_result):
             s = i.start() - o
             e = i.end() - o
             l = e - s
-            if l % 3 == 0:
-                insertions.append(_nonframeshift_insertion(blast_result, s, e))
+            if l % 3 == 0 or l > 3:
+                insertions.append(_annotate_insertion(blast_result, s, e))
             else:
                 blast_result = _fix_frameshift_insertion(blast_result, s, e)
                 o += l
@@ -62,7 +62,7 @@ def find_insertions(blast_result):
         logger.debug(traceback.format_exc())
 
 
-def _nonframeshift_insertion(br, s, e):
+def _annotate_insertion(br, s, e):
     '''
     Annotates codon-length (non-frameshift) insertions.
 
@@ -75,7 +75,8 @@ def _nonframeshift_insertion(br, s, e):
     ins_start = s + br.germline_start
     ins_length = e - s
     ins_seq = br.query_alignment[s:e]
-    return {'pos': ins_start, 'len': ins_length, 'seq': ins_seq}
+    in_frame = 'yes' if ins_length % 3 == 0 else 'no'
+    return {'pos': ins_start, 'len': ins_length, 'seq': ins_seq, 'in frame': in_frame}
 
 
 def _fix_frameshift_insertion(br, s, e):
@@ -116,8 +117,8 @@ def find_deletions(blast_result):
             s = i.start() - o
             e = i.end() - o
             l = e - s
-            if l % 3 == 0:
-                deletions.append(_nonframeshift_deletion(blast_result, s, e))
+            if l % 3 == 0 or l > 3:
+                deletions.append(_annotate_deletion(blast_result, s, e))
             else:
                 blast_result = _fix_frameshift_deletion(blast_result, s, e)
                 o += l
@@ -128,7 +129,7 @@ def find_deletions(blast_result):
         logger.debug(traceback.format_exc())
 
 
-def _nonframeshift_deletion(br, s, e):
+def _annotate_deletion(br, s, e):
     '''
     Annotates codon-length (non-frameshift) deletions.
 
@@ -142,7 +143,8 @@ def _nonframeshift_deletion(br, s, e):
     del_length = e - s
     del_seq = br.germline_alignment[s:e]
     br.nfs_indel_adjustment -= del_length
-    return {'pos': del_start, 'len': del_length, 'seq': del_seq}
+    in_frame = 'yes' if del_length % 3 == 0 else 'no'
+    return {'pos': del_start, 'len': del_length, 'seq': del_seq, 'in frame': in_frame}
 
 
 def _fix_frameshift_deletion(br, s, e):

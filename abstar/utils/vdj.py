@@ -108,7 +108,7 @@ class VDJ(object):
         self.v_end = self._get_v_end()
         self.j_start = self._get_j_start()
         self.j_end = self._get_j_end()
-        if self.j.regions.fix_v_overlap:
+        if self.chain in ['kappa', 'lambda'] and self.j.regions.fix_v_overlap:
             self._fix_v_overlap()
         if self.d:
             self.d_start = self._get_d_start()
@@ -389,14 +389,17 @@ def process_sequence_file(seq_file, args):
             if v:
                 v_end = v.query_end + v.query_start
                 if len(seq.sequence[v_end:]) <= 10:
-                	v = None
-                    # logger.debug('BIOPYTHON V-GENE REALIGNMENT: {}'.format(v.id))
-                    # v.realign_variable_biopython(v.top_germline)
-                    # v.annotate()
-                    # v_end = v.query_end + v.query_start
-                    # if len(seq.sequence[v_end:]) <= 10:
-                    #     logger.debug('REMANING REGION TOO SHORT AFTER V-ALIGNMENT REMOVAL: {}'.format(v.id))
-                    #     v = None
+                    logger.debug('REMANING REGION TOO SHORT AFTER V-ALIGNMENT REMOVAL: {}'.format(v.id))
+                    # v = None
+                    logger.debug('PERFORMING SECOND V-GENE REALIGNMENT: {}'.format(v.id))
+                    v.realign_variable(v.top_germline,
+                    	match=30, mismatch=-20,
+                    	gap_open_penalty=220, gap_extend_penalty=1)
+                    v.annotate()
+                    v_end = v.query_end + v.query_start
+                    if len(seq.sequence[v_end:]) <= 10:
+                        logger.debug('REMANING REGION TOO SHORT AFTER SECOND V-ALIGNMENT REMOVAL: {}'.format(v.id))
+                        v = None
             vs.append((seq, v))
     v_blast_results = [v[1] for v in vs if v[1]]
     seqs = [v[0] for v in vs if v[1]]
@@ -429,8 +432,8 @@ def process_sequence_file(seq_file, args):
                 vbr = v_blast_records[i]
                 vseq = seqs[i]
                 logger.debug('J-GENE ASSIGNMENT ERROR: {}\n{}\n{}'.format(j_seq.id,
-                                                                          vseq.sequence,
-                                                                          vbr.query_alignment))
+                                                                          vseq.sequence, ))
+                                                                          # vbr.query_alignment))
             except:
                 logger.debug('J-GENE ASSIGNMENT ERROR: {}, could not print query info'.format(j_seq.id))
                 logger.debug(traceback.format_exc())
