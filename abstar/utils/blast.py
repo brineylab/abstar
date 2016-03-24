@@ -77,7 +77,7 @@ class BlastResult(object):
         self.aa_mutations = self._aa_mutations()
 
 
-    def realign_variable(self, germline_gene):
+    def realign_variable(self, germline_gene, match=3, mismatch=-2, gap_open_penalty=22, gap_extend_penalty=1):
         '''
         Due to restrictions on the available scoring parameters in BLASTn, incorrect truncation
         of the v-gene alignment can occur. This function re-aligns the query sequence with
@@ -87,12 +87,12 @@ class BlastResult(object):
         '''
         self.germline_seq = self._get_germline_sequence_for_realignment(germline_gene, 'V')
         alignment = local_alignment(self.seq.sequence, self.germline_seq,
-                                    match=3, mismatch=-2,
-                                    gap_open_penalty=22, gap_extend_penalty=1)
+                                    match=match, mismatch=mismatch,
+                                    gap_open_penalty=gap_open_penalty, gap_extend_penalty=gap_extend_penalty)
         rc = self.seq.reverse_complement
         alignment_rc = local_alignment(rc, self.germline_seq,
-                                       match=3, mismatch=-2,
-                                       gap_open_penalty=22, gap_extend_penalty=1)
+                                       match=match, mismatch=mismatch,
+                                       gap_open_penalty=gap_open_penalty, gap_extend_penalty=gap_extend_penalty)
         if alignment.score > alignment_rc.score:
             self._process_realignment(alignment)
         else:
@@ -442,7 +442,7 @@ class DiversityResult(object):
 def build_j_blast_input(seqs, v_blast_results):
     j_fastas = []
     for seq, vbr in zip(seqs, v_blast_results):
-        start = len(vbr.query_alignment) + vbr.query_start + vbr.fs_indel_adjustment + vbr.nfs_indel_adjustment
+        start = vbr.query_end + vbr.query_start + vbr.fs_indel_adjustment + vbr.nfs_indel_adjustment
         j_fastas.append('>{}\n{}'.format(seq.id, seq.sequence[start:]))
     j_blastin = tempfile.NamedTemporaryFile(delete=False)
     j_blastin.write('\n'.join(j_fastas))
