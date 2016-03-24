@@ -287,6 +287,7 @@ def _json_output(vdj, pretty, padding, raw=False):
                                     'muts': [{'loc': m['pos'],
                                               'mut': m['mut']} for m in vdj.j.aa_mutations.region_mutations['FR4']]}}),
         ('prod', vdj.productive),
+        ('junction_in_frame', 'yes' if vdj.junction.in_frame else 'no'),
         ('raw_input', vdj.raw_input),
         ('raw_query', vdj.raw_query),
         ('strand', vdj.strand),
