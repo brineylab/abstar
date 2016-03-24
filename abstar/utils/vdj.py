@@ -389,13 +389,14 @@ def process_sequence_file(seq_file, args):
             if v:
                 v_end = v.query_end + v.query_start
                 if len(seq.sequence[v_end:]) <= 10:
-                    logger.debug('BIOPYTHON V-GENE REALIGNMENT: {}'.format(v.id))
-                    v.realign_variable_biopython(v.top_germline)
-                    v.annotate()
-                    v_end = v.query_end + v.query_start
-                    if len(seq.sequence[v_end:]) <= 10:
-                        logger.debug('REMANING REGION TOO SHORT AFTER V-ALIGNMENT REMOVAL: {}'.format(v.id))
-                        v = None
+                	v = None
+                    # logger.debug('BIOPYTHON V-GENE REALIGNMENT: {}'.format(v.id))
+                    # v.realign_variable_biopython(v.top_germline)
+                    # v.annotate()
+                    # v_end = v.query_end + v.query_start
+                    # if len(seq.sequence[v_end:]) <= 10:
+                    #     logger.debug('REMANING REGION TOO SHORT AFTER V-ALIGNMENT REMOVAL: {}'.format(v.id))
+                    #     v = None
             vs.append((seq, v))
     v_blast_results = [v[1] for v in vs if v[1]]
     seqs = [v[0] for v in vs if v[1]]
