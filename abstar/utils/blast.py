@@ -32,7 +32,7 @@ from Bio import SeqIO
 from Bio.Blast.Applications import NcbiblastnCommandline
 from Bio.Blast import NCBIXML
 
-from abtools.alignment import local_alignment
+from abtools.alignment import local_alignment, local_alignment_biopython
 
 
 class BlastResult(object):
@@ -87,10 +87,36 @@ class BlastResult(object):
         '''
         self.germline_seq = self._get_germline_sequence_for_realignment(germline_gene, 'V')
         alignment = local_alignment(self.seq.sequence, self.germline_seq,
+                                    match=3, mismatch=-2,
                                     gap_open_penalty=22, gap_extend_penalty=1)
         rc = self.seq.reverse_complement
         alignment_rc = local_alignment(rc, self.germline_seq,
+                                       match=3, mismatch=-2,
                                        gap_open_penalty=22, gap_extend_penalty=1)
+        if alignment.score > alignment_rc.score:
+            self._process_realignment(alignment)
+        else:
+            self.strand = 'minus'
+            self.input_sequence = rc
+            self._process_realignment(alignment_rc)
+
+
+    def realign_variable_biopython(self, germline_gene):
+        '''
+        Due to restrictions on the available scoring parameters in BLASTn, incorrect truncation
+        of the v-gene alignment can occur. This function re-aligns the query sequence with
+        the identified germline variable gene using more appropriate alignment parameters.
+
+        Input is the name of the germline variable gene (ex: 'IGHV1-2*02').
+        '''
+        self.germline_seq = self._get_germline_sequence_for_realignment(germline_gene, 'V')
+        alignment = local_alignment_biopython(self.seq.sequence, self.germline_seq,
+                                    match=6, mismatch=-2,
+                                    gap_open_penalty=-22, gap_extend_penalty=0)
+        rc = self.seq.reverse_complement
+        alignment_rc = local_alignment_biopython(rc, self.germline_seq,
+                                       match=6, mismatch=-2,
+                                       gap_open_penalty=-22, gap_extend_penalty=0)
         if alignment.score > alignment_rc.score:
             self._process_realignment(alignment)
         else:

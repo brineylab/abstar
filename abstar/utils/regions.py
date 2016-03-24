@@ -41,6 +41,7 @@ def regions(blast_result):
 
     Input is a BlastResult object for a variable gene.
     '''
+    global logger
     logger = log.get_logger(__name__)
     try:
         if blast_result.gene_type == 'variable':
@@ -280,6 +281,8 @@ class JoinRegions(object):
     Input is a BlastResult object.
     '''
     def __init__(self, br):
+        self.fix_v_overlap = False
+        self.v_overlap_length = 0
         start = self._get_fr4_nt_start(br)
         end = self._get_fr4_nt_end(br)
         self.raw_positions = [start, end]
@@ -308,6 +311,14 @@ class JoinRegions(object):
                 if sline[0] == br.top_germline:
                     raw_fr4_start = int(sline[2])
                     break
+        # in some rare cases where the V-gene alignment overlaps
+        # the J-gene alignment, which results in the first nt or two
+        # of FR4 being truncated (because they're part of the V-gene alignment)
+        if raw_fr4_start - br.germline_start < 0:
+            self.fix_v_overlap = True
+            self.v_overlap_length = abs(raw_fr4_start - br.germline_start)
+            logger.debug('V-OVERLAP FOUND: {}'.format(br.id))
+            logger.debug('V-OVERLAP LENGTH: {}'.format(self.v_overlap_length))
         return max(0, raw_fr4_start - br.germline_start)
 
 
