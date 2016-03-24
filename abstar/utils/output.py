@@ -65,6 +65,13 @@ def build_output(vdjs, output_type, pretty, padding):
         logger.debug(traceback.format_exc())
 
 
+def as_dict(vdjs):
+    output = []
+    for vdj in vdjs:
+        output.append(_json_output(vdj, False, False, raw=True))
+    return output
+
+
 def output_func(output_type):
     outputs = {'json': _json_output,
                'imgt': _imgt_summary_output,
@@ -72,7 +79,7 @@ def output_func(output_type):
     return outputs[output_type]
 
 
-def _json_output(vdj, pretty, padding):
+def _json_output(vdj, pretty, padding, raw=False):
     '''
     Assembles AbAnalyze output in JSON format.
 
@@ -280,6 +287,7 @@ def _json_output(vdj, pretty, padding):
                                     'muts': [{'loc': m['pos'],
                                               'mut': m['mut']} for m in vdj.j.aa_mutations.region_mutations['FR4']]}}),
         ('prod', vdj.productive),
+        ('junction_in_frame', 'yes' if vdj.junction.in_frame else 'no'),
         ('raw_input', vdj.raw_input),
         ('raw_query', vdj.raw_query),
         ('strand', vdj.strand),
@@ -317,6 +325,8 @@ def _json_output(vdj, pretty, padding):
             del output[i]
         elif output[i] == None:
             del output[i]
+    if raw:
+        return output
     if pretty:
         return json.dumps(output, indent=4)
     else:

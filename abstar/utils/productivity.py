@@ -36,6 +36,7 @@ def check_productivity(vdj):
         problems += vdj_agreement(vdj)
         problems += conserved_junc_residues(vdj)
         problems += rearrangement(vdj)
+        problems += junction_frame(vdj)
         if problems:
             return 'no'
         return 'yes'
@@ -81,3 +82,7 @@ def rearrangement(vdj):
     if not vdj.rearrangement:
         return 1
     return 0
+
+
+def junction_frame(vdj):
+    return 0 if vdj.junction.in_frame else 1

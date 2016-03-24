@@ -24,8 +24,10 @@
 
 from __future__ import print_function
 
+import logging
 import os
 import sys
+import tempfile
 import traceback
 
 from Bio import SeqIO
@@ -106,6 +108,8 @@ class VDJ(object):
         self.v_end = self._get_v_end()
         self.j_start = self._get_j_start()
         self.j_end = self._get_j_end()
+        if self.j.regions.fix_v_overlap:
+            self._fix_v_overlap()
         if self.d:
             self.d_start = self._get_d_start()
             self.d_end = self._get_d_end()
@@ -167,6 +171,18 @@ class VDJ(object):
         except:
             logger.debug('QUERY READING FRAME ERROR: {}, {}'.format(self.id,
                                                                     self.v.germline_start))
+
+    def _fix_v_overlap(self):
+        logger.debug('FIXING V_OVERLAP: {}'.format(self.id))
+        nt = self.j.regions.v_overlap_length
+        # fix the query sequence
+        new_fr4_nt = self.v.query_alignment[-nt:] + self.j.regions.nt_seqs['FR4']
+        self.j.regions.nt_seqs['FR4'] = new_fr4_nt
+        self.j.regions.aa_seqs['FR4'] = str(Seq(new_fr4_nt, generic_dna).translate())
+        # fix the germline sequence
+        new_fr4_germ_nt = self.v.germline_alignment[-nt:] + self.j.regions.germline_nt_seqs['FR4']
+        self.j.regions.germline_nt_seqs['FR4'] = new_fr4_germ_nt
+        self.j.regions.germline_aa_seqs['FR4'] = str(Seq(new_fr4_germ_nt, generic_dna).translate())
 
     def _gapped_vdj_nt(self):
         try:
@@ -335,6 +351,17 @@ def write_output(output, outfile, output_type, pretty, padding):
         return len(output_data) - 1
 
 
+def process_sequences(sequences, args):
+    global logger
+    logger = logging.getLogger()
+    seq_file = tempfile.NamedTemporaryFile(delete=False)
+    seq_file.write('\n'.join([s.fasta for s in sequences]))
+    seq_file.close()
+    vdjs = process_sequence_file(seq_file.name, args)
+    os.unlink(seq_file.name)
+    return vdjs
+
+
 def process_sequence_file(seq_file, args):
     '''
     Runs BLASTn to identify germline V, D, and J genes.
@@ -360,9 +387,15 @@ def process_sequence_file(seq_file, args):
             v = None
         finally:
             if v:
-                v_end = len(v.query_alignment) + v.query_start
+                v_end = v.query_end + v.query_start
                 if len(seq.sequence[v_end:]) <= 10:
-                    v = None
+                    logger.debug('BIOPYTHON V-GENE REALIGNMENT: {}'.format(v.id))
+                    v.realign_variable_biopython(v.top_germline)
+                    v.annotate()
+                    v_end = v.query_end + v.query_start
+                    if len(seq.sequence[v_end:]) <= 10:
+                        logger.debug('REMANING REGION TOO SHORT AFTER V-ALIGNMENT REMOVAL: {}'.format(v.id))
+                        v = None
             vs.append((seq, v))
     v_blast_results = [v[1] for v in vs if v[1]]
     seqs = [v[0] for v in vs if v[1]]
@@ -370,7 +403,7 @@ def process_sequence_file(seq_file, args):
     logger.debug('V-ASSIGNMENT RESULT: for {}, {} of {} sequences failed v-gene assignment'.format(
         os.path.basename(seq_file), len(failed_seqs), len(seqs) + len(failed_seqs)))
     for fs in failed_seqs:
-        logger.debug('NO V-GENE ASSIGNMENT: {}'.format(seq.id))
+        logger.debug('NO V-GENE ASSIGNMENT: {}'.format(fs.id))
     if not v_blast_results:
         seq_filename = os.path.basename(seq_file)
         logger.debug('NO VALID REARRANGEMENTS IN FILE: {}'.format(seq_filename))

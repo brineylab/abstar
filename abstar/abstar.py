@@ -32,6 +32,7 @@ from subprocess import Popen, PIPE
 # External
 from Bio import SeqIO
 from abtools import log
+from abtools.sequence import Sequence
 
 import gzip
 import logging
@@ -76,10 +77,12 @@ def parse_arguments(print_help=False):
     parser.add_argument('-t', '--temp', dest='temp', default=None,
                         help="The directory in which temp files will be stored. If the directory doesn't exist, \
                         it will be created. Required.")
+    parser.add_argument('--sequences', dest='sequences', default=None,
+                        help="Only used when passing sequences directly through the API.")
     parser.add_argument('-k', '--chunksize', dest='chunksize', default=250, type=int,
                         help="Approximate number of sequences in each distributed job. \
                         Defaults to 250. \
-                        Set to 0 if you want file splittint to be turned off \
+                        Set to 0 if you want file splitting to be turned off \
                         Don't change unless you know what you're doing.")
     parser.add_argument('-T', '--output_type', dest="output_type", choices=['json', 'imgt', 'hadoop'], default='json',
                         help="Select the output type. Options are 'json', 'imgt' and 'impala'. \
@@ -145,12 +148,13 @@ class Args(object):
     """Holds arguments, mimics argparse's Namespace when running abstar as an imported module"""
 
     def __init__(self, data_dir=None, input=None, output=None, log=None, temp=None,
-                 chunksize=250, output_type='json',
+                 sequences=None, chunksize=250, output_type='json',
                  merge=False, pandaseq_algo='simple_bayesian',
                  nextseq=False, uaid=0, isotype=False,
                  basespace=False, cluster=False, starcluster=False,
                  debug=False, print_debug=False, species='human', gzip=False):
         super(Args, self).__init__()
+        self.sequences = sequences
         self.data_dir = str(data_dir) if data_dir is not None else data_dir
         self.input = str(input) if input is not None else input
         self.output = str(output) if output is not None else output
@@ -174,9 +178,13 @@ class Args(object):
 
 
 def validate_args(args):
-    if not args.data_dir and not all([args.input, args.output, args.temp]):
+    if not any([args.data_dir,
+                args.sequences,
+                all([args.input, args.output, args.temp])]):
         parse_arguments(print_help=True)
         sys.exit(1)
+    if all([args.sequences is not None, args.temp is None]):
+        args.temp = './tmp'
 
 
 #####################################################################
@@ -529,7 +537,7 @@ def monitor_celery_jobs(results):
     return succeeded, failed
 
 
-def run(**kwargs):
+def run(*args, **kwargs):
     '''
     Runs AbStar.
 
@@ -561,12 +569,40 @@ def run(**kwargs):
     debug=False
     '''
     warnings.filterwarnings("ignore")
+    if len(args) == 1:
+        # if there's a single arg, need to check if it's a single sequence...
+        try:
+            sequences = [Sequence(args[0]), ]
+        except:
+            # ...or a list of sequences
+            try:
+                sequences = [Sequence(s) for s in args[0]]
+            except:
+                print('ERROR: invalid format for sequence input:')
+                for a in args:
+                    print(a)
+                sys.exit(1)
+    # if multiple args, assume each is a sequence
+    elif len(args) > 1:
+        try:
+            sequences = [Sequence(s) for s in args]
+        except:
+            print('ERROR: invalid format for sequence input:')
+            for a in args:
+                print(a)
+            sys.exit(1)
+    kwargs['sequences'] = sequences
     args = Args(**kwargs)
     validate_args(args)
     global logger
     logger = log.get_logger('abstar')
-    output_dir = main(args)
-    return list_files(output_dir)
+    output = main(args)
+    if args.sequences is not None:
+        output = [Sequence(o) for o in output]
+        if len(output) == 1:
+            return output[0]
+        return output
+    return list_files(output)
 
 
 def run_standalone(args):
@@ -574,33 +610,38 @@ def run_standalone(args):
 
 
 def main(args):
-    input_dir, output_dir, temp_dir = make_directories(args)
-    setup_logging(args)
-    log_options(input_dir, output_dir, temp_dir, args)
-    if args.basespace:
-        args.merge = True
-        download_files(input_dir)
-    if args.merge:
-        input_dir = merge_reads(input_dir, args)
-    if args.isotype:
-        args.isotype = args.species
-    input_files = [f for f in list_files(input_dir, log=True) if os.stat(f).st_size > 0]
-    for f, fmt in zip(input_files, format_check(input_files)):
-        # skip the non-FASTA/Q files
-        if fmt is None:
-            continue
-        start_time = time.time()
-        print_input_file_info(f, fmt)
-        subfiles, seq_count = split_file(f, fmt, temp_dir, args)
-        run_info = run_jobs(subfiles, temp_dir, args)
-        temp_json_files = [r[0] for r in run_info]
-        processed_seq_counts = [r[1] for r in run_info]
-        vdj_end_time = time.time()
-        concat_output(f, temp_json_files, output_dir, args)
-        if not args.debug:
-            clear_temp_files(subfiles + temp_json_files)
-        print_job_stats(seq_count, sum(processed_seq_counts), start_time, vdj_end_time)
-    return output_dir
+    if args.sequences is not None:
+        from utils import output, vdj
+        vdjs = vdj.process_sequences(args.sequences, args)
+        return output.as_dict(vdjs)
+    else:
+        input_dir, output_dir, temp_dir = make_directories(args)
+        setup_logging(args)
+        log_options(input_dir, output_dir, temp_dir, args)
+        if args.basespace:
+            args.merge = True
+            download_files(input_dir)
+        if args.merge:
+            input_dir = merge_reads(input_dir, args)
+        if args.isotype:
+            args.isotype = args.species
+        input_files = [f for f in list_files(input_dir, log=True) if os.stat(f).st_size > 0]
+        for f, fmt in zip(input_files, format_check(input_files)):
+            # skip the non-FASTA/Q files
+            if fmt is None:
+                continue
+            start_time = time.time()
+            print_input_file_info(f, fmt)
+            subfiles, seq_count = split_file(f, fmt, temp_dir, args)
+            run_info = run_jobs(subfiles, temp_dir, args)
+            temp_json_files = [r[0] for r in run_info]
+            processed_seq_counts = [r[1] for r in run_info]
+            vdj_end_time = time.time()
+            concat_output(f, temp_json_files, output_dir, args)
+            if not args.debug:
+                clear_temp_files(subfiles + temp_json_files)
+            print_job_stats(seq_count, sum(processed_seq_counts), start_time, vdj_end_time)
+        return output_dir
 
 
 if __name__ == '__main__':
