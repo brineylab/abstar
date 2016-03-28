@@ -67,18 +67,22 @@ class VDJ(object):
         self.v = v
         self.j = j
         self.d = d
-        if v and j:
+        if all([v is not None, j is not None]):
             try:
                 self.rearrangement = True
+                logger.debug('V-BLAST INPUT: {}'.format(v.seq.sequence))
+                logger.debug('V-BLAST QUERY: {}'.format(v.query_alignment))
+                logger.debug('J-BLAST INPUT: {}'.format(j.seq.sequence))
+                logger.debug('J-BLAST QUERY: {}'.format(j.query_alignment))
                 self._get_attributes()
             except:
                 self.rearrangement = False
                 logger.debug('VDJ ATTRIBUTE ERROR: {}'.format(seq.id))
                 logger.debug(traceback.format_exc())
         else:
-            if not v:
+            if v is None:
                 logger.debug('V ASSIGNMENT ERROR: {}'.format(seq.id))
-            if not j:
+            if j is None:
                 logger.debug('J ASSIGNMENT ERROR: {}'.format(seq.id))
             self.rearrangement = False
 
@@ -387,7 +391,8 @@ def process_sequence_file(seq_file, args):
             v = None
         finally:
             if v:
-                v_end = v.query_end + v.query_start + 1
+                # v_end = v.query_end + v.query_start + 1
+                v_end = v.query_end + 1
                 if len(seq.sequence[v_end:]) <= 10:
                     logger.debug('REMANING REGION TOO SHORT AFTER V-ALIGNMENT REMOVAL: {}'.format(v.id))
                     # v = None
@@ -396,7 +401,8 @@ def process_sequence_file(seq_file, args):
                     	match=30, mismatch=-20,
                     	gap_open_penalty=220, gap_extend_penalty=1)
                     v.annotate()
-                    v_end = v.query_end + v.query_start + 1
+                    # v_end = v.query_end + v.query_start + 1
+                    v_end = v.query_end + 1
                     if len(seq.sequence[v_end:]) <= 10:
                         logger.debug('REMANING REGION TOO SHORT AFTER SECOND V-ALIGNMENT REMOVAL: {}'.format(v.id))
                         v = None
