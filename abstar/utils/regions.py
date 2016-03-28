@@ -314,7 +314,7 @@ class JoinRegions(object):
         # in some rare cases where the V-gene alignment overlaps
         # the J-gene alignment, which results in the first nt or two
         # of FR4 being truncated (because they're part of the V-gene alignment)
-        if raw_fr4_start - br.germline_start < 0:
+        if br.chain != 'heavy' and raw_fr4_start - br.germline_start < 0:
             self.fix_v_overlap = True
             self.v_overlap_length = abs(raw_fr4_start - br.germline_start)
             logger.debug('V-OVERLAP FOUND: {}'.format(br.id))
