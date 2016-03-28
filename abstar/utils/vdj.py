@@ -387,7 +387,7 @@ def process_sequence_file(seq_file, args):
             v = None
         finally:
             if v:
-                v_end = v.query_end + v.query_start
+                v_end = v.query_end + v.query_start + 1
                 if len(seq.sequence[v_end:]) <= 10:
                     logger.debug('REMANING REGION TOO SHORT AFTER V-ALIGNMENT REMOVAL: {}'.format(v.id))
                     # v = None
@@ -396,7 +396,7 @@ def process_sequence_file(seq_file, args):
                     	match=30, mismatch=-20,
                     	gap_open_penalty=220, gap_extend_penalty=1)
                     v.annotate()
-                    v_end = v.query_end + v.query_start
+                    v_end = v.query_end + v.query_start + 1
                     if len(seq.sequence[v_end:]) <= 10:
                         logger.debug('REMANING REGION TOO SHORT AFTER SECOND V-ALIGNMENT REMOVAL: {}'.format(v.id))
                         v = None

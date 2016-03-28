@@ -442,7 +442,7 @@ class DiversityResult(object):
 def build_j_blast_input(seqs, v_blast_results):
     j_fastas = []
     for seq, vbr in zip(seqs, v_blast_results):
-        start = vbr.query_end + vbr.query_start + vbr.fs_indel_adjustment + vbr.nfs_indel_adjustment
+        start = vbr.query_end + vbr.query_start + vbr.fs_indel_adjustment + vbr.nfs_indel_adjustment + 1
         j_fastas.append('>{}\n{}'.format(seq.id, seq.sequence[start:]))
     j_blastin = tempfile.NamedTemporaryFile(delete=False)
     j_blastin.write('\n'.join(j_fastas))
