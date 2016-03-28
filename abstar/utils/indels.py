@@ -91,7 +91,7 @@ def _fix_frameshift_insertion(br, s, e):
     br.query_alignment = br.query_alignment[:s] + br.query_alignment[e:]
     br.germline_alignment = br.germline_alignment[:s] + br.germline_alignment[e:]
     br.alignment_midline = br.alignment_midline[:s] + br.alignment_midline[e:]
-    br.fs_indel_adjustment += 1
+    br.fs_indel_adjustment += e - s
     return br
 
 
@@ -157,5 +157,5 @@ def _fix_frameshift_deletion(br, s, e):
     Output is a modified BlastResult object.
     '''
     br.query_alignment = br.query_alignment[:s] + br.germline_alignment[s:e] + br.query_alignment[e:]
-    br.fs_indel_adjustment -= 1
+    br.fs_indel_adjustment -= e - s
     return br
