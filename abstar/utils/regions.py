@@ -93,16 +93,16 @@ class VarRegions(object):
                 if sline[0] == br.top_germline:
                     region_positions = [int(i) for i in sline[1:]]
                     break
-        if br.insertions or br.deletions:
+        if br.insertions:
             region_positions = self._recalibrate_region_positions(br, region_positions)
         return region_positions
 
 
     def _recalibrate_region_positions(self, br, positions):
         '''
-        Recalibrates the region position numbering to account for indels.
+        Recalibrates the region position numbering to account for insertions.
 
-        Input is a BlastResult object.
+        Input is a BlastResult object and a list of region positions.
 
         Output is a list of recalibrated region end positions.
         '''
@@ -116,16 +116,6 @@ class VarRegions(object):
                 for p in positions:
                     adjustments.append(0 if p <= istart else ilength)
                 positions = [p + a for p, a in zip(positions, adjustments)]
-        if br.deletions:
-            deletions = [(d['pos'], d['len']) for d in br.deletions]
-            deletions.sort(key=lambda x: x[0])
-            for d in deletions:
-                dstart = d[0]
-                dlength = d[1]
-                adjustments = []
-                for p in positions:
-                    adjustments.append(0 if p < dstart else dlength)
-                positions = [p - a for p, a in zip(positions, adjustments)]
         return positions
 
 
@@ -152,7 +142,8 @@ class VarRegions(object):
 
         Output is a dict of region sequences.
         '''
-        regions = self._regions(br)
+        # regions = self._regions(br)
+        regions = self._regions()
         region_nt_seqs = {}
         start = 0
         if germline:
@@ -162,7 +153,7 @@ class VarRegions(object):
         for r in regions:
             reg = r[0]
             end = r[1]
-            if end:
+            if end is not None:
                 region_nt_seqs[reg] = alignment[start:end]
                 start = end
             else:
@@ -184,7 +175,8 @@ class VarRegions(object):
         return lengths
 
 
-    def _regions(self, region_positions):
+    # def _regions(self, region_positions):
+    def _regions(self):
         '''
         Produces a list of regions and region end positions for all regions.
 
@@ -317,6 +309,7 @@ class JoinRegions(object):
         if br.chain != 'heavy' and raw_fr4_start - br.germline_start < 0:
             self.fix_v_overlap = True
             self.v_overlap_length = abs(raw_fr4_start - br.germline_start)
+            logger.debug('CHAIN: {}'.format(br.chain))
             logger.debug('V-OVERLAP FOUND: {}'.format(br.id))
             logger.debug('V-OVERLAP LENGTH: {}'.format(self.v_overlap_length))
         return max(0, raw_fr4_start - br.germline_start)

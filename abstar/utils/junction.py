@@ -50,6 +50,10 @@ class Junction(object):
         self._frame_offset = 0
         self.junction_nt_start_pos = self._find_junction_nt_start(vdj)
         self.junction_nt_end_pos = self._find_junction_nt_end(vdj)
+        if any([self.junction_nt_start_pos is None, self.junction_nt_end_pos is None]):
+            logger.debug('JUNCTION IDENTIFICATION ERROR: {}'.format(vdj.id))
+            logger.debug('RAW INPUT: {}'.format(vdj.raw_input))
+            return None
         self.junction_nt = self._get_junction_nt_sequence(vdj)
         if len(self.junction_nt) % 3 > 0:
             self.in_frame = False
@@ -80,13 +84,15 @@ class Junction(object):
     def _find_junction_nt_start(self, vdj):
         fr3 = vdj.v.regions.nt_seqs['FR3'][:-3]
         aln = local_alignment(fr3, vdj.vdj_nt)
-        return aln.target_end + 1
+        if aln:
+            return aln.target_end + 1
 
 
     def _find_junction_nt_end(self, vdj):
         fr4 = vdj.j.regions.nt_seqs['FR4'][3:]
         aln = local_alignment(fr4, vdj.vdj_nt)
-        return aln.target_begin
+        if aln:
+            return aln.target_begin
 
 
     def _get_junction_nt_sequence(self, vdj):
