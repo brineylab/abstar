@@ -634,8 +634,8 @@ def main(args):
             print_input_file_info(f, fmt)
             subfiles, seq_count = split_file(f, fmt, temp_dir, args)
             run_info = run_jobs(subfiles, temp_dir, args)
-            temp_json_files = [r[0] for r in run_info]
-            processed_seq_counts = [r[1] for r in run_info]
+            temp_json_files = [r[0] for r in run_info if r is not None]
+            processed_seq_counts = [r[1] for r in run_info if r is not None]
             vdj_end_time = time.time()
             concat_output(f, temp_json_files, output_dir, args)
             if not args.debug:

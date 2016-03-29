@@ -67,7 +67,9 @@ class VDJ(object):
         self.v = v
         self.j = j
         self.d = d
-        if all([v is not None, j is not None]):
+        if not self._valid_assignments():
+            self.rearrangement = False
+        elif all([v is not None, j is not None]):
             try:
                 self.rearrangement = True
                 logger.debug('V-BLAST INPUT: {}'.format(v.seq.sequence))
@@ -102,6 +104,15 @@ class VDJ(object):
     @property
     def isotype(self):
         return self._isotype
+
+
+    def _valid_assignments(self):
+        if any([self.v is None, self.j is None]):
+            return False
+        if self.v.chain != self.j.chain:
+            logger.debug("ASSIGNMENT ERROR: {} - V and J chains don't match".format(self.id))
+            return False
+        return True
 
     def _get_attributes(self):
         'Adds VDJ attributes, only for VDJ objects with an identified V and J gene.'
@@ -334,7 +345,7 @@ def run(seq_file, output_dir, args):
             output_file = os.path.join(output_dir, output_filename + '.txt')
         vdj_output = process_sequence_file(seq_file, args)
         if not vdj_output:
-            return 0
+            return None
         clean_vdjs = [vdj for vdj in vdj_output if vdj.rearrangement]
         output_count = write_output(clean_vdjs, output_file, args.output_type, args.pretty, args.padding)
         return (output_file, output_count)
@@ -398,8 +409,8 @@ def process_sequence_file(seq_file, args):
                     # v = None
                     logger.debug('PERFORMING SECOND V-GENE REALIGNMENT: {}'.format(v.id))
                     v.realign_variable(v.top_germline,
-                    	match=30, mismatch=-20,
-                    	gap_open_penalty=220, gap_extend_penalty=1)
+                        match=30, mismatch=-20,
+                        gap_open_penalty=220, gap_extend_penalty=1)
                     v.annotate()
                     # v_end = v.query_end + v.query_start + 1
                     v_end = v.query_end + 1
@@ -437,7 +448,7 @@ def process_sequence_file(seq_file, args):
             try:
                 vbr = v_blast_records[i]
                 vseq = seqs[i]
-                logger.debug('J-GENE ASSIGNMENT ERROR: {}\n{}\n{}'.format(j_seq.id,
+                logger.debug('J-GENE ASSIGNMENT ERROR: {}\n{}'.format(j_seq.id,
                                                                           vseq.sequence, ))
                                                                           # vbr.query_alignment))
             except:
