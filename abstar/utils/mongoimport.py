@@ -150,7 +150,7 @@ def monitor_results(results):
 def do_mongoimport(json, ip, port, db, coll, user, password):
     username = " -u {}".format(user) if user else ""
     password = " -p {}".format(password) if password else ""
-    mongo_cmd = "mongoimport --host {}:{}{}{} --db {} --collection {} --file {}".format(
+    mongo_cmd = "mongoimport --host {}:{}{}{} --db {} --collection {} --file {} --numInsertionWorkers 12 --batchSize 100".format(
         ip, port, username, password, db, coll, json)
     mongo = subprocess.Popen(mongo_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     mongo.communicate()
