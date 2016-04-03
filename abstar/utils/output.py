@@ -106,6 +106,17 @@ def _json_output(vdj, pretty, padding, raw=False):
     exo_trim = {'var_3': len(vdj.v.germline_seq) - vdj.v.germline_end,
                 'join_5': vdj.j.germline_start}
 
+    try:
+        isotype = vdj.isotype.isotype
+        isotype_score = vdj.isotype.score
+        isotype_alignment = {'query': vdj.isotype.alignment.aligned_query,
+                             'midline': vdj.isotype.alignment.alignment_midline,
+                             'isotype': vdj.isotype.alignment.aligned_target}
+    except AttributeError:
+        isotype = 'unknown'
+        isotype_score = ''
+        isotype_alignment = {}
+
     if vdj.d:
         d_info = {'full': vdj.d.top_germline,
                   'fam': vdj.d.top_germline.split('-')[0] if vdj.d.top_germline else None,
@@ -173,11 +184,9 @@ def _json_output(vdj, pretty, padding, raw=False):
                        'j': vdj.j.top_bitscore}),
         ('e_values', {'v': vdj.v.top_evalue,
                       'j': vdj.j.top_evalue}),
-        ('isotype', vdj.isotype.isotype),
-        ('isotype_score', vdj.isotype.score),
-        ('isotype_alignment', {'query': vdj.isotype.alignment.aligned_query,
-        					   'midline': vdj.isotype.alignment.alignment_midline,
-        					   'isotype': vdj.isotype.alignment.aligned_target}),
+        ('isotype', isotype),
+        ('isotype_score', isotype_score),
+        ('isotype_alignment', isotype_alignment),
         ('nt_identity', nt_identity),
         ('aa_identity', {'v': vdj.v.aa_mutations.germline_identity,
                          'j': vdj.j.aa_mutations.germline_identity}),
