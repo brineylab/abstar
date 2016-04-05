@@ -142,7 +142,7 @@ def _annotate_deletion(br, s, e):
     del_start = s + br.germline_start
     del_length = e - s
     del_seq = br.germline_alignment[s:e]
-    br.nfs_indel_adjustment -= del_length
+    # br.nfs_indel_adjustment -= del_length
     in_frame = 'yes' if del_length % 3 == 0 else 'no'
     return {'pos': del_start, 'len': del_length, 'seq': del_seq, 'in frame': in_frame}
 

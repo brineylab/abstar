@@ -155,6 +155,11 @@ class VarRegions(object):
             end = r[1]
             if end is not None:
                 region_nt_seqs[reg] = alignment[start:end]
+                if end > len(alignment) and reg == 'FR3':
+                    logger.debug('TRUNCATED FR3: {}'.format(br.id))
+                    logger.debug('OLD: {}'.format(region_nt_seqs['FR3']))
+                    region_nt_seqs[reg] = self._fix_truncated_fr3_alignment(br, start, end, germline)
+                    logger.debug('NEW: {}'.format(region_nt_seqs['FR3']))
                 start = end
             else:
                 region_nt_seqs[reg] = None
@@ -264,6 +269,15 @@ class VarRegions(object):
             return aa_seq[:s] + i + aa_seq[s:]
 
 
+    def _fix_truncated_fr3_alignment(self, br, start, end, germline):
+        if germline:
+            alignment = br.germline_alignment
+            seq = br.germline_seq[br.germline_end + 1:]
+        else:
+            alignment = br.query_alignment
+            seq = br.input_sequence[br.query_end + 1:]
+        trunc = end - len(alignment)
+        return alignment[start:] + seq[:trunc]
 
 
 class JoinRegions(object):
