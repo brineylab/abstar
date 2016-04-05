@@ -144,8 +144,8 @@ class VDJ(object):
             self.n_start = self._get_n_start()
             self.n_end = self._get_n_end()
 
-        self.vdj_nt = self._vdj_nt()
         self.gapped_vdj_nt = self._gapped_vdj_nt()
+        self.vdj_nt = self._vdj_nt()
         self.gapped_vdj_region_string = self._get_gapped_vdj_region_string()
         self.vdj_region_string = self._get_vdj_region_string()
         self.vdj_aa = self._vdj_aa()
@@ -202,19 +202,15 @@ class VDJ(object):
     def _gapped_vdj_nt(self):
         try:
             gapped_vdj_nt = self.v.query_alignment + \
-                self.j.input_sequence[:self.j.query_start + len(self.j.query_alignment)]
+                self.j.input_sequence[:self.j.query_start] + \
+                self.j.query_alignment
             return gapped_vdj_nt
         except:
             logger.debug('VDJ NT ERROR: {}, {}'.format(self.id, self.raw_query))
 
     def _vdj_nt(self):
         'Returns the nucleotide sequence of the VDJ region.'
-        try:
-            vdj_nt = self.v.query_alignment + \
-                self.j.input_sequence[:self.j.query_start + len(self.j.query_alignment)]
-            return vdj_nt.replace('-', '')
-        except:
-            logger.debug('VDJ NT ERROR: {}, {}'.format(self.id, self.raw_query))
+        return self.gapped_vdj_nt.replace('-', '')
 
     def _vdj_aa(self):
         'Returns the amino acid sequence of the VDJ region.'
