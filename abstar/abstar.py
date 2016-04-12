@@ -43,8 +43,6 @@ import time
 import traceback
 import warnings
 
-# External
-#import skbio
 
 #####################################################################
 #
@@ -55,7 +53,7 @@ import warnings
 
 def parse_arguments(print_help=False):
     parser = ArgumentParser("Performs germline assignment and other relevant annotation on antibody sequence data from NGS platforms.")
-    parser.add_argument('-d', '--data', dest='data_dir', default=None,
+    parser.add_argument('-p', '--project', dest='data_dir', default=None,
                         help="The data directory, where files will be downloaded (or have previously \
                         been download), temp files will be stored, and output files will be \
                         written. During StarCluster configuration, all ephemeral drives on the master \
@@ -97,14 +95,14 @@ def parse_arguments(print_help=False):
                         (either gzip compressed or uncompressed) from Illumina platforms. \
                         Prior to running the germline assignment pipeline, \
                         paired reads will be merged with PANDAseq.")
-    parser.add_argument('-p', '--pandaseq_algo', dest="pandaseq_algo", default='simple_bayesian',
+    parser.add_argument('-P', '--pandaseq_algo', dest="pandaseq_algo", default='simple_bayesian',
                         choices=['simple_bayesian', 'ea_util', 'flash', 'pear', 'rdp_mle', 'stitch', 'uparse'],
                         help="Define merging algorithm to be used by PANDAseq.\
                         Options are 'simple_bayesian', 'ea_util', 'flash', 'pear', 'rdp_mle', 'stitch', or 'uparse'.\
                         Default is 'simple_bayesian', which is the default PANDAseq algorithm.")
     parser.add_argument('-n', '--nextseq', dest="nextseq", action='store_true', default=False,
                         help="Use if the run was performed on a NextSeq sequencer.")
-    parser.add_argument('-u', '--uaid', dest="uaid", type=int, default=0,
+    parser.add_argument('-u', '--umid', dest="uaid", type=int, default=0,
                         help="Length of the unique antibody identifiers (UAIDs) \
                         used when preparing samples, if used. \
                         Default is unbarcoded (UAID length of 0).")
@@ -145,17 +143,15 @@ def parse_arguments(print_help=False):
 
 
 class Args(object):
-    """Holds arguments, mimics argparse's Namespace when running abstar as an imported module"""
-
-    def __init__(self, data_dir=None, input=None, output=None, log=None, temp=None,
+    def __init__(self, project_dir=None, input=None, output=None, log=None, temp=None,
                  sequences=None, chunksize=250, output_type='json',
                  merge=False, pandaseq_algo='simple_bayesian',
-                 nextseq=False, uaid=0, isotype=False,
+                 nextseq=False, umid=0, isotype=False,
                  basespace=False, cluster=False, starcluster=False,
                  debug=False, print_debug=False, species='human', gzip=False):
         super(Args, self).__init__()
         self.sequences = sequences
-        self.data_dir = str(data_dir) if data_dir is not None else data_dir
+        self.data_dir = str(project_dir) if project_dir is not None else project_dir
         self.input = str(input) if input is not None else input
         self.output = str(output) if output is not None else output
         self.log = str(log) if log is not None else log
@@ -165,7 +161,7 @@ class Args(object):
         self.merge = True if basespace else merge
         self.pandaseq_algo = str(pandaseq_algo)
         self.nextseq = nextseq
-        self.uaid = int(uaid)
+        self.uaid = int(umid)
         self.isotype = isotype
         self.basespace = basespace
         self.cluster = cluster
@@ -541,33 +537,65 @@ def run(*args, **kwargs):
     '''
     Runs AbStar.
 
-    Either ::data_dir:: or all of ::input::, ::output::, and ::temp::
-    are required.
+    abstar.run() can accomodate input sequences in several different ways:
+        1) individual sequences as positional arguments -- run(seq1, seq2, temp=temp, output=output)
+        2) a list of sequences, as an argument -- run([seq1, seq2], temp=temp, output=output)
+        2) a list of sequences, passed via the <sequences> kwarg
+        3) a single FASTA/Q-formatted input file, passed via the <input> kwarg
+        4) a directory of FASTA/Q-formatted files, passed via the <input> kwarg
+        5) direct download from BaseSpace (using <input> or <project_dir> with <basespace>)
 
-    To parse unique antibody IDs (UAIDs, or molecular barcodes), set ::uaid::
-    to the length of the barcode. It is assumed that the barcode is at the start
-    if the sequence.
+    When passing sequences (not FASTA/Q files), the sequences can be in any format recognized
+    by abtools.sequence.Sequence(), including:
+        - a raw nucleotide sequence, as a string (random name will be assigned)
+        - a list/tuple of the format (sequence_id, sequence)
+        - a BioPython SeqRecord object
 
-    Default options:
+    Either sequences (as positional args or via the <sequences> kwarg), <project_dir>, or
+    all of <input>, <output> and <temp> are required.
 
-    data_dir=None
-    input=None
-    output=None
-    log=None
-    temp=None
-    chunksize=250
-    output_type='json'
-    merge=False
-    pandaseq_algo='simple_bayesian'
-    next_seq=False
-    uaid=0
-    isotype=False
-    basespace=False
-    cluster=False
-    starcluster=False
-    species='human'
-    debug=False
+    Args:
+        project_dir (str): Path to the project directory. Most useful when directly downloading
+            files from BaseSpace, and all subdirectories will be created by AbStar.
+        sequences (list): list of sequences, in any format handled by abtools.sequence.Sequence().
+        input (str): Path to input directory, containing FASTA/Q files. If performing
+            read merging with PANDAseq, paired FASTQ files may be gzip compressed.
+        output (str): Path to output directory.
+        temp (str): Path to temp directory, where intermediate job files will be stored.
+        log (str): Path to log file. If not provided and <project_dir> is provided,
+            the log will be written to /path/to/project_dir/abstar.log. If output is
+            provided, log will be written to /path/to/output/abstar.log.
+        species (str): Species of the antibody sequences. Choices are 'human', 'macaque',
+            'mouse' and 'rabbit'. Default is 'human'.
+        isotype (bool): If True, the isotype will infered by aligning the sequence region
+            downstream of the J-gene. If False, the isotype will not be determined.
+            Default is True.
+        umid (int): Length (in nucleotides) of the Unique Molecular ID used to barcode input RNA.
+            A positive integer results in the UMID being parsed from the start of the read (or merged
+            read), a negative integer results in parsing from the end of the read. Default is 0,
+            which results in no UMID parsing.
+        gzip (bool): If True, compresses output files with gzip. Default is False.
+        pretty (bool): If True, formats JSON output files to be more human-readable. If False,
+            JSON output files contain one record per line. Default is False.
+        output_type (str): Options are 'json' or 'imgt'. IMGT output mimics the Summary
+            table produced by IMGT High-V/Quest, to maintain a level of compatibility with
+            existing IMGT-based pipelines. JSON output is much more detailed. Default is 'json'.
+        merge (bool): If True, input must be paired-read FASTA files (gzip compressed or uncompressed)
+            which will be merged with PANDAseq prior to processing with AbStar. If <basespace> is True,
+            <merge> is also set to True. Default is False.
+        pandaseq_algo (str): Define merging algorithm to be used by PANDAseq. Options are
+            'simple_bayesian', 'ea_util', 'flash', 'pear', 'rdp_mle', 'stitch', or 'uparse'. Default is
+            'simple_bayesian', which is the default PANDAseq algorithm.
+
+
+    Returns:
+        dict: If input is a single sequence (either via positional arg or <sequences>), output is a
+            dictionary representation of the JSON output for that sequence
+        list: If input is more than one sequence, output is a list of dictionaries, one per input sequence.
+        list: If input is one or more FASTA/Q-formatted files, output is a list of output files,
+            one per input file.
     '''
+
     warnings.filterwarnings("ignore")
     if len(args) == 1:
         # if there's a single arg, need to check if it's a single sequence...

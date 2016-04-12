@@ -2,9 +2,6 @@ FROM ubuntu:14.04
 
 MAINTAINER Bryan Briney <briney@scripps.edu>
 
-# Borrowed (heavily) from
-# https://github.com/ContinuumIO/docker-images/blob/master/anaconda/Dockerfile
-
 # Initial configuration
 RUN apt-get update --fix-missing && apt-get install -yqq build-essential wget \
     bzip2 ca-certificates libglib2.0-0 libxext6 libsm6 libxrender1 pigz s3cmd \
