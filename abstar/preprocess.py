@@ -39,7 +39,7 @@ logger = get_logger('preprocess')
 
 
 def quality_trim(input_directory=None, output_directory=None,
-        quality_cutoff=15, length_cutoff=50, force_individual=False,
+        quality_cutoff=20, length_cutoff=50, force_individual=False,
         quality_type='sanger', compress_output=True, file_pairs=None,
         singles_directory=None, nextseq=False, paired_reads=True,
         allow_5prime_trimming=False):
@@ -158,13 +158,6 @@ def adapter_trim(input_directory, output_directory=None,
         # set up cutadapt command
         adapter_string = ' '.join(adapters)
         cutadapt = 'cutadapt -o {} {} {}'.format(ofile, adapter_string, ifile)
-
-
-
-        print(cutadapt)
-
-
-
         # run cutadapt
         p = Popen(cutadapt, stdout=PIPE, stderr=PIPE, shell=True)
         stdout, stderr = p.communicate()
