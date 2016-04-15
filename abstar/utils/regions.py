@@ -218,7 +218,7 @@ class VarRegions(object):
                     aa_seqs[r] = None
                     continue
                 if i <= len(regions) - 2:
-                    nt_seqs = self._fix_region_spanning_indel(nt_seqs, r, regions[i + 1])
+                    nt_seqs = self._fix_region_spanning_indel(nt_seqs, r, regions[i + 1:])
                 if first_region:
                     aa_seqs[r] = str(Seq(nt_seqs[r][rf_offset:].replace('-', ''), generic_dna).translate())
                     if '-' in nt_seqs[r]:
@@ -239,25 +239,31 @@ class VarRegions(object):
         return aa_seqs
 
 
-    def _fix_region_spanning_indel(self, nt_seqs, r1, r2):
-        r1_len = len(nt_seqs[r1]) - len(nt_seqs[r1].rstrip('-'))
+    def _fix_region_spanning_indel(self, nt_seqs, r1, next_regions):
+        r1_len = len(nt_seqs[r1].rstrip('-'))
         if r1_len % 3 == 0:
             return nt_seqs
-        r2_len = len(nt_seqs[r2]) - len(nt_seqs[r2].lstrip('-'))
-        if r1_len > r2_len:
+        logger.debug(next_regions)
+        reg_iter = iter(next_regions)
+        r2 = reg_iter.next()
+        while len(nt_seqs[r2].strip('-')) == 0:
+            logger.debug(r2)
+            r2 = reg_iter.next()
+        r2_len = len(nt_seqs[r2].lstrip('-'))
+        if r1_len % 3 > r2_len % 3:
             len_to_move = r2_len % 3
-            chunk_to_move = nt_seqs[r1].lstrip('-')[:len_to_move]
-            r1_gap = r1_len + len_to_move
-            r2_gap = r2_len - len_to_move
-            nt_seqs[r1] = '{}{}'.format(nt_seqs[r1].rstrip('-')[:-len_to_move], '-' * r1_gap)
-            nt_seqs[r2] = '{}{}{}'.format('-' * r2_gap, chunk_to_move, nt_seqs[r2].lstrip('-'))
+            chunk_to_move = nt_seqs[r2].lstrip('-')[:len_to_move]
+            r1_gap = len(nt_seqs[r1]) - r1_len - len_to_move
+            r2_gap = len(nt_seqs[r2]) - r2_len + len_to_move
+            nt_seqs[r1] = '{}{}{}'.format(nt_seqs[r1].rstrip('-'), chunk_to_move, '-' * r1_gap)
+            nt_seqs[r2] = '{}{}'.format('-' * r2_gap, nt_seqs[r2].lstrip('-')[len_to_move:])
         else:
             len_to_move = r1_len % 3
             chunk_to_move = nt_seqs[r1].rstrip('-')[-len_to_move:]
-            r1_gap = r1_len - len_to_move
-            r2_gap = r2_len + len_to_move
-            nt_seqs[r1] = '{}{}{}'.format(nt_seqs[r1].rstrip('-'), chunk_to_move, '-' * r1_gap)
-            nt_seqs[r2] = '{}{}'.format('-' * r2_gap, nt_seqs[r1].lstrip('-')[len_to_move:])
+            r1_gap = len(nt_seqs[r1]) - r1_len + len_to_move
+            r2_gap = len(nt_seqs[r2]) - r2_len - len_to_move
+            nt_seqs[r1] = '{}{}'.format(nt_seqs[r1].rstrip('-')[:-len_to_move], '-' * r1_gap)
+            nt_seqs[r2] = '{}{}{}'.format('-' * r2_gap, chunk_to_move, nt_seqs[r2].lstrip('-'))
         return nt_seqs
 
 

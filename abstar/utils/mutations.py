@@ -29,21 +29,31 @@ from abtools import log
 
 
 def nt_mutations(blast_result):
+    global logger
     logger = log.get_logger(__name__)
     try:
         return MutationsNT(blast_result)
     except:
         logger.debug('NT MUTATIONS ERROR: {}, {}\n'.format(blast_result.id,
                                                           blast_result.input_sequence))
+        logger.debug('QUERY ALIGNMENT: {}'.format(blast_result.query_alignment))
+        logger.debug('GERMLINE ALIGNMENT: {}'.format(blast_result.germline_alignment))
+        logger.debug(blast_result.regions.raw_positions)
+        logger.debug(blast_result.regions.adjusted_positions)
+        logger.debug(blast_result.regions.nt_seqs)
+        logger.debug(blast_result.regions.germline_nt_seqs)
+        logger.debug(traceback.format_exc())
 
 
 def aa_mutations(blast_result):
+    global logger
     logger = log.get_logger(__name__)
     try:
         return MutationsAA(blast_result)
     except:
         logger.debug('AA MUTATIONS ERROR: {}, {}\n'.format(blast_result.id,
                                                           blast_result.input_sequence))
+        logger.debug(traceback.format_exc())
 
 
 
@@ -101,10 +111,15 @@ class MutationsNT(object):
         muts = []
         q = br.regions.nt_seqs[region]
         g = br.regions.germline_nt_seqs[region]
-        for i, nt in enumerate(q):
-            if nt == g[i] or nt == '-' or g[i] == '-':
-                continue
-            muts.append({'pos': i + start, 'mut': '{}>{}'.format(g[i], q[i])})
+        try:
+            for i, nt in enumerate(q):
+                if nt == g[i] or nt == '-' or g[i] == '-':
+                    continue
+                muts.append({'pos': i + start, 'mut': '{}>{}'.format(g[i], q[i])})
+        except IndexError:
+            logger.debug('Query: {}'.format(q))
+            logger.debug('Germline: {}'.format(g))
+            raise
         return muts
 
 
