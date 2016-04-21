@@ -179,6 +179,8 @@ def validate_args(args):
                 all([args.input, args.output, args.temp])]):
         parse_arguments(print_help=True)
         sys.exit(1)
+    if args.sequences:
+        args.output_type = 'json'
     if all([args.sequences is not None, args.temp is None]):
         args.temp = './tmp'
 
@@ -299,6 +301,7 @@ def concat_output(input_file, jsons, output_dir, args):
                         elif j >= 1:
                             out_file.write(line)
                     out_file.write('\n')
+    return ofile
 
 
 def clear_temp_files(temp_files):
@@ -329,8 +332,8 @@ def merge_reads(input_dir, args):
     merge_dir = make_merge_dir(args)
     pandaseq.run(input_dir,
                  merge_dir,
-                 args,
-                 log=True)
+                 args.pandaseq_algo,
+                 args.nextseq)
     return merge_dir
 
 
@@ -537,63 +540,155 @@ def run(*args, **kwargs):
     '''
     Runs AbStar.
 
-    abstar.run() can accomodate input sequences in several different ways:
-        1) individual sequences as positional arguments -- run(seq1, seq2, temp=temp, output=output)
-        2) a list of sequences, as an argument -- run([seq1, seq2], temp=temp, output=output)
-        2) a list of sequences, passed via the <sequences> kwarg
-        3) a single FASTA/Q-formatted input file, passed via the <input> kwarg
-        4) a directory of FASTA/Q-formatted files, passed via the <input> kwarg
-        5) direct download from BaseSpace (using <input> or <project_dir> with <basespace>)
+    Input sequences can be provided in several different formats:
+
+        1) individual sequences as positional arguments: ``run(seq1, seq2, temp=temp, output=output)``
+        2) a list of sequences, as an argument: ``run([seq1, seq2], temp=temp, output=output)``
+        3) a single FASTA/Q-formatted input file, passed via ``input``
+        4) a directory of FASTA/Q-formatted files, passed via ``input``
 
     When passing sequences (not FASTA/Q files), the sequences can be in any format recognized
-    by abtools.sequence.Sequence(), including:
-        - a raw nucleotide sequence, as a string (random name will be assigned)
-        - a list/tuple of the format (sequence_id, sequence)
-        - a BioPython SeqRecord object
+    by ``abtools.sequence.Sequence``, including:
 
-    Either sequences (as positional args or via the <sequences> kwarg), <project_dir>, or
-    all of <input>, <output> and <temp> are required.
+        - a raw nucleotide sequence, as a string (a random sequence ID will be assigned)
+        - a list/tuple of the format ``[sequence_id, sequence]``
+        - a BioPython SeqRecord object
+        - an AbTools Sequence object
+
+    Either sequences, ``project_dir``, or all of ``input``, ``output`` and ``temp`` are required.
+
+
+    Examples:
+
+        If processing a single sequence, you can pass the raw sequence, as a string::
+
+            import abstar
+
+            result = abstar.run('ATGC')
+
+        or a list/tuple of the format ``[sequence_id, sequence]``::
+
+            result = abstar.run(['seq1', 'ATGC'])
+
+        If you pass just the raw sequence, a random sequence ID will be generated with ``uuid.uuid4()``.
+        In either case, when given a single sequence, ``abstar.run()`` will return a single AbTools ``Sequence``
+        object. If running multiple sequences, you can either pass each sequence as a positional argument::
+
+            result_list = run(['seq1', 'ATGC'], ['seq2', 'CGTA'])
+
+        or you can pass a list of sequences as the first argument, in this case using sequences parsed from a
+        FASTA file using Biopython::
+
+            from Bio import SeqIO
+
+            fasta = open('my_sequences.fasta', 'r')
+            seqs = [s for s in SeqIO.parse(fasta, 'fasta')]
+            result_list = abstar.run(seqs)
+
+        When given multiple sequences, ``abstar.run()`` will return a list of AbTools ``Sequence`` objects,
+        one per input sequence.
+
+        If you'd prefer not to parse the FASTQ/A file into a list (for example, if the input file is
+        extremely large), you can pass the input file path directly, along with a temp directory and output
+        directory::
+
+            result_files = abstar.run(input='/path/to/my_sequences.fasta',
+                                      temp='/path/to/temp',
+                                      output='/path/to/output')
+
+        Given a file path, ``abstar.run()`` returns a list of output file paths. In the above case,
+        ``result_files`` will be a list containing a single output file path:
+        ``/path/to/output/my_sequences.json``.
+
+        If you have a directory containing multiple FASTQ/A files, you can pass the directory path
+        using ``input``::
+
+            result_files = abstar.run(input='/path/to/input',
+                                      temp='/path/to/temp',
+                                      output='/path/to/output')
+
+        As before, ``result_files`` will contain a list of output file paths.
+
+        If your input directory contains paired FASTQ files (gzip compressed or uncompressed)
+        that need to be merged prior to processing with AbStar::
+
+            result_files = abstar.run(input='/path/to/input',
+                                      temp='/path/to/temp',
+                                      output='/path/to/output',
+                                      merge=True)
+
+        The paired read files in ``input`` will be merged with PANDAseq prior to processing with AbStar.
+        By default, PANDAseq's 'simple bayesian' read merging algorithm is used, although alternate
+        algorithms can be selected with ``pandaseq_algo``.
+
+        AbStar also provides an alternate CSV-formatted output type that mimics the `IMGT Summary file`_.
+        This option is provided to minimize the effort needed to convert existing
+        IMGT-based pipelines to AbStar. Alternate output is only available when passing an input file or
+        directory; passing individual sequences or a list of sequences will always return Sequence objects.
+        To produce IMGT-formatted output::
+
+            result_files = abstar.run(input='/path/to/input',
+                                      temp='/path/to/temp',
+                                      output='/path/to/output',
+                                      output_type='imgt')
+
+        .. _IMGT Summary file: http://www.imgt.org/IMGT_vquest/share/textes/imgtvquest.html#Esummary
 
     Args:
         project_dir (str): Path to the project directory. Most useful when directly downloading
             files from BaseSpace, and all subdirectories will be created by AbStar.
-        sequences (list): list of sequences, in any format handled by abtools.sequence.Sequence().
+
         input (str): Path to input directory, containing FASTA/Q files. If performing
             read merging with PANDAseq, paired FASTQ files may be gzip compressed.
+
         output (str): Path to output directory.
+
         temp (str): Path to temp directory, where intermediate job files will be stored.
-        log (str): Path to log file. If not provided and <project_dir> is provided,
-            the log will be written to /path/to/project_dir/abstar.log. If output is
-            provided, log will be written to /path/to/output/abstar.log.
+
+        log (str): Path to log file. If not provided and ``project_dir`` is provided,
+            the log will be written to ``/path/to/project_dir/abstar.log``. If output is
+            provided, log will be written to ``/path/to/output/abstar.log``.
+
         species (str): Species of the antibody sequences. Choices are 'human', 'macaque',
             'mouse' and 'rabbit'. Default is 'human'.
+
         isotype (bool): If True, the isotype will infered by aligning the sequence region
             downstream of the J-gene. If False, the isotype will not be determined.
             Default is True.
+
         umid (int): Length (in nucleotides) of the Unique Molecular ID used to barcode input RNA.
             A positive integer results in the UMID being parsed from the start of the read (or merged
             read), a negative integer results in parsing from the end of the read. Default is 0,
             which results in no UMID parsing.
+
         gzip (bool): If True, compresses output files with gzip. Default is False.
+
         pretty (bool): If True, formats JSON output files to be more human-readable. If False,
             JSON output files contain one record per line. Default is False.
+
         output_type (str): Options are 'json' or 'imgt'. IMGT output mimics the Summary
             table produced by IMGT High-V/Quest, to maintain a level of compatibility with
             existing IMGT-based pipelines. JSON output is much more detailed. Default is 'json'.
+
         merge (bool): If True, input must be paired-read FASTA files (gzip compressed or uncompressed)
-            which will be merged with PANDAseq prior to processing with AbStar. If <basespace> is True,
-            <merge> is also set to True. Default is False.
+            which will be merged with PANDAseq prior to processing with AbStar. If ``basespace`` is True,
+            ``merge`` is automatically set to True. Default is False.
+
         pandaseq_algo (str): Define merging algorithm to be used by PANDAseq. Options are
             'simple_bayesian', 'ea_util', 'flash', 'pear', 'rdp_mle', 'stitch', or 'uparse'. Default is
             'simple_bayesian', which is the default PANDAseq algorithm.
 
+        debug (bool): If ``True``, ``abstar.run()`` runs in single-threaded mode, the log is much more verbose,
+            and temporary files are not removed. Default is ``False``.
+
 
     Returns:
-        dict: If input is a single sequence (either via positional arg or <sequences>), output is a
-            dictionary representation of the JSON output for that sequence
-        list: If input is more than one sequence, output is a list of dictionaries, one per input sequence.
-        list: If input is one or more FASTA/Q-formatted files, output is a list of output files,
-            one per input file.
+
+        If the input is a single sequence, ``run`` returns a single AbTools ``Sequence`` object.
+
+        If the input is a list of sequences, ``run`` returns a list of AbTools ``Sequence`` objects.
+
+        If the input is a file or a directory of files, ``run`` returns a list of output files.
     '''
 
     warnings.filterwarnings("ignore")
@@ -629,8 +724,7 @@ def run(*args, **kwargs):
         output = [Sequence(o) for o in output]
         if len(output) == 1:
             return output[0]
-        return output
-    return list_files(output)
+    return output
 
 
 def run_standalone(args):
@@ -654,6 +748,7 @@ def main(args):
         if args.isotype:
             args.isotype = args.species
         input_files = [f for f in list_files(input_dir, log=True) if os.stat(f).st_size > 0]
+        output_files = []
         for f, fmt in zip(input_files, format_check(input_files)):
             # skip the non-FASTA/Q files
             if fmt is None:
@@ -665,11 +760,12 @@ def main(args):
             temp_json_files = [r[0] for r in run_info if r is not None]
             processed_seq_counts = [r[1] for r in run_info if r is not None]
             vdj_end_time = time.time()
-            concat_output(f, temp_json_files, output_dir, args)
+            output_file = concat_output(f, temp_json_files, output_dir, args)
+            output_files.append(output_file)
             if not args.debug:
                 clear_temp_files(subfiles + temp_json_files)
             print_job_stats(seq_count, sum(processed_seq_counts), start_time, vdj_end_time)
-        return output_dir
+        return output_files
 
 
 if __name__ == '__main__':

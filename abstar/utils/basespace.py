@@ -24,6 +24,7 @@
 
 from __future__ import print_function, absolute_import
 
+import argparse
 import json
 import os
 import platform
@@ -34,14 +35,14 @@ from BaseSpacePy.api.BaseSpaceAPI import BaseSpaceAPI
 from BaseSpacePy.model.QueryParameters import QueryParameters as qp
 
 from abtools import log
+from abtools.pipeline import make_dir
+
 logger = log.get_logger('basespace')
 
 
 class BaseSpace(object):
-    """docstring for BaseSpace"""
-    def __init__(self, project_id=None, project_name=None, undetermined=False):
+    def __init__(self, project_id=None, project_name=None):
         super(BaseSpace, self).__init__()
-        # self.log = log
         # BaseSpace credentials
         creds = self._get_credentials()
         self.client_key = creds['client_id']
@@ -165,37 +166,77 @@ class BaseSpace(object):
         logger.info('Download completed in {0} seconds'.format(end - start))
 
 
-# def _setup_logging():
-#     try:
-#         from abtools.utils import log
-#         global logger
-#         logger = log.get_logger('basespace')
-#     except ImportError:
-#         import logging
-#         fmt = '[%(levelname)s] %(name)s %(asctime)s %(message)s'
-#         logging.basicConfig()
-#         global logger
-#         logger = logging.getLogger('basespace')
-#         formatter = logging.Formatter("%(message)s")
-#         ch = logging.StreamHandler()
-#         ch.setFormatter(formatter)
-#         ch.setLevel(logging.INFO)
-#         logger.addHandler(ch)
+def parse_args():
+    parser = argparse.ArgumentParser("Downloads sequencing data from BaseSpace, Illumina's cloud storage platform.")
+    parser.add_argument('-d', '--download-directory',
+                        dest='download_directory',
+                        required=True,
+                        help="Directory into which BaseSpace data will be downloaded.")
+    parser.add_argument('--project-id',
+                        default=None,
+                        help='ID of the project to be downloaded. Optional.')
+    parser.add_argument('--project-name',
+                        default=None,
+                        help='Name of the project to be downloaded. Optional.')
+    args = parser.parse_args()
+    return args
 
 
-def download(direc, project_id=None, project_name=None, undetermined=False):
-    # _setup_logging()
-    bs = BaseSpace(project_id, project_name, undetermined)
-    return bs.download(direc)
+def download(download_directory, project_id=None, project_name=None):
+    '''
+    Downloads sequencing data from BaseSpace (Illumina's cloud storage platform).
+
+    Before accessing BaseSpace through the AbStar API, you need to set up a
+    credentials file:
+
+    1. You need a BaseSpace access token. The easiest way to do this is to
+       set up a BaseSpace developer account following
+       `these instructions <https://support.basespace.illumina.com/knowledgebase/articles/403618-python-run-downloader>`_
+
+    2. Make a BaseSpace credentials file using your developer credentials::
+
+        $ make_basespace_credfile
+
+    and follow the instructions.
+
+
+    Examples:
+
+        If you know the name of the project you'd like to download::
+
+            from abstar.utils import basespace
+
+            basespace.download('/path/to/download_directory', project_name='MyProject')
+
+        If you know the ID of the project you'd like to download::
+
+            basespace.download('/path/to/download_directory', project_id='ABC123')
+
+        If neither ``project_id`` nor ``project_name`` is provided, a list of your available
+        BaseSpace projects will be provided and you can select a project from that list::
+
+            basespace.download('/path/to/download_directory')
+
+    Args:
+
+        download_directory (str): Directory into which the raw sequences files should
+            be downloaded. If the directory does not exist, it will be created.
+
+        project_id (str): ID of the project to be downloaded.
+
+        project_name (str): Name of the project to be downloaded.
+
+    Returns:
+
+        int: The number of sequence files downloaded.
+    '''
+    make_dir(download_directory)
+    bs = BaseSpace(project_id, project_name)
+    return bs.download(download_directory)
 
 
 if __name__ == '__main__':
-    import argparse
-    parser = argparse.ArgumentParser("Downloads sequencing data from BaseSpace, Illumina's cloud storage environment.")
-    parser.add_argument('-i', '--in',
-                        dest='input',
-                        required=True,
-                        help="The input file, to be split and processed in parallel. \
-                        If a directory is given, all files in the directory will be iteratively processed.")
-    args = parser.parse_args()
-    download(args.input)
+    args = parse_args()
+    download(args.download_directory,
+             project_id=args.project_id,
+             project_name=args.project_name)

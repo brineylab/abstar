@@ -28,6 +28,10 @@ import glob
 import subprocess as sp
 from multiprocessing import cpu_count
 
+from abtools import log
+
+logger = log.get_logger('basespace')
+
 
 def list_files(d):
     return sorted([f for f in glob.glob(d + '/*') if os.path.isfile(f)])
@@ -52,11 +56,11 @@ def batch_pandaseq(f, r, o, algo):
     sp.Popen(cmd, shell=True, stderr=sp.STDOUT, stdout=sp.PIPE).communicate()
 
 
-def merge_reads(files, output, args, i):
+def merge_reads(files, output, algo, nextseq, i):
     files.sort()
     f = files[0]
     r = files[1]
-    if args.nextseq:
+    if nextseq:
         lane = os.path.basename(f).split('_')[-3]
         sample_id = os.path.basename(f).split('_')[0]
         sample = sample_id + '_' + lane
@@ -64,46 +68,117 @@ def merge_reads(files, output, args, i):
         sample = os.path.basename(f).split('_')[0]
     print_sample_info(i, sample)
     o = os.path.join(output, '{}.fasta'.format(sample))
-    batch_pandaseq(f, r, o, args.pandaseq_algo)
-    # print_sample_end(log)
+    batch_pandaseq(f, r, o, algo)
+    return o
 
 
 def print_start_info():
-    sys.stdout.write('\n')
-    sys.stdout.write('\n')
-    sys.stdout.write('========================================\n')
-    sys.stdout.write('Merging reads with PANDAseq\n')
-    sys.stdout.write('========================================\n')
-    sys.stdout.write('\n')
+    logger.info('')
+    logger.info('')
+    logger.info('========================================')
+    logger.info('Merging reads with PANDAseq')
+    logger.info('========================================')
+    logger.info('')
 
 
 def print_input_info(files):
-    sys.stdout.write('The input directory contains {} pair(s) of files to be merged.\n\n'.format(len(files) / 2))
+    logger.info('The input directory contains {} pair(s) of files to be merged.\n'.format(len(files) / 2))
 
 
 def print_sample_info(i, sample):
-    sys.stdout.write('[ {} ]  Processing sample {}\n'.format(str(i), sample))
+    logger.info('[ {} ]  Processing sample {}'.format(str(i + 1), sample))
 
 
 def print_sample_end():
-    sys.stdout.write('Done.\n')
+    logger.info('Done.')
 
 
-def run(input, output, args, log=False):
-    if log:
-        import logging
-    try:
-        nextseq = args.nextseq
-    except:
-        args.nextseq = False
+def run(input, output, algorithm='simple_bayesian', nextseq=False):
+    '''
+    Merge paired-end FASTQ files with PANDAseq.
+
+    Examples:
+
+        To merge a directory of raw (gzip compressed) files from a MiSeq run::
+
+            merged_files = run('/path/to/input', '/path/to/output')
+
+        Same as above, but using the Pear_ read merging algorithm::
+
+            merged_files = run('/path/to/input', '/path/to/output', algorithm='pear')
+
+        To merge a list of file pairs::
+
+            file_pairs = [(sample1_R1.fastq, sample1_R2.fastq),
+                          (sample2_R1.fastq.gz, sample2_R2.fastq.gz),
+                          (sample3_R1.fastq, sample3_R2.fastq)]
+            merged_files = run(file_pairs, '/path/to/output')
+
+        .. _Pear: http://sco.h-its.org/exelixis/web/software/pear/
+
+
+    Args:
+
+        input (str, list): Input can be one of three things:
+
+                1. path to a directory of paired FASTQ files
+                2. a list of paired FASTQ files
+                3. a list of read pairs, with each read pair being a list/tuple
+                   containing paths to two paired read files
+
+            Regardless of what input type is provided, paired FASTQ files can be either
+            gzip compressed or uncompressed.
+
+            When providing a list of files or a directory of files, it is assumed that
+            all files follow Illumina naming conventions. If your file names aren't
+            Illumina-like, submit your files as a list of read pairs to ensure that
+            the proper pairs of files are merged.
+
+        output (str): Path to an output directory, into which merged FASTQ files will be deposited.
+            To determine the filename for the merged file, the R1 file (or the first file in the read
+            pair) is split at the first occurance of the '_' character. Therefore, the read pair
+            ``['my-sequences_R1.fastq', 'my-sequences_R2.fastq']`` would be merged into ``my-sequences.fasta``.
+
+        algorithm (str): PANDAseq algorithm to be used for merging reads. Choices are: 'simple_bayesian',
+            'ea_util', 'flash', 'pear', 'rdp_mle', 'stitch', or 'uparse'. Default is 'simple_bayesian',
+            which is the default PANDAseq algorithm.
+
+        nextseq (bool): Set to ``True`` if the sequencing data was generated on a NextSeq. Needed
+            because the naming conventions for NextSeq output files differs from MiSeq output.
+
+
+    Returns:
+
+        list: a list of merged file paths
+    '''
     print_start_info()
-    files = list_files(input)
+    if os.path.isdir(input):
+        files = list_files(input)
+        pairs = pair_files(files, nextseq)
+    elif type(input) in [list, tuple]:
+        if all([type(i) in [list, tuple] for i in input]) and all([len(i) == 2 for i in input]):
+            files = [f for sublist in input for f in sublist]
+            pairs = {n: i for n, i in zip(range(len(input)), input)}
+        elif all([os.path.isfile(i) for i in input]):
+            files = input
+            pairs = pair_files(files, nextseq)
+        else:
+            err = 'ERROR: Invalid input. Input may be one of three things:\n'
+            err += '  1. a directory path\n'
+            err += '  2. a list of file paths\n'
+            err += '  3. a list of file pairs (lists/tuples containing exactly 2 file paths)'
+            raise RuntimeError(err)
+    else:
+        err = 'ERROR: Invalid input. Input may be one of three things:\n'
+        err += '  1. a directory path\n'
+        err += '  2. a list of file paths\n'
+        err += '  3. a list of file pairs (lists/tuples containing exactly 2 file paths)'
+        raise RuntimeError(err)
     print_input_info(files)
-    pairs = pair_files(files, args.nextseq)
+    merged_files = []
     for i, pair in enumerate(sorted(pairs.keys())):
         if len(pairs[pair]) == 2:
-            merge_reads(pairs[pair], output, args, i)
-            if log:
-                file1 = os.path.basename(pairs[pair][0])
-                file2 = os.path.basename(pairs[pair][1])
-                logging.info('Merging {} and {}'.format(file1, file2))
+            logging.info('Merging {} and {}'.format(pairs[pair][0], pairs[pair][1]))
+            mf = merge_reads(pairs[pair], output, algorithm, nextseq, i)
+            merged_files.append(mf)
+    return merged_files

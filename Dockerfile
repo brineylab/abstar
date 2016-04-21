@@ -25,12 +25,9 @@ RUN set -ex \
     && for key in $GPG_KEYS; do \
         apt-key adv --keyserver ha.pool.sks-keyservers.net --recv-keys "$key"; \
     done
-
 ENV MONGO_MAJOR 3.2
 ENV MONGO_VERSION 3.2.4
-
 RUN echo "deb http://repo.mongodb.org/apt/debian wheezy/mongodb-org/$MONGO_MAJOR main" > /etc/apt/sources.list.d/mongodb-org.list
-
 RUN set -x \
     && apt-get update \
     && apt-get install -y \
@@ -70,8 +67,10 @@ RUN cd /tools && \
     wget http://www.bioinformatics.babraham.ac.uk/projects/fastqc/fastqc_v0.11.5.zip && \
     unzip fastqc_v0.11.5.zip && \
     ln -s FastQC/fastqc /usr/local/bin/fastqc
+
 # Cutadapt
 RUN pip install cutadapt
+
 # Sickle
 RUN cd /tools && \
     wget http://zlib.net/zlib128.zip && \

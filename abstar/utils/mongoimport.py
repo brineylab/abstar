@@ -36,20 +36,22 @@ from abtools.utils import progbar
 
 def parse_arguments():
     import argparse
-    parser = argparse.ArgumentParser("Performs the mongoimport operation on all files in the input directory.  Determines the appropriate collection using the filename.")
+    parser = argparse.ArgumentParser("Performs the mongoimport operation on all files in the input directory. \
+                                      Determines the appropriate collection by parsing the filename.")
     parser.add_argument('-i', '--ip', dest='ip', default='localhost',
                         help="The IP address of the MongoDB server. Defaults to 'localhost'.")
-    parser.add_argument('--port', dest='port', type=int, default=27017,
+    parser.add_argument('-P', '--port', dest='port', type=int, default=27017,
                         help="The MongoDB port. Defaults to 27017.")
     parser.add_argument('-u', '--user', dest='user', default=None,
                         help="Username for the MongoDB server. Not used if not provided.")
     parser.add_argument('-p', '--password', dest='password', default=None,
                         help="Password for the MongoDB server. Not used if not provided.")
-    parser.add_argument('-f', '--in', dest='mongo_input_dir', required=True,
-                        help="A directory containing multiple JSON files for import to MongoDB.")
+    parser.add_argument('-f', '--input', dest='input', required=True,
+                        help="A directory containing multiple JSON files for import to MongoDB, \
+                        or a list of JSON file paths.")
     parser.add_argument('-d', '--db', dest='db', required=True,
                         help="The MongoDB database for import.")
-    parser.add_argument('-l', '--log', dest='mongo_log', required=True,
+    parser.add_argument('-l', '--log', dest='log', default='sys.stdout',
                         help="Log file for the mongoimport stdout.")
     parser.add_argument('-t', '--temp', dest='temp', default=None,
                         help="Temp directory if splitting JSON files prior to mongoimport. \
@@ -81,18 +83,18 @@ def parse_arguments():
 
 
 class Args(object):
-    """Holds arguments, mimics argparse's Namespace when running mongoimport as an imported module"""
-    def __init__(self, ip='localhost', user=None, password=None, db=None,
-                 mongo_input_dir=None, mongo_log=None, split_file=False, split_file_lines=500,
+    def __init__(self, ip='localhost', port=27017, user=None, password=None, db=None,
+                 input=None, log=None, split_file=False, split_file_lines=500,
                  delim1=None, delim2=None,
                  split1_pos=1, split2_pos=1, split_only=False):
         super(Args, self).__init__()
         self.ip = ip
+        self.port = int(port)
         self.user = user
         self.password = password
-        self.mongo_input_dir = mongo_input_dir
+        self.input = input
         self.db = db
-        self.mongo_log = mongo_log if mongo_log else sys.stdout
+        self.log = log if log else sys.stdout
         self.split_file = split_file
         self.split_file_lines = int(split_file_lines)
         self.delim1 = delim1
@@ -195,7 +197,8 @@ def get_collection(i, args):
     if args.delim1 and args.delim2:
         bname = os.path.basename(i)
         split1 = args.delim1.join(bname.split(args.delim1)[args.split1_pos:])
-        return args.delim2.join(split1.split(args.delim2)[:args.split2_pos])
+        removed_delim2s = bname.count(args.delim2) - split1.count(args.delim2)
+        return args.delim2.join(split1.split(args.delim2)[:args.split2_pos - removed_delim2s])
     # split with a single delimiter
     elif args.delim1:
         delim = str(args.delim1)
@@ -215,7 +218,7 @@ def preflight_checks(args):
     if not args.db:
         err = "ERROR: a MongoDB database name must be provided."
         raise RuntimeError(err)
-    if not args.mongo_input_dir:
+    if not args.input:
         err = "ERROR: a directory of JSON files must be provided."
         raise RuntimeError(err)
     if args.delim2 and not args.delim1:
@@ -225,15 +228,142 @@ def preflight_checks(args):
 
 
 def run(**kwargs):
+    '''
+    Imports one or more JSON files into a MongoDB database.
+
+    Examples:
+
+        To import a single JSON file into MyDatabase on a local MongoDB database::
+
+            from abstar.utils import mongoimport
+
+            mongoimport.run(input='/path/to/MySequences.json', db='MyDatabase')
+
+        This will result in a collection named 'MySequences.json' being created in MyDatabase
+        on your local MongoDB instance (if it doesn't already exist) and the data from
+        MySequences.json being imported into that collection.
+
+        Doing the same thing, but with a remote MongoDB server running on port 27017::
+
+            mongoimport.run(ip='123.45.67.89',
+                            user='my_username',
+                            password='Secr3t',
+                            input='/path/to/MySequences.json',
+                            db='MyDatabase')
+
+        But what if we want the collection name to be different than the file name? We can
+        truncate the filename at the first occurance of any given pattern with ``delim1``::
+
+            mongoimport.run(input='/path/to/MySequences.json,
+                            db='MyDatabase',
+                            delim1='.')
+
+        In this case, the collection name is created by truncating the input file name
+        at the first occurance of ``.``, so the collection name would be MySequences.
+        We can also truncate the filename at the Nth occurance of any given pattern
+        by using ``delim1`` with ``split1_pos``::
+
+            mongoimport.run(input='/path/to/my_sequences_2016-01-01.json,
+                            db='MyDatabase',
+                            delim1='_',
+                            split1_pos=2)
+
+        which results in a collection name of my_sequences.
+
+        If we have more complex filenames, we can use ``delim1`` in combination with
+        ``delim2``. When ``delim1`` and ``delim2`` are used together, ``delim1`` becomes
+        the pattern used to cut the filename on the left and ``delim2`` is used to cut
+        the filename on the right. For example, if our filename is
+        ``plate-2_SampleName-01_redo.json`` and we want the collection to be named
+        ``SampleName``, we would set ``delim1`` to ``_`` and ``delim2`` to ``-``. We also
+        need to specify that we want to cut at the second occurance of ``delim2``,
+        which we can do with ``split2_pos``::
+
+            mongoimport.run(input='/path/to/plate-2_SampleName-01_redo.json,
+                            db='MyDatabase',
+                            delim1='_',
+                            delim2='-',
+                            split2_pos=2)
+
+        Trimming filenames this way is nice, but it becomes much more useful if you're
+        importing more than one file at a time. ``mongoimport.run()`` will accept a list
+        of file names, and will generate separate collection names for each input file::
+
+            files = ['/path/to/A01-Sample01_2016-01-01',
+                     '/path/to/A02-Sample02_2016-01-01',
+                     '/path/to/A03-Sample03_2016-01-01]
+
+            mongoimport.run(input=files,
+                            db='MyDatabase',
+                            delim1='-',
+                            delim2='_')
+
+        The three input files will be imported into collections ``Sample01``, ``Sample02``
+        and ``Sample03``, respectively. Finally, you can pass the path to a directory
+        containing oen or more JSON files, and all the JSON files will be imported::
+
+            mongoimport.run(input='/path/to/output/directory',
+                            db='MyDatabase',
+                            delim1='-',
+                            delim2='_')
+
+    Args:
+
+        input (str, list): Input is required and may be one of three things:
+
+            1) A list/tuple of JSON file paths
+            2) A path to a single JSON file
+            3) A path to a directory containing one or more JSON files.
+
+        ip (str): The IP address of the MongoDB server. Default is 'localhost'.
+
+        port (int): MongoDB port. Default is 27017.
+
+        user (str): Username with which to connect to the MongoDB database. If either
+            of ``user`` or ``password`` is not provided, ``mongoimport.run()`` will attempt
+            to connect to the MongoDB database without authentication.
+
+        password (str): Password with which to connect to the MongoDB database. If either
+            of ``user`` or ``password`` is not provided, ``mongoimport.run()`` will attempt
+            to connect to the MongoDB database without authentication.
+
+        db (str): Name of the MongoDB database for import. Required.
+
+        log (str): Path to a logfile. If not provided log information will be written to stdout.
+
+        delim1 (str): Pattern on which to split the input file to generate the collection name.
+            Default is ``None``, which results in the file name being used as the collection name.
+
+        split1_pos (int): Occurance of ``delim1`` on which to split the input file name.
+            Default is 1.
+
+        delim2 (str): Second pattern on which to split the input file name to generate the
+            collection name. Default is None, which results in only ``delim1`` being used.
+
+        split2_pos (int): Occurance of ``delim2`` on which to split the input file name.
+            Default is 1.
+    '''
     args = Args(**kwargs)
     main(args)
 
 
 def main(args):
     preflight_checks(args)
-    in_files = listdir_fullpath(args.mongo_input_dir)
-    log_handle = open(args.mongo_log, 'a')
-    open(args.mongo_log, 'w').write('')
+    if type(args.input) in [list, tuple]:
+        in_files = args.input
+    elif os.path.isfile(args.input):
+        in_files = [args.input, ]
+    elif os.path.isdir(args.input):
+        in_files = listdir_fullpath(args.input)
+    else:
+        err = 'ERROR: Input not recognized. Valid input can be one of three things:\n'
+        err += '  1. a list of JSON file paths\n'
+        err += '  2. the path to a single JSON file\n'
+        err += '  3. the path to a directory of JSON files\n\n'
+        err += 'You supplied: {}\n'.format(input)
+        raise RuntimeError(err)
+    log_handle = open(args.log, 'a')
+    open(args.log, 'w').write('')
     for i, f in enumerate(in_files):
         coll = get_collection(f, args)
         print "\n[ {} ] Importing {} into collection {}.".format(i + 1, os.path.basename(f), coll)
