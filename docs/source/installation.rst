@@ -9,7 +9,7 @@ If you don't have pip, the Anaconda_ Python distribution contains pip along
 with a ton of useful scientific Python packages and is a great way to get 
 started with Python.
 
-Windows users can run AbStar with Docker::
+AbStar does not run natively on Windows, but Windows users can run AbStar with Docker_::
 
     $ docker pull briney/abstar
     $ docker run -it briney/abstar
@@ -54,6 +54,7 @@ Several optional AbStar components have additional dependencies:
 If using Docker, all of the the optional dependencies are included.
 
 
+.. _Docker: https://www.docker.com/
 .. _Anaconda: https://www.continuum.io/downloads
 .. _stable: https://github.com/briney/abstar/releases
 .. _development: https://github.com/briney/abstar
