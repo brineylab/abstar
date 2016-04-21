@@ -39,10 +39,67 @@ logger = get_logger('preprocess')
 
 
 def quality_trim(input_directory=None, output_directory=None,
-        quality_cutoff=20, length_cutoff=50, force_individual=False,
+        quality_cutoff=20, length_cutoff=50,
         quality_type='sanger', compress_output=True, file_pairs=None,
         singles_directory=None, nextseq=False, paired_reads=True,
         allow_5prime_trimming=False):
+    '''
+    Performs quality trimming with sickle.
+
+    Args:
+
+        input_directory (str): Path to a directory of files to be quality
+            trimmed. If the directory contains paired reads, they should
+            follow the Illumina MiSeq naming scheme. If you have paired reads
+            that do not follow the MiSeq naming scheme, you can group the paired
+            read files yourself and pass them to ``--file-pairs``.
+
+        output_directory (str): Path to the output directory, into which quality-
+            trimmed read files will be deposited. If not provided, a directory
+            will be created in the parent directory of ``input_directory``.
+            Required if using ``file_pairs`` instead of ``input_directory``.
+
+        quality_cutoff (int): Quality score at which to truncate reads. Default
+            is ``20``.
+
+        length_cutoff (int): Reads will be discarded if, after quality trimming,
+            the length is shorter than this cutoff. Default is ``50``.
+
+        quality_type (str): Quality score type. Options are ``solexa``, ``illumina``,
+            and ``sanger``. ``illumina`` is equivalent to Casava 1.3-1.7 and ``sanger`` is
+            Casava >= 1.8. Default is ``sanger``.
+
+        compress_output (bool): If ``True``, output files will be gzip compressed.
+            Default is ``True``.
+
+        file_pairs (list): If input files are paired-end reads that don't follow Illumina's
+            MiSeq naming scheme, you can pass a list of lists/tuples, with each list/tuple
+            containing a pair of read file paths.
+
+        singles_directory (str): Path to singles output directory. If processing paired reads
+            and one read of the pair passes quality/length filters and the other doesn't,
+            the single passing read will be written to this file. Default is ``None``, which
+            results in the single sequences being discarded and not written to file.
+
+        nextseq (bool): Set to ``True`` if the sequencing data comes from a NextSeq run. The
+            file naming scheme for NextSeq runs is different that MiSeq runs, and setting
+            this option will allow NextSeq paired read files to be processed appropriately.
+            Default is ``False``.
+
+        paired_reads (bool): If ``True``, reads will be processed as paired reads. If ``False``,
+            each read will be processed separately. It is not advisable to process paired
+            reads with ``paired_reads`` set to ``False`` because if paired read files are
+            processed separately and one read passes filters while the paired read doesn't,
+            this may cause problems with downstream processes (like read merging).
+
+        allow_5prime_trimming (bool): If ``True``, quality trimming will be performed
+            on the 5' end of the reads as well as the 3' end. Default is ``False``.
+
+
+    Returns:
+
+        str: Path to the output directory
+    '''
     if input_directory is None and any([file_pairs is None, output_directory is None]):
         err = '\nERROR: Either an input_directory must be provided or '
         err += 'both file_pairs and an output_directory must be provided.\n'
@@ -74,10 +131,6 @@ def quality_trim(input_directory=None, output_directory=None,
             err = 'ERROR: Each batch of files must contain either 1 (single-end reads) or '
             err += '2 (paired-end reads) files. This batch contains {} files:\n{}'.format(
                 len(f), '\n'.join(f))
-            err2 = 'If your filenames do not follow default the Illumina naming scheme, '
-            err2 += 'you can force the processing of each file individually with the <force_individual> option.\n'
-            err2 += 'Note that this can cause some problems for paired-end reads in which one read passes '
-            err2 += 'passes trimming and the other does not.\n'
             err2 += 'If you have paired-end reads that do not follow the Illumina naming scheme, '
             err2 += 'you can pass pairs of filenames (a list of lists/tuples) with the <file_pairs> option. '
             err2 += 'If using <file_pairs>, the output directory must also be provided.'
@@ -128,6 +181,44 @@ def adapter_trim(input_directory, output_directory=None,
         adapter_5prime=None, adapter_3prime=None,
         adapter_5prime_anchored=None, adapter_3prime_anchored=None,
         adapter_both=None, compress_output=True):
+    '''
+    Trims adapters with cutadapt.
+
+    Args:
+
+        input_directory (str): Path to a directory of FASTQ files
+            to be adapter trimmed. Required.
+
+        output_directory (str): Path to the output directory. If
+            not provided, a directory will be created in the parent
+            directory of ``input_directory``.
+
+        adapter_5prime (str): Path to a FASTA-formatted file of
+            adapters to be trimmed from the 5' end of reads.
+
+        adapter_3prime (str): Path to a FASTA-formatted file of
+            adapters to be trimmed from the 3' end of reads.
+
+        adapter_5prime_anchored (str): Path to a FASTA-formatted file of
+            adapters to be trimmed from the 5' end of reads. More strictly
+            requires the read to be anchored to the 5' end of the read
+            than when using ``adapter_5prime``.
+
+        adapter_3prime_anchored (str): Path to a FASTA-formatted file of
+            adapters to be trimmed from the 3' end of reads. More strictly
+            requires the read to be anchored to the 3' end of the read
+            than when using ``adapter_3prime``.
+
+        adapter_both (str): Path to a FASTA-formatted file of adapters
+            that will be trimmed from either end of the reads.
+
+        compress_output (bool): If ``True``, output files will be gzip
+            compressed. Default is ``True``.
+
+    Returns:
+
+        str: Path to the output directory
+    '''
     input_directory = os.path.normpath(input_directory)
     if output_directory is None:
         oparent = os.path.dirname(input_directory)
@@ -169,6 +260,25 @@ def adapter_trim(input_directory, output_directory=None,
 def fastqc(input_directory, output_directory=None, threads=-1):
     '''
     Performs FASTQC analysis on raw NGS data.
+
+
+    Args:
+
+        input_directory (str): Path to the input directory, containing one
+            or more FASTQ files (either gzip compressed or uncompressed).
+
+        output_directory (str): Path to the output directory, where the FASTQC
+            results will be deposited. If not provided, a directory named
+            'fastqc_reports' will be created in the parent directory of
+            ``input_directory``
+
+        threads (int): Number of threads to be used (passed to the ``-t`` flag
+            when running ``fastqc``). Default is -1, which uses all cores.
+
+
+    Returns:
+
+        str: path to the output directory
     '''
     input_directory = os.path.normpath(input_directory)
     if output_directory is None:
