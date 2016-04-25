@@ -1,6 +1,1 @@
-numpy
-abtools
-biopython
-celery
-pymongo
-scikit-bio
+
