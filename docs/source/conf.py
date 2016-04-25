@@ -25,9 +25,9 @@ class Mock(MagicMock):
             return Mock()
 
 MOCK_MODULES = ['pygtk', 'gtk', 'gobject', 'argparse', 'numpy', 'nwalign', 'pandas',
-                'abtools', 'abtools.sequence', 'abtools.log', 'abtools.alignment',
+                'abtools', 'abtools.sequence', 'abtools.log', 'abtools.alignment', 'abtools.utils',
                 'abtools.pipeline', 'abtools.utils.decorators', 'abtools.utils.progbar',
-                'biopython', 'celery', 'pymongo', 'scikit-bio',
+                'biopython', 'celery', 'pymongo', 'scikit-bio', 'BaseSpacePy.api.BaseSpaceAPI'
                 'Bio', 'Bio.Align', 'Bio.Alphabet', 'Bio.SeqIO', 'Bio.Seq', 'Bio.SeqRecord',
                 'Bio.Blast', 'Bio.Blast.Applications']
 sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
