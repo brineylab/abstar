@@ -21,12 +21,6 @@ else:
     except TypeError:
         reqs = parse_requirements(req_file)
     install_requires = [str(r.req) for r in reqs]
-    # install_requires = ['abtools',
-    #                     'biopython',
-    #                     'celery',
-    #                     'nwalign',
-    #                     'pymongo',
-    #                     'scikit-bio']
 
 
 config = {
