@@ -21,13 +21,15 @@ You can manually install the latest development version of AbStar with::
     $ cd abstar/
     $ python setup.py install
 
-If installing manually via setup.py and you don't already have scikit-bio installed, 
-you may get an error when setuptools attempts to install scikit-bio. This can be fixed 
-by first installing scikit-bio with pip::
+.. note:
 
-    $ pip install scikit-bio
+    If installing manually via setup.py and you don't already have scikit-bio installed, 
+    you may get an error when setuptools attempts to install scikit-bio. This can be fixed 
+    by first installing scikit-bio with pip::
 
-and then retrying the manual install of AbStar.
+        $ pip install scikit-bio
+
+    and then retrying the manual install of AbStar.
 
 
 Requirements
