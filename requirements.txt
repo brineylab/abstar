@@ -1,0 +1,6 @@
+abtools
+biopython
+celery
+nwalign
+pymongo
+scikit-bio

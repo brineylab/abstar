@@ -6,7 +6,7 @@ MAINTAINER Bryan Briney <briney@scripps.edu>
 RUN apt-get update --fix-missing && apt-get install -y build-essential wget \
     bzip2 ca-certificates libglib2.0-0 libxext6 libsm6 libxrender1 pigz s3cmd \
     git mercurial subversion libtool automake zlib1g-dev libbz2-dev pkg-config \
-    muscle mafft cd-hit unzip
+    muscle mafft cd-hit unzip libfontconfig1
 RUN ln -s /usr/bin/cdhit /usr/bin/cd-hit
 RUN mkdir /tools
 
