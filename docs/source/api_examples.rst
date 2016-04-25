@@ -13,6 +13,7 @@ Case #1
 Sequencing data consists of an Illumina MiSeq run on human samples, with the raw data
 stored in BaseSpace (project ID: 123456789). Samples are indexed, so each sample will 
 be downloaded from BaseSpace as a separate pair of read files. We'd like to do several things:
+
   - get a FASTQC report on the raw data
   - remove adapters
   - quality trim
@@ -68,9 +69,11 @@ Case #2
 -------
 Sequencing data is a directory of single-read FASTQ files that have already been quality/adapter trimmed. 
 We'd like to do the following:
+
   - get a FASTQC report
   - annotate with AbStar
   - import the JSONs into a MongoDB database named ``MyDatabase``
+
 Our FASTQ file names are formatted as: ``SampleNumber-SampleName.fastq``, which means the AbStar output
 file name would be ``SampleNumber-SampleName.json``. We'd like the corresponding MongoDB collection 
 to just be named ``SampleName``.
@@ -130,7 +133,6 @@ work with remote MongoDB servers that require authentication.
     import abstar
 
     from abtools import mongodb
-    from abtools.alignment import muscle
     from abtools.sequence import Sequence
 
     DB_NAME = 'MyDatabase'
