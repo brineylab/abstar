@@ -25,7 +25,7 @@ class Mock(MagicMock):
             return Mock()
 
 MOCK_MODULES = ['pygtk', 'gtk', 'gobject', 'argparse', 'numpy', 'nwalign', 'pandas',
-                'abtools', 'biopython', 'celery', 'pymongo', 'scikit-bio',
+                'abtools', 'abtools.sequence', 'biopython', 'celery', 'pymongo', 'scikit-bio',
                 'Bio', 'Bio.Align', 'Bio.Alphabet', 'Bio.SeqIO', 'Bio.Seq', 'Bio.SeqRecord']
 sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
 
