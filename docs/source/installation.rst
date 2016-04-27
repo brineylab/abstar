@@ -21,7 +21,7 @@ You can manually install the latest development version of AbStar with::
     $ cd abstar/
     $ python setup.py install
 
-.. note:
+.. note::
 
     If installing manually via setup.py and you don't already have scikit-bio installed, 
     you may get an error when setuptools attempts to install scikit-bio. This can be fixed 
@@ -38,9 +38,9 @@ Requirements
 * Python 2.7.x (Python 3 compatability is in the works)
 * abtools_
 * biopython_
-* `scikit bio`_
-* pymongo_
 * celery_
+* pymongo_
+* `scikit bio`_
 
 
 Optional dependencies
