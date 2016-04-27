@@ -21,12 +21,6 @@ else:
     except TypeError:
         reqs = parse_requirements(req_file)
     install_requires = [str(r.req) for r in reqs]
-    # install_requires = ['abtools',
-    #                     'biopython',
-    #                     'celery',
-    #                     'nwalign',
-    #                     'pymongo',
-    #                     'scikit-bio']
 
 
 config = {
@@ -35,7 +29,7 @@ config = {
     'url': 'www.github.com/briney/abstar/',
     # 'download_url': 'www.github.com/briney/abstar/',
     'author_email': 'briney@scripps.edu',
-    'version': '0.1.2',
+    'version': '0.1.3',
     'install_requires': install_requires,
     'packages': ['abstar'],
     'scripts': ['bin/abstar',

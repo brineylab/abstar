@@ -1,4 +1,4 @@
-abtools
+abtools>=0.1.1
 biopython
 celery
 nwalign
