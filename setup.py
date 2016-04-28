@@ -11,7 +11,7 @@ except ImportError:
     sys.exit('ERROR: pip is required.\n')
 
 
-if os.environ.get('READTHEDOCS', None) == 'True':
+if os.environ.get('READTHEDOCS', None):
     # Set empty install_requires to get install to work on readthedocs
     install_requires = []
 else:
@@ -29,7 +29,7 @@ config = {
     'url': 'www.github.com/briney/abstar/',
     # 'download_url': 'www.github.com/briney/abstar/',
     'author_email': 'briney@scripps.edu',
-    'version': '0.1.3',
+    'version': '0.1.4',
     'install_requires': install_requires,
     'packages': ['abstar'],
     'scripts': ['bin/abstar',
