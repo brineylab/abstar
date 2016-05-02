@@ -226,7 +226,7 @@ def setup_logging(args):
     logfile = args.log if args.log else os.path.join(log_dir, 'abstar.log')
     debug = True if args.debug > 0 else False
     print_debug = True if args.debug == 2 else False
-    log.setup_logging(logfile, debug=args.debug, print_debug=print_debug)
+    log.setup_logging(logfile, debug=args.debug)
     global logger
     logger = log.get_logger('abstar')
 
