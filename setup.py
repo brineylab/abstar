@@ -29,7 +29,7 @@ config = {
     'url': 'www.github.com/briney/abstar/',
     # 'download_url': 'www.github.com/briney/abstar/',
     'author_email': 'briney@scripps.edu',
-    'version': '0.1.5',
+    'version': '0.1.6',
     'install_requires': install_requires,
     'packages': ['abstar'],
     'scripts': ['bin/abstar',
