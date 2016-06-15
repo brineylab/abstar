@@ -321,7 +321,9 @@ class JoinRegions(object):
                     continue
                 sline = line.split()
                 if sline[0] == br.top_germline:
-                    raw_fr4_start = int(sline[2])
+                    # the -1 is because br.germline_start uses 0-based indexing,
+                    # but the regions file uses 1-based indexing.
+                    raw_fr4_start = int(sline[2]) - 1
                     break
         # in some rare cases where the V-gene alignment overlaps
         # the J-gene alignment, which results in the first nt or two
@@ -330,6 +332,8 @@ class JoinRegions(object):
             self.fix_v_overlap = True
             self.v_overlap_length = abs(raw_fr4_start - br.germline_start)
             logger.debug('CHAIN: {}'.format(br.chain))
+            logger.debug('RAW GERMLINE FR4 START: {}'.format(raw_fr4_start))
+            logger.debug('ALIGNED GERMLINE FR4 START: {}'.format(br.germline_start))
             logger.debug('V-OVERLAP FOUND: {}'.format(br.id))
             logger.debug('V-OVERLAP LENGTH: {}'.format(self.v_overlap_length))
         return max(0, raw_fr4_start - br.germline_start)

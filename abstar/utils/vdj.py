@@ -192,6 +192,11 @@ class VDJ(object):
         nt = self.j.regions.v_overlap_length
         # fix the query sequence
         new_fr4_nt = self.v.query_alignment[-nt:] + self.j.regions.nt_seqs['FR4']
+        logger.debug('OVERLAP LENGTH: {}'.format(nt))
+        logger.debug('OVERLAP SEQUENCE: {}'.format(self.v.query_alignment[-nt:]))
+        logger.debug('RAW GERMLINE: {}'.format(self.j.germline_seq))
+        logger.debug('OLD FR4: {}'.format(self.j.regions.nt_seqs['FR4']))
+        logger.debug('NEW FR4: {}'.format(new_fr4_nt))
         self.j.regions.nt_seqs['FR4'] = new_fr4_nt
         self.j.regions.aa_seqs['FR4'] = str(Seq(new_fr4_nt, generic_dna).translate())
         # fix the germline sequence

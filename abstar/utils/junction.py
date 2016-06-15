@@ -56,6 +56,13 @@ class Junction(object):
             return None
         self.junction_nt = self._get_junction_nt_sequence(vdj)
         if len(self.junction_nt) % 3 > 0:
+            logger.debug('OUT OF FRAME JUNCTION: {}'.format(vdj.id))
+            logger.debug('JUNCTION SEQUENCE: {}'.format(self.junction_nt))
+            logger.debug('VDJ_NT: {}'.format(vdj.vdj_nt))
+            logger.debug('FR3 SEQUENCE: {}'.format(vdj.v.regions.nt_seqs['FR3']))
+            logger.debug('FR4 SEQUENCE: {}'.format(vdj.j.regions.nt_seqs['FR4']))
+            logger.debug('JUNCTION START: {}'.format(self.junction_nt_start_pos))
+            logger.debug('JUNCTION END: {}'.format(self.junction_nt_end_pos))
             self.in_frame = False
             self._frame_offset = 3 - len(self.junction_nt) % 3
             n_end = vdj.n2_end if vdj.d is not None else vdj.n_end

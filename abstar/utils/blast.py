@@ -66,6 +66,8 @@ class BlastResult(object):
         self.germline_end = self._get_germline_end()
         self.gene_type = self._gene_type()
         self.chain = self._chain()
+        self.germline_seq = self._get_germline_sequence_for_realignment(self.top_germline,
+                                                                        self.gene_type[0].upper())
 
     def annotate(self):
         self.fs_indel_adjustment = 0
@@ -85,7 +87,7 @@ class BlastResult(object):
 
         Input is the name of the germline variable gene (ex: 'IGHV1-2*02').
         '''
-        self.germline_seq = self._get_germline_sequence_for_realignment(germline_gene, 'V')
+        # self.germline_seq = self._get_germline_sequence_for_realignment(germline_gene, 'V')
         alignment = local_alignment(self.seq.sequence, self.germline_seq,
                                     match=match, mismatch=mismatch,
                                     gap_open_penalty=gap_open_penalty, gap_extend_penalty=gap_extend_penalty)
