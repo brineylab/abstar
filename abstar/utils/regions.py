@@ -323,7 +323,7 @@ class JoinRegions(object):
                 if sline[0] == br.top_germline:
                     # the -1 is because br.germline_start uses 0-based indexing,
                     # but the regions file uses 1-based indexing.
-                    raw_fr4_start = int(sline[2]) - 1
+                    raw_fr4_start = int(sline[2])
                     break
         # in some rare cases where the V-gene alignment overlaps
         # the J-gene alignment, which results in the first nt or two
