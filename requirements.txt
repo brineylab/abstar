@@ -1,6 +1,6 @@
-abtools>=0.1.3
+abtools>=0.1.4
 biopython
 celery
 nwalign
 pymongo
-scikit-bio
+scikit-bio<=0.4.2

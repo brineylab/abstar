@@ -42,7 +42,7 @@ def quality_trim(input_directory=None, output_directory=None,
         quality_cutoff=20, length_cutoff=50,
         quality_type='sanger', compress_output=True, file_pairs=None,
         singles_directory=None, nextseq=False, paired_reads=True,
-        allow_5prime_trimming=False):
+        allow_5prime_trimming=False, print_debug=False):
     '''
     Performs quality trimming with sickle.
 
@@ -160,20 +160,28 @@ def quality_trim(input_directory=None, output_directory=None,
                 o2_basename += '.gz'
             sickle += ' -p {}'.format(os.path.join(output_directory, o2_basename))
         # compute singles output filename, add to sickle cmd
-        if singles_directory is not None:
-            sfilename = '{}_{}_singles.fastq'.format(
-                o1_basename.rstrip('.gz').rstrip('.fastq').rstrip('.fq'),
-                o2_basename.rstrip('.gz').rstrip('.fastq').rstrip('.fq'))
-            if compress_output:
-                sfilename += '.gz'
-            sickle += ' -s {}'.format(os.path.join(singles_directory, sfilename))
-        else:
-            sickle += ' -s /dev/null'
+        if paired_end:
+            if singles_directory is not None:
+                sfilename = '{}_{}_singles.fastq'.format(
+                    o1_basename.rstrip('.gz').rstrip('.fastq').rstrip('.fq'),
+                    o2_basename.rstrip('.gz').rstrip('.fastq').rstrip('.fq'))
+                if compress_output:
+                    sfilename += '.gz'
+                sickle += ' -s {}'.format(os.path.join(singles_directory, sfilename))
+            else:
+                sickle += ' -s /dev/null'
+        if print_debug:
+            print(sickle)
         # run sickle
         p = Popen(sickle, stdout=PIPE, stderr=PIPE, shell=True)
         stdout, stderr = p.communicate()
         logger.debug(stdout)
         logger.debug(stderr)
+        if print_debug:
+            print(stdout)
+            print('')
+            print(stderr)
+            print('')
     return output_directory
 
 
