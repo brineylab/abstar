@@ -33,50 +33,40 @@ from Bio.Alphabet import generic_dna
 from abtools import log
 
 
-def regions(blast_result):
-    '''
-    Returns a VarRegions (or JoinRegions) object, containing a variety of information about
-    Variable (or Joining) gene regions.  Both Regions objects contain equivalent attributes
-    to ease downstream handling.
 
-    Input is a BlastResult object for a variable gene.
-    '''
+def regions(antibody):
     global logger
     logger = log.get_logger(__name__)
-    try:
-        if blast_result.gene_type == 'variable':
-            return VarRegions(blast_result)
-        if blast_result.gene_type == 'joining':
-            return JoinRegions(blast_result)
-    except Exception:
-        logger.debug('REGIONS ERROR: {} {}'.format(blast_result.id, blast_result.seq))
-        logger.debug(traceback.format_exc())
-
+    # V-gene regions
+    self.v.regions = VarRegions(antibody)
+    # J-gene regions
+    self.j.regions = JoinRegions(antibody)
 
 
 class VarRegions(object):
     '''
     Structure for information about antibody Variable gene regions.
 
-    Input is a BlastResult object for a variable gene.
+    Input is a Antibody object containing an assigned variable gene.
     '''
-    def __init__(self, blast_result):
-        self.raw_positions = self._get_region_positions(blast_result)
-        self.adjusted_positions = self._adjusted_region_positions(blast_result)
-        self.nt_seqs = self._get_region_nt_sequences(blast_result)
+    def __init__(self, antibody):
+        segment = antibody.v
+        self.raw_positions = self._get_region_positions(segment)
+        self.adjusted_positions = self._adjusted_region_positions(segment)
+        self.nt_seqs = self._get_region_nt_sequences(segment)
         self.nt_lengths = self._get_region_lengths(self.nt_seqs)
-        self.aa_seqs = self._translate_regions(blast_result)
+        self.aa_seqs = self._translate_regions(segment)
         self.aa_lengths = self._get_region_lengths(self.aa_seqs)
-        self.germline_nt_seqs = self._get_region_nt_sequences(blast_result, germline=True)
-        self.germline_aa_seqs = self._translate_regions(blast_result, germline=True)
+        self.germline_nt_seqs = self._get_region_nt_sequences(segment, germline=True)
+        self.germline_aa_seqs = self._translate_regions(segment, germline=True)
 
 
-    def _get_region_positions(self, br):
+    def _get_region_positions(self, segment):
         '''
         Parses the region positions file to get the region positions for a
         specific germline gene.
 
-        Input is a BlastResult object.
+        Input is a Germline object corresponding to an assigned V-gene.
 
         Output is a list of region end positions, with the end position being
         'None' if the region is not present in the sequence (for example, if the
@@ -84,21 +74,21 @@ class VarRegions(object):
         '''
         region_positions = []
         mod_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        regions_file = os.path.join(mod_dir, 'utils/germline_data/v_region_info_{}'.format(br.species.lower()))
+        regions_file = os.path.join(mod_dir, 'utils/germline_data/v_region_info_{}'.format(segment.species.lower()))
         with open(regions_file) as f:
             for line in f:
-                if line.startswith('#'):
+                if line.lstrip().startswith('#'):
                     continue
                 sline = line.split()
-                if sline[0] == br.top_germline:
+                if sline[0] == segment.full:
                     region_positions = [int(i) for i in sline[1:]]
                     break
-        if br.insertions:
-            region_positions = self._recalibrate_region_positions(br, region_positions)
+        if segment.insertions:
+            region_positions = self._recalibrate_region_positions(segment, region_positions)
         return region_positions
 
 
-    def _recalibrate_region_positions(self, br, positions):
+    def _recalibrate_region_positions(self, segment, positions):
         '''
         Recalibrates the region position numbering to account for insertions.
 
@@ -106,8 +96,8 @@ class VarRegions(object):
 
         Output is a list of recalibrated region end positions.
         '''
-        if br.insertions:
-            insertions = [(i['pos'], i['len']) for i in br.insertions]
+        if segment.insertions:
+            insertions = [(i['pos'], i['len']) for i in segment.insertions]
             insertions.sort(key=lambda x: x[0])
             for i in insertions:
                 istart = i[0]
@@ -119,7 +109,7 @@ class VarRegions(object):
         return positions
 
 
-    def _adjusted_region_positions(self, br):
+    def _adjusted_region_positions(self, segment):
         '''
         Adjusts the region positions relative to the start of the query sequence.
         If the query sequence is sufficiently truncated that a region is not present,
@@ -129,11 +119,11 @@ class VarRegions(object):
 
         Output is a list of adjusted region end positions.
         '''
-        adjusted_positions = [p - br.germline_start for p in self.raw_positions]
+        adjusted_positions = [p - segment.germline_start for p in self.raw_positions]
         return [p if p > 0 else None for p in adjusted_positions]
 
 
-    def _get_region_nt_sequences(self, br, germline=False):
+    def _get_region_nt_sequences(self, segment, germline=False):
         '''
         Identifies the nucleotide sequence for each region of a variable gene.
 
@@ -142,23 +132,23 @@ class VarRegions(object):
 
         Output is a dict of region sequences.
         '''
-        # regions = self._regions(br)
+        # regions = self._regions(segment)
         regions = self._regions()
         region_nt_seqs = {}
         start = 0
         if germline:
-            alignment = br.germline_alignment
+            alignment = segment.germline_alignment
         else:
-            alignment = br.query_alignment
+            alignment = segment.query_alignment
         for r in regions:
             reg = r[0]
             end = r[1]
             if end is not None:
                 region_nt_seqs[reg] = alignment[start:end]
                 if end > len(alignment) and reg == 'FR3':
-                    logger.debug('TRUNCATED FR3: {}'.format(br.id))
+                    logger.debug('TRUNCATED FR3: {}'.format(segment.id))
                     logger.debug('OLD: {}'.format(region_nt_seqs['FR3']))
-                    region_nt_seqs[reg] = self._fix_truncated_fr3_alignment(br, start, end, germline)
+                    region_nt_seqs[reg] = self._fix_truncated_fr3_alignment(segment, start, end, germline)
                     logger.debug('NEW: {}'.format(region_nt_seqs['FR3']))
                 start = end
             else:
@@ -194,7 +184,7 @@ class VarRegions(object):
         return zip(all_regions, self.adjusted_positions)
 
 
-    def _translate_regions(self, br, germline=False):
+    def _translate_regions(self, segment, germline=False):
         '''
         Translates the region sequence.
 
@@ -208,7 +198,7 @@ class VarRegions(object):
         else:
             nt_seqs = self.nt_seqs
         aa_seqs = {}
-        rf = br.germline_start % 3
+        rf = segment.germline_start % 3
         rf_offset = (rf * 2) % 3
         first_region = True
         regions = self._region_list()
@@ -275,13 +265,13 @@ class VarRegions(object):
             return aa_seq[:s] + i + aa_seq[s:]
 
 
-    def _fix_truncated_fr3_alignment(self, br, start, end, germline):
+    def _fix_truncated_fr3_alignment(self, segment, start, end, germline):
         if germline:
-            alignment = br.germline_alignment
-            seq = br.germline_seq[br.germline_end + 1:]
+            alignment = segment.germline_alignment
+            seq = segment.germline_seq[segment.germline_end + 1:]
         else:
-            alignment = br.query_alignment
-            seq = br.input_sequence[br.query_end + 1:]
+            alignment = segment.query_alignment
+            seq = segment.input_sequence[segment.query_end + 1:]
         trunc = end - len(alignment)
         return alignment[start:] + seq[:trunc]
 
@@ -292,78 +282,83 @@ class JoinRegions(object):
 
     Input is a BlastResult object.
     '''
-    def __init__(self, br):
-        self.fix_v_overlap = False
+    def __init__(self, antibody):
+        segment = antibody.j
         self.v_overlap_length = 0
-        start = self._get_fr4_nt_start(br)
-        end = self._get_fr4_nt_end(br)
+        start = self._get_fr4_nt_start(segment)
+        end = self._get_fr4_nt_end(segment)
         self.raw_positions = [start, end]
         self.adjusted_positions = self.raw_positions
-        self.nt_seqs = self._get_fr4_nt_seq(br, start, end)
+        self.nt_seqs = self._get_fr4_nt_seq(antibody, start, end)
         self.nt_lengths = self._get_region_lengths(self.nt_seqs)
         self.aa_seqs = self._translate_regions(self.nt_seqs)
         self.aa_lengths = self._get_region_lengths(self.aa_seqs)
-        self.germline_nt_seqs = self._get_fr4_germ_nt_seq(br, start, end)
+        self.germline_nt_seqs = self._get_fr4_germ_nt_seq(antibody, start, end)
         self.germline_aa_seqs = self._translate_regions(self.germline_nt_seqs)
 
 
-    def _get_fr4_nt_start(self, br):
+    def _get_fr4_nt_start(self, segment):
         '''
         Returns the start position (in the joining gene alignment) of FR4.
 
-        Input is a BlastResult object.
+        Input is a Germline object, corresponding to a J-gene assignment.
         '''
         mod_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        regions_file = os.path.join(mod_dir, 'utils/germline_data/j_region_info_{}'.format(br.species.lower()))
+        regions_file = os.path.join(mod_dir, 'utils/germline_data/j_region_info_{}'.format(segment.species))
         with open(regions_file) as f:
             for line in f:
-                if line.startswith('#'):
+                if line.lstrip().startswith('#'):
                     continue
                 sline = line.split()
-                if sline[0] == br.top_germline:
-                    # the -1 is because br.germline_start uses 0-based indexing,
-                    # but the regions file uses 1-based indexing.
+                if sline[0] == segment.full:
                     raw_fr4_start = int(sline[2])
                     break
         # in some rare cases where the V-gene alignment overlaps
         # the J-gene alignment, which results in the first nt or two
         # of FR4 being truncated (because they're part of the V-gene alignment)
-        if br.chain != 'heavy' and raw_fr4_start - br.germline_start < 0:
-            self.fix_v_overlap = True
-            self.v_overlap_length = abs(raw_fr4_start - br.germline_start)
-            logger.debug('CHAIN: {}'.format(br.chain))
+        if segment.chain != 'heavy' and raw_fr4_start - segment.germline_start < 0:
+            self.v_overlap_length = abs(raw_fr4_start - segment.germline_start)
+            logger.debug('CHAIN: {}'.format(segment.chain))
             logger.debug('RAW GERMLINE FR4 START: {}'.format(raw_fr4_start))
-            logger.debug('ALIGNED GERMLINE FR4 START: {}'.format(br.germline_start))
-            logger.debug('V-OVERLAP FOUND: {}'.format(br.id))
+            logger.debug('ALIGNED GERMLINE FR4 START: {}'.format(segment.germline_start))
+            logger.debug('V-OVERLAP FOUND: {}'.format(segment.id))
             logger.debug('V-OVERLAP LENGTH: {}'.format(self.v_overlap_length))
-        return max(0, raw_fr4_start - br.germline_start)
+        return max(0, raw_fr4_start - segment.germline_start)
 
 
-    def _get_fr4_nt_end(self, br):
+    def _get_fr4_nt_end(self, segment):
         '''
         Returns the end position (in the joining gene alignment) of FR4.
 
         Input is a BlastResult object.
         '''
-        return br.query_end
+        return segment.query_end
 
 
-    def _get_fr4_nt_seq(self, br, start, end):
+    def _get_fr4_nt_seq(self, antibody, start, end):
         '''
         Returns the nucleotide sequence of FR4.
 
         Input is a BlastResult object and the start and end positions of FR4.
         '''
-        return {'FR4': br.query_alignment[start:end]}
+        if antibody.j.v_overlap_length:
+            fr4 = antibody.v.query_alignment[-antibody.j.v_overlap_length:] + antibody.j.query_alignment[start:end]
+        else:
+            fr4 = antibody.j.query_alignment[start:end]
+        return {'FR4': fr4}
 
 
-    def _get_fr4_germ_nt_seq(self, br, start, end):
+    def _get_fr4_germ_nt_seq(self, antibody, start, end):
         '''
         Returns the germline nucleotide sequence of FR4.
 
         Input is a BlastResult object and the start and end positions of FR4.
         '''
-        return {'FR4': br.germline_alignment[start:end]}
+        if antibody.j.v_overlap_length:
+            fr4 = antibody.v.germline_alignment[-antibody.j.v_overlap_length:] + antibody.j.germline_alignment[start:end]
+        else:
+            fr4 = antibody.j.germline_alignment[start:end]
+        return {'FR4': fr4}
 
 
     def _translate_regions(self, regions):

@@ -26,6 +26,8 @@ import logging
 import traceback
 
 from abtools import log
+from abtools.utils.codons import codon_lookup
+from abtools.utils.decorators import lazy_property
 
 
 def parse_codons(vdj, gapped):
@@ -36,6 +38,43 @@ def parse_codons(vdj, gapped):
     except:
         logger.debug('PARSE CODONS ERROR: {}, {}'.format(vdj.id, vdj.raw_input))
         logger.debug(traceback.format_exc())
+
+
+
+
+class Codon(object):
+    """docstring for Codon"""
+    def __init__(self, codon, order):
+        super(Codon, self).__init__()
+        self.nt = codon
+        self.order = order
+        self._position = None
+
+    @property
+    def position(self):
+        return self._position
+
+    @position.setter
+    def position(self, position):
+        self._position = position
+
+    @position.deleter
+    def position(self):
+        delattr(self, 'position')
+
+
+    @plazy_roperty
+    def aa(self):
+        if self.codon == '---':
+            return '-'
+        if self.codon == '...':
+            return '.'
+        if any(['-' in self.codon, '.' in codon]):
+            return 'X'
+        return codon_lookup.get(codon, 'X')
+
+
+
 
 
 class Codons(object):

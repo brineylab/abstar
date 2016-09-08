@@ -32,7 +32,7 @@ from abtools import log
 #  Insertions
 # ------------
 
-def find_insertions(blast_result):
+def find_insertions(segment):
     '''
     Identifies and annotates/fixes insertions. Frameshift insertions (those with a length
     not evenly divisible by 3) will be removed. Codon-length insertions will be annotated.
@@ -46,19 +46,19 @@ def find_insertions(blast_result):
     try:
         insertions = []
         o = 0
-        for i in re.finditer('-+', blast_result.germline_alignment):
+        for i in re.finditer('-+', segment.germline_alignment):
             s = i.start() - o
             e = i.end() - o
             l = e - s
             if l % 3 == 0 or l > 3:
-                insertions.append(_annotate_insertion(blast_result, s, e))
+                insertions.append(_annotate_insertion(segment, s, e))
             else:
-                blast_result = _fix_frameshift_insertion(blast_result, s, e)
+                _fix_frameshift_insertion(segment, s, e)
                 o += l
         return insertions if insertions else []
     except:
-        logger.debug('FIND INSERTIONS ERROR: {}, {}'.format(blast_result.id,
-                                                             blast_result.input_sequence))
+        logger.debug('FIND INSERTIONS ERROR: {}, {}'.format(segment.id,
+                                                            segment.input_sequence))
         logger.debug(traceback.format_exc())
 
 
@@ -92,14 +92,14 @@ def _fix_frameshift_insertion(br, s, e):
     br.germline_alignment = br.germline_alignment[:s] + br.germline_alignment[e:]
     br.alignment_midline = br.alignment_midline[:s] + br.alignment_midline[e:]
     br.fs_indel_adjustment += e - s
-    return br
+    # return br
 
 
 # ------------
 #  Deletions
 # ------------
 
-def find_deletions(blast_result):
+def find_deletions(segment):
     '''
     Identifies and annotates/fixes deletions. Frameshift deletions (those with a length
     not evenly divisible by 3) will be removed. Codon-length deletions will be annotated.
@@ -113,19 +113,19 @@ def find_deletions(blast_result):
     try:
         deletions = []
         o = 0
-        for i in re.finditer('-+', blast_result.query_alignment):
+        for i in re.finditer('-+', segment.query_alignment):
             s = i.start() - o
             e = i.end() - o
             l = e - s
             if l % 3 == 0 or l > 3:
-                deletions.append(_annotate_deletion(blast_result, s, e))
+                deletions.append(_annotate_deletion(segment, s, e))
             else:
-                blast_result = _fix_frameshift_deletion(blast_result, s, e)
+                _fix_frameshift_deletion(segment, s, e)
                 o += l
         return deletions if deletions else []
     except:
-        logger.debug('FIND DELETIONS ERROR: {}, {}'.format(blast_result.id,
-                                                             blast_result.input_sequence))
+        logger.debug('FIND DELETIONS ERROR: {}, {}'.format(segment.id,
+                                                             segment.input_sequence))
         logger.debug(traceback.format_exc())
 
 
@@ -158,4 +158,4 @@ def _fix_frameshift_deletion(br, s, e):
     '''
     br.query_alignment = br.query_alignment[:s] + br.germline_alignment[s:e] + br.query_alignment[e:]
     br.fs_indel_adjustment -= e - s
-    return br
+    # return br
