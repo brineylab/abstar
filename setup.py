@@ -26,10 +26,10 @@ else:
 config = {
     'description': 'VDJ assignment and antibody sequence annotation. Scalable from a single sequence to billions of sequences.',
     'author': 'Bryan Briney',
-    'url': 'www.github.com/briney/abstar/',
+    'url': 'https://www.github.com/briney/abstar',
     # 'download_url': 'www.github.com/briney/abstar/',
     'author_email': 'briney@scripps.edu',
-    'version': '0.1.5',
+    'version': '0.1.8',
     'install_requires': install_requires,
     'packages': ['abstar'],
     'scripts': ['bin/abstar',
