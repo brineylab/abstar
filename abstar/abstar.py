@@ -62,12 +62,10 @@ def parse_arguments(print_help=False):
                         Default is '/data'.")
     parser.add_argument('-i', '--in', dest='input', default=None,
                         help="The input file or directory, to be split and processed in parallel. \
-                        If a directory is given, all files in the directory will be iteratively processed. \
-                        Required.")
+                        If a directory is given, all files in the directory will be iteratively processed.")
     parser.add_argument('-o', '--out', dest='output', default=None,
                         help="The output directory, into which the JSON-formatted output files will be deposited. \
-                        If the directory does not exist, it will be created. \
-                        Required.")
+                        If the directory does not exist, it will be created.")
     parser.add_argument('-l', '--log', dest='log', default=None,
                         help="The log file, to which log info will be written. \
                         Default is <output_directory>/abstar.log if '-o/--out' is specificied. \
@@ -77,6 +75,9 @@ def parse_arguments(print_help=False):
                         it will be created. Required.")
     parser.add_argument('--sequences', dest='sequences', default=None,
                         help="Only used when passing sequences directly through the API.")
+    parser.add_argument('--use-test-data', dest='use_test_data', default=False, action='store_true',
+                        help="If set, and if '-i/--input' isn't provided, AbStar's included test data \
+                        will be used as input.")
     parser.add_argument('-k', '--chunksize', dest='chunksize', default=250, type=int,
                         help="Approximate number of sequences in each distributed job. \
                         Defaults to 250. \
@@ -144,7 +145,7 @@ def parse_arguments(print_help=False):
 
 class Args(object):
     def __init__(self, project_dir=None, input=None, output=None, log=None, temp=None,
-                 sequences=None, chunksize=250, output_type='json',
+                 use_test_data=False, sequences=None, chunksize=250, output_type='json',
                  merge=False, pandaseq_algo='simple_bayesian',
                  nextseq=False, umid=0, isotype=False,
                  basespace=False, cluster=False, starcluster=False,
@@ -156,6 +157,7 @@ class Args(object):
         self.output = str(output) if output is not None else output
         self.log = str(log) if log is not None else log
         self.temp = str(temp) if temp is not None else temp
+        args.use_test_data = use_test_data
         self.chunksize = int(chunksize)
         self.output_type = str(output_type)
         self.merge = True if basespace else merge
@@ -174,6 +176,10 @@ class Args(object):
 
 
 def validate_args(args):
+    if all([args.use_test_data, args.input is None]):
+        mod_dir = os.path.dirname(os.path.abspath(__file__))
+        args.input = os.path.join(mod_dir, 'test_data')
+        print(args.input)
     if not any([args.data_dir,
                 args.sequences,
                 all([args.input, args.output, args.temp])]):
