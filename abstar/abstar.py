@@ -157,7 +157,7 @@ class Args(object):
         self.output = str(output) if output is not None else output
         self.log = str(log) if log is not None else log
         self.temp = str(temp) if temp is not None else temp
-        args.use_test_data = use_test_data
+        self.use_test_data = use_test_data
         self.chunksize = int(chunksize)
         self.output_type = str(output_type)
         self.merge = True if basespace else merge
