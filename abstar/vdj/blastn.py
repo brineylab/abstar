@@ -142,7 +142,7 @@ class BlastnAssigner(AbstractAssigner):
         germs.extend(rc_germs)
         db_handle.close()
         alignments = local_alignment(seq, targets=germs,
-                                     gap_open_penalty=20, gap_extend_penalty=2)
+                                     gap_open=-20, gap_extend=-2)
         alignments.sort(key=lambda x: x.score, reverse=True)
         all_gls = [a.target.id for a in alignments]
         all_scores = [a.score for a in alignments]

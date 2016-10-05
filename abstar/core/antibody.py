@@ -42,7 +42,7 @@ class Antibody(object):
         self.d = vdj.d
         self.chain = vdj.v.chain
         self.species = species.lower()
-        self.log = []
+        self._log = self._initialize_log()
         self._strand = None
 
 
@@ -64,11 +64,18 @@ class Antibody(object):
         indels, etc).
         '''
         self._realign_germlines()
-        self._identify_regions()
-        self._assemble_vdj_sequence()
         self._get_junction()
+
+        # TODO
+        self._assemble_vdj_sequence()
         self._imgt_position_numbering()
-        pass
+        self._identify_regions()
+
+
+    def log(self, *args, **kwargs):
+        sep = kwargs.get('sep', ' ')
+        lstring = sep.join([str(a) for a in args])
+        self._log.append(lstring)
 
 
     def format_log(self):
@@ -84,59 +91,99 @@ class Antibody(object):
 
             str: Formatted log string.
         '''
-        # TODO
-        pass
+        self._log += ['', '']
+        return '\n'.join(self._log)
+
+
+    def _initialize_log(self):
+        log = []
+        log.append('=' * len(self.id))
+        log.append(self.id)
+        log.append('=' * len(self.id))
+        log.append('')
+        log.append(self.raw_input.fasta)
+        log.append('')
+        log.append('RAW INPUT: {}'.format(self.raw_input.sequence))
+        log.append('ORIENTED INPUT: {}'.format(self.oriented_input.sequence))
+        log.append('CHAIN: {}'.format(self.chain))
+        if self.v is not None:
+            # log V-gene stuff
+            pass
+        if self.j is not None:
+            # log J-gene stuff
+            pass
+        if self.d is not None:
+            # log D-gene stuff
+            pass
+        return log
 
 
     def _realign_germlines(self):
-        # realign V
-        self._realign_germline(self.v)
-        self._gapped_imgt_vgene_realignment(self.v)
-        self._imgt_vgene_numbering(self.v)
+        # realign V and compute gapped IMGT alignment for the V gene
+        self.log('')
+        self.log('V-GENE REALIGNMENT')
+        self.log('------------------')
+        self.v.realign_germline(self.oriented_input)
+        self.log('')
+        self.log('V-GENE GAPPED IMGT ALIGNMENT')
+        self.log('----------------------------')
+        self.v.gapped_imgt_realignment()
 
         # realign J
         jstart = self.v.query_end
-        self._realign_germline(self.j, query_start=jstart)
+        self.log('')
+        self.log('J-GENE REALIGNMENT')
+        self.log('------------------')
+        self.j.realign_germline(self.oriented_input, query_start=jstart)
+        self.log('')
+        self.log('J-GENE GAPPED IMGT ALIGNMENT')
+        self.log('----------------------------')
+        self.j.gapped_imgt_realignment()
 
         # realign D (if needed)
         if self.chain == 'heavy':
             dstart = self.v.query_end
             dend = self.v.query_end + self.j.query_start
-            self._realign_germline(self.d, query_start=dstart, query_end=dend)
+            self.d.realign_germline(self.oriented_input, query_start=dstart, query_end=dend)
 
 
-    def _realign_germline(self, segment, query_start=None, query_end=None):
-        '''
-        Due to restrictions on the available scoring parameters in BLASTn, incorrect truncation
-        of the v-gene alignment can occur. This function re-aligns the query sequence with
-        the identified germline variable gene using more appropriate alignment parameters.
+    # def _realign_germline(self, segment, query_start=None, query_end=None):
+    #     '''
+    #     Due to restrictions on the available scoring parameters in BLASTn, incorrect truncation
+    #     of the v-gene alignment can occur. This function re-aligns the query sequence with
+    #     the identified germline variable gene using more appropriate alignment parameters.
 
-        Input is a Germline object, corresponding to the gene segment that should be realigned (V, D or J).
-        '''
-        germline_seq = self._get_germline_sequence_for_realignment(segment.full)
-        query = self.oriented_input.sequence[query_start:query_end]
-        aln_params = self._realignment_scoring_params(segment.gene_type)
-        alignment = local_alignment(query, germline_seq, **aln_params)
-        segment.process_realignment(segment, alignment)
+    #     Input is a Germline object, corresponding to the gene segment that should be realigned (V, D or J).
+    #     '''
+    #     germline_seq = self._get_germline_sequence_for_realignment(segment.full)
+    #     query = self.oriented_input.sequence[query_start:query_end]
+    #     aln_params = self._realignment_scoring_params(segment.gene_type)
+    #     alignment = local_alignment(query, germline_seq, **aln_params)
+    #     segment.process_realignment(segment, alignment)
 
 
-    def _get_germline_sequence_for_realignment(self, germ):
-        '''
-        Identifies the appropriate germline variable gene from a database of all
-        germline variable genes.
+    # def _get_germline_sequence_for_realignment(self, germ):
+    #     '''
+    #     Identifies the appropriate germline variable gene from a database of all
+    #     germline variable genes.
 
-        Input is the name of the germline variable gene (ex: 'IGHV1-2*02') and
-        the gene region ('V' or 'J').
+    #     Args:
 
-        Output is the germline sequence.
-        '''
-        gene_type = germ[3]
-        mod_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        db_file = os.path.join(mod_dir, 'vdj/germline_dbs/fasta/{}_{}.fasta'.format(self.species, gene_type))
-        for s in SeqIO.parse(open(db_file), 'fasta'):
-            if s.id == germ:
-                return Sequence(s)
-        return None
+    #         germ (string): Full name of the germline gene using IMGT nomenclature
+    #             (ex: 'IGHV1-2*02')
+
+    #     Returns:
+
+    #         Sequence: Requested germline gene, as an AbTools `Sequence` object, or `None`
+    #             if the requested germline gene could not be found.
+    #     '''
+    #     gene_type = germ[3]
+    #     mod_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    #     db_file = os.path.join(mod_dir, 'vdj/germline_dbs/fasta/{}_{}.fasta'.format(self.species, gene_type))
+    #     for s in SeqIO.parse(open(db_file), 'fasta'):
+    #         if s.id == germ:
+    #             return Sequence(s)
+    #     return None
 
 
     # def _process_realignment(self, segment, aln, aln_offset):
@@ -155,28 +202,28 @@ class Antibody(object):
     #     segment.find_indels()
 
 
-    def _gapped_imgt_vgene_realignment(self, v):
-        imgt_germ = get_imgt_germlines(species=v.species,
-                                       gene_type=v.gene_type,
-                                       gene=v.full)
-        query = v.query_alignment.replace('-', '')
-        aln_params = self._realignment_scoring_params(v.gene_type)
-        aln_params['gap_open_penalty'] = 11
-        v.imgt_gapped_alignment = global_alignment(query, imgt_germ.gapped_nt_sequence, **aln_params)
+    # def _gapped_imgt_vgene_realignment(self, v):
+    #     imgt_germ = get_imgt_germlines(species=v.species,
+    #                                    gene_type=v.gene_type,
+    #                                    gene=v.full)
+    #     query = v.query_alignment.replace('-', '')
+    #     aln_params = self._realignment_scoring_params(v.gene_type)
+    #     aln_params['gap_open_penalty'] = 11
+    #     v.imgt_gapped_alignment = global_alignment(query, imgt_germ.gapped_nt_sequence, **aln_params)
 
 
-    def _imgt_vgene_numbering(self, v):
-        aln = v.imgt_gapped_alignment
-        imgt_position_lookup = {}
-        upos = 0
-        for i, (g, u) in enumerate(zip(aln.aligned_target, aln.aligned_query)):
-            if all([u == '-', g == '.']):
-                continue
-            imgt_pos = i + 1
-            imgt_position_lookup[upos] = imgt_pos
-            upos += 1
-        v.get_imgt_position_from_raw = imgt_position_lookup
-        v.get_raw_position_frim_imgt = {v: k for k, v in imgt_position_lookup.items()}
+    # def _imgt_vgene_numbering(self, v):
+    #     aln = v.imgt_gapped_alignment
+    #     imgt_position_lookup = {}
+    #     upos = 0
+    #     for i, (g, u) in enumerate(zip(aln.aligned_target, aln.aligned_query)):
+    #         if all([u == '-', g == '.']):
+    #             continue
+    #         imgt_pos = i + 1
+    #         imgt_position_lookup[upos] = imgt_pos
+    #         upos += 1
+    #     v.get_imgt_position_from_raw = imgt_position_lookup
+    #     v.get_raw_position_frim_imgt = {v: k for k, v in imgt_position_lookup.items()}
 
 
     def _identify_regions(self):
@@ -267,29 +314,27 @@ class Antibody(object):
         '''
         Returns realignment scoring paramaters for a given gene type.
 
-        Args
-        ----
+        Args:
 
             gene (str): the gene type ('V', 'D', or 'J')
 
 
-        Returns
-        -------
+        Returns:
 
-            (dict) realignment scoring parameters
+            dict: realignment scoring parameters
         '''
         scores = {'V': {'match': 3,
                         'mismatch': -2,
-                        'gap_open_penalty': 22,
-                        'gap_extend_penalty': 1},
+                        'gap_open': -22,
+                        'gap_extend': -1},
                   'D': {'match': 3,
                         'mismatch': -2,
-                        'gap_open_penalty': 22,
-                        'gap_extend_penalty': 1},
+                        'gap_open': -22,
+                        'gap_extend': -1},
                   'J': {'match': 3,
                         'mismatch': -2,
-                        'gap_open_penalty': 22,
-                        'gap_extend_penalty': 1}}
+                        'gap_open': -22,
+                        'gap_extend': -1}}
         return scores[gene]
 
 

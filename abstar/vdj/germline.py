@@ -24,6 +24,8 @@
 
 from Bio import SeqIO
 
+from abtools.alignment import global_alignment, local_alignment
+from abtools.utils.codons import codons
 from abtools.utils.properties import lazy_property
 
 
@@ -64,7 +66,27 @@ class Germline(object):
         self._gene = None
         self._chain = None
 
-        # properties that get assigned after re-alignment.
+        # Optional properties for assigners to populate.
+        # If populated by an assigner, they will be used to
+        # force realignment to these parameters.
+        #
+        # Note that the query_start/query_end positions should
+        # be 0-indexed and apply to the full query sequence. So if the sequence
+        # is truncated following V-gene assignment and the truncated
+        # sequence is submitted for J-gene assignment, make sure to
+        # adjust the positions for the J-gene so that the numberings apply to
+        # the complete input sequence, not the truncated sequence that was
+        # used to identify the J-gene.
+        #
+        # Also note that because the end position of Python's slicing operator
+        # is exclusive, to get the aligned sequence from the oriented_input, you
+        # need to add one to the query_end (so that the slice includes query_end)
+        self.query_start = None
+        self.query_end = None
+        self.germline_start = None
+        self.germline_end = None
+
+        # These properties get assigned after re-alignment.
         # New assigners don't need to populate these.
         self.realignment = None
         self.raw_query = None
@@ -73,10 +95,10 @@ class Germline(object):
         self.germline_alignment = None
         self.alignment_midline = None
         self.alignment_length = None
-        self.query_start = None
-        self.query_end = None
-        self.germline_start = None
-        self.germline_end = None
+        self.imgt_germline = None
+        self.imgt_gapped_alignment = None
+        self._imgt_position_from_raw = {}
+        self._raw_position_from_imgt = {}
         self.fs_indel_adjustment = 0
         self.nfs_indel_adjustment = 0
         self.has_insertion = 'no'
@@ -122,7 +144,68 @@ class Germline(object):
         return self._chain
 
 
-    def process_realignment(self, aln):
+    def realign_germline(self, oriented_input, query_start=None, query_end=None):
+        '''
+        Due to restrictions on the available scoring parameters in BLASTn, incorrect truncation
+        of the v-gene alignment can occur. This function re-aligns the query sequence with
+        the identified germline variable gene using more appropriate alignment parameters.
+
+        Args:
+
+            oriented_input (str): the raw input sequence, correctly oriented
+
+            query_start (int): 5' position in `oriented_input` at which the sequence
+                should be truncated prior to alignment with the germline sequence.
+
+            query_end (int): 3' position in `oriented_input` at which the seqeunce
+                should be truncated prior to alignment with the germline sequence
+        '''
+        germline_seq = self._get_germline_sequence_for_realignment(self.full)
+        aln_params = self._realignment_scoring_params(self.gene_type)
+        # if the alignment start/end positions have been annotated by the assigner,
+        # force re-alignment using those parameters
+        if all([x is not None for x in [self.query_start,
+                                        self.query_end,
+                                        self.germline_start,
+                                        self.germline_end]]):
+            query = oriented_input.sequence[self.query_start:self.query_end]
+            germline = germline_seq[self.germline_start:self.germline_end]
+            alignment = global_alignment(query, germline, **aln_params)
+        # use local alignment to determine alignment start/end positions if
+        # they haven't already been determined by the assigner
+        else:
+            query = oriented_input.sequence[query_start:query_end]
+            alignment = local_alignment(query, germline_seq, **aln_params)
+        self._process_realignment(alignment, query_start)
+
+
+    def gapped_imgt_realignment(self):
+        '''
+        Aligns to gapped IMGT germline sequence. Used to determine
+        IMGT-formatted position numberings so that identifying
+        antibody regions is simplified.
+        '''
+        self.imgt_germline = get_imgt_germlines(species=self.species,
+                                                gene_type=self.gene_type,
+                                                gene=self.full)
+        query = self.query_alignment.replace('-', '')
+        aln_params = self._realignment_scoring_params(self.gene_type)
+        aln_params['gap_open'] = -11
+        self.imgt_gapped_alignment = local_alignment(query,
+                                                     self.imgt_germline.gapped_nt_sequence,
+                                                     **aln_params)
+        self._imgt_numbering()
+
+
+    def get_imgt_position_from_raw(self, raw):
+        return self._imgt_position_from_raw.get(raw, None)
+
+
+    def get_raw_position_from_imgt(self, imgt):
+        return self._raw_position_from_imgt.get(imgt, None)
+
+
+    def _process_realignment(self, aln, query_start):
         self.realignment = aln
         self.raw_query = aln.raw_query
         self.raw_germline = aln.raw_target
@@ -130,10 +213,13 @@ class Germline(object):
         self.germline_alignment = aln.aligned_target
         self.alignment_midline = ''.join(['|' if q == g else ' ' for q, g in zip(aln.aligned_query,
                                                                                  aln.aligned_target)])
-        self.query_start = aln.query_begin
-        self.query_end = aln.query_end
-        self.germline_start = aln.target_begin
-        self.germline_end = aln.target_end
+        # only update alignment start/end positions if not already annotated by aligner
+        if any([x is None for x in [self.query_start, self.query_end, self.germline_start, self.germline_end]]):
+            offset = query_start if query_start is not None else 0
+            self.query_start = aln.query_begin + offset
+            self.query_end = aln.query_end + offset
+            self.germline_start = aln.target_begin
+            self.germline_end = aln.target_end
         self._fix_ambigs()
         self._find_indels()
 
@@ -149,16 +235,41 @@ class Germline(object):
             str: Germline sequence, or ``None`` if the requested germline gene could not be found.
         '''
         mod_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        db_file = os.path.join(mod_dir, 'ssw/dbs/{}_{}.fasta'.format(self.species.lower(), self.gene))
+        db_file = os.path.join(mod_dir, 'ssw/dbs/{}_{}.fasta'.format(self.species.lower(), self.gene_type))
         try:
             for s in SeqIO.parse(open(db_file), 'fasta'):
-                if s.id == self.germ:
+                if s.id == self.full:
                     return str(s.seq)
             # TODO: log that the germline gene wasn't found in the database file
             return None
         except:
             # TODO: log that the germline database file couldn't be found
             return None
+
+
+    def _imgt_numbering(self):
+        aln = self.imgt_gapped_alignment
+        imgt_position_lookup = {}
+        raw_position_lookup = {}
+        upos = aln.query_begin + self.query_start
+        insertion_offset = 0
+        for i, (g, u) in enumerate(zip(aln.aligned_target, aln.aligned_query)):
+            imgt_pos = i + aln.target_begin + 1 - insertion_offset
+            # if there's a gap in the query, there's no direct correlate to that IMGT position
+            if u == '-':
+                continue
+            # if there's a gap in the germline, there must be an insertion in the query, meaning
+            # there's no direct germline correlate to that query position
+            # we also need to update the insertion offset so that the IMGT numbering stays correct
+            elif g == '-':
+                insertion_offset += 1
+                continue
+            else:
+                imgt_position_lookup[upos] = imgt_pos
+                raw_position_lookup[imgt_pos] = upos
+            upos += 1
+        self._imgt_position_from_raw = imgt_position_lookup
+        self._raw_position_from_imgt = raw_position_lookup
 
 
     def _fix_ambigs(self):
@@ -190,6 +301,35 @@ class Germline(object):
             if self.deletions:
                 if 'yes' in [deletion['in frame'] for deletion in self.deletions]:
                     self.has_deletion = 'yes'
+
+
+    @staticmethod
+    def _realignment_scoring_params(gene):
+        '''
+        Returns realignment scoring paramaters for a given gene type.
+
+        Args:
+
+            gene (str): the gene type ('V', 'D', or 'J')
+
+
+        Returns:
+
+            dict: realignment scoring parameters
+        '''
+        scores = {'V': {'match': 3,
+                        'mismatch': -2,
+                        'gap_open': -22,
+                        'gap_extend': -1},
+                  'D': {'match': 3,
+                        'mismatch': -2,
+                        'gap_open': -22,
+                        'gap_extend': -1},
+                  'J': {'match': 3,
+                        'mismatch': -2,
+                        'gap_open': -22,
+                        'gap_extend': -1}}
+        return scores[gene]
 
 
 
