@@ -42,7 +42,7 @@ def find_insertions(segment):
     Output is a list of insertion annotations, or None if there were no codon-length
     insertions.
     '''
-    logger = log.get_logger(__name__)
+    # logger = log.get_logger(__name__)
     try:
         insertions = []
         o = 0

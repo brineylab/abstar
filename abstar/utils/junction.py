@@ -37,14 +37,10 @@ def get_junction(antibody):
     antibody.log('')
     antibody.log('JUNCTION')
     antibody.log('--------')
-    global logger
-    logger = log.get_logger(__name__)
     try:
         return Junction(vdj, germ)
     except Exception, err:
-        logger.debug('JUNCTION ERROR: {id}'.format(id=vdj.id))
-        logger.debug(traceback.format_exc())
-
+        antibody.exception('JUNCTION IDENTIFICATION', traceback.format_exc())
 
 
 
@@ -118,9 +114,9 @@ class Junction(object):
 
 
     def _fallback_find_junc_nt_start(self, antibody):
-        # get the FR3 nt sequence of the IMGT gapped germline
-        germ_fr3_sequence = antibody.v.imgt_germline.gapped_nt_sequence[196:311].replace('.', '')
-        # find the start of the junction (immediately after the end of FR3)
+        # get the FR3 nt sequence of the IMGT gapped germline (with the final Cys truncated)
+        germ_fr3_sequence = antibody.v.imgt_germline.gapped_nt_sequence[196:309].replace('.', '')
+        # find the start of the junction (immediately after our truncated FR3)
         aln = local_alignment(antibody.oriented_input, germ_fr3_sequence)
         fr3_end = aln.query_end + (len(germ_fr3_sequence) - aln.target_end)
         junc_start_codon = antibody.oriented_input[fr3_end:fr3_end + 3]
@@ -135,7 +131,12 @@ class Junction(object):
             end_codons = ['TTT', 'TTC']
         # when calculating the location of the conserved W/F, need to compensate
         # for sequences that don't contain the full J-gene
+
+
         joffset = len(antibody.j.raw_germline) - (antibody.j.germline_end + 1)
+        # joffset = len(antibody.j.raw_germline) - (antibody.j.germline_end)
+
+
         # find the end of the J gene, then back up 12 codons to get to
         # the conserved W/F (start of FR4)
         junc_end = antibody.j.query_end - (33 - joffset) + 1
@@ -144,7 +145,10 @@ class Junction(object):
         # if the identified junction end isn't normal, use the fallback (and more
         # computationally intensive) method for finding the junction end.
         if junc_end_codon not in end_codons:
-            antibody.log('WARNING: Using fallback method to find junction end!')
+            antibody.log('WARNING: Did not identify conserved position 118. Using fallback method to find junction end.')
+            return self._fallback_find_junc_nt_end(antibody)
+        elif len(antibody.oriented_input[self.junction_nt_start:junc_end + 3]) % 3 != 0:
+            antibody.log('WARNING: Junction appears to be out of frame. Using fallback alignment method to find junction end.')
             return self._fallback_find_junc_nt_end(antibody)
         return junc_end + 3
 

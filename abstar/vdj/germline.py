@@ -88,6 +88,7 @@ class Germline(object):
 
         # These properties get assigned after re-alignment.
         # New assigners don't need to populate these.
+        self._exceptions = []
         self.realignment = None
         self.raw_query = None
         self.raw_germline = None
@@ -97,6 +98,8 @@ class Germline(object):
         self.alignment_length = None
         self.imgt_germline = None
         self.imgt_gapped_alignment = None
+        self.imgt_nt_positions = []
+        self.imgt_aa_positions = []
         self._imgt_position_from_raw = {}
         self._raw_position_from_imgt = {}
         self.fs_indel_adjustment = 0
@@ -142,6 +145,12 @@ class Germline(object):
                  'L': 'lambda'}
             self._chain = c.get(self.full[2], None)
         return self._chain
+
+
+    def exception(self, *args, **kwargs):
+        sep = kwargs.get('sep', '\n')
+        estring = sep.join([str(a) for a in args])
+        self._exceptions.append(estring)
 
 
     def realign_germline(self, oriented_input, query_start=None, query_end=None):
@@ -191,11 +200,28 @@ class Germline(object):
         query = self.query_alignment.replace('-', '')
         aln_params = self._realignment_scoring_params(self.gene_type)
         aln_params['gap_open'] = -11
+        aln_matrix = self._get_gapped_imgt_substitution_matrix()
         self.imgt_gapped_alignment = local_alignment(query,
                                                      self.imgt_germline.gapped_nt_sequence,
+                                                     matrix=aln_matrix,
                                                      **aln_params)
         self._imgt_numbering()
 
+
+    def _get_gapped_imgt_substitution_matrix(self):
+        matrix = {}
+        residues = ['A', 'C', 'G', 'T', 'N', '.']
+        for r1 in residues:
+            matrix[r1] = {}
+            for r2 in residues:
+                if r1 == r2:
+                    score = 3
+                elif any([r1 == '.', r2 == '.']):
+                    score = -3
+                else:
+                    score = -2
+                matrix[r1][r2] = score
+        return matrix
 
     def get_imgt_position_from_raw(self, raw):
         return self._imgt_position_from_raw.get(raw, None)
@@ -251,32 +277,49 @@ class Germline(object):
         aln = self.imgt_gapped_alignment
         imgt_position_lookup = {}
         raw_position_lookup = {}
-        upos = aln.query_begin + self.query_start
-        imgt_start_offset = self._get_imgt_start_offset()
         insertion_offset = 0
-        for i, (g, u) in enumerate(zip(aln.aligned_target, aln.aligned_query)):
+        query_pos = aln.query_begin + self.query_start
+        # imgt_start_offset is for J-genes only. Since the first position of the gapped IMGT
+        # V-gene is the first position of the antibody seqeunce, IMGT numbering of the
+        # V-gene should start at position 1. Not true with J-genes.
+        # When processing V-genes, imgt_start_offset will always be 0.
+        imgt_start_offset = self._get_imgt_start_offset()
+        for i, (g, q) in enumerate(zip(aln.aligned_target, aln.aligned_query)):
             imgt_pos = i + aln.target_begin + 1 - insertion_offset + imgt_start_offset
-            # if there's a gap in the query, there's no direct correlate to that IMGT position
-            if u == '-':
+            # if there's a gap in the query, there's no direct correlate to that IMGT position.
+            # We continue because query_pos shouldn't be incremented
+            if q == '-':
                 continue
             # if there's a gap in the germline, there must be an insertion in the query, meaning
             # there's no direct germline correlate to that query position
             # we also need to update the insertion offset so that the IMGT numbering stays correct
             elif g == '-':
+                self.imgt_nt_positions.append(None)
                 insertion_offset += 1
-                continue
             else:
-                imgt_position_lookup[upos] = imgt_pos
-                raw_position_lookup[imgt_pos] = upos
-            upos += 1
+                imgt_position_lookup[query_pos] = imgt_pos
+                raw_position_lookup[imgt_pos] = query_pos
+                self.imgt_nt_positions.append(imgt_pos)
+            query_pos += 1
         self._imgt_position_from_raw = imgt_position_lookup
         self._raw_position_from_imgt = raw_position_lookup
 
 
+
     def _get_imgt_start_offset(self):
-        if self.chain == 'heavy':
+        if self.gene_type == 'V':
             return 0
-        
+        # find the start of FR4 in the IMGT gapped germline gene
+        end_res = 'W' if self.chain == 'heavy' else 'F'
+        for i, res in enumerate(self.imgt_germline.ungapped_aa_sequence):
+            if res == end_res and end_res not in self.imgt_germline.ungapped_aa_sequence[i + 1:]:
+                nts_from_start_to_fr4 = (self.imgt_germline.coding_start) + (i * 3)
+                break
+        # the IMGT start offset is the conserved FR4 start position (352)
+        # minus the number of nts from the start of the germline gene to FR4
+        return 352 - nts_from_start_to_fr4
+
+
 
 
     def _fix_ambigs(self):
