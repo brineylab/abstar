@@ -43,7 +43,10 @@ class Antibody(object):
         self.chain = vdj.v.chain
         self.species = species.lower()
         self._log = self._initialize_log()
+        self._exceptions = []
         self._strand = None
+        self._imgt_position_from_aligned = {}
+        self._aligned_position_from_imgt = {}
 
 
     @property
@@ -65,9 +68,9 @@ class Antibody(object):
         '''
         self._realign_germlines()
         self._get_junction()
+        self._assemble_vdj_sequence()
 
         # TODO
-        self._assemble_vdj_sequence()
         self._imgt_position_numbering()
         self._identify_regions()
 
@@ -76,6 +79,12 @@ class Antibody(object):
         sep = kwargs.get('sep', ' ')
         lstring = sep.join([str(a) for a in args])
         self._log.append(lstring)
+
+
+    def exception(self, *args, **kwargs):
+        sep = kwargs.get('sep', '\n')
+        estring = sep.join([str(a) for a in args])
+        self._exceptions.append(estring)
 
 
     def format_log(self):
@@ -92,7 +101,11 @@ class Antibody(object):
             str: Formatted log string.
         '''
         self._log += ['', '']
-        return '\n'.join(self._log)
+        output = '\n'.join(self._log)
+        if self._exceptions:
+            output += '\n'
+            output += self._format_exceptions
+        return output
 
 
     def _initialize_log(self):
@@ -116,6 +129,13 @@ class Antibody(object):
             # log D-gene stuff
             pass
         return log
+
+
+    def _format_exceptions(self):
+        estring = 'EXCEPTIONS'
+        estring += '----------'
+        estring += ['\n\n'.join(e for e in self._exceptions)]
+        return estring
 
 
     def _realign_germlines(self):
@@ -147,83 +167,94 @@ class Antibody(object):
             self.d.realign_germline(self.oriented_input, query_start=dstart, query_end=dend)
 
 
-    # def _realign_germline(self, segment, query_start=None, query_end=None):
-    #     '''
-    #     Due to restrictions on the available scoring parameters in BLASTn, incorrect truncation
-    #     of the v-gene alignment can occur. This function re-aligns the query sequence with
-    #     the identified germline variable gene using more appropriate alignment parameters.
 
-    #     Input is a Germline object, corresponding to the gene segment that should be realigned (V, D or J).
-    #     '''
-    #     germline_seq = self._get_germline_sequence_for_realignment(segment.full)
-    #     query = self.oriented_input.sequence[query_start:query_end]
-    #     aln_params = self._realignment_scoring_params(segment.gene_type)
-    #     alignment = local_alignment(query, germline_seq, **aln_params)
-    #     segment.process_realignment(segment, alignment)
+    def _assemble_vdj_sequence(self):
+        self.log('')
+        self.log('VDJ ASSEMBLY')
+        self.log('------------')
+        self.gapped_vdj_nt = self._gapped_vdj_nt()
+        self.log('GAPPED VDJ NT SEQUENCE:', self.gapped_vdj_nt)
+        self.vdj_nt = self.gapped_vdj_nt.replace('-', '')
+        self.log('VDJ NT SEQUENCE:', self.vdj_nt)
+        self.vdj_aa = self._vdj_aa()
+        self.log('VDJ AA SEQUENCE:', self.vdj_aa)
+        self.gapped_vdj_germ_nt = self._gapped_vdj_germ_nt()
+        self.log('GAPPED GERMLINE VDJ NT SEQUENCE:', self.gapped_vdj_germ_nt)
+        self.vdj_germ_nt = self.gapped_vdj_germ_nt.replace('-', '')
+        self.log('GERMLINE VDJ NT SEQUENCE:', self.vdj_germ_nt)
+        self.vdj_germ_aa = self._vdj_germ_aa()
+        self.log('GERMLINE VDJ AA SEQUENCE:', self.vdj_germ_aa)
 
+    def _gapped_vdj_nt(self):
+        'Returns the gapped nucleotide sequence of the VDJ region.'
+        try:
+            gapped_vdj_nt = self.v.query_alignment + \
+                self.j.input_sequence[:self.j.query_start] + \
+                self.j.query_alignment
+            return gapped_vdj_nt
+        except:
+            self.log('VDJ NT ERROR: {}, {}'.format(self.id, self.raw_query))
 
-    # def _get_germline_sequence_for_realignment(self, germ):
-    #     '''
-    #     Identifies the appropriate germline variable gene from a database of all
-    #     germline variable genes.
+    def _vdj_aa(self):
+        'Returns the amino acid sequence of the VDJ region.'
+        self.v_rf_offset = (len(self.oriented_input[self.v.query_start:self.junction.junction_nt_start]) % 3)
+        self.coding_start = self.v.query_start + self.v_rf_offset
+        self.coding_end = self.j.query_end - (len(self.oriented_input[self.coding_start:self.j.query_end])) % 3
+        self.coding_region = self.oriented_input[self.coding_start:self.coding_end + 1]
+        translated_seq = Seq(self.coding_region, generic_dna).translate()
+        self.log('READING FRAME OFFSET:', self.v_rf_offset)
+        self.log('CODING START:', self.coding_start)
+        self.log('CODING END:', self.coding_end)
+        self.log('CODING REGION:', self.coding_region)
+        return str(translated_seq)
 
-    #     Args:
+    def _gapped_vdj_germ_nt(self):
+        'Returns the gapped germline nucleotide sequence of the VDJ region.'
+        try:
+            if self.d:
+                germ_junction = self.junction.n1_nt + self.d.germline_alignment + self.junction.n2_nt
+            else:
+                germ_junction = self.junction.n_nt
+            germ_vdj_nt = self.v.germline_alignment + germ_junction + self.j.germline_alignment
+            return germ_vdj_nt
+        except:
+            self.log('VDJ GERM NT ERROR:', self.id, self.raw_query)
+            self.log(traceback.format_exc())
 
-    #         germ (string): Full name of the germline gene using IMGT nomenclature
-    #             (ex: 'IGHV1-2*02')
-
-    #     Returns:
-
-    #         Sequence: Requested germline gene, as an AbTools `Sequence` object, or `None`
-    #             if the requested germline gene could not be found.
-    #     '''
-    #     gene_type = germ[3]
-    #     mod_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    #     db_file = os.path.join(mod_dir, 'vdj/germline_dbs/fasta/{}_{}.fasta'.format(self.species, gene_type))
-    #     for s in SeqIO.parse(open(db_file), 'fasta'):
-    #         if s.id == germ:
-    #             return Sequence(s)
-    #     return None
-
-
-    # def _process_realignment(self, segment, aln, aln_offset):
-    #     aln_offset = aln_offset if aln_offset is not None else 0
-    #     segment.raw_query = aln.raw_query
-    #     segment.raw_germline = aln.raw_target
-    #     segment.query_alignment = aln.aligned_query
-    #     segment.germline_alignment = aln.aligned_target
-    #     segment.alignment_midline = ''.join(['|' if q == g else ' ' for q, g in zip(aln.aligned_query,
-    #                                                                                 aln.aligned_target)])
-    #     segment.query_start = aln.query_begin
-    #     segment.query_end = aln.query_end
-    #     segment.germline_start = aln.target_begin
-    #     segment.germline_end = aln.target_end
-    #     segment.fix_ambigs()
-    #     segment.find_indels()
-
-
-    # def _gapped_imgt_vgene_realignment(self, v):
-    #     imgt_germ = get_imgt_germlines(species=v.species,
-    #                                    gene_type=v.gene_type,
-    #                                    gene=v.full)
-    #     query = v.query_alignment.replace('-', '')
-    #     aln_params = self._realignment_scoring_params(v.gene_type)
-    #     aln_params['gap_open_penalty'] = 11
-    #     v.imgt_gapped_alignment = global_alignment(query, imgt_germ.gapped_nt_sequence, **aln_params)
+    def _vdj_germ_aa(self):
+        'Returns the germline amino acid sequence of the VDJ region.'
+        trim = len(self.vdj_germ_nt) - (len(self.vdj_germ_nt[self.v_rf_offset:]) % 3)
+        translated_seq = Seq(self.vdj_germ_nt[self.v_rf_offset:trim], generic_dna).translate()
+        return str(translated_seq)
 
 
-    # def _imgt_vgene_numbering(self, v):
-    #     aln = v.imgt_gapped_alignment
-    #     imgt_position_lookup = {}
-    #     upos = 0
-    #     for i, (g, u) in enumerate(zip(aln.aligned_target, aln.aligned_query)):
-    #         if all([u == '-', g == '.']):
-    #             continue
-    #         imgt_pos = i + 1
-    #         imgt_position_lookup[upos] = imgt_pos
-    #         upos += 1
-    #     v.get_imgt_position_from_raw = imgt_position_lookup
-    #     v.get_raw_position_frim_imgt = {v: k for k, v in imgt_position_lookup.items()}
+    def _get_junction(self):
+        self.junction = junction.get_junction(self)
+        # self.germ_junction = junction.get_junction(self, germ=True)
+
+
+    def _imgt_position_numbering(self):
+        
+        pass
+
+
+
+
+    def _imgt_nt_position_numbering(self):
+        # V-gene
+        v_aln_start = self.v.imgt_position_from_raw(self.v.query_start)  # IMGT position of the first aligned V-gene position
+        for i, nt in self.v.query_alignment[:-len(self.junction.v_nt)]:  # don't want to include any of the junction, just through FR3
+            imgt_pos = self.v.imgt_position_from_raw(i + v_aln_start)
+            self._imgt_nt_position_from_aligned[i] = imgt_pos
+            self._aligned_nt_position_from_imgt[imgt_pos] = i
+
+        # J-gene
+        junc_start = 310
+
+
+
+
+
 
 
     def _identify_regions(self):
@@ -234,63 +265,6 @@ class Antibody(object):
         return regions.regions(self)
 
 
-    def _assemble_vdj_sequence(self):
-        self.gapped_vdj_nt = self._gapped_vdj_nt()
-        self.vdj_nt = self.gapped_vdj_nt.replace('-', '')
-        self.vdj_aa = self._vdj_aa()
-        self.gapped_vdj_germ_nt = self._gapped_vdj_germ_nt()
-        self.vdj_germ_nt = self.gapped_vdj_germ_nt.replace('-', '')
-        self.vdj_germ_aa = self._vdj_germ_aa()
-
-    def _gapped_vdj_nt(self):
-        'Returns the gapped nucleotide sequence of the VDJ region.'
-        try:
-            gapped_vdj_nt = self.v.query_alignment + \
-                self.j.input_sequence[:self.j.query_start] + \
-                self.j.query_alignment
-            return gapped_vdj_nt
-        except:
-            logger.debug('VDJ NT ERROR: {}, {}'.format(self.id, self.raw_query))
-
-    def _vdj_aa(self):
-        'Returns the amino acid sequence of the VDJ region.'
-        offset = (self.query_reading_frame * 2) % 3
-        trim = len(self.vdj_nt) - (len(self.vdj_nt[offset:]) % 3)
-        translated_seq = Seq(self.vdj_nt[offset:trim], generic_dna).translate()
-        return str(translated_seq)
-
-    def _gapped_vdj_germ_nt(self):
-        'Returns the gapped germline nucleotide sequence of the VDJ region.'
-        try:
-            if self.d:
-                germ_junction = self.junction.n1_nt + \
-                    self.d.germline_alignment + \
-                    self.junction.n2_nt
-            else:
-                germ_junction = self.junction.n_nt
-            germ_vdj_nt = self.v.germline_alignment + \
-                germ_junction + self.j.germline_alignment
-            return germ_vdj_nt
-        except:
-            logger.debug('VDJ GERM NT ERROR: {}, {}'.format(self.id, self.raw_query))
-            logger.debug(traceback.format_exc())
-
-    def _vdj_germ_aa(self):
-        'Returns the germline amino acid sequence of the VDJ region.'
-        offset = (self.query_reading_frame * 2) % 3
-        trim = len(self.vdj_germ_nt) - (len(self.vdj_germ_nt[offset:]) % 3)
-        translated_seq = Seq(self.vdj_germ_nt[offset:trim], generic_dna).translate()
-        return str(translated_seq)
-
-
-    def _get_junction(self):
-        # from abstar.utils import junction
-        self.junction = junction.get_junction(self)
-        self.germ_junction = junction.get_junction(self, germ=True)
-
-
-    def _imgt_position_numbering(self):
-        pass
 
 
     def _nt_mutations(self):

@@ -230,7 +230,3 @@ class BlastnAssigner(AbstractAssigner):
                   'D': 100000,
                   'J': 1000}
         return evalue[segment]
-
-
-
-

@@ -252,9 +252,10 @@ class Germline(object):
         imgt_position_lookup = {}
         raw_position_lookup = {}
         upos = aln.query_begin + self.query_start
+        imgt_start_offset = self._get_imgt_start_offset()
         insertion_offset = 0
         for i, (g, u) in enumerate(zip(aln.aligned_target, aln.aligned_query)):
-            imgt_pos = i + aln.target_begin + 1 - insertion_offset
+            imgt_pos = i + aln.target_begin + 1 - insertion_offset + imgt_start_offset
             # if there's a gap in the query, there's no direct correlate to that IMGT position
             if u == '-':
                 continue
@@ -270,6 +271,12 @@ class Germline(object):
             upos += 1
         self._imgt_position_from_raw = imgt_position_lookup
         self._raw_position_from_imgt = raw_position_lookup
+
+
+    def _get_imgt_start_offset(self):
+        if self.chain == 'heavy':
+            return 0
+        
 
 
     def _fix_ambigs(self):
