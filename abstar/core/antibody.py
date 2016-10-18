@@ -110,8 +110,8 @@ class Antibody(object):
         '''
         self._log += ['', '']
         output = '\n'.join(self._log)
-        if self._exceptions:
-            output += '\n'
+        if self._check_for_exceptions():
+            output += '\n\n'
             output += self._format_exceptions()
         return output
 
@@ -127,6 +127,7 @@ class Antibody(object):
         log.append('RAW INPUT: {}'.format(self.raw_input.sequence))
         log.append('ORIENTED INPUT: {}'.format(self.oriented_input.sequence))
         log.append('CHAIN: {}'.format(self.chain))
+        log.append('')
         if self.v is not None:
             log.append('V-GENE: {}'.format(self.v.full))
         if self.d is not None:
@@ -134,6 +135,21 @@ class Antibody(object):
         if self.j is not None:
             log.append('J-GENE: {}'.format(self.j.full))
         return log
+
+
+    def _check_for_exceptions(self):
+        if self._exceptions:
+            return True
+        if self.v is not None:
+            if self.v._exceptions:
+                return True
+        if self.d is not None:
+            if self.d._exceptions:
+                return True
+        if self.j is not None:
+            if self.j._exceptions:
+                return True
+        return False
 
 
     def _format_exceptions(self):
@@ -149,7 +165,6 @@ class Antibody(object):
         return estring
 
 
-
 # ---------------------
 # GERMLINE REALIGNMENT
 # ---------------------
@@ -159,7 +174,7 @@ class Antibody(object):
         self.log('')
         self.log('V-GENE REALIGNMENT')
         self.log('------------------')
-        self.v.realign_germline(self.oriented_input)
+        self.v.realign_germline(self)
         self.log('RAW QUERY LENGTH:', len(self.v.raw_query))
         self.log('RAW GERMLNE LENGTH:', len(self.v.raw_germline))
         self.log('QUERY START:', self.v.query_start)
@@ -179,7 +194,7 @@ class Antibody(object):
         self.log('')
         self.log('J-GENE REALIGNMENT')
         self.log('------------------')
-        self.j.realign_germline(self.oriented_input, query_start=jstart)
+        self.j.realign_germline(self, query_start=jstart)
         self.log('RAW QUERY LENGTH:', len(self.j.raw_query))
         self.log('RAW GERMLNE LENGTH:', len(self.j.raw_germline))
         self.log('QUERY START:', self.j.query_start)
@@ -197,8 +212,20 @@ class Antibody(object):
         # realign D (if needed)
         if self.chain == 'heavy':
             dstart = self.v.query_end
-            dend = self.v.query_end + self.j.query_start
-            self.d.realign_germline(self.oriented_input, query_start=dstart, query_end=dend)
+            dend = self.j.query_start
+            self.log('')
+            self.log('D-GENE REALIGNMENT')
+            self.log('------------------')
+            self.d.realign_germline(self, query_start=dstart, query_end=dend)
+            self.log('RAW QUERY LENGTH:', len(self.d.raw_query))
+            self.log('RAW GERMLNE LENGTH:', len(self.d.raw_germline))
+            self.log('QUERY START:', self.d.query_start)
+            self.log('QUERY END:', self.d.query_end)
+            self.log('GERMLINE START:', self.d.germline_start)
+            self.log('GERMLINE END:', self.d.germline_end)
+            self.log('  QUERY: ', self.d.query_alignment)
+            self.log('         ', self.d.alignment_midline)
+            self.log('GERMLINE:', self.d.germline_alignment)
 
 
 
@@ -228,11 +255,11 @@ class Antibody(object):
         'Returns the gapped nucleotide sequence of the VDJ region.'
         try:
             gapped_vdj_nt = self.v.query_alignment + \
-                self.j.input_sequence[:self.j.query_start] + \
+                self.oriented_input[self.v.query_end + 1:self.j.query_start] + \
                 self.j.query_alignment
             return gapped_vdj_nt
         except:
-            self.log('VDJ NT ERROR: {}, {}'.format(self.id, self.raw_query))
+            self.exception('GAPPED VDJ NT ASSEMBLY', traceback.format_exc())
 
 
     def _vdj_aa(self):
@@ -259,8 +286,7 @@ class Antibody(object):
             germ_vdj_nt = self.v.germline_alignment + germ_junction + self.j.germline_alignment
             return germ_vdj_nt
         except:
-            self.log('VDJ GERM NT ERROR:', self.id, self.raw_query)
-            self.log(traceback.format_exc())
+            self.exception('GAPPED GERMLINE VDJ NT ASSEMBLY', traceback.format_exc())
 
 
     def _vdj_germ_aa(self):
@@ -302,8 +328,12 @@ class Antibody(object):
         '''
         Identifies and annotates variable/joining gene regions.
         '''
-        # from abstar.utils import regions
-        return regions.regions(self)
+        from abstar.utils import regions
+        self.log('')
+        self.log('VDJ REGIONS')
+        self.log('-----------')
+        self.v.regions = regions.get_variable_regions(self)
+        self.j.regions = regions.get_joining_regions(self)
 
 
 

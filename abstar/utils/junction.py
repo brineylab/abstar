@@ -2,7 +2,7 @@
 # filename: junction.py
 
 #
-# Copyright (c) 2015 Bryan Briney
+# Copyright (c) 2016 Bryan Briney
 # License: The MIT license (http://opensource.org/licenses/MIT)
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy of this software
@@ -22,6 +22,7 @@
 #
 
 
+import math
 import os
 import traceback
 
@@ -38,10 +39,10 @@ def get_junction(antibody):
     antibody.log('JUNCTION')
     antibody.log('--------')
     try:
-        return Junction(vdj, germ)
-    except Exception, err:
-        antibody.exception('JUNCTION IDENTIFICATION', traceback.format_exc())
-
+        return Junction(antibody)
+    except Exception:
+        antibody.exception('JUNCTION IDENTIFICATION ERROR', traceback.format_exc())
+        raise
 
 
 class Junction(object):
@@ -49,20 +50,32 @@ class Junction(object):
     def __init__(self, antibody):
         super(Junction, self).__init__()
         self.in_frame = True
+        self.fallback_5prime = False
+        self.fallback_3prime = False
         # identify junction sequence
         self.junction_nt_start = self._find_junction_nt_start(antibody)
         self.junction_nt_end = self._find_junction_nt_end(antibody)
         self.junction_nt = antibody.oriented_input[self.junction_nt_start:self.junction_nt_end]
         antibody.log('JUNCTION NT:', self.junction_nt, len(self.junction_nt))
         if len(self.junction_nt) % 3 != 0:
-            self.in_frame = False
             antibody.log('WARNING: Junction out of frame!')
+            if any([self.fallback_5prime is False, self.fallback_3prime is False]):
+                if not self.fallback_5prime:
+                    antibody.log('Attempting to identify junction start with fallback alignment method')
+                    self.junction_nt_start = self._fallback_find_junc_nt_start(antibody)
+                if not self.fallback_3prime:
+                    antibody.log('Attempting to identify junction end with fallback alignment method')
+                    self.junction_nt_end = self._fallback_find_junc_nt_end(antibody)
+                self.junction_nt = antibody.oriented_input[self.junction_nt_start:self.junction_nt_end]
+                antibody.log('JUNCTION NT:', self.junction_nt, len(self.junction_nt))
+            if len(self.junction_nt) % 3 != 0:
+                self.in_frame = False
         self.junction_aa = str(Seq(self.junction_nt.replace('-', ''), generic_dna).translate())
         antibody.log('JUNCTION AA:', self.junction_aa, len(self.junction_aa))
         # identify CDR3 sequence
         self.cdr3_aa = self.junction_aa[1:-1]
         self.cdr3_nt = self.junction_nt[3:-3]
-        # parse N-addition region(s) and D-gene location (if heavy chain)
+        # parse N-addition regions
         if antibody.d is not None:
             n1_start = antibody.v.query_end + 1
             n1_end = antibody.d.query_start
@@ -97,6 +110,11 @@ class Junction(object):
             antibody.log('V_NT:', self.v_nt)
             antibody.log('N_NT:', self.n_nt)
             antibody.log('J_NT:', self.j_nt)
+        # calculate IMGT numbering for the junction and CDR3
+        self.cdr3_imgt_nt_numbering = self._calculate_cdr3_imgt_nt_numbering()
+        self.cdr3_imgt_aa_numbering = self._calculate_cdr3_imgt_aa_numbering()
+        self.junction_imgt_nt_numbering = ['310', '311', '312'] + self.cdr3_imgt_nt_numbering + ['352', '353', '354']
+        self.junction_imgt_aa_numbering = ['104'] + self.cdr3_imgt_aa_numbering + ['118']
 
 
     def _find_junction_nt_start(self, antibody):
@@ -114,9 +132,10 @@ class Junction(object):
 
 
     def _fallback_find_junc_nt_start(self, antibody):
-        # get the FR3 nt sequence of the IMGT gapped germline (with the final Cys truncated)
+        self.fallback_5prime = True
+        # get the FR3 nt sequence of the IMGT gapped germline
         germ_fr3_sequence = antibody.v.imgt_germline.gapped_nt_sequence[196:309].replace('.', '')
-        # find the start of the junction (immediately after our truncated FR3)
+        # find the start of the junction (immediately after the end of FR3)
         aln = local_alignment(antibody.oriented_input, germ_fr3_sequence)
         fr3_end = aln.query_end + (len(germ_fr3_sequence) - aln.target_end)
         junc_start_codon = antibody.oriented_input[fr3_end:fr3_end + 3]
@@ -129,31 +148,27 @@ class Junction(object):
             end_codons = ['TGG']
         else:
             end_codons = ['TTT', 'TTC']
+
         # when calculating the location of the conserved W/F, need to compensate
         # for sequences that don't contain the full J-gene
-
-
         joffset = len(antibody.j.raw_germline) - (antibody.j.germline_end + 1)
-        # joffset = len(antibody.j.raw_germline) - (antibody.j.germline_end)
-
-
         # find the end of the J gene, then back up 12 codons to get to
         # the conserved W/F (start of FR4)
         junc_end = antibody.j.query_end - (33 - joffset) + 1
         junc_end_codon = antibody.oriented_input[junc_end:junc_end + 3]
         antibody.log('JUNC END:', junc_end_codon, codons[junc_end_codon], junc_end)
+
         # if the identified junction end isn't normal, use the fallback (and more
         # computationally intensive) method for finding the junction end.
         if junc_end_codon not in end_codons:
             antibody.log('WARNING: Did not identify conserved position 118. Using fallback method to find junction end.')
             return self._fallback_find_junc_nt_end(antibody)
-        elif len(antibody.oriented_input[self.junction_nt_start:junc_end + 3]) % 3 != 0:
-            antibody.log('WARNING: Junction appears to be out of frame. Using fallback alignment method to find junction end.')
-            return self._fallback_find_junc_nt_end(antibody)
         return junc_end + 3
 
 
     def _fallback_find_junc_nt_end(self, antibody):
+        self.fallback_3prime = True
+
         # need to find the start of FR4 in the IMGT germline sequence
         end_res = 'W' if antibody.chain == 'heavy' else 'F'
         for i, res in enumerate(antibody.j.imgt_germline.ungapped_aa_sequence):
@@ -161,6 +176,7 @@ class Junction(object):
                 fr4_nt_start_pos = (antibody.j.imgt_germline.coding_start - 1) + (i * 3)
                 break
         germ_fr4_sequence = antibody.j.imgt_germline.gapped_nt_sequence[fr4_nt_start_pos:]
+
         # find the end of the junction (end of the first codon of FR4)
         aln = local_alignment(antibody.oriented_input, germ_fr4_sequence)
         fr4_start = aln.query_begin - aln.target_begin
@@ -169,97 +185,72 @@ class Junction(object):
         return fr4_start + 3
 
 
+    def _calculate_cdr3_imgt_nt_numbering(self):
+        # if the length of the CDR3 is precisely 13, we don't need to adjust
+        # the numbering at all (because the default IMGT numbering allows for exactly
+        # 13 AA in the CDR3).
+        if len(self.cdr3_aa) == 13:
+            return list(range(313, 352))
+
+        # If the CDR3 is shorter than 13 AA, we need to remove position numbers,
+        # starting with positions to the left of position 333 (codon 111).
+        elif len(self.cdr3_aa) < 13:
+            gap = 13 - len(self.cdr3_aa)
+            ltrim = int(math.ceil(float(gap) / 2)) * 3
+            rtrim = int(math.floor(float(gap) / 2)) * 3
+            lnums = list(range(313, 334 - ltrim))
+            rnums = list(range(334 + rtrim, 352))
+            return lnums + rnums
+
+        # If the CDR3 is longer than 13 AA, we need to add position numbers (with decimal),
+        # starting with positions to the right (position 334, or codon 112) and alternating
+        # between left (position 333, codon 111) and right.
+        # Nucleotides added to 334 will decrement from left to right, nucleotides added to 333
+        # will increment from left to right. For example:
+        # 331, 332, 333, 331.1, 331.2, 333.3, 334.3, 334.2, 334.1, 334, 335, ...
+        # We add the nucleotide numbers in codon-length blocks, so the first codon will be
+        # nucleotides 334.3, 334.2, and 334.1.
+        elif len(self.cdr3_aa) > 13:
+            bonus = len(self.cdr3_aa) - 13
+            lbonus = int(math.floor(float(bonus) / 2)) * 3
+            rbonus = int(math.ceil(float(bonus) / 2)) * 3
+            lbonus_nums = ['333.{}'.format(i) for i in range(1, lbonus + 1)]
+            rbonus_nums = ['334.{}'.format(i) for i in reversed(range(1, rbonus + 1))]
+            return list(range(313, 334)) + lbonus_nums + rbonus_nums + list(range(334, 352))
 
 
+    def _calculate_cdr3_imgt_aa_numbering(self):
+        # Edge case for extremely short (likely non-productive) CDR3s
+        if len(self.cdr3_aa) <= 2:
+            return [105, 117][:len(self.cdr3_aa)]
 
-# def get_junction(vdj, germ=False):
-#     global logger
-#     logger = log.get_logger(__name__)
-#     try:
-#         return Junction(vdj, germ)
-#     except Exception, err:
-#         logger.debug('JUNCTION ERROR: {id}'.format(id=vdj.id))
-#         logger.debug(traceback.format_exc())
+        # if the length of the CDR3 is precisely 13, we don't need to adjust
+        # the numbering at all (because the default IMGT numbering allows for exactly
+        # 13 AA in the CDR3).
+        if len(self.cdr3_aa) == 13:
+            return list(range(105, 118))
 
+        # If the CDR3 is shorter than 13 AA, we need to remove position numbers,
+        # starting with positions to the left of codon 111 and then alternating left
+        # and right.
+        elif len(self.cdr3_aa) < 13:
+            gap = 13 - len(self.cdr3_aa)
+            ltrim = int(math.ceil(float(gap) / 2))
+            rtrim = int(math.floor(float(gap) / 2))
+            lnums = list(range(105, 112 - ltrim))
+            rnums = list(range(112 + rtrim, 118))
+            return lnums + rnums
 
-# class Junction(object):
-#     """docstring for Junction"""
-#     def __init__(self, vdj, germ):
-#         self.is_germ = germ
-#         self.in_frame = True
-#         self._frame_offset = 0
-#         self.junction_nt_start_pos = self._find_junction_nt_start(vdj)
-#         self.junction_nt_end_pos = self._find_junction_nt_end(vdj)
-#         if any([self.junction_nt_start_pos is None, self.junction_nt_end_pos is None]):
-#             logger.debug('JUNCTION IDENTIFICATION ERROR: {}'.format(vdj.id))
-#             logger.debug('RAW INPUT: {}'.format(vdj.raw_input))
-#             return None
-#         self.junction_nt = self._get_junction_nt_sequence(vdj)
-#         if len(self.junction_nt) % 3 > 0:
-#             logger.debug('OUT OF FRAME JUNCTION: {}'.format(vdj.id))
-#             logger.debug('JUNCTION SEQUENCE: {}'.format(self.junction_nt))
-#             logger.debug('VDJ_NT: {}'.format(vdj.vdj_nt))
-#             logger.debug('FR3 SEQUENCE: {}'.format(vdj.v.regions.nt_seqs['FR3']))
-#             logger.debug('FR4 SEQUENCE: {}'.format(vdj.j.regions.nt_seqs['FR4']))
-#             logger.debug('JUNCTION START: {}'.format(self.junction_nt_start_pos))
-#             logger.debug('JUNCTION END: {}'.format(self.junction_nt_end_pos))
-#             self.in_frame = False
-#             self._frame_offset = 3 - len(self.junction_nt) % 3
-#             n_end = vdj.n2_end if vdj.d is not None else vdj.n_end
-#             n_end = n_end - self.junction_nt_start_pos
-#             ns = 'N' * self._frame_offset
-#             self.junction_nt = self.junction_nt[:n_end] + ns + self.junction_nt[n_end:]
-#         self.junction_aa = str(Seq(self.junction_nt.replace('-', ''), generic_dna).translate())
-#         self.cdr3_aa = self.junction_aa[1:-1]
-#         self.cdr3_nt = self.junction_nt[3:-3]
-#         if vdj.d:
-#             self.n1_nt = vdj.vdj_nt[vdj.n1_start:vdj.n1_end]
-#             self.d_nt = vdj.vdj_nt[vdj.d_start:vdj.d_end]
-#             self.n2_nt = vdj.vdj_nt[vdj.n2_start:vdj.n2_end]
-#             self.n_nt = None
-#             self.d_start_position_nt = self._get_d_start_position_nt(vdj)
-#             self.d_end_position_nt = self._get_d_end_position(vdj)
-#             self.d_dist_from_cdr3_start_nt = self.d_start_position_nt
-#             self.d_dist_from_cdr3_end_nt = self._get_d_dist_from_cdr3_end_nt(vdj)
-#         else:
-#             self.n1_nt = None
-#             self.d_nt = None
-#             self.n2_nt = None
-#             self.n_nt = vdj.vdj_nt[vdj.n_start:vdj.n_end]
-
-
-#     def _find_junction_nt_start(self, vdj):
-#         fr3 = vdj.v.regions.nt_seqs['FR3'][:-3]
-#         aln = local_alignment(fr3, vdj.vdj_nt)
-#         if aln:
-#             return aln.target_end + 1
-
-
-#     def _find_junction_nt_end(self, vdj):
-#         fr4 = vdj.j.regions.nt_seqs['FR4'][3:]
-#         aln = local_alignment(fr4, vdj.vdj_nt)
-#         if aln:
-#             return aln.target_begin
-
-
-#     def _get_junction_nt_sequence(self, vdj):
-#         start = self.junction_nt_start_pos
-#         end = self.junction_nt_end_pos
-#         if self.is_germ:
-#             return vdj.vdj_germ_nt[start:end]
-#         return vdj.vdj_nt[start:end]
-
-
-#     def _get_d_start_position_nt(self, vdj):
-#         a = local_alignment(self.d_nt, self.cdr3_nt,
-#                             gap_open_penalty=22, gap_extend_penalty=1)
-#         d_start = a.target_begin
-#         return d_start
-
-
-#     def _get_d_end_position(self, vdj):
-#         return self.d_start_position_nt + len(vdj.d.sequence)
-
-
-#     def _get_d_dist_from_cdr3_end_nt(self, vdj):
-#         return len(self.cdr3_nt) - (self.d_dist_from_cdr3_start_nt + len(self.d_nt))
+        # If the CDR3 is longer than 13 AA, we need to add position numbers (with decimal),
+        # starting with positions to the right (codon 112) and alternating
+        # between left (codon 111) and right.
+        # AAs added to 112 will decrement from left to right, AAs added to 111
+        # will increment from left to right. For example:
+        # 109, 110, 111, 111.1, 111.2, 112.3, 112.2, 112.1, 112, 113, ...
+        elif len(self.cdr3_aa) > 13:
+            bonus = len(self.cdr3_aa) - 13
+            lbonus = int(math.floor(float(bonus) / 2))
+            rbonus = int(math.ceil(float(bonus) / 2))
+            lbonus_nums = ['111.{}'.format(i) for i in range(1, lbonus + 1)]
+            rbonus_nums = ['112.{}'.format(i) for i in reversed(range(1, rbonus + 1))]
+            return list(range(105, 112)) + lbonus_nums + rbonus_nums + list(range(112, 118))

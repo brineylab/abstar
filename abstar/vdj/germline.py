@@ -153,7 +153,7 @@ class Germline(object):
         self._exceptions.append(estring)
 
 
-    def realign_germline(self, oriented_input, query_start=None, query_end=None):
+    def realign_germline(self, antibody, query_start=None, query_end=None):
         '''
         Due to restrictions on the available scoring parameters in BLASTn, incorrect truncation
         of the v-gene alignment can occur. This function re-aligns the query sequence with
@@ -169,6 +169,7 @@ class Germline(object):
             query_end (int): 3' position in `oriented_input` at which the seqeunce
                 should be truncated prior to alignment with the germline sequence
         '''
+        oriented_input = antibody.oriented_input
         germline_seq = self._get_germline_sequence_for_realignment(self.full)
         aln_params = self._realignment_scoring_params(self.gene_type)
         # if the alignment start/end positions have been annotated by the assigner,
@@ -185,7 +186,7 @@ class Germline(object):
         else:
             query = oriented_input.sequence[query_start:query_end]
             alignment = local_alignment(query, germline_seq, **aln_params)
-        self._process_realignment(alignment, query_start)
+        self._process_realignment(antibody, alignment, query_start)
 
 
     def gapped_imgt_realignment(self):
@@ -197,7 +198,7 @@ class Germline(object):
         self.imgt_germline = get_imgt_germlines(species=self.species,
                                                 gene_type=self.gene_type,
                                                 gene=self.full)
-        query = self.query_alignment.replace('-', '')
+        query = self.germline_alignment.replace('-', '')
         aln_params = self._realignment_scoring_params(self.gene_type)
         aln_params['gap_open'] = -11
         aln_matrix = self._get_gapped_imgt_substitution_matrix()
@@ -205,7 +206,10 @@ class Germline(object):
                                                      self.imgt_germline.gapped_nt_sequence,
                                                      matrix=aln_matrix,
                                                      **aln_params)
-        self._imgt_numbering()
+        try:
+            self._imgt_numbering()
+        except:
+            self.exception('IMGT NUMBERING', traceback.format_exc(), sep='\n')
 
 
     def _get_gapped_imgt_substitution_matrix(self):
@@ -231,7 +235,7 @@ class Germline(object):
         return self._raw_position_from_imgt.get(imgt, None)
 
 
-    def _process_realignment(self, aln, query_start):
+    def _process_realignment(self, antibody, aln, query_start):
         self.realignment = aln
         self.raw_query = aln.raw_query
         self.raw_germline = aln.raw_target
@@ -246,8 +250,8 @@ class Germline(object):
             self.query_end = aln.query_end + offset
             self.germline_start = aln.target_begin
             self.germline_end = aln.target_end
-        self._fix_ambigs()
-        self._find_indels()
+        self._fix_ambigs(antibody)
+        self._find_indels(antibody)
 
 
     def _get_germline_sequence_for_realignment(self):
@@ -274,36 +278,70 @@ class Germline(object):
 
 
     def _imgt_numbering(self):
-        aln = self.imgt_gapped_alignment
-        imgt_position_lookup = {}
-        raw_position_lookup = {}
-        insertion_offset = 0
-        query_pos = aln.query_begin + self.query_start
+        aln_start = self.query_start
+        aln_pos = 0
+        imgt_start = self.imgt_gapped_alignment.target_begin + 1
+        imgt_pos = imgt_start
+        raw_position_from_imgt = {}
+        imgt_position_from_raw = {}
+
         # imgt_start_offset is for J-genes only. Since the first position of the gapped IMGT
         # V-gene is the first position of the antibody seqeunce, IMGT numbering of the
         # V-gene should start at position 1. Not true with J-genes.
         # When processing V-genes, imgt_start_offset will always be 0.
         imgt_start_offset = self._get_imgt_start_offset()
-        for i, (g, q) in enumerate(zip(aln.aligned_target, aln.aligned_query)):
-            imgt_pos = i + aln.target_begin + 1 - insertion_offset + imgt_start_offset
-            # if there's a gap in the query, there's no direct correlate to that IMGT position.
-            # We continue because query_pos shouldn't be incremented
-            if q == '-':
-                continue
-            # if there's a gap in the germline, there must be an insertion in the query, meaning
-            # there's no direct germline correlate to that query position
-            # we also need to update the insertion offset so that the IMGT numbering stays correct
-            elif g == '-':
-                self.imgt_nt_positions.append(None)
-                insertion_offset += 1
-            else:
-                imgt_position_lookup[query_pos] = imgt_pos
-                raw_position_lookup[imgt_pos] = query_pos
-                self.imgt_nt_positions.append(imgt_pos)
-            query_pos += 1
-        self._imgt_position_from_raw = imgt_position_lookup
-        self._raw_position_from_imgt = raw_position_lookup
 
+        # Because we're iterating over the alignment but also want to track the raw (oriented_input)
+        # query position, we need to adjust the alignment numbering in case there's a deletion
+        # in the query sequence. With a deletion, the alignment position increases, but the raw
+        # position shouldn't. query_del_adjustment allows us to adjust the alignment position so that
+        # the raw query position is accurately tracked.
+        query_del_adjustment = 0
+
+        for gl in self.imgt_germline.gapped_nt_sequence[imgt_start:]:
+
+            # If the gapped IMGT germline is '.' (indicating a gap introduced by IMGT for numbering purposes),
+            # we only need to increment the IMGT position and indicate the lack of sequence at the IMGT position.
+            if gl == '.':
+                raw_position_from_imgt[imgt_pos + imgt_start_offset] = None
+                imgt_pos += 1
+                continue
+
+            # If there's a gap in the query alignment (deletion in the query sequence)
+            # there's no equivalent IMGT position in the query.
+            if self.query_alignment[aln_pos] == '-':
+                raw_position_from_imgt[imgt_pos + imgt_start_offset] = None
+                aln_pos += 1
+                imgt_pos += 1
+                query_del_adjustment += 1
+                continue
+
+            # If there's a gap in the germline alignment (insertion in the query sequence)
+            # we need to increment the alignment position until the insertion is finished.
+            # Since there isn't a germline IMGT position that's equivalent to the query position,
+            # we don't want to increment the IMGT position or continue iterating through the IMGT
+            # germline sequence.
+            if self.germline_alignment[aln_pos] == '-':
+                self.log('INFO: Found an insertion in the query sequence!')
+                while self.germline_alignment[aln_pos] == '-':
+                    imgt_position_from_raw[aln_pos + self.query_start - query_del_adjustment] = None
+                    self.imgt_nt_positions.append(None)
+                    aln_pos += 1
+
+            # if the gapped IMGT germline isn't '.' and there's not an insertion in the query
+            # sequence (or we've already iterated past it), we record both the IMGT position
+            # and the raw (oriented_input) position and increment both the aligned and IMGt positions.
+            raw_position_from_imgt[imgt_pos + imgt_start_offset] = aln_pos + aln_start - query_del_adjustment
+            imgt_position_from_raw[aln_pos + aln_start - query_del_adjustment] = imgt_pos + imgt_start_offset
+            self.imgt_nt_positions.append(imgt_pos + imgt_start_offset)
+            aln_pos += 1
+            imgt_pos += 1
+            if aln_pos >= len(self.germline_alignment):
+                break
+        self._raw_position_from_imgt = raw_position_from_imgt
+        self._imgt_position_from_raw = imgt_position_from_raw
+        if self.insertions or self.deletions:
+            self._calculate_imgt_indel_positions()
 
 
     def _get_imgt_start_offset(self):
@@ -320,15 +358,16 @@ class Germline(object):
         return 352 - nts_from_start_to_fr4
 
 
-
-
-    def _fix_ambigs(self):
+    def _fix_ambigs(self, antibody):
         '''
         Fixes ambiguous nucleotides by replacing them with the germline nucleotide.
         '''
         self.query_alignment = ''.join([q if q.upper() != 'N' else g for q, g in zip(self.query_alignment,
                                                                                      self.germline_alignment)])
-
+        # don't forget to also correct ambigs in the oriented_input sequence
+        antibody.oriented_input.sequence = antibody.oriented_input.sequence[:self.query_start] + \
+            self.query_alignment.replace('-', '') + \
+            antibody.oriented_input.sequence[self.query_end + 1:]
 
 
     def _indel_check(self):
@@ -337,20 +376,43 @@ class Germline(object):
         return False
 
 
-    def _find_indels(self):
+    def _find_indels(self, antibody):
         '''
         Identifies and annotates indels in the query sequence.
         '''
         if self._indel_check():
             from abstar.utils import indels
-            self.insertions = indels.find_insertions(self)
+            self.insertions = indels.find_insertions(antibody, self)
             if self.insertions:
+                # only set self.has_insertion to 'yes' if the sequence has an in-frame insertion
                 if 'yes' in [ins['in frame'] for ins in self.insertions]:
                     self.has_insertion = 'yes'
-            self.deletions = indels.find_deletions(self)
+            self.deletions = indels.find_deletions(antibody, self)
             if self.deletions:
+                # only set self.has_deletion to 'yes' if the sequence has an in-frame deletion
                 if 'yes' in [deletion['in frame'] for deletion in self.deletions]:
                     self.has_deletion = 'yes'
+
+
+    def _calculate_imgt_indel_positions(self):
+        if self.insertions:
+            for i in self.insertions:
+                # since there's possibly not a direct IMGT correlate to the position
+                # at the start of the insertion, need to find the closest IMGT correlate
+                raw_pos = i.raw_position
+                while self.get_imgt_position_from_raw(raw_pos) is None:
+                    raw_pos -= 1
+                i.imgt_position = self.get_imgt_position_from_raw(raw_pos)
+                i.imgt_codon = int(math.ceil(i.imgt_position / 3.0))
+        if self.deletions:
+            for d in self.deletions:
+                # since there's possibly not a direct IMGT correlate to the position
+                # at the start of the deletion, need to find the closest IMGT correlate
+                raw_pos = d.raw_position
+                while self.get_imgt_position_from_raw(raw_pos) is None:
+                    raw_pos -= 1
+                d.imgt_position = self.get_imgt_position_from_raw(raw_pos)
+                d.imgt_codon = int(math.ceil(d.imgt_position / 3.0))
 
 
     @staticmethod
