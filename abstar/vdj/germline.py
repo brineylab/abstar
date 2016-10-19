@@ -109,8 +109,8 @@ class Germline(object):
         self.insertions = None
         self.deletions = None
         self.regions = None
-        self.nt_mutations = None
-        self.aa_mutations = None
+        # self.nt_mutations = None
+        # self.aa_mutations = None
 
 
     @property

@@ -70,10 +70,10 @@ class Antibody(object):
             self._realign_germlines()
             self._get_junction()
             self._assemble_vdj_sequence()
+            self._identify_regions()
 
             # TODO
             self._imgt_position_numbering()
-            self._identify_regions()
         except:
             pass
 
