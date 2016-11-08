@@ -147,9 +147,9 @@ class Args(object):
     def __init__(self, project_dir=None, input=None, output=None, log=None, temp=None,
                  use_test_data=False, sequences=None, chunksize=250, output_type='json',
                  merge=False, pandaseq_algo='simple_bayesian',
-                 nextseq=False, umid=0, isotype=False,
+                 nextseq=False, umid=0, isotype=False, pretty=False, padding=True,
                  basespace=False, cluster=False, starcluster=False,
-                 debug=False, print_debug=False, species='human', gzip=False):
+                 debug=False, print_debug=False, species='human', gzip=False, **kwargs):
         super(Args, self).__init__()
         self.sequences = sequences
         self.data_dir = str(project_dir) if project_dir is not None else project_dir
@@ -165,6 +165,8 @@ class Args(object):
         self.nextseq = nextseq
         self.uaid = int(umid)
         self.isotype = isotype
+        self.pretty = pretty
+        self.padding = padding
         self.basespace = basespace
         self.cluster = cluster
         self.starcluster = starcluster
@@ -471,7 +473,7 @@ def _run_jobs_singlethreaded(files, output_dir, args):
     results = []
     for i, f in enumerate(files):
         try:
-            results.append(run_vdj(f, output_dir, args))
+            results.append(run_vdj(f, output_dir, vars(args)))
             update_progress(i + 1, len(files))
         except:
             logger.debug('FILE-LEVEL EXCEPTION: {}'.format(f))
@@ -487,7 +489,7 @@ def _run_jobs_via_multiprocessing(files, output_dir, args):
     for f in files:
         async_results.append((f, p.apply_async(run_vdj, (f,
                                                          output_dir,
-                                                         args))))
+                                                         vars(args)))))
     monitor_mp_jobs([ar[1] for ar in async_results])
     results = []
     for a in async_results:
@@ -521,7 +523,7 @@ def _run_jobs_via_celery(files, output_dir, args):
     for f in files:
         async_results.append(run_vdj.delay(f,
                                            output_dir,
-                                           args))
+                                           vars(args)))
     succeeded, failed = monitor_celery_jobs(async_results)
     failed_files = [f for i, f in enumerate(files) if async_results[i].failed()]
     for ff in failed_files:

@@ -321,7 +321,7 @@ class VDJ(object):
 
 
 @celery.task
-def run(seq_file, output_dir, args):
+def run(seq_file, output_dir, arg_dict):
     '''
     Wrapper function to multiprocess (or not) the assignment of V, D and J
     germline genes. Also writes the JSON-formatted output to file.
@@ -334,6 +334,8 @@ def run(seq_file, output_dir, args):
     Output is the number of functional antibody sequences identified in the input file.
     '''
     try:
+        from abstar.abstar import Args
+        args = Args(**arg_dict)
         global logger
         if args.cluster:
             logger = get_task_logger(__name__)
