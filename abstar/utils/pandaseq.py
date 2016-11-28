@@ -22,11 +22,11 @@
 #
 
 
+import glob
+from multiprocessing import cpu_count
 import os
 import sys
-import glob
 import subprocess as sp
-from multiprocessing import cpu_count
 
 from abtools import log
 
@@ -51,9 +51,9 @@ def pair_files(files, nextseq):
     return pairs
 
 
-def batch_pandaseq(f, r, o, algo):
+def run_pandaseq(f, r, o, algo):
     cmd = 'pandaseq -f {0} -r {1} -A {2} -d rbfkms -T {3} -w {4}'.format(f, r, algo, cpu_count(), o)
-    sp.Popen(cmd, shell=True, stderr=sp.STDOUT, stdout=sp.PIPE).communicate()
+    sp.Popen(cmd, shell=True, stderr=sp.PIPE, stdout=sp.PIPE).communicate()
 
 
 def merge_reads(files, output, algo, nextseq, i):
@@ -68,7 +68,7 @@ def merge_reads(files, output, algo, nextseq, i):
         sample = os.path.basename(f).split('_')[0]
     print_sample_info(i, sample)
     o = os.path.join(output, '{}.fasta'.format(sample))
-    batch_pandaseq(f, r, o, algo)
+    run_pandaseq(f, r, o, algo)
     return o
 
 
@@ -178,7 +178,7 @@ def run(input, output, algorithm='simple_bayesian', nextseq=False):
     merged_files = []
     for i, pair in enumerate(sorted(pairs.keys())):
         if len(pairs[pair]) == 2:
-            logger.info('Merging {} and {}'.format(pairs[pair][0], pairs[pair][1]))
+            logger.info('[ {} ]  Merging {} and {}'.format(i + 1, pairs[pair][0], pairs[pair][1]))
             mf = merge_reads(pairs[pair], output, algorithm, nextseq, i)
             merged_files.append(mf)
     return merged_files
