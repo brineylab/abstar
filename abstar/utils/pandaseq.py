@@ -178,7 +178,7 @@ def run(input, output, algorithm='simple_bayesian', nextseq=False):
     merged_files = []
     for i, pair in enumerate(sorted(pairs.keys())):
         if len(pairs[pair]) == 2:
-            logger.info('[ {} ]  Merging {} and {}'.format(i + 1, pairs[pair][0], pairs[pair][1]))
+            # logger.info('[ {} ]  Merging {} and {}'.format(i + 1, pairs[pair][0], pairs[pair][1]))
             mf = merge_reads(pairs[pair], output, algorithm, nextseq, i)
             merged_files.append(mf)
     return merged_files
