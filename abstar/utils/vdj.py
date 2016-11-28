@@ -321,7 +321,7 @@ class VDJ(object):
 
 
 @celery.task
-def run(seq_file, output_dir, args):
+def run(seq_file, output_dir, arg_dict):
     '''
     Wrapper function to multiprocess (or not) the assignment of V, D and J
     germline genes. Also writes the JSON-formatted output to file.
@@ -334,11 +334,13 @@ def run(seq_file, output_dir, args):
     Output is the number of functional antibody sequences identified in the input file.
     '''
     try:
-        global logger
-        if args.cluster:
-            logger = get_task_logger(__name__)
-        else:
-            logger = log.get_logger(__name__)
+        from abstar.abstar import Args
+        args = Args(**arg_dict)
+        # global logger
+        # if args.cluster:
+        #     logger = get_task_logger(__name__)
+        # else:
+        #     logger = log.get_logger(__name__)
         output_filename = os.path.basename(seq_file)
         if args.output_type == 'json':
             output_file = os.path.join(output_dir, output_filename + '.json')
@@ -351,7 +353,7 @@ def run(seq_file, output_dir, args):
         output_count = write_output(clean_vdjs, output_file, args.output_type, args.pretty, args.padding)
         return (output_file, output_count)
     except:
-        logger.debug(traceback.format_exc())
+        # logger.debug(traceback.format_exc())
         raise Exception("".join(traceback.format_exception(*sys.exc_info())))
         # run.retry(exc=exc, countdown=5)
 
@@ -368,8 +370,6 @@ def write_output(output, outfile, output_type, pretty, padding):
 
 
 def process_sequences(sequences, args):
-    global logger
-    logger = logging.getLogger()
     seq_file = tempfile.NamedTemporaryFile(delete=False)
     seq_file.write('\n'.join([s.fasta for s in sequences]))
     seq_file.close()
@@ -386,6 +386,9 @@ def process_sequence_file(seq_file, args):
 
     Output is a list of VDJ objects.
     '''
+
+    global logger
+    logger = logging.getLogger()
 
     # Variable gene assignment
     vs = []

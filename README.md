@@ -17,7 +17,12 @@ To run AbStar on a single FASTA or FASTQ file:
 
 To iteratively run AbStar on all files in an input directory:  
 `abstar -i <input-directory> -o <output-directory> -t <temp-directory>`
-
+  
+To run AbStar using the included test data as input:  
+`abstar -o <output-directory> -t <temp-directory> --use-test-data`  
+  
+When using the AbStar test data, note that although the test data file contains 1,000 sequences, one of the test sequences is not a valid antibody recombination. Only 999 sequences should be processed successfully.  
+  
 ### additional options  
 `-l, --log` Change the log file location. Default is `<output_directory>/mongo.log`.  
   
