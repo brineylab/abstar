@@ -26,22 +26,20 @@ from __future__ import print_function, unicode_literals
 
 from argparse import ArgumentParser
 from glob import glob
-from multiprocessing import Pool
-from subprocess import Popen, PIPE
-
-# External
-from Bio import SeqIO
-from abtools import log
-from abtools.sequence import Sequence
-
 import gzip
 import logging
+from multiprocessing import Pool
 import os
 import re
+from subprocess import Popen, PIPE
 import sys
 import time
 import traceback
 import warnings
+
+from Bio import SeqIO
+from abtools import log
+from abtools.sequence import Sequence
 
 
 #####################################################################
@@ -157,7 +155,7 @@ class Args(object):
         self.output = str(output) if output is not None else output
         self.log = str(log) if log is not None else log
         self.temp = str(temp) if temp is not None else temp
-        self.use_test_data = use_test_data
+        args.use_test_data = use_test_data
         self.chunksize = int(chunksize)
         self.output_type = str(output_type)
         self.merge = True if basespace else merge

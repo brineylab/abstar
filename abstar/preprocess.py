@@ -120,9 +120,7 @@ def quality_trim(input_directory=None, output_directory=None,
         else:
             files = [[f] for f in list_files(input_directory)]
     for f in files:
-
         logger.info(f)
-
         if len(f) == 2:
             paired_end = True
         elif len(f) == 1:
