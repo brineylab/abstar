@@ -65,7 +65,7 @@ def merge_reads(files, output, algo, nextseq, i):
         sample_id = '_'.join(os.path.basename(f).split('_')[:-2])
         sample = sample_id + '_' + lane
     else:
-        sample = '_'.join(os.path.basename(f).split('_')[:-1])
+        sample = '_'.join(os.path.basename(f).split('_')[:-4])
     print_sample_info(i, sample)
     o = os.path.join(output, '{}.fasta'.format(sample))
     run_pandaseq(f, r, o, algo)
