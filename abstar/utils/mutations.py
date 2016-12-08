@@ -27,6 +27,7 @@ import re
 import traceback
 
 from abtools import log
+from abtoolsutils.codons import codons
 
 from . import regions
 
@@ -34,18 +35,33 @@ from . import regions
 
 def nt_mutations(antibody):
     try:
-        mutations = Mutations()
+        all_mutations = Mutations()
         for segment in [antibody.v, antibody.j]:
+            mutations = Mutations()
             for i, (q, g) in enumerate(zip(segment.query_alignment, segment.germline_alignment)):
                 if q != g:
-                    # we don't want to count indels as mutations
-                    if any([q == '-', g == '-']):
-                        continue
                     raw_pos = i + segment.query_start
                     imgt_pos = segment.get_imgt_position_from_raw(raw_pos)
+                    # we don't want to count indels as mutations
+                    if any([q == '-', g == '-', imgt_pos is None]):
+                        continue
                     imgt_codon = int(math.ceil(imgt_pos / 3.0))
+                    if segment.gene_type == 'J':
+                        imgt_pos = segment.correct_imgt_nt_position_from_imgt[imgt_pos]
                     mutations.add(Mutation(g, q, raw_pos, imgt_pos, imgt_codon))
-        return mutations
+            segment.nt_mutations = mutations
+            all_mutations.add_many(mutations.mutations)
+        antibody.log('')
+        antibody.log('NT MUTATIONS')
+        antibody.log('------------')
+        antibody.log('FR1:', ', '.join([m.abstar_formatted for m in all_mutations.in_region('FR1')]))
+        antibody.log('CDR1:', ', '.join([m.abstar_formatted for m in all_mutations.in_region('CDR1')]))
+        antibody.log('FR2:', ', '.join([m.abstar_formatted for m in all_mutations.in_region('FR2')]))
+        antibody.log('CDR2:', ', '.join([m.abstar_formatted for m in all_mutations.in_region('CDR2')]))
+        antibody.log('FR3:', ', '.join([m.abstar_formatted for m in all_mutations.in_region('FR3')]))
+        antibody.log('CDR3:', ', '.join([m.abstar_formatted for m in all_mutations.in_region('CDR3')]))
+        antibody.log('FR4:', ', '.join([m.abstar_formatted for m in all_mutations.in_region('FR4')]))
+        return all_mutations
     except:
         antibody.exception('NT MUTATIONS', traceback.format_exc())
         return Mutations()
@@ -53,10 +69,60 @@ def nt_mutations(antibody):
 
 def aa_mutations(antibody):
     try:
-        pass
+        all_mutations = Mutations()
+        for segment in [antibody.v, antibody.j]:
+            mutations = Mutations()
+            for i, (q, g) in enumerate(zip(segment.query_alignment, segment.germline_alignment)):
+                raw_nt_pos = i + segment.query_start
+                imgt_nt_pos = segment.get_imgt_position_from_raw(raw_nt_pos)
+                if imgt_nt_pos is None:
+                    continue
+                if imgt_nt_pos % 3 != 1:
+                    continue
+                if any([q == '-', g == '-']):
+                    continue
+                q_codon_end_pos = i + 3
+                if q_codon_end_pos >= len(segment.query_alignment):
+                    continue
+                q_codon = segment.query_alignment[i:q_codon_end_pos]
+                while len(q_codon.replace('-', '')) < 3:
+                    q_codon_end_pos += 1
+                    q_codon = segment.query_alignment[i:q_codon_end_pos]
+                    if q_codon_end_pos >= len(segment.query_alignment):
+                        break
+                if len(q_codon.replace('-', '')) < 3:
+                    continue
+                g_codon_end_pos = i + 3
+                g_codon = segment.germline_alignment[i:g_codon_end_pos]
+                while len(g_codon.replace('-', '')) < 3:
+                    g_codon_end_pos += 1
+                    g_codon = segment.germline_alignment[i:g_codon_end_pos]
+                q_aa = codons[q_codon.replace('-', '')]
+                g_aa = codons[g_codon.replace('-', '')]
+                if q_aa != g_aa:
+                    imgt_aa_pos = int(math.ceil(imgt_nt_pos / 3.0))
+                    if segment.gene_type == 'J':
+                        imgt_aa_pos = segment.correct_imgt_aa_position_from_imgt[imgt_aa_pos]
+                    mutations.add(Mutation(g_aa, q_aa, None, imgt_aa_pos, imgt_aa_pos))
+            segment.aa_mutations = mutations
+            all_mutations.add_many(mutations.mutations)
+        antibody.log('')
+        antibody.log('AA MUTATIONS')
+        antibody.log('------------')
+        antibody.log('FR1:', ', '.join([m.abstar_formatted for m in all_mutations.in_region('FR1')]))
+        antibody.log('CDR1:', ', '.join([m.abstar_formatted for m in all_mutations.in_region('CDR1')]))
+        antibody.log('FR2:', ', '.join([m.abstar_formatted for m in all_mutations.in_region('FR2')]))
+        antibody.log('CDR2:', ', '.join([m.abstar_formatted for m in all_mutations.in_region('CDR2')]))
+        antibody.log('FR3:', ', '.join([m.abstar_formatted for m in all_mutations.in_region('FR3')]))
+        antibody.log('CDR3:', ', '.join([m.abstar_formatted for m in all_mutations.in_region('CDR3')]))
+        antibody.log('FR4:', ', '.join([m.abstar_formatted for m in all_mutations.in_region('FR4')]))
+        return all_mutations
     except:
         antibody.exception('AA MUTATIONS', traceback.format_exc())
 
+
+def _get_joining_imgt_mutation_position(codon_num, j):
+    pass
 
 
 
@@ -88,10 +154,10 @@ class Mutation(object):
     @property
     def json_formatted(self):
         return {'was': self.was,
-                'now': self.now,
+                'is': self.now,
                 'raw_position': self.raw_position,
-                'imgt_position': self.imgt_position,
-                'imgt_codon': self.imgt_codon}
+                'position': self.imgt_position,
+                'codon': self.imgt_codon}
 
 
 
@@ -102,6 +168,9 @@ class Mutations(object):
         super(Mutations, self).__init__()
         self.mutations = mutations if mutations is not None else []
 
+    def __iter__(self):
+        return (m for m in self.mutations)
+
 
     @property
     def count(self):
@@ -109,7 +178,25 @@ class Mutations(object):
 
 
     def add(self, mutation):
+        '''
+        Add a single mutation.
+
+        Args:
+
+            mutation (Mutation): the Mutation object to be added
+        '''
         self.mutations.append(mutation)
+
+
+    def add_many(self, mutations):
+        '''
+        Adds multiple mutations.
+
+        Args:
+
+            mutation (list): an iterable of Mutation objects to be added
+        '''
+        self.mutations += mutations
 
 
     def in_region(self, region):

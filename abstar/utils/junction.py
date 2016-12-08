@@ -115,6 +115,18 @@ class Junction(object):
         self.cdr3_imgt_aa_numbering = self._calculate_cdr3_imgt_aa_numbering()
         self.junction_imgt_nt_numbering = ['310', '311', '312'] + self.cdr3_imgt_nt_numbering + ['352', '353', '354']
         self.junction_imgt_aa_numbering = ['104'] + self.cdr3_imgt_aa_numbering + ['118']
+        # if the J-gene is long enough to extend into the variable-length portion of the
+        # junction numbering, need to adjust the IMGT numbering for the J-gene
+        if min(antibody.j.imgt_aa_positions) < 112 or min(antibody.j.imgt_nt_positions) < 334:
+            antibody.log('ADJUSTING J-GENE IMGT NUMBERING')
+            antibody.log('OLD AA:', ', '.join([str(p) for p in antibody.j.imgt_aa_positions]))
+            antibody.log('OLD NT:', ', '.join([str(p) for p in antibody.j.imgt_nt_positions]))
+            self._adjust_jgene_imgt_numbering(antibody)
+            antibody.log('NEW AA:', ', '.join([str(p) for p in antibody.j.imgt_aa_positions]))
+            antibody.log('NEW NT:', ', '.join([str(p) for p in antibody.j.imgt_nt_positions]))
+        else:
+            antibody.j.correct_imgt_aa_position_from_imgt = {p: p for p in antibody.j.imgt_aa_positions}
+            antibody.j.correct_imgt_nt_position_from_imgt = {p: p for p in antibody.j.imgt_nt_positions}
 
 
     def _find_junction_nt_start(self, antibody):
@@ -254,3 +266,18 @@ class Junction(object):
             lbonus_nums = ['111.{}'.format(i) for i in range(1, lbonus + 1)]
             rbonus_nums = ['112.{}'.format(i) for i in reversed(range(1, rbonus + 1))]
             return list(range(105, 112)) + lbonus_nums + rbonus_nums + list(range(112, 118))
+
+
+    def _adjust_jgene_imgt_numbering(self, antibody):
+        # adjust AA numbering
+        aa_positions_to_replace = [p for p in antibody.j.imgt_aa_positions if p < 118]
+        dot_positions = self.cdr3_imgt_aa_numbering[-len(aa_positions_to_replace):]
+        new_positions = dot_positions + [p for p in antibody.j.imgt_aa_positions if p >= 118]
+        antibody.j.correct_imgt_aa_position_from_imgt = {o: n for o, n in zip(antibody.j.imgt_aa_positions, new_positions)}
+        antibody.j.imgt_aa_positions = new_positions
+        # adjust NT numbering
+        nt_positions_to_replace = [p for p in antibody.j.imgt_nt_positions if p < 352]
+        dot_positions = self.cdr3_imgt_nt_numbering[-len(nt_positions_to_replace):]
+        new_positions = dot_positions + [p for p in antibody.j.imgt_nt_positions if p >= 352]
+        antibody.j.correct_imgt_nt_position_from_imgt = {o: n for o, n in zip(antibody.j.imgt_nt_positions, new_positions)}
+        antibody.j.imgt_nt_positions = new_positions

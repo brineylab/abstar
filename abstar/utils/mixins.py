@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# filename: log.py
+# filename: mixins.py
 
 
 #
@@ -24,8 +24,6 @@
 
 
 from __future__ import print_function
-
-import logging
 
 
 class LoggingMixin():
@@ -66,50 +64,12 @@ class LoggingMixin():
 
             str: Formatted log string.
         '''
-        self._log += ['', '']
         output = '\n'.join(self._log)
         if self._check_for_exceptions():
             output += '\n\n'
             output += self._format_exceptions()
+        output += '\n\n'
         return output
-
-
-    def initialize_vdj_log(self):
-        log = []
-        log.append('=' * len(self.id))
-        log.append(self.id)
-        log.append('=' * len(self.id))
-        log.append('')
-        log.append(self.sequence.fasta)
-        log.append('')
-        if self.v is not None:
-            log.append('V-GENE: {}'.format(self.v.full))
-        if self.d is not None:
-            log.append('D-GENE: {}'.format(self.d.full))
-        if self.j is not None:
-            log.append('J-GENE: {}'.format(self.j.full))
-        self._log = log
-
-
-    def initialize_antibody_log(self):
-        log = []
-        log.append('=' * len(self.id))
-        log.append(self.id)
-        log.append('=' * len(self.id))
-        log.append('')
-        log.append(self.raw_input.fasta)
-        log.append('')
-        log.append('RAW INPUT: {}'.format(self.raw_input.sequence))
-        log.append('ORIENTED INPUT: {}'.format(self.oriented_input.sequence))
-        log.append('CHAIN: {}'.format(self.chain))
-        log.append('')
-        if self.v is not None:
-            log.append('V-GENE: {}'.format(self.v.full))
-        if self.d is not None:
-            log.append('D-GENE: {}'.format(self.d.full))
-        if self.j is not None:
-            log.append('J-GENE: {}'.format(self.j.full))
-        self._log = log
 
 
     def _check_for_exceptions(self):
@@ -128,7 +88,7 @@ class LoggingMixin():
 
 
     def _format_exceptions(self):
-        estring = 'EXCEPTIONS\n'
+        estring = '\n\nEXCEPTIONS\n'
         estring += '----------\n\n'
         if self.v is not None:
             self._exceptions += self.v._exceptions
@@ -138,36 +98,3 @@ class LoggingMixin():
             self._exceptions += self.j._exceptions
         estring += '\n\n'.join([e for e in self._exceptions])
         return estring
-
-
-# def setup_logging(logfile, debug=False):
-#     fmt = '[%(levelname)s] %(name)s %(asctime)s %(message)s'
-#     if debug:
-#         logging.basicConfig(filename=logfile,
-#                             filemode='w',
-#                             format=fmt,
-#                             level=logging.DEBUG)
-#     else:
-#         logging.basicConfig(filename=logfile,
-#                             filemode='w',
-#                             format=fmt,
-#                             level=logging.INFO)
-#     logger = logging.getLogger('log')
-#     logger = add_stream_handler(logger)
-#     logger.info('LOG LOCATION: {}'.format(logfile))
-
-
-# def get_logger(name=None):
-#     logger = logging.getLogger(name)
-#     if len(logger.handlers) == 0:
-#         logger = add_stream_handler(logger)
-#     return logger
-
-
-# def add_stream_handler(logger):
-#     formatter = logging.Formatter("%(message)s")
-#     ch = logging.StreamHandler()
-#     ch.setFormatter(formatter)
-#     ch.setLevel(logging.INFO)
-#     logger.addHandler(ch)
-#     return logger

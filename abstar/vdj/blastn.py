@@ -34,7 +34,7 @@ from .germline import Germline
 from .vdj import VDJ
 
 
-class BlastnAssigner(AbstractAssigner):
+class BlastnAssigner(BaseAssigner):
     """
     docstring for BlastnAssigner
     """
@@ -43,15 +43,22 @@ class BlastnAssigner(AbstractAssigner):
         super(BlastnAssigner, self).__init__()
 
 
-    def __call__(self, sequence_file, species):
-        seqs = [Sequence(s) for s in SeqIO.parse(open(sequence_file, 'r'), 'fasta')]
+    def __call__(self, seqs, species):
+        # seqs = [Sequence(s) for s in SeqIO.parse(open(sequence_file, 'r'), 'fasta')]
         vdjs = []
 
         # assign V-genes
         vblast_records = self.blast(sequence_file, species, 'V')
+        # if there aren't any vblast_records, that means that none of the
+        # sequences in the input file contained sequences with a significant
+        # match to any germline V-gene. These are likely all non-antibody sequences.
         if not vblast_records:
-            # TODO: log that there are no valid antibody sequences in the input file
-            self.unassigned = seqs
+            vdjs = [VDJ(seq) for seq in seqs]
+            for vdj in vdjs:
+                vdj.log('V-GENE ASSIGNMENT ERROR:',
+                        'No variable gene was found.',
+                        'Query sequence does not appear to contain a rearranged antibody.')
+            self.unassigned = vdjs
             return
         jquery_seqs = []
         for seq, vbr in zip(seqs, vblast_records):
@@ -60,15 +67,20 @@ class BlastnAssigner(AbstractAssigner):
                 vdj = VDJ(seq, v=germ)
                 self.orient_query(vdj, vbr)
                 jquery = self.get_jquery_sequence(vdj.oriented, vbr)
+                # only try to find J-genes if there's a minimum of 10 nucleotides
+                # remaining after removal of the V-gene alignment
                 if len(jquery) >= 10:
                     vdjs.append(vdj)
                     jquery_seqs.append(jquery)
+                # abort VDJ assignment if the J-gene query sequence is too short
                 else:
-                    # TODO: log that the jquery sequence was too short
-                    self.unassigned.append(seq)
+                    vdj = VDJ(seq)
+                    vdj.log('J-GENE QUERY ERROR:', 'Query sequence for J-gene assignment is too short.')
+                    self.unassigned.append(vdj)
             except:
-                # TODO: log the exception
-                self.unassigned.append(seq)
+                vdj = VDJ(seq)
+                vdj.exception('V-GENE ASSIGNMENT ERROR', traceback.format_exc())
+                self.unassigned.append(vdj)
 
         # assign J-genes
         _vdjs = []
@@ -78,9 +90,12 @@ class BlastnAssigner(AbstractAssigner):
         for vdj, jquery, jbr in zip(vdjs, jquery_seqs, jblast_records):
             germ = self.process_blast_record(jbr, species)
             vdj.j = germ
+            # sanity check to make sure there's not an obvious problem with the V/J
+            # assignments (likely due to poor germline matches to a non-antibody sequence)
             if vdj.v.chain != vdj.j.chain:
-                # TODO: log that the V and J chains don't match
-                self.unassigned.append(vdj.sequence)
+                vdj.log('GERMLINE ASSIGNMENT ERROR:',
+                        'V-gene ({}) and J-gene ({}) chains do not match'.format(vdj.v.chain, vdj.j.chain))
+                self.unassigned.append(vdj)
                 continue
             dquery = self.get_dquery_sequence(jquery, jbr)
             dquery_seqs.append(dquery)
@@ -92,10 +107,20 @@ class BlastnAssigner(AbstractAssigner):
         _vdjs = []
         for vdj, dquery in zip(vdjs, dquery_seqs):
             if vdj.v.chain == 'heavy':
-                germ = self.assign_dgene(dquery, species)
-                vdj.d = germ
+                try:
+                    germ = self.assign_dgene(dquery, species)
+                    vdj.d = germ
+                except:
+                    vdj.exception('D-GENE ASSIGNMENT ERROR:', traceback.format_exc())
+                    self.unassigned.append(vdj)
+                    continue
             _vdjs.append(vdj)
         self.assigned = _vdjs
+
+
+    @property
+    def name(self):
+        return 'blastn'
 
 
     def blast(self, seq_file, species, segment):
@@ -148,18 +173,17 @@ class BlastnAssigner(AbstractAssigner):
         all_scores = [a.score for a in alignments]
         top_gl = all_gls[0]
         top_score = all_scores[0]
-        others = [Germline(germ, species, score=score) for germ, score in zip(all_gls[1:6], all_scores[1:6])]
-        return Germline(top_gl, species, score=top_score, others=others)
+        others = [GermlineSegment(germ, species, score=score) for germ, score in zip(all_gls[1:6], all_scores[1:6])]
+        return GermlineSegment(top_gl, species, score=top_score, others=others, assigner_name=self.name)
 
 
-    @staticmethod
-    def process_blast_record(blast_record, species):
+    def process_blast_record(self, blast_record, species):
         all_gls = [a.title.split()[0] for a in blast_record.alignments]
         all_scores = [a.hsps[0].bits for a in blast_record.alignments]
         top_gl = all_gls[0]
         top_score = all_scores[0]
-        others = [Germline(germ, species, score=score) for germ, score in zip(all_gls[1:], all_scores[1:])]
-        return Germline(top_gl, species, score=top_score, others=others[:5])
+        others = [GermlineSegment(germ, species, score=score) for germ, score in zip(all_gls[1:], all_scores[1:])]
+        return GermlineSegment(top_gl, species, score=top_score, others=others[:5], assigner_name=self.name)
 
 
     @staticmethod

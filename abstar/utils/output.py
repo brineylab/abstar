@@ -30,6 +30,341 @@ import traceback
 from abtools import log
 
 
+
+def get_abstar_result(antibodies, pretty=False, padding=True, raw=False):
+    return [AbstarResult(ab, pretty, padding, raw) for ab in antibodies]
+
+
+class AbstarResult(object):
+    """docstring for AbstarOutput"""
+    def __init__(self, antibody, pretty, padding, raw):
+        super(AbstarOutput, self).__init__()
+        self.antibody = antibody
+        self.pretty = pretty
+        self.padding = padding
+        self.raw = raw
+        self._json_output = None
+        self._imgt_output = None
+        self._minimal_output = None
+        self._imgt_header = None
+        self._minimal_header = None
+
+
+    @property
+    def json_output(self):
+        if self._json_output is None:
+            self._json_output = self._build_json_output()
+        return self._json_output
+
+    @json_output.setter
+    def json_output(self, json):
+        self._json_output = json
+
+
+    @property
+    def imgt_output(self):
+        if self._imgt_output is None:
+            # TODO: build IMGT-formatted output
+            pass
+        return self._imgt_output
+
+    @imgt_output.setter
+    def imgt_output(self, imgt):
+        self._imgt_output = imgt
+
+
+    @property
+    def minimal_output(self):
+        if self._minimal_output is None:
+            # TODO: build minimal-formatted output
+            pass
+        return self._minimal_output
+
+    @minimal_output.setter
+    def minimal_output(self, minimal):
+        self._minimal_output = minimal
+
+
+    def _build_json_output(self, raw=False):
+        '''
+        Assembles AbAnalyze output in JSON format.
+
+        Input is a VDJ object.
+
+        Output is a JSON-formatted output string that should be suitable
+        for writing to an output file.
+        '''
+        d_info = {}
+        mut_count_nt = self.antibody.v.nt_mutations.mutation_count + self.antibody.j.nt_mutations.mutation_count
+        div_muts_nt = {}
+        nt_identity = {'v': self.antibody.v.nt_mutations.germline_identity,
+                       'j': self.antibody.j.nt_mutations.germline_identity}
+        align_info = {'v_start': self.antibody.v.germline_start,
+                      'v_end': self.antibody.v.germline_end,
+                      'j_start': self.antibody.j.germline_start,
+                      'j_end': self.antibody.j.germline_end}
+        germ_alignments_nt = {'var': {'query': self.antibody.v.query_alignment,
+                                      'germ': self.antibody.v.germline_alignment,
+                                      'midline': self.antibody.v.alignment_midline},
+                              'join': {'query': self.antibody.j.query_alignment,
+                                       'germ': self.antibody.j.germline_alignment,
+                                       'midline': self.antibody.j.alignment_midline}}
+        exo_trim = {'var_3': len(self.antibody.v.germline_seq) - self.antibody.v.germline_end,
+                    'join_5': self.antibody.j.germline_start}
+
+        try:
+            isotype = self.antibody.isotype.isotype
+            isotype_score = self.antibody.isotype.score
+            isotype_alignment = {'query': self.antibody.isotype.alignment.aligned_query,
+                                 'midline': self.antibody.isotype.alignment.alignment_midline,
+                                 'isotype': self.antibody.isotype.alignment.aligned_target}
+        except AttributeError:
+            isotype = 'unknown'
+            isotype_score = ''
+            isotype_alignment = {}
+
+        if self.antibody.d:
+            d_info = {'full': self.antibody.d.top_germline,
+                      'fam': self.antibody.d.top_germline.split('-')[0] if self.antibody.d.top_germline else None,
+                      'gene': self.antibody.d.top_germline.split('*')[0] if self.antibody.d.top_germline else None,
+                      'score': self.antibody.d.top_score,
+                      'frame': self.antibody.d.reading_frame,
+                      'others': [{'full': germ,
+                                  'score': score}
+                                 for germ, score in zip(self.antibody.d.all_germlines[1:], self.antibody.d.all_scores[1:])]}
+            mut_count_nt += self.antibody.d.nt_mutations.mutation_count
+            div_muts_nt = {'num': self.antibody.d.nt_mutations.mutation_count,
+                           'muts': [{'loc': m['pos'],
+                                     'mut': m['mut']} for m in self.antibody.d.nt_mutations.all_mutations]}
+            nt_identity['d'] = self.antibody.d.nt_mutations.germline_identity
+            align_info['d_start'] = self.antibody.d.germline_start
+            align_info['d_end'] = self.antibody.d.germline_end
+            germ_alignments_nt['div'] = {'query': self.antibody.d.query_alignment,
+                                         'germ': self.antibody.d.germline_alignment,
+                                         'midline': self.antibody.d.alignment_midline}
+            junc = {'n1_nt': self.antibody.junction.n1_nt,
+                    'n2_nt': self.antibody.junction.n2_nt,
+                    'd_nt': self.antibody.junction.d_nt,
+                    'd_cdr3_pos': {'start': self.antibody.junction.d_start_position_nt,
+                                   'end': self.antibody.junction.d_end_position_nt},
+                    'd_dist_from_cdr3_start': self.antibody.junction.d_dist_from_cdr3_start_nt,
+                    'd_dist_from_cdr3_end': self.antibody.junction.d_dist_from_cdr3_end_nt}
+            germ_junc = {'n1_nt': self.antibody.germ_junction.n1_nt,
+                         'n2_nt': self.antibody.germ_junction.n2_nt,
+                         'd_nt': self.antibody.germ_junction.d_nt,
+                         'd_cdr3_pos': {'start': self.antibody.germ_junction.d_start_position_nt,
+                                        'end': self.antibody.germ_junction.d_end_position_nt},
+                         'd_dist_from_cdr3_start': self.antibody.germ_junction.d_dist_from_cdr3_start_nt,
+                         'd_dist_from_cdr3_end': self.antibody.germ_junction.d_dist_from_cdr3_end_nt}
+            exo_trim['div_5'] = self.antibody.d.germline_start
+            exo_trim['div_3'] = self.antibody.d.germline_end
+
+        else:
+            junc = {'n_nt': self.antibody.junction.n1_nt}
+            germ_junc = {'n_nt': self.antibody.germ_junction.n1_nt}
+
+        output = collections.OrderedDict([
+            ('seq_id', self.antibody.id),
+            ('uaid', self.antibody.uaid),
+            ('chain', self.antibody.chain),
+            ('v_gene', {'full': self.antibody.v.top_germline,
+                        'fam': self.antibody.v.top_germline.split('-')[0],
+                        'gene': self.antibody.v.top_germline.split('*')[0],
+                        'score': self.antibody.v.top_score,
+                        'others': [{'full': germ,
+                                    # 'fam': germ.split('-')[0],
+                                    # 'gene': germ.split('*')[0],
+                                    'score': score}
+                                   for germ, score in zip(self.antibody.v.all_germlines[1:], self.antibody.v.all_scores[1:])]
+                        }),
+            ('d_gene', d_info),
+            ('j_gene', {'full': self.antibody.j.top_germline,
+                        'gene': self.antibody.j.top_germline.split('*')[0],
+                        'score': self.antibody.j.top_score,
+                        'others': [{'full': germ,
+                                    # 'fam': germ.split('*')[0],
+                                    'score': score}
+                                   for germ, score in zip(self.antibody.j.all_germlines[1:], self.antibody.j.all_scores[1:])]
+                        }),
+            ('bitscores', {'v': self.antibody.v.top_bitscore,
+                           'j': self.antibody.j.top_bitscore}),
+            ('e_values', {'v': self.antibody.v.top_evalue,
+                          'j': self.antibody.j.top_evalue}),
+            ('isotype', isotype),
+            ('isotype_score', isotype_score),
+            ('isotype_alignment', isotype_alignment),
+            ('nt_identity', nt_identity),
+            ('aa_identity', {'v': self.antibody.v.aa_mutations.germline_identity,
+                             'j': self.antibody.j.aa_mutations.germline_identity}),
+            ('junc_len', len(self.antibody.junction.junction_aa)),
+            ('cdr3_len', len(self.antibody.junction.cdr3_aa)),
+            ('vdj_nt', self.antibody.vdj_nt),
+            ('gapped_vdj_nt', self.antibody.gapped_vdj_nt),
+            ('fr1_nt', self.antibody.v.regions.nt_seqs['FR1']),
+            ('cdr1_nt', self.antibody.v.regions.nt_seqs['CDR1']),
+            ('fr2_nt', self.antibody.v.regions.nt_seqs['FR2']),
+            ('cdr2_nt', self.antibody.v.regions.nt_seqs['CDR2']),
+            ('fr3_nt', self.antibody.v.regions.nt_seqs['FR3']),
+            ('cdr3_nt', self.antibody.junction.cdr3_nt),
+            ('fr4_nt', self.antibody.j.regions.nt_seqs['FR4']),
+            ('vdj_germ_nt', self.antibody.vdj_germ_nt),
+            ('gapped_vdj_germ_nt', self.antibody.gapped_vdj_germ_nt),
+            ('fr1_germ_nt', self.antibody.v.regions.germline_nt_seqs['FR1']),
+            ('cdr1_germ_nt', self.antibody.v.regions.germline_nt_seqs['CDR1']),
+            ('fr2_germ_nt', self.antibody.v.regions.germline_nt_seqs['FR2']),
+            ('cdr2_germ_nt', self.antibody.v.regions.germline_nt_seqs['CDR2']),
+            ('fr3_germ_nt', self.antibody.v.regions.germline_nt_seqs['FR3']),
+            ('fr4_germ_nt', self.antibody.j.regions.germline_nt_seqs['FR4']),
+            ('junc_nt', self.antibody.junction.junction_nt),
+            ('region_len_nt', {'fr1': int(self.antibody.v.regions.nt_lengths['FR1']),
+                               'cdr1': int(self.antibody.v.regions.nt_lengths['CDR1']),
+                               'fr2': int(self.antibody.v.regions.nt_lengths['FR2']),
+                               'cdr2': int(self.antibody.v.regions.nt_lengths['CDR2']),
+                               'fr3': int(self.antibody.v.regions.nt_lengths['FR3']),
+                               'cdr3': len(self.antibody.junction.cdr3_nt),
+                               'fr4': int(self.antibody.j.regions.nt_lengths['FR4'])}),
+            ('var_muts_nt', {'num': self.antibody.v.nt_mutations.mutation_count,
+                             'muts': [{'loc': m['pos'],
+                                       'mut': m['mut']} for m in self.antibody.v.nt_mutations.all_mutations]}),
+            ('div_muts_nt', div_muts_nt),
+            ('join_muts_nt', {'num': self.antibody.j.nt_mutations.mutation_count,
+                              'muts': [{'loc': m['pos'],
+                                        'mut': m['mut']} for m in self.antibody.j.nt_mutations.all_mutations]}),
+            ('mut_count_nt', mut_count_nt),
+            ('vdj_aa', self.antibody.vdj_aa),
+            ('fr1_aa', self.antibody.v.regions.aa_seqs['FR1']),
+            ('cdr1_aa', self.antibody.v.regions.aa_seqs['CDR1']),
+            ('fr2_aa', self.antibody.v.regions.aa_seqs['FR2']),
+            ('cdr2_aa', self.antibody.v.regions.aa_seqs['CDR2']),
+            ('fr3_aa', self.antibody.v.regions.aa_seqs['FR3']),
+            ('cdr3_aa', self.antibody.junction.cdr3_aa),
+            ('fr4_aa', self.antibody.j.regions.aa_seqs['FR4']),
+            ('vdj_germ_aa', self.antibody.vdj_germ_aa),
+            ('fr1_germ_aa', self.antibody.v.regions.germline_aa_seqs['FR1']),
+            ('cdr1_germ_aa', self.antibody.v.regions.germline_aa_seqs['CDR1']),
+            ('fr2_germ_aa', self.antibody.v.regions.germline_aa_seqs['FR2']),
+            ('cdr2_germ_aa', self.antibody.v.regions.germline_aa_seqs['CDR2']),
+            ('fr3_germ_aa', self.antibody.v.regions.germline_aa_seqs['FR3']),
+            ('fr4_germ_aa', self.antibody.j.regions.germline_aa_seqs['FR4']),
+            ('junc_aa', self.antibody.junction.junction_aa),
+            ('region_len_aa', {'fr1': int(self.antibody.v.regions.aa_lengths['FR1']),
+                               'cdr1': int(self.antibody.v.regions.aa_lengths['CDR1']),
+                               'fr2': int(self.antibody.v.regions.aa_lengths['FR2']),
+                               'cdr2': int(self.antibody.v.regions.aa_lengths['CDR2']),
+                               'fr3': int(self.antibody.v.regions.aa_lengths['FR3']),
+                               'cdr3': len(self.antibody.junction.cdr3_aa),
+                               'fr4': int(self.antibody.j.regions.aa_lengths['FR4'])}),
+            ('var_muts_aa', {'num': self.antibody.v.aa_mutations.mutation_count,
+                             'muts': [{'loc': m['pos'],
+                                       'mut': m['mut']} for m in self.antibody.v.aa_mutations.all_mutations]}),
+            ('v_ins', [{'loc': i['pos'],
+                        'len': i['len'],
+                        'seq': i['seq'],
+                        'in_frame': i['in frame']} for i in self.antibody.v.insertions]),
+            ('v_del', [{'loc': d['pos'],
+                        'len': d['len'],
+                        'seq': d['seq'],
+                        'in_frame': d['in frame']} for d in self.antibody.v.deletions]),
+            ('j_ins', [{'loc': i['pos'],
+                        'len': i['len'],
+                        'seq': i['seq'],
+                        'in_frame': i['in frame']} for i in self.antibody.j.insertions]),
+            ('j_del', [{'loc': d['pos'],
+                        'len': d['len'],
+                        'seq': d['seq'],
+                        'in_frame': d['in frame']} for d in self.antibody.j.deletions]),
+            ('region_muts_nt', {'fr1': {'num': self.antibody.v.nt_mutations.region_mutation_count['FR1'],
+                                        'muts': [{'loc': m['pos'],
+                                                  'mut': m['mut']} for m in self.antibody.v.nt_mutations.region_mutations['FR1']]},
+                                'cdr1': {'num': self.antibody.v.nt_mutations.region_mutation_count['CDR1'],
+                                         'muts': [{'loc': m['pos'],
+                                                   'mut': m['mut']} for m in self.antibody.v.nt_mutations.region_mutations['CDR1']]},
+                                'fr2': {'num': self.antibody.v.nt_mutations.region_mutation_count['FR2'],
+                                        'muts': [{'loc': m['pos'],
+                                                  'mut': m['mut']} for m in self.antibody.v.nt_mutations.region_mutations['FR2']]},
+                                'cdr2': {'num': self.antibody.v.nt_mutations.region_mutation_count['CDR2'],
+                                         'muts': [{'loc': m['pos'],
+                                                   'mut': m['mut']} for m in self.antibody.v.nt_mutations.region_mutations['CDR2']]},
+                                'fr3': {'num': self.antibody.v.nt_mutations.region_mutation_count['FR3'],
+                                        'muts': [{'loc': m['pos'],
+                                                  'mut': m['mut']} for m in self.antibody.v.nt_mutations.region_mutations['FR3']]},
+                                'fr4': {'num': self.antibody.j.nt_mutations.region_mutation_count['FR4'],
+                                        'muts': [{'loc': m['pos'],
+                                                  'mut': m['mut']} for m in self.antibody.j.nt_mutations.region_mutations['FR4']]}}),
+            ('region_muts_aa', {'fr1': {'num': self.antibody.v.aa_mutations.region_mutation_count['FR1'],
+                                        'muts': [{'loc': m['pos'],
+                                                  'mut': m['mut']} for m in self.antibody.v.aa_mutations.region_mutations['FR1']]},
+                                'cdr1': {'num': self.antibody.v.aa_mutations.region_mutation_count['CDR1'],
+                                         'muts': [{'loc': m['pos'],
+                                                   'mut': m['mut']} for m in self.antibody.v.aa_mutations.region_mutations['CDR1']]},
+                                'fr2': {'num': self.antibody.v.aa_mutations.region_mutation_count['FR2'],
+                                        'muts': [{'loc': m['pos'],
+                                                  'mut': m['mut']} for m in self.antibody.v.aa_mutations.region_mutations['FR2']]},
+                                'cdr2': {'num': self.antibody.v.aa_mutations.region_mutation_count['CDR2'],
+                                         'muts': [{'loc': m['pos'],
+                                                   'mut': m['mut']} for m in self.antibody.v.aa_mutations.region_mutations['CDR2']]},
+                                'fr3': {'num': self.antibody.v.aa_mutations.region_mutation_count['FR3'],
+                                        'muts': [{'loc': m['pos'],
+                                                  'mut': m['mut']} for m in self.antibody.v.aa_mutations.region_mutations['FR3']]},
+                                'fr4': {'num': self.antibody.j.aa_mutations.region_mutation_count['FR4'],
+                                        'muts': [{'loc': m['pos'],
+                                                  'mut': m['mut']} for m in self.antibody.j.aa_mutations.region_mutations['FR4']]}}),
+            ('prod', self.antibody.productive),
+            ('junction_in_frame', 'yes' if self.antibody.junction.in_frame else 'no'),
+            ('raw_input', self.antibody.raw_input),
+            ('raw_query', self.antibody.raw_query),
+            ('strand', self.antibody.strand),
+            ('codons', {'vdj': self.antibody.codons.vdj_codons,
+                        'vdj_regions': self.antibody.codons.vdj_codon_regions,
+                        'v': self.antibody.codons.v_codons,
+                        'v_germ': self.antibody.codons.v_germ_codons,
+                        'j': self.antibody.codons.j_codons,
+                        'j_germ': self.antibody.codons.j_germ_codons}),
+            ('gapped_codons', {'vdj': self.antibody.gapped_codons.vdj_codons,
+                               'vdj_regions': self.antibody.gapped_codons.vdj_codon_regions,
+                               'v': self.antibody.gapped_codons.v_codons,
+                               'v_germ': self.antibody.gapped_codons.v_germ_codons,
+                               'j': self.antibody.gapped_codons.j_codons,
+                               'j_germ': self.antibody.gapped_codons.j_germ_codons}),
+            ('germ_alignments_nt', germ_alignments_nt),
+            ('exo_trim', exo_trim),
+            ('junc', junc),
+            ('germ_junc', germ_junc),
+            ('align_info', align_info),  # TODO!!  Add things like V/D/J start and end positions, etc.
+            ('vdj_region_string', self.antibody.vdj_region_string),
+            ('gapped_vdj_region_string', self.antibody.gapped_vdj_region_string),
+        ])
+
+        if self.padding:
+            output['padding'] = ['n' * 100] * 10
+
+        # remove empty entries to save MongoDB space
+        for i in output.keys():
+            if output[i] == "":
+                del output[i]
+            elif output[i] == []:
+                del output[i]
+            elif output[i] == {}:
+                del output[i]
+            elif output[i] == None:
+                del output[i]
+        if self.raw:
+            return output
+        if self.pretty:
+            return json.dumps(output, indent=4)
+        else:
+            return json.dumps(output)
+
+
+
+
+
+
+
+
+
+
+
 def build_output(vdjs, output_type, pretty, padding):
     logger = log.get_logger()
     try:

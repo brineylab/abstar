@@ -43,6 +43,8 @@ import time
 import traceback
 import warnings
 
+from .log import LoggingMixin
+
 # VDJ assigners
 from abstar.vdj.blastn import BlastnAssigner
 from abstar.vdj.mixcr import MiXCRAssigner
@@ -86,9 +88,9 @@ def parse_arguments(print_help=False):
                         it will be created. Required.")
     parser.add_argument('--sequences', dest='sequences', default=None,
                         help="Only used when passing sequences directly through the API.")
-    parser.add_argument('-k', '--chunksize', dest='chunksize', default=250, type=int,
+    parser.add_argument('-k', '--chunksize', dest='chunksize', default=500, type=int,
                         help="Approximate number of sequences in each distributed job. \
-                        Defaults to 250. \
+                        Defaults to 500. \
                         Set to 0 if you want file splitting to be turned off \
                         Don't change unless you know what you're doing.")
     parser.add_argument('-T', '--output_type', dest="output_type", choices=['json', 'imgt', 'hadoop'], default='json',
@@ -126,12 +128,12 @@ def parse_arguments(print_help=False):
                         If set, input files will be split into many subfiles and passed \
                         to a Celery queue. If not set, input files will still be split, but \
                         will be distributed to local processors using multiprocessing.")
-    parser.add_argument('-S', '--starcluster', dest="starcluster", default=False, action='store_true',
-                        help="Use if performing analysis on a StarCluster instance. \
-                        If set, the cluster will be configured to NFS share all ephemeral drives \
-                        on the master node and Celery workers will be started on all worker nodes. \
-                        Configuration only needs to be run once per cluster, so additional runs on\
-                        an already-configured cluster should be run without this option.")
+    # parser.add_argument('-S', '--starcluster', dest="starcluster", default=False, action='store_true',
+    #                     help="Use if performing analysis on a StarCluster instance. \
+    #                     If set, the cluster will be configured to NFS share all ephemeral drives \
+    #                     on the master node and Celery workers will be started on all worker nodes. \
+    #                     Configuration only needs to be run once per cluster, so additional runs on\
+    #                     an already-configured cluster should be run without this option.")
     parser.add_argument('-D', '--debug', dest="debug", action='count', default=0,
                         help="If set, logs additional debug information. \
                         Use -DD to print verbose exception information to screen in addition to writing to log.")

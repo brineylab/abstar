@@ -23,9 +23,10 @@
 
 
 from abtools.sequence import Sequence
+from abtools.utils.log import LoggingMixin
 
 
-class VDJ(object):
+class VDJ(object, LoggingMixin):
     """
 
     Args:
@@ -50,8 +51,27 @@ class VDJ(object):
     """
     def __init__(self, sequence, v=None, d=None, j=None):
         super(VDJ, self).__init__()
+        LoggingMixin.__init__(self)
         self.sequence = Sequence(sequence)
         self.oriented = self.sequence
         self.v = v
         self.d = d
         self.j = j
+        self.initialize_log()
+
+
+    def initialize_log(self):
+        log = []
+        log.append('=' * len(self.id))
+        log.append(self.id)
+        log.append('=' * len(self.id))
+        log.append('')
+        log.append(self.sequence.fasta)
+        log.append('')
+        if self.v is not None:
+            log.append('V-GENE: {}'.format(self.v.full))
+        if self.d is not None:
+            log.append('D-GENE: {}'.format(self.d.full))
+        if self.j is not None:
+            log.append('J-GENE: {}'.format(self.j.full))
+        self._log = log

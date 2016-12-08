@@ -24,7 +24,7 @@
 from .assigner import AbstractAssigner
 
 
-class MiXCRAssigner(AbstractAssigner):
+class MiXCRAssigner(BaseAssigner):
     """
     docstring for MiXCRAssigner
     """

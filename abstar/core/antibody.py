@@ -23,17 +23,19 @@
 
 
 from abstar.utils import junction, mutations, positions, regions
+from abstar.utils.log import LoggingMixin
 from abstar.vdj.germline import get_imgt_germlines
 
 from abtools.alignment import global_alignment, local_alignment
 
 
-class Antibody(object):
+class Antibody(object, LoggingMixin):
     """
     docstring for Antibody
     """
     def __init__(self, vdj, species):
         super(Antibody, self).__init__()
+        LoggingMixin.__init__(self)
         self.id = vdj.sequence.id
         self.raw_input = vdj.sequence
         self.oriented_input = vdj.oriented
@@ -42,8 +44,7 @@ class Antibody(object):
         self.d = vdj.d
         self.chain = vdj.v.chain
         self.species = species.lower()
-        self._log = self._initialize_log()
-        self._exceptions = []
+        self._log = self.initialize_log()
         self._strand = None
         self._imgt_position_from_aligned = {}
         self._aligned_position_from_imgt = {}
@@ -57,6 +58,27 @@ class Antibody(object):
             else:
                 self._strand = self.v.strand
         return self._strand
+
+
+    def initialize_log(self):
+        log = []
+        log.append('=' * len(self.id))
+        log.append(self.id)
+        log.append('=' * len(self.id))
+        log.append('')
+        log.append(self.raw_input.fasta)
+        log.append('')
+        log.append('RAW INPUT: {}'.format(self.raw_input.sequence))
+        log.append('ORIENTED INPUT: {}'.format(self.oriented_input.sequence))
+        log.append('CHAIN: {}'.format(self.chain))
+        log.append('')
+        if self.v is not None:
+            log.append('V-GENE: {}'.format(self.v.full))
+        if self.d is not None:
+            log.append('D-GENE: {}'.format(self.d.full))
+        if self.j is not None:
+            log.append('J-GENE: {}'.format(self.j.full))
+        self._log = log
 
 
     def annotate(self):
@@ -83,86 +105,86 @@ class Antibody(object):
 # LOGGING
 # --------
 
-    def log(self, *args, **kwargs):
-        sep = kwargs.get('sep', ' ')
-        lstring = sep.join([str(a) for a in args])
-        self._log.append(lstring)
+    # def log(self, *args, **kwargs):
+    #     sep = kwargs.get('sep', ' ')
+    #     lstring = sep.join([str(a) for a in args])
+    #     self._log.append(lstring)
 
 
-    def exception(self, *args, **kwargs):
-        sep = kwargs.get('sep', '\n')
-        estring = sep.join([str(a) for a in args])
-        self._exceptions.append(estring)
+    # def exception(self, *args, **kwargs):
+    #     sep = kwargs.get('sep', '\n')
+    #     estring = sep.join([str(a) for a in args])
+    #     self._exceptions.append(estring)
 
 
-    def format_log(self):
-        '''
-        Formats the antibody log.
+    # def format_log(self):
+    #     '''
+    #     Formats the antibody log.
 
-        Log formatting is only performed on sequences that had an
-        error during annotation, unless AbStar is run in debug
-        mode. In debug mode, all sequences will be logged.
+    #     Log formatting is only performed on sequences that had an
+    #     error during annotation, unless AbStar is run in debug
+    #     mode. In debug mode, all sequences will be logged.
 
-        Returns:
-        --------
+    #     Returns:
+    #     --------
 
-            str: Formatted log string.
-        '''
-        self._log += ['', '']
-        output = '\n'.join(self._log)
-        if self._check_for_exceptions():
-            output += '\n\n'
-            output += self._format_exceptions()
-        return output
-
-
-    def _initialize_log(self):
-        log = []
-        log.append('=' * len(self.id))
-        log.append(self.id)
-        log.append('=' * len(self.id))
-        log.append('')
-        log.append(self.raw_input.fasta)
-        log.append('')
-        log.append('RAW INPUT: {}'.format(self.raw_input.sequence))
-        log.append('ORIENTED INPUT: {}'.format(self.oriented_input.sequence))
-        log.append('CHAIN: {}'.format(self.chain))
-        log.append('')
-        if self.v is not None:
-            log.append('V-GENE: {}'.format(self.v.full))
-        if self.d is not None:
-            log.append('D-GENE: {}'.format(self.d.full))
-        if self.j is not None:
-            log.append('J-GENE: {}'.format(self.j.full))
-        return log
+    #         str: Formatted log string.
+    #     '''
+    #     self._log += ['', '']
+    #     output = '\n'.join(self._log)
+    #     if self._check_for_exceptions():
+    #         output += '\n\n'
+    #         output += self._format_exceptions()
+    #     return output
 
 
-    def _check_for_exceptions(self):
-        if self._exceptions:
-            return True
-        if self.v is not None:
-            if self.v._exceptions:
-                return True
-        if self.d is not None:
-            if self.d._exceptions:
-                return True
-        if self.j is not None:
-            if self.j._exceptions:
-                return True
-        return False
+    # def _initialize_log(self):
+    #     log = []
+    #     log.append('=' * len(self.id))
+    #     log.append(self.id)
+    #     log.append('=' * len(self.id))
+    #     log.append('')
+    #     log.append(self.raw_input.fasta)
+    #     log.append('')
+    #     log.append('RAW INPUT: {}'.format(self.raw_input.sequence))
+    #     log.append('ORIENTED INPUT: {}'.format(self.oriented_input.sequence))
+    #     log.append('CHAIN: {}'.format(self.chain))
+    #     log.append('')
+    #     if self.v is not None:
+    #         log.append('V-GENE: {}'.format(self.v.full))
+    #     if self.d is not None:
+    #         log.append('D-GENE: {}'.format(self.d.full))
+    #     if self.j is not None:
+    #         log.append('J-GENE: {}'.format(self.j.full))
+    #     return log
 
 
-    def _format_exceptions(self):
-        estring = 'EXCEPTIONS\n'
-        estring += '----------\n\n'
-        if self.v is not None:
-            self._exceptions += self.v._exceptions
-        if self.d is not None:
-            self._exceptions += self.d._exceptions
-        if self.j is not None:
-            self._exceptions += self.j._exceptions
-        estring += '\n\n'.join([e for e in self._exceptions])
-        return estring
+    # def _check_for_exceptions(self):
+    #     if self._exceptions:
+    #         return True
+    #     if self.v is not None:
+    #         if self.v._exceptions:
+    #             return True
+    #     if self.d is not None:
+    #         if self.d._exceptions:
+    #             return True
+    #     if self.j is not None:
+    #         if self.j._exceptions:
+    #             return True
+    #     return False
+
+
+    # def _format_exceptions(self):
+    #     estring = 'EXCEPTIONS\n'
+    #     estring += '----------\n\n'
+    #     if self.v is not None:
+    #         self._exceptions += self.v._exceptions
+    #     if self.d is not None:
+    #         self._exceptions += self.d._exceptions
+    #     if self.j is not None:
+    #         self._exceptions += self.j._exceptions
+    #     estring += '\n\n'.join([e for e in self._exceptions])
+    #     return estring
 
 
 # ---------------------
@@ -190,7 +212,7 @@ class Antibody(object):
         self.log('GERMLINE:', self.v.imgt_gapped_alignment.aligned_target)
 
         # realign J
-        jstart = self.v.query_end
+        jstart = self.v.query_end + 1
         self.log('')
         self.log('J-GENE REALIGNMENT')
         self.log('------------------')
@@ -211,7 +233,7 @@ class Antibody(object):
 
         # realign D (if needed)
         if self.chain == 'heavy':
-            dstart = self.v.query_end
+            dstart = self.v.query_end + 1
             dend = self.j.query_start
             self.log('')
             self.log('D-GENE REALIGNMENT')

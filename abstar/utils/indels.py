@@ -70,6 +70,7 @@ class Insertion(Indel):
     """docstring for Insertion"""
     def __init__(self, indel):
         super(Insertion, self).__init__(indel)
+        self.type = 'insertion'
 
 
     @property
@@ -95,6 +96,7 @@ class Deletion(Indel):
     """docstring for Deletion"""
     def __init__(self, indel):
         super(Deletion, self).__init__(indel)
+        self.type = 'deletion'
 
 
     @property

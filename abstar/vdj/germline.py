@@ -29,7 +29,7 @@ from abtools.utils.codons import codons
 from abtools.utils.properties import lazy_property
 
 
-class Germline(object):
+class GermlineSegment(object, LoggingMixin):
     """
     docstring for Germline
 
@@ -54,14 +54,16 @@ class Germline(object):
             Can be a list of arbitrary length, with each member of the list being another
             ``Germline`` instance.
     """
-    def __init__(self, full, species, score=None, strand=None, others=None):
-        super(Germline, self).__init__()
+    def __init__(self, full, species, score=None, strand=None, others=None, assigner_name=None):
+        super(GermlineSegment, self).__init__()
+        LoggingMixin.__init__(self)
         self.full = full
         self.species = species
-        self.score = score
+        self.assigner_score = score
         self.strand = strand
         self.others = others
         self.gene_type = self.full[3].upper()
+        self.assigner = assigner_name
         self._family = None
         self._gene = None
         self._chain = None
@@ -88,7 +90,9 @@ class Germline(object):
 
         # These properties get assigned after re-alignment.
         # New assigners don't need to populate these.
-        self._exceptions = []
+        self.initialize_log()
+        # self._exceptions = []
+        self.score = None
         self.realignment = None
         self.raw_query = None
         self.raw_germline = None
@@ -96,6 +100,7 @@ class Germline(object):
         self.germline_alignment = None
         self.alignment_midline = None
         self.alignment_length = None
+        self.alignment_reading_frame = None  # 0-based, so if alignment start is the start of a codon, reading frame will be 0
         self.imgt_germline = None
         self.imgt_gapped_alignment = None
         self.imgt_nt_positions = []
@@ -106,8 +111,8 @@ class Germline(object):
         self.nfs_indel_adjustment = 0
         self.has_insertion = 'no'
         self.has_deletion = 'no'
-        self.insertions = None
-        self.deletions = None
+        self._insertions = None
+        self._deletions = None
         self.regions = None
         # self.nt_mutations = None
         # self.aa_mutations = None
@@ -116,8 +121,8 @@ class Germline(object):
     @property
     def family(self):
         if self._family is None:
-            sep = '-' if '-' in self.full else '*'
-            self._family = self.full.split(sep)[0]
+            if '-' in self.full:
+                self._family = self.full.split('-')[0]
         return self._family
 
     @family.setter
@@ -128,7 +133,7 @@ class Germline(object):
     @property
     def gene(self):
         if self._gene is None:
-            if all(['-' in self.full, '*' in self.full]):
+            if '*' in self.full:
                 self._gene = self.full.split('*')[0]
         return self._gene
 
@@ -147,10 +152,32 @@ class Germline(object):
         return self._chain
 
 
-    def exception(self, *args, **kwargs):
-        sep = kwargs.get('sep', '\n')
-        estring = sep.join([str(a) for a in args])
-        self._exceptions.append(estring)
+    @property
+    def insertions(self):
+        if self._insertions is None:
+            return []
+        return self._insertions
+
+    @insertions.setter
+    def insertions(self, insertions):
+        self._insertions = insertions
+
+
+    @property
+    def deletions(self):
+        if self._deletions is None:
+            return []
+        return self._deletions
+
+    @deletions.setter
+    def deletions(self, deletions):
+        self._deletions = deletions
+
+
+    def initialize_log(self):
+        log = []
+        log.append('GERMLINE: {}'.format(self.full))
+        self._log = log
 
 
     def realign_germline(self, antibody, query_start=None, query_end=None):
@@ -206,6 +233,7 @@ class Germline(object):
                                                      self.imgt_germline.gapped_nt_sequence,
                                                      matrix=aln_matrix,
                                                      **aln_params)
+        self.imgt_alignment_reading_frame = (self.imgt_gapped_alignment.target_begin - (self.imgt_germline.coding_start - 1)) % 3  # IMGT coding start is 1-based
         try:
             self._imgt_numbering()
         except:
@@ -237,6 +265,7 @@ class Germline(object):
 
     def _process_realignment(self, antibody, aln, query_start):
         self.realignment = aln
+        self.score = aln.score
         self.raw_query = aln.raw_query
         self.raw_germline = aln.raw_target
         self.query_alignment = aln.aligned_query
@@ -299,6 +328,22 @@ class Germline(object):
         query_del_adjustment = 0
 
         for gl in self.imgt_germline.gapped_nt_sequence[imgt_start:]:
+
+            # only compute IMGT AA position numbers for V-genes. J-gene numbering is dependent on the CDR3 length
+            # (due to IMGT's CDR3 naming conventions), so the junction must be annotated before J-gene AA position
+            # numbers can be assigned.
+            # if self.gene_type == 'V':
+
+            # check to see if the position we're looking at is the start of a codon
+            is_codon_start = (imgt_pos + imgt_start_offset) % 3 == 1
+
+            # start by adding the aa position number (only if we're at the start of a codon)
+            if is_codon_start:
+                codon = self.germline_alignment[aln_pos:aln_pos + 3]
+                if codon.count('-') >= 2:
+                    self.imgt_aa_positions.append(None)
+                else:
+                    self.imgt_aa_positions.append((imgt_pos + imgt_start_offset + 2) / 3)
 
             # If the gapped IMGT germline is '.' (indicating a gap introduced by IMGT for numbering purposes),
             # we only need to increment the IMGT position and indicate the lack of sequence at the IMGT position.
@@ -508,7 +553,8 @@ class IMGTGermlineGene(object):
     @property
     def species(self):
         if self._species is None:
-            self._species = self.species_lookup[self.raw_sequence.id.split('|')[2].strip().lower()]
+            species = self.raw_sequence.id.split('|')[2].strip().lower()
+            self._species = self.species_lookup.get(species, species)
         return self._species
 
     @lazy_property
@@ -561,7 +607,7 @@ class IMGTGermlineGene(object):
         for codon in (coding[pos:pos + 3] for pos in xrange(0, len(coding), 3)):
             if len(codon) != 3:
                 continue
-            if '.' in codon:
+            if codon == '...':
                 res.append('.')
             else:
                 res.append(codons.get(codon, 'X'))

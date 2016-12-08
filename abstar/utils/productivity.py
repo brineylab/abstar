@@ -24,75 +24,91 @@
 
 import traceback
 
-from abtools import log
+
+def check_productivity(antibody):
+    return Productivity(antibody)
 
 
-def check_productivity(vdj):
-    logger = log.get_logger(__name__)
-    try:
+class Productivity(object):
+    """docstring for Productivity"""
+    def __init__(self, antibody):
+        super(Productivity, self).__init__()
+        self.antibody = antibody
+        self.productivity_issues = []
+        self._is_productive = None
+
+
+    @property
+    def is_productive(self):
+        if self._is_productive is None:
+            try:
+                problems = any([self.stop_codons(self.antibody),
+                                self.ambig_codons(self.antibody),
+                                self.vdj_disagreement(self.antibody),
+                                self.missing_conserved_junc_residues(self.antibody),
+                                self.junction_not_in_frame(self.antibody),
+                                self.out_of_frame_indels(self.antibody),
+                                ])
+                if problems:
+                    self._is_productive = False
+                else:
+                    self._is_productive = True
+            except:
+                self.antibody.exception('PRODUCTIVITY ERROR', traceback.format_exc())
+                raise
+        return self._is_productive
+
+
+    def stop_codons(self, antibody):
+        if '*' in antibody.vdj_aa:
+            self.productivity_issues.append('Contains stop codon(s)')
+            return True
+        return False
+
+
+    def ambig_codons(self, antibody):
+        if 'X' in antibody.vdj_aa.upper():
+            self.productivity_issues.append('Contains ambiguous codon(s)')
+            return True
+        return False
+
+
+    def vdj_disagreement(self, antibody):
+        if antibody.v.full[:3] != antibody.j.full[:3]:
+            self.productivity_issues.append('V-gene ({}) and J-gene({}) disagree'.format(antibody.v.gene, antibody.j.gene))
+            return True
+        if antibody.d:
+            if not antibody.d.gene:
+                return False
+            if antibody.v.full[:3] != antibody.d.full[:3]:
+                self.productivity_issues.append('V-gene ({}) and D-gene({}) disagree'.format(antibody.v.gene, antibody.d.gene))
+                return True
+        return False
+
+
+    def missing_conserved_junc_residues(self, antibody):
+        if not antibody.junction:
+            return True
+        start = 'C'
+        end = 'W' if antibody.chain == 'heavy' else 'F'
+        if antibody.junction.junction_aa[0] != start or antibody.junction.junction_aa[-1] != end:
+            self.productivity_issues.append('Junction ({}) lacks conserved start and/or end residue'.format(antibody.junction.junction_aa))
+            return True
+        return False
+
+
+    def junction_not_in_frame(self, antibody):
+        if not antibody.junction.in_frame:
+            self.productivity_issues.append('Junction ({}) is out of frame'.format(antibody.junction.junction_nt))
+            return True
+        return False
+
+
+    def out_of_frame_indels(self, antibody):
         problems = 0
-        problems += stop_codons(vdj)
-        problems += ambig_codons(vdj)
-        problems += vdj_agreement(vdj)
-        problems += conserved_junc_residues(vdj)
-        problems += rearrangement(vdj)
-        problems += junction_frame(vdj)
-        problems += indels(vdj)
-        if problems:
-            return 'no'
-        return 'yes'
-    except:
-        logger.debug('PRODUCTIVITY CHECK ERROR: {}'.format(vdj.id))
-        logger.debug(traceback.format_exc())
-
-
-def stop_codons(vdj):
-    if '*' in vdj.vdj_aa:
-        return 1
-    return 0
-
-
-def ambig_codons(vdj):
-    if 'X' in vdj.vdj_aa.upper():
-        return 1
-    return 0
-
-
-def vdj_agreement(vdj):
-    if vdj.v.top_germline[:3] != vdj.j.top_germline[:3]:
-        return 1
-    if vdj.d:
-        if not vdj.d.top_germline:
-            return 0
-        if vdj.v.top_germline[:3] != vdj.d.top_germline[:3]:
-            return 1
-    return 0
-
-
-def conserved_junc_residues(vdj):
-    if not vdj.junction:
-        return 1
-    start = 'C'
-    end = 'W' if vdj.chain == 'heavy' else 'F'
-    if vdj.junction.junction_aa[0] != start or vdj.junction.junction_aa[-1] != end:
-        return 1
-    return 0
-
-
-def rearrangement(vdj):
-    if not vdj.rearrangement:
-        return 1
-    return 0
-
-
-def junction_frame(vdj):
-    return 0 if vdj.junction.in_frame else 1
-
-
-def indels(vdj):
-	problems = 0
-	for indels in [vdj.v.insertions, vdj.j.insertions, vdj.v.deletions, vdj.j.deletions]:
-		for i in indels:
-			if i['in frame'] == 'no':
-				problems += 1
-	return problems
+        for indels in [antibody.v.insertions, antibody.j.insertions, antibody.v.deletions, antibody.j.deletions]:
+            for i in indels:
+                if i.in_frame == 'no':
+                    self.productivity_issues.append('Contains a frameshift {}: {}'.format(i.type, i.abstar_formatted))
+                    problems += 1
+        return False if problems == 0 else True

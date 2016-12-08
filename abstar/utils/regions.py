@@ -58,10 +58,10 @@ def regions(antibody):
     antibody.j.regions = JoiningRegions(antibody)
 
 
-class AbstractRegions(object):
+class BaseRegions(object):
     """Base class for Variable and Joining gene regions"""
     def __init__(self, antibody):
-        super(AbstractRegions, self).__init__()
+        super(BaseRegions, self).__init__()
         self.antibody = antibody
 
         self._raw_nt_positions = None
@@ -202,7 +202,7 @@ class AbstractRegions(object):
         while self.segment.get_raw_position_from_imgt(imgt_start) is None:
             # we don't want to keep going past the end of the region so only keep looking
             # for the end of the deletion until we reach the start of the next region
-            if imgt_start >= IMGT_REGION_START_POSITIONS_NT[region]:
+            if imgt_start >= IMGT_REGION_END_POSITIONS_NT[region]:
                 break
             imgt_start += 1
         return self.segment.get_raw_position_from_imgt(imgt_start)
@@ -247,7 +247,7 @@ class AbstractRegions(object):
         return r1_nt, r2_nt
 
 
-class VariableRegions(AbstractRegions):
+class VariableRegions(BaseRegions):
     """docstring for VariableRegions"""
     def __init__(self, antibody):
         super(VariableRegions, self).__init__(antibody)
@@ -255,7 +255,7 @@ class VariableRegions(AbstractRegions):
         self.region_names = ['FR1', 'CDR1', 'FR2', 'CDR2', 'FR3']
 
 
-class JoiningRegions(AbstractRegions):
+class JoiningRegions(BaseRegions):
     """docstring for JoiningRegions"""
     def __init__(self, antibody):
         super(JoiningRegions, self).__init__(antibody)
