@@ -34,6 +34,9 @@ class LoggingMixin():
 
 
     def log(self, *args, **kwargs):
+        '''
+        Records a log message
+        '''
         sep = kwargs.get('sep', ' ')
         lstring = sep.join([str(a) for a in args])
         if self._log is None:
@@ -43,6 +46,9 @@ class LoggingMixin():
 
 
     def exception(self, *args, **kwargs):
+        '''
+        Records an exception.
+        '''
         sep = kwargs.get('sep', '\n')
         estring = sep.join([str(a) for a in args])
         if self._exceptions is None:
@@ -53,9 +59,9 @@ class LoggingMixin():
 
     def format_log(self):
         '''
-        Formats the antibody log.
+        Formats the log, including exceptions.
 
-        Log formatting is only performed on sequences that had an
+        Log formatting will only be performed on sequences that had an
         error during annotation, unless AbStar is run in debug
         mode. In debug mode, all sequences will be logged.
 

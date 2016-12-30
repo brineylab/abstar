@@ -21,22 +21,20 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #
 
-from .assigner import AbstractAssigner
+
+from .assigner import BaseAssigner
+from .registry import register
 
 
-class MiXCRAssigner(BaseAssigner):
+# @register
+class MiXCR(BaseAssigner):
     """
     docstring for MiXCRAssigner
     """
 
     def __init__(self):
-        super(MiXCRAssigner, self).__init__()
+        super(MiXCR, self).__init__()
 
 
     def __call__(self, sequence_file, species):
-        pass
-
-
-    @property
-    def germline_directory(self):
         pass

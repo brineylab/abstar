@@ -24,28 +24,39 @@
 import os
 import platform
 from tempfile import NamedTemporaryFile
+import traceback
 
 from Bio import SeqIO
 from Bio.Blast.Applications import NcbiblastnCommandline
 from Bio.Blast import NCBIXML
 
-from .assigner import AbstractAssigner
-from .germline import Germline
-from .vdj import VDJ
+from .assigner import BaseAssigner
+from .registry import register, Registration
+from ..core.germline import GermlineSegment
+from ..core.vdj import VDJ
 
 
-class BlastnAssigner(BaseAssigner):
+# @register
+class Blastn(BaseAssigner):
     """
-    docstring for BlastnAssigner
+    docstring for Blastn
     """
+
+    # __metaclass__ = Registry
 
     def __init__(self):
-        super(BlastnAssigner, self).__init__()
+        super(Blastn, self).__init__()
 
 
-    def __call__(self, seqs, species):
-        # seqs = [Sequence(s) for s in SeqIO.parse(open(sequence_file, 'r'), 'fasta')]
+    def __call__(self, sequence_file, species, file_format):
+        seqs = [Sequence(s) for s in SeqIO.parse(open(sequence_file, 'r'), file_format)]
         vdjs = []
+
+        # if the input file is FASTQ-formatted, need to convert it to FASTA for BLASTn to work
+        if file_format == 'fastq':
+            handle = open(sequence_file, 'w')
+            handle.write('\n'.join(s.fasta for s in seqs))
+            handle.close()
 
         # assign V-genes
         vblast_records = self.blast(sequence_file, species, 'V')
@@ -118,9 +129,9 @@ class BlastnAssigner(BaseAssigner):
         self.assigned = _vdjs
 
 
-    @property
-    def name(self):
-        return 'blastn'
+    # @property
+    # def name(self):
+    #     return 'blastn'
 
 
     def blast(self, seq_file, species, segment):

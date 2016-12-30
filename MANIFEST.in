@@ -1,12 +1,23 @@
 include README.md
 include requirements.txt
 include docs/*.txt
+
+include abstar/core/*
+include abstar/assigners/*
+include abstar/assigners/bin/*
+include abstar/assigners/germline_dbs/*
+include abstar/assigners/germline_dbs/blast/*
+include abstar/assigners/germline_dbs/fasta/*
+include abstar/assigners/germline_dbs/imgt-gapped/*
+include abstar/utils/*
+include abstar/utils/queue/*
+
+
 include abstar/blast/blastn*
 include abstar/blast/dbs/*
 include abstar/nw/*
 include abstar/ssw/*
 include abstar/ssw/dbs/*
 include abstar/ssw/isotypes/*
-include abstar/utils/*
 include abstar/utils/germline_data/*
-include abstar/utils/queue/*
+

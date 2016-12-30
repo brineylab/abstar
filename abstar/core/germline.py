@@ -24,6 +24,8 @@
 
 from Bio import SeqIO
 
+from ..utils.mixins import LoggingMixin
+
 from abtools.alignment import global_alignment, local_alignment
 from abtools.utils.codons import codons
 from abtools.utils.properties import lazy_property
@@ -37,7 +39,7 @@ class GermlineSegment(object, LoggingMixin):
     -----
 
         full (str): Full name of the germline gene, following IMGT naming conventions
-            (eg: IGHV3-23*02)
+            (eg: IGHV3-23*02).
 
         species (str): Species from which the germline gene was derived. Choices include
             'human', 'macaque', mouse', rabbit'.
@@ -53,6 +55,9 @@ class GermlineSegment(object, LoggingMixin):
         others (list(Germline)): An optional list of additional high scoring germline genes.
             Can be a list of arbitrary length, with each member of the list being another
             ``Germline`` instance.
+
+        assigner_name (str): The assigner name. Will be converted to lowercase. Optional.
+            If not provided, ``assigner_name`` will be set to ``'unknown'``.
     """
     def __init__(self, full, species, score=None, strand=None, others=None, assigner_name=None):
         super(GermlineSegment, self).__init__()
@@ -63,7 +68,7 @@ class GermlineSegment(object, LoggingMixin):
         self.strand = strand
         self.others = others
         self.gene_type = self.full[3].upper()
-        self.assigner = assigner_name
+        self.assigner = assigner_name.lower() if assigner_name is not None else 'unknown'
         self._family = None
         self._gene = None
         self._chain = None
@@ -88,10 +93,11 @@ class GermlineSegment(object, LoggingMixin):
         self.germline_start = None
         self.germline_end = None
 
+        # initialize log
+        self.initialize_log()
+
         # These properties get assigned after re-alignment.
         # New assigners don't need to populate these.
-        self.initialize_log()
-        # self._exceptions = []
         self.score = None
         self.realignment = None
         self.raw_query = None
@@ -114,8 +120,6 @@ class GermlineSegment(object, LoggingMixin):
         self._insertions = None
         self._deletions = None
         self.regions = None
-        # self.nt_mutations = None
-        # self.aa_mutations = None
 
 
     @property
@@ -533,6 +537,9 @@ def get_imgt_germlines(species, gene_type, gene=None):
 class IMGTGermlineGene(object):
     """docstring for IMGTGermlineGene"""
 
+    # species_lookup exists to translate IMGT names to AbStar germline DB names.
+    # if the IMGT species isn't in species_lookup, AbStar will try to use the IMGT
+    # species name directly.
     species_lookup = {'homo sapiens': 'human'}
 
     def __init__(self, sequence, species=None):

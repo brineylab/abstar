@@ -22,14 +22,13 @@
 #
 
 
-from abstar.utils import junction, mutations, positions, regions
-from abstar.utils.log import LoggingMixin
-from abstar.vdj.germline import get_imgt_germlines
+from ..utils import junction, mixins, mutations, positions, regions
+from .germline import get_imgt_germlines
 
 from abtools.alignment import global_alignment, local_alignment
 
 
-class Antibody(object, LoggingMixin):
+class Antibody(object, mixins.LoggingMixin):
     """
     docstring for Antibody
     """
@@ -44,7 +43,9 @@ class Antibody(object, LoggingMixin):
         self.d = vdj.d
         self.chain = vdj.v.chain
         self.species = species.lower()
+        # initialize the log
         self._log = self.initialize_log()
+        # property vars
         self._strand = None
         self._imgt_position_from_aligned = {}
         self._aligned_position_from_imgt = {}
@@ -81,7 +82,7 @@ class Antibody(object, LoggingMixin):
         self._log = log
 
 
-    def annotate(self):
+    def annotate(self, uid):
         '''
         Realigns the V(D)J germline genes using optimized SSW alignment
         parameters, followed by more detailed annotation (junction
@@ -89,102 +90,15 @@ class Antibody(object, LoggingMixin):
         indels, etc).
         '''
         try:
+            self._parse_uid(uid)
             self._realign_germlines()
             self._get_junction()
             self._assemble_vdj_sequence()
             self._identify_regions()
-
-            # TODO
-            self._imgt_position_numbering()
+            self._mutations()
+            self._productivity()
         except:
-            pass
-
-
-
-# --------
-# LOGGING
-# --------
-
-    # def log(self, *args, **kwargs):
-    #     sep = kwargs.get('sep', ' ')
-    #     lstring = sep.join([str(a) for a in args])
-    #     self._log.append(lstring)
-
-
-    # def exception(self, *args, **kwargs):
-    #     sep = kwargs.get('sep', '\n')
-    #     estring = sep.join([str(a) for a in args])
-    #     self._exceptions.append(estring)
-
-
-    # def format_log(self):
-    #     '''
-    #     Formats the antibody log.
-
-    #     Log formatting is only performed on sequences that had an
-    #     error during annotation, unless AbStar is run in debug
-    #     mode. In debug mode, all sequences will be logged.
-
-    #     Returns:
-    #     --------
-
-    #         str: Formatted log string.
-    #     '''
-    #     self._log += ['', '']
-    #     output = '\n'.join(self._log)
-    #     if self._check_for_exceptions():
-    #         output += '\n\n'
-    #         output += self._format_exceptions()
-    #     return output
-
-
-    # def _initialize_log(self):
-    #     log = []
-    #     log.append('=' * len(self.id))
-    #     log.append(self.id)
-    #     log.append('=' * len(self.id))
-    #     log.append('')
-    #     log.append(self.raw_input.fasta)
-    #     log.append('')
-    #     log.append('RAW INPUT: {}'.format(self.raw_input.sequence))
-    #     log.append('ORIENTED INPUT: {}'.format(self.oriented_input.sequence))
-    #     log.append('CHAIN: {}'.format(self.chain))
-    #     log.append('')
-    #     if self.v is not None:
-    #         log.append('V-GENE: {}'.format(self.v.full))
-    #     if self.d is not None:
-    #         log.append('D-GENE: {}'.format(self.d.full))
-    #     if self.j is not None:
-    #         log.append('J-GENE: {}'.format(self.j.full))
-    #     return log
-
-
-    # def _check_for_exceptions(self):
-    #     if self._exceptions:
-    #         return True
-    #     if self.v is not None:
-    #         if self.v._exceptions:
-    #             return True
-    #     if self.d is not None:
-    #         if self.d._exceptions:
-    #             return True
-    #     if self.j is not None:
-    #         if self.j._exceptions:
-    #             return True
-    #     return False
-
-
-    # def _format_exceptions(self):
-    #     estring = 'EXCEPTIONS\n'
-    #     estring += '----------\n\n'
-    #     if self.v is not None:
-    #         self._exceptions += self.v._exceptions
-    #     if self.d is not None:
-    #         self._exceptions += self.d._exceptions
-    #     if self.j is not None:
-    #         self._exceptions += self.j._exceptions
-    #     estring += '\n\n'.join([e for e in self._exceptions])
-    #     return estring
+            self.exception('ANNOTATION', traceback.format_exc())
 
 
 # ---------------------
@@ -318,39 +232,21 @@ class Antibody(object, LoggingMixin):
         return str(translated_seq)
 
 
+    def _parse_uid(self, uid):
+        if uid >= 0:
+            self.uid = self.raw_input[:uid]
+        else:
+            self.uid = self.raw_input[uid:]
+
+
     def _get_junction(self):
         self.junction = junction.get_junction(self)
-        # self.germ_junction = junction.get_junction(self, germ=True)
-
-
-    def _imgt_position_numbering(self):
-        pass
-
-
-
-
-    def _imgt_nt_position_numbering(self):
-        # V-gene
-        v_aln_start = self.v.imgt_position_from_raw(self.v.query_start)  # IMGT position of the first aligned V-gene position
-        for i, nt in self.v.query_alignment[:-len(self.junction.v_nt)]:  # don't want to include any of the junction, just through FR3
-            imgt_pos = self.v.imgt_position_from_raw(i + v_aln_start)
-            self._imgt_nt_position_from_aligned[i] = imgt_pos
-            self._aligned_nt_position_from_imgt[imgt_pos] = i
-
-        # J-gene
-        junc_start = 310
-
-
-
-
-
 
 
     def _identify_regions(self):
         '''
         Identifies and annotates variable/joining gene regions.
         '''
-        from abstar.utils import regions
         self.log('')
         self.log('VDJ REGIONS')
         self.log('-----------')
@@ -358,13 +254,10 @@ class Antibody(object, LoggingMixin):
         self.j.regions = regions.get_joining_regions(self)
 
 
-
-
     def _nt_mutations(self):
         '''
         Identifies and annotates nucleotide mutations.
         '''
-        # from abstar.utils import mutations
         return mutations.nt_mutations(self)
 
 
@@ -372,7 +265,6 @@ class Antibody(object, LoggingMixin):
         '''
         Identifies and annotates amino acid mutations.
         '''
-        # from abstar.utils import mutations
         return mutations.aa_mutations(self)
 
 
@@ -403,7 +295,3 @@ class Antibody(object, LoggingMixin):
                         'gap_open': -22,
                         'gap_extend': -1}}
         return scores[gene]
-
-
-
-

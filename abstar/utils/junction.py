@@ -52,17 +52,23 @@ class Junction(object):
         self.in_frame = True
         self.fallback_5prime = False
         self.fallback_3prime = False
+
         # identify junction sequence
         self.junction_nt_start = self._find_junction_nt_start(antibody)
         self.junction_nt_end = self._find_junction_nt_end(antibody)
         self.junction_nt = antibody.oriented_input[self.junction_nt_start:self.junction_nt_end]
         antibody.log('JUNCTION NT:', self.junction_nt, len(self.junction_nt))
+
+        # check junction frame and retry junction identification with the slower
+        # (but potentially more accurate) alignment method if it isn't in frame
         if len(self.junction_nt) % 3 != 0:
             antibody.log('WARNING: Junction out of frame!')
             if any([self.fallback_5prime is False, self.fallback_3prime is False]):
+                # only try the 5' alignment if it wasn't already used
                 if not self.fallback_5prime:
                     antibody.log('Attempting to identify junction start with fallback alignment method')
                     self.junction_nt_start = self._fallback_find_junc_nt_start(antibody)
+                # only try the 3' alignment if it wasn't already used
                 if not self.fallback_3prime:
                     antibody.log('Attempting to identify junction end with fallback alignment method')
                     self.junction_nt_end = self._fallback_find_junc_nt_end(antibody)
@@ -72,9 +78,11 @@ class Junction(object):
                 self.in_frame = False
         self.junction_aa = str(Seq(self.junction_nt.replace('-', ''), generic_dna).translate())
         antibody.log('JUNCTION AA:', self.junction_aa, len(self.junction_aa))
+
         # identify CDR3 sequence
         self.cdr3_aa = self.junction_aa[1:-1]
         self.cdr3_nt = self.junction_nt[3:-3]
+
         # parse N-addition regions
         if antibody.d is not None:
             n1_start = antibody.v.query_end + 1
@@ -110,11 +118,13 @@ class Junction(object):
             antibody.log('V_NT:', self.v_nt)
             antibody.log('N_NT:', self.n_nt)
             antibody.log('J_NT:', self.j_nt)
+
         # calculate IMGT numbering for the junction and CDR3
         self.cdr3_imgt_nt_numbering = self._calculate_cdr3_imgt_nt_numbering()
         self.cdr3_imgt_aa_numbering = self._calculate_cdr3_imgt_aa_numbering()
         self.junction_imgt_nt_numbering = ['310', '311', '312'] + self.cdr3_imgt_nt_numbering + ['352', '353', '354']
         self.junction_imgt_aa_numbering = ['104'] + self.cdr3_imgt_aa_numbering + ['118']
+
         # if the J-gene is long enough to extend into the variable-length portion of the
         # junction numbering, need to adjust the IMGT numbering for the J-gene
         if min(antibody.j.imgt_aa_positions) < 112 or min(antibody.j.imgt_nt_positions) < 334:
@@ -135,8 +145,8 @@ class Junction(object):
         junc_start = antibody.v.get_raw_position_from_imgt(310)
         junc_start_codon = antibody.oriented_input[junc_start:junc_start + 3]
         antibody.log('JUNC START:', junc_start_codon, codons[junc_start_codon], junc_start)
-        # if the identified junction start isn't normal, use the fallback (and more
-        # computationally intensive) method for finding the junction start.
+        # if the identified junction start isn't normal, use the fallback (and slower)
+        # alignment method for finding the junction start.
         if junc_start_codon not in start_codons:
             antibody.log('WARNING: Using fallback method to find junction start!')
             return self._fallback_find_junc_nt_start(antibody)
@@ -170,8 +180,8 @@ class Junction(object):
         junc_end_codon = antibody.oriented_input[junc_end:junc_end + 3]
         antibody.log('JUNC END:', junc_end_codon, codons[junc_end_codon], junc_end)
 
-        # if the identified junction end isn't normal, use the fallback (and more
-        # computationally intensive) method for finding the junction end.
+        # if the identified junction end isn't normal, use the fallback (and slower)
+        # alignment method for finding the junction end.
         if junc_end_codon not in end_codons:
             antibody.log('WARNING: Did not identify conserved position 118. Using fallback method to find junction end.')
             return self._fallback_find_junc_nt_end(antibody)

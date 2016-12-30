@@ -26,33 +26,29 @@ from __future__ import print_function, unicode_literals
 
 from argparse import ArgumentParser
 from glob import glob
-from multiprocessing import Pool
-from subprocess import Popen, PIPE
-
-# External
-from Bio import SeqIO
-from abtools import log
-from abtools.sequence import Sequence
-
 import gzip
 import logging
+from multiprocessing import Pool
 import os
 import re
+from subprocess import Popen, PIPE
 import sys
 import time
 import traceback
 import warnings
 
-from .log import LoggingMixin
+from Bio import SeqIO
 
-# VDJ assigners
-from abstar.vdj.blastn import BlastnAssigner
-from abstar.vdj.mixcr import MiXCRAssigner
+from abtools import log
+from abtools.sequence import Sequence
+
+from ..assigners.assigner import BaseAssigner
+# from ..assigners.registry import ASSIGNERS
+from ..utils.output import get_abstar_results, write_output
+from ..utils.queue.celery import celery
 
 
-ASSIGNERS = {'blastn': BlastnAssigner,
-             'mixcr': MiXCRAssigner,
-             }
+ASSIGNERS = {cls.__name__.lower(): cls for cls in vars()['BaseAssigner'].__subclasses__()}
 
 
 #####################################################################
@@ -64,30 +60,34 @@ ASSIGNERS = {'blastn': BlastnAssigner,
 
 def parse_arguments(print_help=False):
     parser = ArgumentParser("Performs germline assignment and other relevant annotation on antibody sequence data from NGS platforms.")
-    parser.add_argument('-p', '--project', dest='data_dir', default=None,
+    parser.add_argument('-p', '--project', dest='project_dir', default=None,
                         help="The data directory, where files will be downloaded (or have previously \
                         been download), temp files will be stored, and output files will be \
                         written. During StarCluster configuration, all ephemeral drives on the master \
                         node will be combined into a single RAID volume and mounted at the data directory. \
                         Not necessary if '-o', '-t' and '-i' are provided. \
                         Default is '/data'.")
-    parser.add_argument('-i', '--in', dest='input', default=None,
+    parser.add_argument('-i', '--input', dest='input', default=None,
                         help="The input file or directory, to be split and processed in parallel. \
                         If a directory is given, all files in the directory will be iteratively processed. \
-                        Required.")
-    parser.add_argument('-o', '--out', dest='output', default=None,
+                        Required, unless <project> is provided.")
+    parser.add_argument('-o', '--output', dest='output', default=None,
                         help="The output directory, into which the JSON-formatted output files will be deposited. \
                         If the directory does not exist, it will be created. \
-                        Required.")
-    parser.add_argument('-l', '--log', dest='log', default=None,
-                        help="The log file, to which log info will be written. \
-                        Default is <output_directory>/abstar.log if '-o/--out' is specificied. \
-                        If '-o/--out' isn't provided, default is <data_directory>/abstar.log")
+                        Required, unless <project> is provided.")
+    parser.add_argument('-l', '--log', dest='log_dir', default=None,
+                        help="The log directory, into which log files will be deposited. \
+                        Default is <project_directory>/log if <project> is supplied, otherwise \
+                        the parent directory of <output> will be used. \
+                        Required, unless <project> is provided.")
     parser.add_argument('-t', '--temp', dest='temp', default=None,
                         help="The directory in which temp files will be stored. If the directory doesn't exist, \
-                        it will be created. Required.")
+                        it will be created. Required, unless <project> is provided.")
     parser.add_argument('--sequences', dest='sequences', default=None,
                         help="Only used when passing sequences directly through the API.")
+    parser.add_argument('-a', '--assigner', dest='assigner', default='blastn',
+                        help='VDJ germline assignment method to use. \
+                        Options are: {}. Default is blastn'.format(', '.join(ASSIGNERS.keys())))
     parser.add_argument('-k', '--chunksize', dest='chunksize', default=500, type=int,
                         help="Approximate number of sequences in each distributed job. \
                         Defaults to 500. \
@@ -97,9 +97,9 @@ def parse_arguments(print_help=False):
                         help="Select the output type. Options are 'json', 'imgt' and 'impala'. \
                         IMGT output mimics the Summary table produced by IMGT High-V/Quest, \
                         to maintain some level of compatibility with existing IMGT-based pipelines. \
-                        JSON output is much more detailed. \
+                        JSON output is much more detailed, and is suitable for direct import into MongoDB. \
                         Hadoop output is columnar and easily converted to binary HDFS-friendly formats \
-                        (Parquet, Avro) for use in Impala or other Hadoop query engines (Pig, Hive, Spark). \
+                        (Parquet, Avro) for use in Impala or other Hadoop query engines. \
                         Defaults to JSON output.")
     parser.add_argument('-m', '--merge', dest="merge", action='store_true', default=False,
                         help="Use if the input files are paired-end FASTQs \
@@ -113,10 +113,9 @@ def parse_arguments(print_help=False):
                         Default is 'simple_bayesian', which is the default PANDAseq algorithm.")
     parser.add_argument('-n', '--nextseq', dest="nextseq", action='store_true', default=False,
                         help="Use if the run was performed on a NextSeq sequencer.")
-    parser.add_argument('-u', '--umid', dest="uaid", type=int, default=0,
-                        help="Length of the unique antibody identifiers (UAIDs) \
-                        used when preparing samples, if used. \
-                        Default is unbarcoded (UAID length of 0).")
+    parser.add_argument('-u', '--uid', dest="uid", type=int, default=0,
+                        help="Length of the unique identifier (UID, or molecular barcode) if used. \
+                        Default is unbarcoded (UID length of 0).")
     parser.add_argument('-I', '--isotype', dest="isotype", action='store_false', default=True,
                         help="If set, the isotype will not be determined for heavy chains.\
                         If not set, isotyping sequences for the appropriate species will be used.")
@@ -128,15 +127,11 @@ def parse_arguments(print_help=False):
                         If set, input files will be split into many subfiles and passed \
                         to a Celery queue. If not set, input files will still be split, but \
                         will be distributed to local processors using multiprocessing.")
-    # parser.add_argument('-S', '--starcluster', dest="starcluster", default=False, action='store_true',
-    #                     help="Use if performing analysis on a StarCluster instance. \
-    #                     If set, the cluster will be configured to NFS share all ephemeral drives \
-    #                     on the master node and Celery workers will be started on all worker nodes. \
-    #                     Configuration only needs to be run once per cluster, so additional runs on\
-    #                     an already-configured cluster should be run without this option.")
-    parser.add_argument('-D', '--debug', dest="debug", action='count', default=0,
-                        help="If set, logs additional debug information. \
-                        Use -DD to print verbose exception information to screen in addition to writing to log.")
+    parser.add_argument('-D', '--debug', dest="debug", action='store_true', default=False,
+                        help="If set, logs information about successfully assigned sequences as well \
+                        as unsuccessful sequences. Useful for debugging small test datasets, \
+                        as the logging is fairly detailed. \
+                        Default is to only log unsuccessful sequences.")
     parser.add_argument('-s', '--species', dest='species', default='human',
                         choices=['human', 'macaque', 'mouse', 'rabbit', 'b12mouse', 'vrc01mouse', '9114mouse'])
     parser.add_argument('-z', '--gzip', dest='gzip', default=False, action='store_true',
@@ -155,37 +150,35 @@ def parse_arguments(print_help=False):
 
 class Args(object):
     def __init__(self, project_dir=None, input=None, output=None, log=None, temp=None,
-                 sequences=None, chunksize=250, output_type='json',
+                 sequences=None, chunksize=500, output_type='json',
                  merge=False, pandaseq_algo='simple_bayesian',
-                 nextseq=False, umid=0, isotype=False,
-                 basespace=False, cluster=False, starcluster=False,
-                 debug=False, print_debug=False, species='human', gzip=False):
+                 nextseq=False, uid=0, isotype=False, pretty=False,
+                 basespace=False, cluster=False,
+                 debug=False, species='human', gzip=False):
         super(Args, self).__init__()
         self.sequences = sequences
-        self.data_dir = str(project_dir) if project_dir is not None else project_dir
-        self.input = str(input) if input is not None else input
-        self.output = str(output) if output is not None else output
-        self.log = str(log) if log is not None else log
-        self.temp = str(temp) if temp is not None else temp
+        self.project_dir = os.path.abspath(project_dir) if project_dir is not None else project_dir
+        self.input = os.path.abspath(input) if input is not None else input
+        self.output = os.path.abspath(output) if output is not None else output
+        self.log = os.path.abspath(log) if log is not None else log
+        self.temp = os.path.abspath(temp) if temp is not None else temp
         self.chunksize = int(chunksize)
         self.output_type = str(output_type)
         self.merge = True if basespace else merge
         self.pandaseq_algo = str(pandaseq_algo)
         self.nextseq = nextseq
-        self.uaid = int(umid)
+        self.uid = int(uid)
         self.isotype = isotype
         self.basespace = basespace
         self.cluster = cluster
-        self.starcluster = starcluster
-        self.debug = 1 if debug else 0
+        self.pretty = pretty
+        self.debug = debug
         self.gzip = gzip
-        if print_debug and self.debug > 0:
-            self.debug == 2
         self.species = species
 
 
 def validate_args(args):
-    if not any([args.data_dir,
+    if not any([args.project_dir,
                 args.sequences,
                 all([args.input, args.output, args.temp])]):
         parse_arguments(print_help=True)
@@ -205,39 +198,42 @@ def validate_args(args):
 
 def make_directories(args):
     full_paths = []
-    if args.data_dir and not os.path.exists(args.data_dir):
-        _make_direc(args.data_dir, args)
-    indir = args.input if args.input else os.path.join(args.data_dir, 'input')
-    outdir = args.output if args.output else os.path.join(args.data_dir, 'output')
-    tempdir = args.temp if args.temp else os.path.join(args.data_dir, 'temp')
-    for d in [indir, outdir, tempdir]:
+    if args.project_dir is not None and not os.path.exists(args.project_dir):
+        _make_direc(args.project_dir, args)
+    indir = args.input if args.input is not None else os.path.join(args.project_dir, 'input')
+    outdir = args.output if args.output is not None else os.path.join(args.project_dir, 'output')
+    tempdir = args.temp if args.temp is not None else os.path.join(args.project_dir, 'temp')
+    log_parent = args.project_dir if args.project_dir is not None else os.path.dirname(outdir)
+    logdir = args.log if args.log is not None else os.path.join(log_parent, 'log')
+    logtempdir = os.path.join(logdir, 'temp')
+    for d in [indir, outdir, tempdir, logdir, logtempdir]:
         d = os.path.abspath(d)
         full_paths.append(d)
-        _make_direc(d, args)
-    return full_paths
+        _make_direc(d, args.cluster)
+    return full_paths[:-1]
 
 
-def _make_direc(d, args):
+def _make_direc(d, cluster):
     if not os.path.exists(d):
         os.makedirs(d)
-    if args.cluster:
+    if cluster:
         cmd = 'sudo chmod 777 {}'.format(d)
         p = Popen(cmd, shell=True, stdout=PIPE, stderr=PIPE)
         stdout, stderr = p.communicate()
 
 
 def make_merge_dir(args):
-    merge_dir = os.path.join(args.data_dir, 'merged')
+    merge_parent = args.project_dir if args.project_dir is not None else os.path.dirname(indir)
+    merge_dir = os.path.abspath(os.path.join(merge_parent, 'merged'))
     _make_direc(merge_dir, args)
     return merge_dir
 
 
-def setup_logging(args):
-    log_dir = args.output if args.output else args.data_dir
-    logfile = args.log if args.log else os.path.join(log_dir, 'abstar.log')
+def setup_logging(log_dir, debug):
+    logfile = os.path.join(log_dir, 'abstar.log')
     debug = True if args.debug > 0 else False
-    print_debug = True if args.debug == 2 else False
-    log.setup_logging(logfile, debug=args.debug)
+    print_debug = True if debug == 2 else False
+    log.setup_logging(logfile, debug=debug)
     global logger
     logger = log.get_logger('abstar')
 
@@ -254,10 +250,10 @@ def log_options(input_dir, output_dir, temp_dir, args):
     logger.info('OUTPUT TYPE: {}'.format(args.output_type))
     if args.merge or args.basespace:
         logger.info('PANDASEQ ALGORITHM: {}'.format(args.pandaseq_algo))
-    logger.info('UAID: {}'.format(args.uaid))
+    logger.info('UID: {}'.format(args.uid))
     logger.info('ISOTYPE: {}'.format('yes' if args.isotype else 'no'))
     logger.info('EXECUTION: {}'.format('cluster' if args.cluster else 'local'))
-    logger.info('DEBUG: {}'.format('True' if args.debug > 0 else 'False'))
+    logger.info('DEBUG: {}'.format('True' if args.debug else 'False'))
     logger.debug('INPUT: {}'.format(input_dir))
     logger.debug('OUTPUT: {}'.format(output_dir))
     logger.debug('TEMP: {}'.format(temp_dir))
@@ -275,6 +271,8 @@ def list_files(d, log=False):
         files = [d, ]
     if log:
         fnames = [os.path.basename(f) for f in files]
+        log.info('')
+        log.info('FILE COUNT: {}'.format(len(fnames)))
         logger.info('FILES: {}'.format(', '.join(fnames)))
     return files
 
@@ -313,6 +311,23 @@ def concat_output(input_file, jsons, output_dir, args):
                             out_file.write(line)
                     out_file.write('\n')
     return ofile
+
+
+def concat_logs(input_file, logs, log_dir, log_type):
+    bname = os.path.basename(input_file)
+    if '.' in bname:
+        split_name = bname.split('.')
+        lprefix = '.'.join(split_name[:-1])
+    else:
+        lprefix = bname
+    lfile = os.path.join(log_dir, '{}.{}'.format(lprefix, log_type))
+    lhandle = open(lfile, 'w')
+    with lhandle as logfile:
+        for log in logs:
+            with open(log) as f:
+                for line in f:
+                    logfile.write(line)
+    return lfile
 
 
 def clear_temp_files(temp_files):
@@ -373,7 +388,7 @@ def split_file(f, fmt, temp_dir, args):
     seq_counter = 0
     total_seq_counter = 0
     subfiles = []
-    fastas = []
+    sequences = []
     if '.' in os.path.basename(f):
         out_prefix = '.'.join(os.path.basename(f).split('.')[:-1])
     else:
@@ -381,15 +396,15 @@ def split_file(f, fmt, temp_dir, args):
     if args.chunksize != 0:
         try:
             for seq in SeqIO.parse(open(f, 'r'), fmt.lower()):
-                fastas.append('>{}\n{}'.format(seq.id, str(seq.seq)))
+                sequences.append(seq.format(fmt.lower()))
                 seq_counter += 1
                 total_seq_counter += 1
                 if seq_counter == args.chunksize:
                     out_file = os.path.join(temp_dir, '{}_{}'.format(out_prefix, file_counter))
                     ohandle = open(out_file, 'w')
-                    ohandle.write('\n'.join(fastas))
+                    ohandle.write('\n'.join(sequences))
                     ohandle.close()
-                    fastas = []
+                    sequences = []
                     seq_counter = 0
                     file_counter += 1
                     subfiles.append(out_file)
@@ -401,7 +416,7 @@ def split_file(f, fmt, temp_dir, args):
             clear_temp_files(subfiles)
             sys.exit(1)
 
-        # We don't want our files split
+    # We don't want our files split
     else:
         for seq in SeqIO.parse(open(f, 'r'), fmt.lower()):
             total_seq_counter += 1
@@ -413,7 +428,7 @@ def split_file(f, fmt, temp_dir, args):
     if seq_counter:
         file_counter += 1
         out_file = os.path.join(temp_dir, '{}_{}'.format(out_prefix, file_counter))
-        open(out_file, 'w').write('\n' + '\n'.join(fastas))
+        open(out_file, 'w').write('\n' + '\n'.join(sequences))
         subfiles.append(out_file)
     logger.info('SEQUENCES: {}'.format(total_seq_counter))
     logger.info('JOBS: {}'.format(file_counter))
@@ -442,17 +457,6 @@ def print_job_stats(total_seqs, good_seqs, start_time, end_time):
     logger.info('AbStar completed in {} seconds'.format(run_time))
 
 
-def update_progress(finished, jobs, failed=None):
-    pct = int(100. * finished / jobs)
-    ticks = pct / 2
-    spaces = 50 - ticks
-    if failed:
-        prog_bar = '\r({}/{}) |{}{}|  {}% ({}, {})'.format(finished, jobs, '|' * ticks, ' ' * spaces, pct, finished - failed, failed)
-    else:
-        prog_bar = '\r({}/{}) |{}{}|  {}%'.format(finished, jobs, '|' * ticks, ' ' * spaces, pct)
-    sys.stdout.write(prog_bar)
-    sys.stdout.flush()
-
 
 #####################################################################
 #
@@ -461,22 +465,74 @@ def update_progress(finished, jobs, failed=None):
 #####################################################################
 
 
-def run_jobs(files, output_dir, args):
+
+@celery.task
+def run_abstar(seq_file, output_dir, log_dir, arg_dict):
+    '''
+    Wrapper function to multiprocess (or not) the assignment of V, D and J
+    germline genes. Also writes the JSON-formatted output to file.
+
+    Input is a a FASTA- or FASTQ-formatted file of antibody sequences, the output directory,
+    and a dictionary of runtime args.
+
+    Output is a tuple containing (0) path to the output file, (1) the number of successfully
+    annotated antibody sequences, (2) path to the log file for successfully annotated sequences (an
+    empty string unless args.debug is True) and (3) path to the log file for unsuccessfully annotated
+    sequences (only an eompty string if all sequences in the input file were successful).
+    '''
+    try:
+        # Args instances can't be serialized by Celery, so we need to pass them in
+        # as a dict and re-convert to an Args object inside the Celery job
+        args = Args(**arg_dict)
+        # identify output file
+        output_filename = os.path.basename(seq_file)
+        if args.output_type == 'json':
+            output_file = os.path.join(output_dir, output_filename + '.json')
+        elif args.output_type in ['imgt', 'hadoop']:
+            output_file = os.path.join(output_dir, output_filename + '.txt')
+        # setup log files
+        assigned_logfile = os.path.join(log_dir, 'temp/{}.assigned'.format(output_filename))
+        assigned_loghandle = open(assigned_logfile, 'a')
+        unassigned_logfile = os.path.join(log_dir, 'temp/{}.unassigned'.format(output_filename))
+        unassigned_loghandle = open(unassigned_logfile, 'a')
+        # start assignment
+        assigner = ASSIGNERS[args.assigner]
+        assigner(sequence_file, args.species)
+        # process all of the successfully assigned sequences
+        assigned = [Antibody(vdj, args.species) for vdj in assigner.assigned]
+        for ab in assigned:
+            ab.annotate(args.uid)
+            if args.debug:
+                assigned_loghandle.write(ab.format_log())
+        results = get_abstar_results(assigned, pretty=args.pretty, padding=args.padding, raw=args.raw)
+        write_output(results, output_file, args.output_type)
+        # capture the log for all unsuccessful sequences
+        for vdj in unassigned:
+            unassigned_loghandle.write(vdj.format_log())
+        # close the log handles
+        unassigned_loghandle.close()
+        assigned_loghandle.close()
+        # return the number of successful assignments
+        return (output_file, len(assigned), assigned_logfile, unassigned_logfile)
+    except:
+        raise Exception("".join(traceback.format_exception(*sys.exc_info())))
+
+
+def run_jobs(files, output_dir, log_dir, args):
     sys.stdout.write('\nRunning VDJ...\n')
     if args.cluster:
-        return _run_jobs_via_celery(files, output_dir, args)
+        return _run_jobs_via_celery(files, output_dir, log_dir, args)
     elif args.debug or args.chunksize == 0:
-        return _run_jobs_singlethreaded(files, output_dir, args)
+        return _run_jobs_singlethreaded(files, output_dir, log_dir, args)
     else:
-        return _run_jobs_via_multiprocessing(files, output_dir, args)
+        return _run_jobs_via_multiprocessing(files, output_dir, log_dir, args)
 
 
-def _run_jobs_singlethreaded(files, output_dir, args):
-    from utils.vdj import run as run_vdj
+def _run_jobs_singlethreaded(files, output_dir, log_dir, args):
     results = []
     for i, f in enumerate(files):
         try:
-            results.append(run_vdj(f, output_dir, args))
+            results.append(run_abstar(f, output_dir, log_dir, vars(args)))
             update_progress(i + 1, len(files))
         except:
             logger.debug('FILE-LEVEL EXCEPTION: {}'.format(f))
@@ -485,14 +541,14 @@ def _run_jobs_singlethreaded(files, output_dir, args):
     return results
 
 
-def _run_jobs_via_multiprocessing(files, output_dir, args):
-    from utils.vdj import run as run_vdj
+def _run_jobs_via_multiprocessing(files, output_dir, log_dir, args):
     p = Pool(maxtasksperchild=50)
     async_results = []
     for f in files:
-        async_results.append((f, p.apply_async(run_vdj, (f,
+        async_results.append((f, p.apply_async(run_abstar, (f,
                                                          output_dir,
-                                                         args))))
+                                                         log_dir,
+                                                         vars(args)))))
     monitor_mp_jobs([ar[1] for ar in async_results])
     results = []
     for a in async_results:
@@ -520,13 +576,13 @@ def monitor_mp_jobs(results):
     sys.stdout.write('\n\n')
 
 
-def _run_jobs_via_celery(files, output_dir, args):
-    from utils.vdj import run as run_vdj
+def _run_jobs_via_celery(files, output_dir, log_dir, args):
     async_results = []
     for f in files:
-        async_results.append(run_vdj.delay(f,
+        async_results.append(run_abstar.delay(f,
                                            output_dir,
-                                           args))
+                                           log_dir,
+                                           vars(args)))
     succeeded, failed = monitor_celery_jobs(async_results)
     failed_files = [f for i, f in enumerate(files) if async_results[i].failed()]
     for ff in failed_files:
@@ -545,6 +601,27 @@ def monitor_celery_jobs(results):
         update_progress(finished, jobs, failed=len(failed))
     sys.stdout.write('\n\n')
     return succeeded, failed
+
+
+def update_progress(finished, jobs, failed=None):
+    pct = int(100. * finished / jobs)
+    ticks = pct / 2
+    spaces = 50 - ticks
+    if failed:
+        prog_bar = '\r({}/{}) |{}{}|  {}% ({}, {})'.format(finished, jobs, '|' * ticks, ' ' * spaces, pct, finished - failed, failed)
+    else:
+        prog_bar = '\r({}/{}) |{}{}|  {}%'.format(finished, jobs, '|' * ticks, ' ' * spaces, pct)
+    sys.stdout.write(prog_bar)
+    sys.stdout.flush()
+
+
+
+#####################################################################
+#
+#                             MAIN
+#
+#####################################################################
+
 
 
 def run(*args, **kwargs):
@@ -669,7 +746,7 @@ def run(*args, **kwargs):
             downstream of the J-gene. If False, the isotype will not be determined.
             Default is True.
 
-        umid (int): Length (in nucleotides) of the Unique Molecular ID used to barcode input RNA.
+        uid (int): Length (in nucleotides) of the Unique Molecular ID used to barcode input RNA.
             A positive integer results in the UMID being parsed from the start of the read (or merged
             read), a negative integer results in parsing from the end of the read. Default is 0,
             which results in no UMID parsing.
@@ -750,8 +827,8 @@ def main(args):
         vdjs = vdj.process_sequences(args.sequences, args)
         return output.as_dict(vdjs)
     else:
-        input_dir, output_dir, temp_dir = make_directories(args)
-        setup_logging(args)
+        input_dir, output_dir, temp_dir, log_dir = make_directories(args)
+        setup_logging(log_dir, args.debug)
         log_options(input_dir, output_dir, temp_dir, args)
         if args.basespace:
             args.merge = True
@@ -762,6 +839,8 @@ def main(args):
             args.isotype = args.species
         input_files = [f for f in list_files(input_dir, log=True) if os.stat(f).st_size > 0]
         output_files = []
+        assigned_files = []
+        unassigned_files = []
         for f, fmt in zip(input_files, format_check(input_files)):
             # skip the non-FASTA/Q files
             if fmt is None:
@@ -769,14 +848,19 @@ def main(args):
             start_time = time.time()
             print_input_file_info(f, fmt)
             subfiles, seq_count = split_file(f, fmt, temp_dir, args)
-            run_info = run_jobs(subfiles, temp_dir, args)
+            run_info = run_jobs(subfiles, temp_dir, log_dir, args)
             temp_json_files = [r[0] for r in run_info if r is not None]
             processed_seq_counts = [r[1] for r in run_info if r is not None]
+            assigned_log_files = [r[2] for r in run_info if r is not None]
+            unassigned_log_files = [r[3] for r in run_info if r is not None]
             vdj_end_time = time.time()
             output_file = concat_output(f, temp_json_files, output_dir, args)
+            unassigned_file = concat_logs(f, unassigned_log_files, log_dir, 'unassigned')
+            if args.debug:
+                assigned_file = concat_logs(f, assigned_log_files, log_dir, 'assigned')
             output_files.append(output_file)
             if not args.debug:
-                clear_temp_files(subfiles + temp_json_files)
+                clear_temp_files(subfiles + temp_json_files + assigned_log_files + unassigned_log_files)
             print_job_stats(seq_count, sum(processed_seq_counts), start_time, vdj_end_time)
         return output_files
 

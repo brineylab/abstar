@@ -31,7 +31,7 @@ from abtools import log
 
 
 
-def get_abstar_result(antibodies, pretty=False, padding=True, raw=False):
+def get_abstar_results(antibodies, pretty=False, padding=True, raw=False):
     return [AbstarResult(ab, pretty, padding, raw) for ab in antibodies]
 
 
@@ -43,6 +43,7 @@ class AbstarResult(object):
         self.pretty = pretty
         self.padding = padding
         self.raw = raw
+        # property vars
         self._json_output = None
         self._imgt_output = None
         self._minimal_output = None
@@ -356,12 +357,15 @@ class AbstarResult(object):
             return json.dumps(output)
 
 
-
-
-
-
-
-
+def write_output(output, outfile, output_type, pretty, padding):
+    from abstar.utils.output import build_output
+    logger.debug("Padding - {}\t Pretty - {}\t".format(padding, pretty))
+    output_data = build_output(output, output_type, pretty, padding)
+    open(outfile, 'w').write('\n'.join(output_data))
+    if output_type in ['json', 'hadoop']:
+        return len(output_data)
+    else:
+        return len(output_data) - 1
 
 
 

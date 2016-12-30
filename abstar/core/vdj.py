@@ -22,8 +22,9 @@
 #
 
 
+from ..utils.mixins import LoggingMixin
+
 from abtools.sequence import Sequence
-from abtools.utils.log import LoggingMixin
 
 
 class VDJ(object, LoggingMixin):
@@ -46,7 +47,7 @@ class VDJ(object, LoggingMixin):
 
         d (Germline): an AbStar Germline object representing the assigned Diversity gene
 
-        g (Germline): an AbStar Germline object representing the assigned Joining gene
+        j (Germline): an AbStar Germline object representing the assigned Joining gene
 
     """
     def __init__(self, sequence, v=None, d=None, j=None):
