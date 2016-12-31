@@ -51,11 +51,11 @@ IMGT_REGION_START_POSITIONS_NT = {'FR1': 1, 'CDR1': 79, 'FR2': 115, 'CDR2': 166,
 
 
 
-def regions(antibody):
-    # V-gene regions
-    antibody.v.regions = VariableRegions(antibody)
-    # J-gene regions
-    antibody.j.regions = JoiningRegions(antibody)
+# def regions(antibody):
+#     # V-gene regions
+#     antibody.v.regions = VariableRegions(antibody)
+#     # J-gene regions
+#     antibody.j.regions = JoiningRegions(antibody)
 
 
 def get_variable_regions(antibody):

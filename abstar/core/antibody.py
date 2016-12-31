@@ -266,8 +266,8 @@ class Antibody(object, LoggingMixin):
         Identifies and annotates variable/joining gene regions.
         '''
         # from abstar.utils import regions
-        self.v.regions = get_variable_regions(self)
-        self.j.regions = get_joining_regions(self)
+        self.v.regions = regions.get_variable_regions(self)
+        self.j.regions = regions.get_joining_regions(self)
         self.log('')
         self.log('VDJ REGIONS')
         self.log('-----------')
