@@ -25,6 +25,7 @@
 import traceback
 
 from Bio.Seq import Seq
+from Bio.Alphabet import generic_dna
 
 from abtools.alignment import global_alignment, local_alignment
 
