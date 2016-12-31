@@ -27,7 +27,7 @@ from Bio import SeqIO
 from ..utils.mixins import LoggingMixin
 
 from abtools.alignment import global_alignment, local_alignment
-from abtools.utils.codons import codons
+from abtools.utils.codons import codon_lookup
 from abtools.utils.properties import lazy_property
 
 
@@ -617,7 +617,7 @@ class IMGTGermlineGene(object):
             if codon == '...':
                 res.append('.')
             else:
-                res.append(codons.get(codon, 'X'))
+                res.append(codon_lookup.get(codon, 'X'))
         return ''.join(res)
 
     @lazy_property

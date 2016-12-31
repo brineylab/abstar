@@ -23,7 +23,7 @@
 
 
 from .assigner import BaseAssigner
-from .blasstn import Blastn
+from .blastn import Blastn
 
 ASSIGNERS = {'blastn': Blastn}
 # ASSIGNERS = {cls.__name__.lower(): cls for cls in vars()['BaseAssigner'].__subclasses__()}

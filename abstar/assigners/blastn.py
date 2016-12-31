@@ -31,7 +31,7 @@ from Bio.Blast.Applications import NcbiblastnCommandline
 from Bio.Blast import NCBIXML
 
 from .assigner import BaseAssigner
-from .registry import register, Registration
+# from .registry import register, Registration
 from ..core.germline import GermlineSegment
 from ..core.vdj import VDJ
 
