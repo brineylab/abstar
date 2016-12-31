@@ -58,6 +58,14 @@ def regions(antibody):
     antibody.j.regions = JoiningRegions(antibody)
 
 
+def get_variable_regions(antibody):
+    return VariableRegions(antibody)
+
+
+def get_joining_regions(antibody):
+    return JoiningRegions(antibody)
+
+
 class BaseRegions(object):
     """Base class for Variable and Joining gene regions"""
     def __init__(self, antibody):
