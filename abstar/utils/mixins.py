@@ -54,7 +54,7 @@ class LoggingMixin():
         sep = kwargs.get('sep', ' ')
         lstring = sep.join([str(a) for a in args])
         if self._log is None:
-            self.log = [lstring, ]
+            self._log = [lstring, ]
         else:
             self._log.append(lstring)
 
