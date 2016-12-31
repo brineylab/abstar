@@ -245,7 +245,7 @@ class GermlineSegment(object, LoggingMixin):
                                                      self.imgt_germline.gapped_nt_sequence,
                                                      matrix=aln_matrix,
                                                      **aln_params)
-        self.alignment_reading_frame = (self.imgt_gapped_alignment.target_begin - (self.imgt_germline.coding_start - 1)) % 3  # IMGT coding start is 1-based
+        self.alignment_reading_frame = abs(3 - (self.imgt_gapped_alignment.target_begin % 3)) + (self.imgt_germline.coding_start - 1)  # IMGT coding start is 1-based
         self.coding_region = self._get_coding_region()
         self.aa_sequence = self._get_aa_sequence()
         try:
