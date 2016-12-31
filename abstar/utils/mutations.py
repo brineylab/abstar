@@ -214,3 +214,7 @@ class Mutations(object):
             if all([mut.imgt_codon >= start, mut.imgt_codon <= end]):
                 region_mutations.append(mut)
         return region_mutations
+
+
+    def in_regio_count(self, region):
+        return len(self.in_region(region))
