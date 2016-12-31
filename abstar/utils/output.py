@@ -266,8 +266,11 @@ class AbstarResult(object):
                                'fr4': len(self.antibody.j.regions.aa_seqs['FR4'])
                                }),
             ('var_muts_aa', {'num': self.antibody.v.aa_mutations.count,
-                             'muts': [{'loc': m['pos'],
-                                       'mut': m['mut']} for m in self.antibody.v.aa_mutations.all_mutations]}),
+                             'muts': [m.json_formatted for m in self.antibody.v.aa_mutations],
+                             }),
+            ('join_muts_aa', {'num': self.antibody.j.aa_mutations.count,
+                              'muts': [m.json_formatted for m in self.antibody.j.aa_mutations],
+                              }),
             ('v_ins', [i.json_formatted for i in self.antibody.v.insertions]),
             ('v_del', [i.json_formatted for i in self.antibody.v.deletions]),
             ('j_ins', [i.json_formatted for i in self.antibody.j.insertions]),
