@@ -101,6 +101,8 @@ class AbstarResult(object):
         div_muts_nt = {}
         nt_identity = {'v': self.antibody.v.nt_identity,
                        'j': self.antibody.j.nt_identity}
+        assigner_scores = {'v': self.antibody.v.assigner_score,
+                           'j': self.antibody.j.assigner_score}
         align_info = {'v_start': self.antibody.v.germline_start,
                       'v_end': self.antibody.v.germline_end,
                       'j_start': self.antibody.j.germline_start,
@@ -111,7 +113,7 @@ class AbstarResult(object):
                               'join': {'query': self.antibody.j.query_alignment,
                                        'germ': self.antibody.j.germline_alignment,
                                        'midline': self.antibody.j.alignment_midline}}
-        exo_trim = {'var_3': len(self.antibody.v.germline_seq) - self.antibody.v.germline_end,
+        exo_trim = {'var_3': len(self.antibody.v.raw_germline) - (self.antibody.v.germline_end + 1),
                     'join_5': self.antibody.j.germline_start}
 
         try:
@@ -126,14 +128,16 @@ class AbstarResult(object):
             isotype_alignment = {}
 
         if self.antibody.d:
-            d_info = {'full': self.antibody.d.top_germline,
-                      'fam': self.antibody.d.top_germline.split('-')[0] if self.antibody.d.top_germline else None,
-                      'gene': self.antibody.d.top_germline.split('*')[0] if self.antibody.d.top_germline else None,
-                      'score': self.antibody.d.top_score,
-                      'frame': self.antibody.d.reading_frame,
-                      'others': [{'full': germ,
-                                  'score': score}
-                                 for germ, score in zip(self.antibody.d.all_germlines[1:], self.antibody.d.all_scores[1:])]}
+            d_info = {'full': self.antibody.d.full,
+                      'fam': self.antibody.d.family,
+                      'gene': self.antibody.d.gene,
+                      'score': self.antibody.d.score,
+                      'assigner_score': self.antibody.d.assigner_score,
+                      # 'frame': self.antibody.d.reading_frame,
+                      'others': [{'full': o.full,
+                                  'assigner_score': o.assigner_score}
+                                 for o in self.antibody.d.others]}
+            assigner_scores['d'] = self.antibody.d.assigner_score
             # mut_count_nt += self.antibody.d.nt_mutations.count
             # div_muts_nt = {'num': self.antibody.d.nt_mutations.count,
             #                'muts': [{'loc': m['pos'],
@@ -228,7 +232,7 @@ class AbstarResult(object):
             ('var_muts_nt', {'num': self.antibody.v.nt_mutations.count,
                              'muts': [{'loc': m['pos'],
                                        'mut': m['mut']} for m in self.antibody.v.nt_mutations.all_mutations]}),
-            ('div_muts_nt', div_muts_nt),
+            # ('div_muts_nt', div_muts_nt),
             ('join_muts_nt', {'num': self.antibody.j.nt_mutations.count,
                               'muts': [{'loc': m['pos'],
                                         'mut': m['mut']} for m in self.antibody.j.nt_mutations.all_mutations]}),
@@ -311,30 +315,16 @@ class AbstarResult(object):
                                 'fr4': {'num': self.antibody.j.aa_mutations.in_region_count['FR4'],
                                         'muts': [{'loc': m['pos'],
                                                   'mut': m['mut']} for m in self.antibody.j.aa_mutations.in_region['FR4']]}}),
-            ('prod', self.antibody.productive),
+            ('prod', 'yes' if self.antibody.productivity.is_productive else 'no'),
+            ('productivity_issues', ', '.join(self.antibody.productivity.productivity_issues)),
             ('junction_in_frame', 'yes' if self.antibody.junction.in_frame else 'no'),
-            ('raw_input', self.antibody.raw_input),
-            ('raw_query', self.antibody.raw_query),
+            ('raw_input', self.antibody.raw_input.sequence),
+            ('oriented_input', self.antibody.oriented_input.sequence),
             ('strand', self.antibody.strand),
-            ('codons', {'vdj': self.antibody.codons.vdj_codons,
-                        'vdj_regions': self.antibody.codons.vdj_codon_regions,
-                        'v': self.antibody.codons.v_codons,
-                        'v_germ': self.antibody.codons.v_germ_codons,
-                        'j': self.antibody.codons.j_codons,
-                        'j_germ': self.antibody.codons.j_germ_codons}),
-            ('gapped_codons', {'vdj': self.antibody.gapped_codons.vdj_codons,
-                               'vdj_regions': self.antibody.gapped_codons.vdj_codon_regions,
-                               'v': self.antibody.gapped_codons.v_codons,
-                               'v_germ': self.antibody.gapped_codons.v_germ_codons,
-                               'j': self.antibody.gapped_codons.j_codons,
-                               'j_germ': self.antibody.gapped_codons.j_germ_codons}),
             ('germ_alignments_nt', germ_alignments_nt),
-            ('exo_trim', exo_trim),
-            ('junc', junc),
-            ('germ_junc', germ_junc),
+            ('exo_trimming', exo_trim),
+            ('junc_nt_breakdown', junc),
             ('align_info', align_info),  # TODO!!  Add things like V/D/J start and end positions, etc.
-            ('vdj_region_string', self.antibody.vdj_region_string),
-            ('gapped_vdj_region_string', self.antibody.gapped_vdj_region_string),
         ])
 
         if self.padding:
