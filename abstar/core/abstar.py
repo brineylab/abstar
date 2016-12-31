@@ -506,18 +506,25 @@ def run_abstar(seq_file, output_dir, log_dir, file_format, arg_dict):
         assigner = ASSIGNERS[args.assigner]()  # initialize the assigner (that's why the parenthesis at the end)
         assigner(seq_file, args.species, file_format)  # call the assigner
         # process all of the successfully assigned sequences
-        annotated = []
+        outputs = []
         assigned = [Antibody(vdj, args.species) for vdj in assigner.assigned]
         for ab in assigned:
             try:
                 ab.annotate(args.uid)
                 annotated.append(ab)
+                result = get_abstar_result(ab,
+                                           pretty=args.pretty,
+                                           padding=args.padding,
+                                           raw=args.raw)
+                outputs.append(get_output(result, args.output_type))
                 if args.debug:
                     assigned_loghandle.write(ab.format_log())
             except:
+                ab.exception('ANNOTATION ERROR', traceback.format_exc())
                 assigned_loghandle.write(ab.format_log())
-        results = get_abstar_results(annotated, pretty=args.pretty, padding=args.padding, raw=args.raw)
-        write_output(results, output_file, args.output_type)
+        # results = get_abstar_results(annotated, pretty=args.pretty, padding=args.padding, raw=args.raw)
+        # write_output(results, output_file, args.output_type)
+        write_output(outputs, output_file)
         # capture the log for all unsuccessful sequences
         for vdj in assigner.unassigned:
             unassigned_loghandle.write(vdj.format_log())
