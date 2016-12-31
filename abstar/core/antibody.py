@@ -22,13 +22,14 @@
 #
 
 
-from ..utils import junction, mixins, mutations, regions
+from ..utils import junction, mutations, regions
+from ..utils.mixins import LoggingMixin
 from .germline import get_imgt_germlines
 
 from abtools.alignment import global_alignment, local_alignment
 
 
-class Antibody(object, mixins.LoggingMixin):
+class Antibody(object, LoggingMixin):
     """
     docstring for Antibody
     """
