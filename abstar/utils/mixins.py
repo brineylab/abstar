@@ -45,6 +45,12 @@ class LoggingMixin():
             self._log.append(lstring)
 
 
+    def logs(self):
+        if self._log is not None:
+            return self._log
+        return []
+
+
     def exception(self, *args, **kwargs):
         '''
         Records an exception.
@@ -55,6 +61,12 @@ class LoggingMixin():
             self._exceptions = [estring, ]
         else:
             self._exceptions.append(estring)
+
+
+    def exceptions(self):
+        if self._exceptions is not None:
+            return self._exceptions
+        return []
 
 
     def format_log(self):
@@ -71,8 +83,7 @@ class LoggingMixin():
             str: Formatted log string.
         '''
         output = ''
-        if self._log is not None:
-            output += '\n'.join(self._log)
+        output += '\n'.join(self.logs)
         if self._check_for_exceptions():
             output += '\n\n'
             output += self._format_exceptions()
@@ -81,7 +92,7 @@ class LoggingMixin():
 
 
     def _check_for_exceptions(self):
-        if self._exceptions:
+        if self.exceptions:
             return True
         if self.v is not None:
             if self.v._exceptions:
@@ -96,15 +107,15 @@ class LoggingMixin():
 
 
     def _format_exceptions(self):
-        if self._exceptions is None:
-            self._exceptions = []
+        exceptions = []
+        exceptions += self.exceptions
         estring = '\n\nEXCEPTIONS\n'
         estring += '----------\n\n'
         if self.v is not None:
-            self._exceptions += self.v._exceptions
+            exceptions += self.v.exceptions
         if self.d is not None:
-            self._exceptions += self.d._exceptions
+            exceptions += self.d.exceptions
         if self.j is not None:
-            self._exceptions += self.j._exceptions
-        estring += '\n\n'.join([e for e in self._exceptions])
+            exceptions += self.j.exceptions
+        estring += '\n\n'.join([e for e in exceptions])
         return estring
