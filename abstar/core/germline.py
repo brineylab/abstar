@@ -22,6 +22,8 @@
 #
 
 
+import os
+
 from Bio import SeqIO
 
 from ..utils.mixins import LoggingMixin
