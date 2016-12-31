@@ -66,10 +66,10 @@ class LoggingMixin():
 
             str: Formatted log string.
         '''
-        self._log += ['', '']
+        # self._log += ['', '']
         output = '\n'.join(self._log)
         if self._check_for_exceptions():
-            output += '\n\n'
+            output += '\n'
             output += self._format_exceptions()
         return output
 

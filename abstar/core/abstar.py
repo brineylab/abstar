@@ -511,7 +511,7 @@ def run_abstar(seq_file, output_dir, log_dir, file_format, arg_dict):
         for ab in assigned:
             try:
                 ab.annotate(args.uid)
-                annotated.append(ab)
+                # annotated.append(ab)
                 result = get_abstar_result(ab,
                                            pretty=args.pretty,
                                            padding=args.padding,
