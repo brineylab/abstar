@@ -498,8 +498,8 @@ def run_abstar(seq_file, output_dir, log_dir, arg_dict):
         unassigned_logfile = os.path.join(log_dir, 'temp/{}.unassigned'.format(output_filename))
         unassigned_loghandle = open(unassigned_logfile, 'a')
         # start assignment
-        assigner = ASSIGNERS[args.assigner]
-        assigner(seq_file, args.species)
+        assigner = ASSIGNERS[args.assigner]()  # initialize the assigner (that's why the parenthesis at the end)
+        assigner(seq_file, args.species)  # call the assigner
         # process all of the successfully assigned sequences
         assigned = [Antibody(vdj, args.species) for vdj in assigner.assigned]
         for ab in assigned:
