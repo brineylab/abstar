@@ -469,7 +469,7 @@ def print_job_stats(total_seqs, good_seqs, start_time, end_time):
 
 
 @celery.task
-def run_abstar(seq_file, output_dir, log_dir, arg_dict):
+def run_abstar(seq_file, output_dir, log_dir, file_format, arg_dict):
     '''
     Wrapper function to multiprocess (or not) the assignment of V, D and J
     germline genes. Also writes the JSON-formatted output to file.
@@ -499,7 +499,7 @@ def run_abstar(seq_file, output_dir, log_dir, arg_dict):
         unassigned_loghandle = open(unassigned_logfile, 'a')
         # start assignment
         assigner = ASSIGNERS[args.assigner]()  # initialize the assigner (that's why the parenthesis at the end)
-        assigner(seq_file, args.species)  # call the assigner
+        assigner(seq_file, args.species, file_format)  # call the assigner
         # process all of the successfully assigned sequences
         assigned = [Antibody(vdj, args.species) for vdj in assigner.assigned]
         for ab in assigned:
@@ -520,21 +520,21 @@ def run_abstar(seq_file, output_dir, log_dir, arg_dict):
         raise Exception("".join(traceback.format_exception(*sys.exc_info())))
 
 
-def run_jobs(files, output_dir, log_dir, args):
+def run_jobs(files, output_dir, log_dir, file_format, args):
     sys.stdout.write('\nRunning VDJ...\n')
     if args.cluster:
-        return _run_jobs_via_celery(files, output_dir, log_dir, args)
+        return _run_jobs_via_celery(files, output_dir, log_dir, file_format, args)
     elif args.debug or args.chunksize == 0:
-        return _run_jobs_singlethreaded(files, output_dir, log_dir, args)
+        return _run_jobs_singlethreaded(files, output_dir, log_dir, file_format, args)
     else:
-        return _run_jobs_via_multiprocessing(files, output_dir, log_dir, args)
+        return _run_jobs_via_multiprocessing(files, output_dir, log_dir, file_format, args)
 
 
-def _run_jobs_singlethreaded(files, output_dir, log_dir, args):
+def _run_jobs_singlethreaded(files, output_dir, log_dir, file_format, args):
     results = []
     for i, f in enumerate(files):
         try:
-            results.append(run_abstar(f, output_dir, log_dir, vars(args)))
+            results.append(run_abstar(f, output_dir, log_dir, file_format, vars(args)))
             update_progress(i + 1, len(files))
         except:
             logger.debug('FILE-LEVEL EXCEPTION: {}'.format(f))
@@ -543,13 +543,14 @@ def _run_jobs_singlethreaded(files, output_dir, log_dir, args):
     return results
 
 
-def _run_jobs_via_multiprocessing(files, output_dir, log_dir, args):
+def _run_jobs_via_multiprocessing(files, output_dir, log_dir, file_format, args):
     p = Pool(maxtasksperchild=50)
     async_results = []
     for f in files:
         async_results.append((f, p.apply_async(run_abstar, (f,
                                                          output_dir,
                                                          log_dir,
+                                                         file_format,
                                                          vars(args)))))
     monitor_mp_jobs([ar[1] for ar in async_results])
     results = []
@@ -578,12 +579,13 @@ def monitor_mp_jobs(results):
     sys.stdout.write('\n\n')
 
 
-def _run_jobs_via_celery(files, output_dir, log_dir, args):
+def _run_jobs_via_celery(files, output_dir, log_dir, file_format, args):
     async_results = []
     for f in files:
         async_results.append(run_abstar.delay(f,
                                            output_dir,
                                            log_dir,
+                                           file_format,
                                            vars(args)))
     succeeded, failed = monitor_celery_jobs(async_results)
     failed_files = [f for i, f in enumerate(files) if async_results[i].failed()]
@@ -850,7 +852,7 @@ def main(args):
             start_time = time.time()
             print_input_file_info(f, fmt)
             subfiles, seq_count = split_file(f, fmt, temp_dir, args)
-            run_info = run_jobs(subfiles, temp_dir, log_dir, args)
+            run_info = run_jobs(subfiles, temp_dir, log_dir, file_format, args)
             temp_json_files = [r[0] for r in run_info if r is not None]
             processed_seq_counts = [r[1] for r in run_info if r is not None]
             assigned_log_files = [r[2] for r in run_info if r is not None]
