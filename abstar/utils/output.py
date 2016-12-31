@@ -357,15 +357,25 @@ class AbstarResult(object):
             return json.dumps(output)
 
 
-def write_output(output, outfile, output_type, pretty, padding):
-    from abstar.utils.output import build_output
-    logger.debug("Padding - {}\t Pretty - {}\t".format(padding, pretty))
-    output_data = build_output(output, output_type, pretty, padding)
-    open(outfile, 'w').write('\n'.join(output_data))
-    if output_type in ['json', 'hadoop']:
-        return len(output_data)
+def write_output(results, outfile, output_type):
+    if output_type.lower() == 'json':
+        output = [r.json_output for r in results]
+    elif output_type.lower() == 'imgt':
+        output = [r.imgt_output for r in results]
+    elif output_type.lower() == 'minimal':
+        output = [r.minimal_output for r in results]
     else:
-        return len(output_data) - 1
+        output = [r.json_output for r in results]
+    open(outfile, 'w').write('\n'.join(output))
+    return len(results)
+    # from abstar.utils.output import build_output
+    # logger.debug("Padding - {}\t Pretty - {}\t".format(padding, pretty))
+    # output_data = build_output(output, output_type, pretty, padding)
+    # open(outfile, 'w').write('\n'.join(output_data))
+    # if output_type in ['json', 'hadoop']:
+    #     return len(output_data)
+    # else:
+    #     return len(output_data) - 1
 
 
 
