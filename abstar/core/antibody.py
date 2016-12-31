@@ -93,14 +93,26 @@ class Antibody(object, LoggingMixin):
         indels, etc).
         '''
         try:
+            print(self.id)
+            print('Parsing UIDs...')
             self._parse_uid(uid)
+            print('Realigning germlines...')
             self._realign_germlines()
+            print('Processing junction...')
             self._get_junction()
+            print('Assembling VDJ sequence...')
             self._assemble_vdj_sequence()
+            print('Identifying regions...')
             self._identify_regions()
+            print('Mutations...')
             self._mutations()
+            print('Productivity...')
             self._productivity()
         except:
+
+
+            print(traceback.format_exc())
+
             self.exception('ANNOTATION', traceback.format_exc())
 
 
