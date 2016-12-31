@@ -178,6 +178,7 @@ class Args(object):
         self.pretty = pretty
         self.debug = debug
         self.gzip = gzip
+        self.raw = raw
         self.padding = padding
         self.species = species
 
