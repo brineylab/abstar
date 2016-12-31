@@ -8,7 +8,7 @@ include abstar/assigners/bin/*
 include abstar/assigners/germline_dbs/*
 include abstar/assigners/germline_dbs/blast/*
 include abstar/assigners/germline_dbs/fasta/*
-include abstar/assigners/germline_dbs/imgt-gapped/*
+include abstar/assigners/germline_dbs/imgt_gapped/*
 include abstar/utils/*
 include abstar/utils/queue/*
 
