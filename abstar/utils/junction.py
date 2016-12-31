@@ -31,7 +31,7 @@ from Bio.Alphabet import generic_dna
 
 from abtools import log
 from abtools.alignment import global_alignment, local_alignment
-from abtools.utils.codons import codons
+from abtools.utils.codons import codon_lookup as codons
 
 
 def get_junction(antibody):

@@ -27,7 +27,7 @@ import re
 import traceback
 
 from abtools import log
-from abtools.utils.codons import codons
+from abtools.utils.codons import codon_lookup as codons
 
 from .regions import IMGT_REGION_START_POSITIONS_AA, IMGT_REGION_END_POSITIONS_AA
 
