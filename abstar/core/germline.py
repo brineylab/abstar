@@ -28,7 +28,7 @@ from ..utils.mixins import LoggingMixin
 
 from abtools.alignment import global_alignment, local_alignment
 from abtools.utils.codons import codon_lookup
-from abtools.utils.properties import lazy_property
+from abtools.utils.decorators import lazy_property
 
 
 class GermlineSegment(object, LoggingMixin):
