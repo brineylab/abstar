@@ -50,7 +50,7 @@ class Antibody(object, LoggingMixin):
         self.chain = vdj.v.chain
         self.species = species.lower()
         # initialize the log
-        self._log = self.initialize_log()
+        self.initialize_log()
         # property vars
         self._strand = None
         self._imgt_position_from_aligned = {}
@@ -68,24 +68,30 @@ class Antibody(object, LoggingMixin):
 
 
     def initialize_log(self):
-        log = []
-        log.append('=' * len(self.id))
-        log.append(self.id)
-        log.append('=' * len(self.id))
-        log.append('')
-        log.append(self.raw_input.fasta)
-        log.append('')
-        log.append('RAW INPUT: {}'.format(self.raw_input.sequence))
-        log.append('ORIENTED INPUT: {}'.format(self.oriented_input.sequence))
-        log.append('CHAIN: {}'.format(self.chain))
-        log.append('')
-        if self.v is not None:
-            log.append('V-GENE: {}'.format(self.v.full))
-        if self.d is not None:
-            log.append('D-GENE: {}'.format(self.d.full))
-        if self.j is not None:
-            log.append('J-GENE: {}'.format(self.j.full))
-        self._log = log
+        try:
+            log = []
+            log.append('=' * len(self.id))
+            log.append(self.id)
+            log.append('=' * len(self.id))
+            log.append('')
+            log.append(self.raw_input.fasta)
+            log.append('')
+            log.append('RAW INPUT: {}'.format(self.raw_input.sequence))
+            log.append('ORIENTED INPUT: {}'.format(self.oriented_input.sequence))
+            log.append('CHAIN: {}'.format(self.chain))
+            log.append('')
+            if self.v is not None:
+                log.append('V-GENE: {}'.format(self.v.full))
+            if self.d is not None:
+                log.append('D-GENE: {}'.format(self.d.full))
+            if self.j is not None:
+                log.append('J-GENE: {}'.format(self.j.full))
+            self._log = log
+        except:
+            print('\n')
+            print('LOG INITIALIZATION ERROR')
+            print(traceback.format_exc())
+
 
 
     def annotate(self, uid):
