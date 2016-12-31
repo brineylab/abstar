@@ -452,7 +452,7 @@ class GermlineSegment(object, LoggingMixin):
         Identifies and annotates indels in the query sequence.
         '''
         if self._indel_check():
-            from abstar.utils import indels
+            from ..utils import indels
             self.insertions = indels.find_insertions(antibody, self)
             if self.insertions:
                 # only set self.has_insertion to 'yes' if the sequence has an in-frame insertion
