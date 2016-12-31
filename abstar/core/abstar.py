@@ -42,6 +42,7 @@ from Bio import SeqIO
 from abtools import log
 from abtools.sequence import Sequence
 
+from .antibody import Antibody
 from ..assigners.assigner import BaseAssigner
 from ..assigners.registry import ASSIGNERS
 from ..utils.output import get_abstar_results, write_output
