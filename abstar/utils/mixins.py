@@ -33,6 +33,20 @@ class LoggingMixin():
         self._exceptions = None
 
 
+    @property
+    def logs(self):
+        if self._log is not None:
+            return self._log
+        return []
+
+
+    @property
+    def exceptions(self):
+        if self._exceptions is not None:
+            return self._exceptions
+        return []
+
+
     def log(self, *args, **kwargs):
         '''
         Records a log message
@@ -45,12 +59,6 @@ class LoggingMixin():
             self._log.append(lstring)
 
 
-    def logs(self):
-        if self._log is not None:
-            return self._log
-        return []
-
-
     def exception(self, *args, **kwargs):
         '''
         Records an exception.
@@ -61,12 +69,6 @@ class LoggingMixin():
             self._exceptions = [estring, ]
         else:
             self._exceptions.append(estring)
-
-
-    def exceptions(self):
-        if self._exceptions is not None:
-            return self._exceptions
-        return []
 
 
     def format_log(self):
