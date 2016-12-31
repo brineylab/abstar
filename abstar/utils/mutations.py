@@ -39,6 +39,8 @@ def nt_mutations(antibody):
     try:
         all_mutations = Mutations()
         for segment in [antibody.v, antibody.j]:
+            if segment is None:
+                continue
             mutations = Mutations()
             for i, (q, g) in enumerate(zip(segment.query_alignment, segment.germline_alignment)):
                 if q != g:
@@ -52,6 +54,7 @@ def nt_mutations(antibody):
                         imgt_pos = segment.correct_imgt_nt_position_from_imgt[imgt_pos]
                     mutations.add(Mutation(g, q, raw_pos, imgt_pos, imgt_codon))
             segment.nt_mutations = mutations
+            segment.nt_identity = 100. - (100. * mutations.count / min(len(segment.query_alignment), len(segment.germline_alignment)))
             all_mutations.add_many(mutations.mutations)
         antibody.log('')
         antibody.log('NT MUTATIONS')
@@ -112,6 +115,7 @@ def aa_mutations(antibody):
                         imgt_aa_pos = segment.correct_imgt_aa_position_from_imgt[imgt_aa_pos]
                     mutations.add(Mutation(g_aa, q_aa, None, imgt_aa_pos, imgt_aa_pos))
             segment.aa_mutations = mutations
+            segment.aa_identity = 100. - (100. * mutations.count / len(segment.aa_sequence))
             all_mutations.add_many(mutations.mutations)
         antibody.log('')
         antibody.log('AA MUTATIONS')

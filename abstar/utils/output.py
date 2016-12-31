@@ -97,9 +97,10 @@ class AbstarResult(object):
         '''
         d_info = {}
         mut_count_nt = self.antibody.v.nt_mutations.count + self.antibody.j.nt_mutations.count
+        mut_count_aa = self.antibody.v.aa_mutations.count + self.antibody.j.aa_mutations.count
         div_muts_nt = {}
-        nt_identity = {'v': self.antibody.v.nt_mutations.germline_identity,
-                       'j': self.antibody.j.nt_mutations.germline_identity}
+        nt_identity = {'v': self.antibody.v.nt_identity,
+                       'j': self.antibody.j.nt_identity}
         align_info = {'v_start': self.antibody.v.germline_start,
                       'v_end': self.antibody.v.germline_end,
                       'j_start': self.antibody.j.germline_start,
@@ -133,11 +134,11 @@ class AbstarResult(object):
                       'others': [{'full': germ,
                                   'score': score}
                                  for germ, score in zip(self.antibody.d.all_germlines[1:], self.antibody.d.all_scores[1:])]}
-            mut_count_nt += self.antibody.d.nt_mutations.count
-            div_muts_nt = {'num': self.antibody.d.nt_mutations.count,
-                           'muts': [{'loc': m['pos'],
-                                     'mut': m['mut']} for m in self.antibody.d.nt_mutations.all_mutations]}
-            nt_identity['d'] = self.antibody.d.nt_mutations.germline_identity
+            # mut_count_nt += self.antibody.d.nt_mutations.count
+            # div_muts_nt = {'num': self.antibody.d.nt_mutations.count,
+            #                'muts': [{'loc': m['pos'],
+            #                          'mut': m['mut']} for m in self.antibody.d.nt_mutations.all_mutations]}
+            # nt_identity['d'] = self.antibody.d.nt_identity
             align_info['d_start'] = self.antibody.d.germline_start
             align_info['d_end'] = self.antibody.d.germline_end
             germ_alignments_nt['div'] = {'query': self.antibody.d.query_alignment,
@@ -195,8 +196,8 @@ class AbstarResult(object):
             ('isotype_score', isotype_score),
             ('isotype_alignment', isotype_alignment),
             ('nt_identity', nt_identity),
-            ('aa_identity', {'v': self.antibody.v.aa_mutations.germline_identity,
-                             'j': self.antibody.j.aa_mutations.germline_identity}),
+            ('aa_identity', {'v': self.antibody.v.aa_identity,
+                             'j': self.antibody.j.aa_identity}),
             ('junc_len', len(self.antibody.junction.junction_aa)),
             ('cdr3_len', len(self.antibody.junction.cdr3_aa)),
             ('vdj_nt', self.antibody.vdj_nt),

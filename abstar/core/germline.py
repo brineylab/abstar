@@ -26,6 +26,8 @@ import os
 import traceback
 
 from Bio import SeqIO
+from Bio.Seq import Seq
+from Bio.Alphabet import generic_dna
 
 from abtools.alignment import global_alignment, local_alignment
 from abtools.sequence import Sequence
@@ -123,6 +125,8 @@ class GermlineSegment(object, LoggingMixin):
         self.has_deletion = 'no'
         self._insertions = None
         self._deletions = None
+        self.coding_region = None
+        self.aa_sequence = None
         self.regions = None
 
 
@@ -241,7 +245,9 @@ class GermlineSegment(object, LoggingMixin):
                                                      self.imgt_germline.gapped_nt_sequence,
                                                      matrix=aln_matrix,
                                                      **aln_params)
-        self.imgt_alignment_reading_frame = (self.imgt_gapped_alignment.target_begin - (self.imgt_germline.coding_start - 1)) % 3  # IMGT coding start is 1-based
+        self.alignment_reading_frame = (self.imgt_gapped_alignment.target_begin - (self.imgt_germline.coding_start - 1)) % 3  # IMGT coding start is 1-based
+        self.coding_region = self._get_coding_region()
+        self.aa_sequence = self._get_aa_sequence()
         try:
             self._imgt_numbering()
         except:
@@ -409,6 +415,16 @@ class GermlineSegment(object, LoggingMixin):
         # the IMGT start offset is the conserved FR4 start position (352)
         # minus the number of nts from the start of the germline gene to FR4
         return 352 - nts_from_start_to_fr4
+
+
+    def _get_coding_region(self):
+        coding_region = self.query_alignment[self.alignment_reading_frame:]
+        truncation = len(coding_region) % 3
+        return coding_region[:-truncation]
+
+
+    def _get_aa_sequence(self):
+        return Seq(self.coding_region, generic_dna).translate()
 
 
     def _fix_ambigs(self, antibody):
