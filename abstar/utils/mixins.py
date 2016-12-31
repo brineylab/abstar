@@ -70,8 +70,9 @@ class LoggingMixin():
 
             str: Formatted log string.
         '''
+        output = ''
         if self._log is not None:
-            output = '\n'.join(self._log)
+            output += '\n'.join(self._log)
         if self._check_for_exceptions():
             output += '\n\n'
             output += self._format_exceptions()
