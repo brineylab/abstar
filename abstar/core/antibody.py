@@ -22,6 +22,8 @@
 #
 
 
+import traceback
+
 from ..utils import junction, mutations, regions
 from ..utils.mixins import LoggingMixin
 from .germline import get_imgt_germlines
