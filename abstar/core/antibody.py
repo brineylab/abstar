@@ -265,30 +265,44 @@ class Antibody(object, LoggingMixin):
         '''
         Identifies and annotates variable/joining gene regions.
         '''
+        # from abstar.utils import regions
+        self.v.regions = get_variable_regions(self)
+        self.j.regions = get_joining_regions(self)
         self.log('')
         self.log('VDJ REGIONS')
         self.log('-----------')
-        self.v.regions = regions.get_variable_regions(self)
-        self.j.regions = regions.get_joining_regions(self)
+        self.log('FR1 NT sequence:', self.v.regions.nt_seqs['FR1'])
+        self.log('CDR1 NT sequence:', self.v.regions.nt_seqs['CDR1'])
+        self.log('FR2 NT sequence:', self.v.regions.nt_seqs['FR2'])
+        self.log('CDR2 NT sequence:', self.v.regions.nt_seqs['CDR2'])
+        self.log('CDR3 NT sequence:', self.junction.cdr3_nt)
+        self.log('FR3 NT sequence:', self.v.regions.nt_seqs['FR3'])
+        self.log('FR4 NT sequence:', self.j.regions.nt_seqs['FR4'])
+        self.log('REGION POSITIONS:', self.v.regions.raw_nt_positions)
+        self.log('FR1 AA sequence:', self.v.regions.aa_seqs['FR1'])
+        self.log('CDR1 AA sequence:', self.v.regions.aa_seqs['CDR1'])
+        self.log('FR2 AA sequence:', self.v.regions.aa_seqs['FR2'])
+        self.log('CDR2 AA sequence:', self.v.regions.aa_seqs['CDR2'])
+        self.log('FR3 AA sequence:', self.v.regions.aa_seqs['FR3'])
+        self.log('CDR3 AA sequence:', self.junction.cdr3_aa)
+        self.log('FR4 AA sequence:', self.j.regions.aa_seqs['FR4'])
+        self.log('')
 
 
     def _mutations(self):
-        self._nt_mutations()
-        self._aa_mutations()
-
-
-    def _nt_mutations(self):
         '''
         Identifies and annotates nucleotide mutations.
         '''
-        return mutations.nt_mutations(self)
+        self.nt_mutations = nt_mutations(self)
+        self.aa_mutations = aa_mutations(self)
 
 
-    def _aa_mutations(self):
-        '''
-        Identifies and annotates amino acid mutations.
-        '''
-        return mutations.aa_mutations(self)
+    def _isotype(self):
+        self.isotype = get_isotype(self)
+
+
+    def _productivity(self):
+        self.productivity = check_productivity(self)
 
 
     @staticmethod
