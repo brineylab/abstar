@@ -148,26 +148,29 @@ class AbstarResult(object):
             germ_alignments_nt['div'] = {'query': self.antibody.d.query_alignment,
                                          'germ': self.antibody.d.germline_alignment,
                                          'midline': self.antibody.d.alignment_midline}
-            junc = {'n1_nt': self.antibody.junction.n1_nt,
-                    'n2_nt': self.antibody.junction.n2_nt,
+            junc = {'v_nt': self.antibody.junction.v_nt,
+                    'n1_nt': self.antibody.junction.n1_nt,
                     'd_nt': self.antibody.junction.d_nt,
-                    'd_cdr3_pos': {'start': self.antibody.junction.d_start_position_nt,
-                                   'end': self.antibody.junction.d_end_position_nt},
+                    'n2_nt': self.antibody.junction.n2_nt,
+                    'j_nt': self.antibody.junction.v_nt,
+#                     'd_cdr3_pos': {'start': self.antibody.junction.d_start_position_nt,
+#                                    'end': self.antibody.junction.d_end_position_nt},
                     'd_dist_from_cdr3_start': self.antibody.junction.d_dist_from_cdr3_start_nt,
                     'd_dist_from_cdr3_end': self.antibody.junction.d_dist_from_cdr3_end_nt}
-            germ_junc = {'n1_nt': self.antibody.germ_junction.n1_nt,
-                         'n2_nt': self.antibody.germ_junction.n2_nt,
-                         'd_nt': self.antibody.germ_junction.d_nt,
-                         'd_cdr3_pos': {'start': self.antibody.germ_junction.d_start_position_nt,
-                                        'end': self.antibody.germ_junction.d_end_position_nt},
-                         'd_dist_from_cdr3_start': self.antibody.germ_junction.d_dist_from_cdr3_start_nt,
-                         'd_dist_from_cdr3_end': self.antibody.germ_junction.d_dist_from_cdr3_end_nt}
+            # germ_junc = {'n1_nt': self.antibody.germ_junction.n1_nt,
+            #              'n2_nt': self.antibody.germ_junction.n2_nt,
+            #              'd_nt': self.antibody.germ_junction.d_nt,
+            #              'd_cdr3_pos': {'start': self.antibody.germ_junction.d_start_position_nt,
+            #                             'end': self.antibody.germ_junction.d_end_position_nt},
+            #              'd_dist_from_cdr3_start': self.antibody.germ_junction.d_dist_from_cdr3_start_nt,
+            #              'd_dist_from_cdr3_end': self.antibody.germ_junction.d_dist_from_cdr3_end_nt}
             exo_trim['div_5'] = self.antibody.d.germline_start
-            exo_trim['div_3'] = self.antibody.d.germline_end
+            exo_trim['div_3'] = len(self.antibody.d.raw_germline) - (self.antibody.d.germline_end + 1)
 
         else:
-            junc = {'n_nt': self.antibody.junction.n1_nt}
-            germ_junc = {'n_nt': self.antibody.germ_junction.n1_nt}
+            junc = {'v_nt': self.antibody.junction.v_nt,
+                    'n_nt': self.antibody.junction.n_nt,
+                    'j_nt': self.antibody.junction.v_nt}
 
         output = collections.OrderedDict([
             ('seq_id', self.antibody.id),
