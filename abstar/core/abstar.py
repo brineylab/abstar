@@ -508,7 +508,10 @@ def run_abstar(seq_file, output_dir, log_dir, file_format, arg_dict):
         # process all of the successfully assigned sequences
         assigned = [Antibody(vdj, args.species) for vdj in assigner.assigned]
         for ab in assigned:
-            ab.annotate(args.uid)
+            try:
+                ab.annotate(args.uid)
+            except:
+                unassigned_loghandle.write(ab.format_log())
             if args.debug:
                 assigned_loghandle.write(ab.format_log())
         results = get_abstar_results(assigned, pretty=args.pretty, padding=args.padding, raw=args.raw)
