@@ -153,7 +153,7 @@ class Args(object):
                  sequences=None, chunksize=500, output_type='json', assigner='blastn',
                  merge=False, pandaseq_algo='simple_bayesian',
                  nextseq=False, uid=0, isotype=False, pretty=False,
-                 basespace=False, cluster=False,
+                 basespace=False, cluster=False, padding=True,
                  debug=False, species='human', gzip=False):
         super(Args, self).__init__()
         self.sequences = sequences
@@ -175,6 +175,7 @@ class Args(object):
         self.pretty = pretty
         self.debug = debug
         self.gzip = gzip
+        self.padding = padding
         self.species = species
 
 
@@ -533,7 +534,7 @@ def _run_jobs_singlethreaded(files, output_dir, log_dir, args):
     results = []
     for i, f in enumerate(files):
         try:
-            results.append(run_abstar(f, output_dir, log_dir, dict(vars(args))))
+            results.append(run_abstar(f, output_dir, log_dir, vars(args)))
             update_progress(i + 1, len(files))
         except:
             logger.debug('FILE-LEVEL EXCEPTION: {}'.format(f))
