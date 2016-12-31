@@ -520,17 +520,28 @@ def get_imgt_germlines(species, gene_type, gene=None):
                           ``IMGTGermlineGene`` objects.
     '''
     mod_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    db_file = os.path.join(mod_dir, 'vdj/germline_dbs/imgt_gapped/{}_{}_imgt-gapped.fasta'.format(species, gene_type))
+    db_file = os.path.join(mod_dir, 'assigners/germline_dbs/imgt_gapped/{}_{}_imgt-gapped.fasta'.format(species, gene_type))
     try:
         germs = [IMGTGermlineGene(g) for g in SeqIO.parse(open(db_file, 'r'), 'fasta')]
     except:
         # TODO: log that the germline database file couldn't be found
+
+        print('Could not locate the IMGT germline database file ({}).'.format(db_file))
+        print(traceback.format_exc())
+
+
         return None
     if gene is None:
         return germs
     try:
         return [g for g in germs if g.name == gene][0]
     except IndexError:
+
+
+        print('Could not locate the IMGT germline gene ({}).'.format(gene))
+        print(traceback.format_exc())
+
+
         return None
 
 
