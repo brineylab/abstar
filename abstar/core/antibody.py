@@ -29,7 +29,7 @@ from Bio.Alphabet import generic_dna
 
 from abtools.alignment import global_alignment, local_alignment
 
-from ..utils import junction, mutations, regions
+from ..utils import isotype, junction, mutations, productivity, regions
 from ..utils.mixins import LoggingMixin
 from .germline import get_imgt_germlines
 
@@ -293,16 +293,16 @@ class Antibody(object, LoggingMixin):
         '''
         Identifies and annotates nucleotide mutations.
         '''
-        self.nt_mutations = nt_mutations(self)
-        self.aa_mutations = aa_mutations(self)
+        self.nt_mutations = mutations.nt_mutations(self)
+        self.aa_mutations = mutations.aa_mutations(self)
 
 
     def _isotype(self):
-        self.isotype = get_isotype(self)
+        self.isotype = isotype.get_isotype(self)
 
 
     def _productivity(self):
-        self.productivity = check_productivity(self)
+        self.productivity = productivity.check_productivity(self)
 
 
     @staticmethod
