@@ -257,6 +257,11 @@ class Antibody(object, LoggingMixin):
         self.j.regions = regions.get_joining_regions(self)
 
 
+    def _mutations(self):
+        self._nt_mutations()
+        self._aa_mutations()
+
+
     def _nt_mutations(self):
         '''
         Identifies and annotates nucleotide mutations.
