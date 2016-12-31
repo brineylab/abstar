@@ -579,8 +579,8 @@ def _run_jobs_via_multiprocessing(files, output_dir, log_dir, file_format, args)
             results.append(a[1].get())
         except:
             logger.debug('FILE-LEVEL EXCEPTION: {}'.format(a[0]))
-            if args.debug:
-                traceback.print_exc()
+            # if args.debug:
+            #     traceback.print_exc()
             logging.debug(''.join(traceback.format_exc()))
             continue
     p.close()

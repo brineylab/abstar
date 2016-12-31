@@ -181,7 +181,7 @@ class Antibody(object, LoggingMixin):
         self.log('IMGT ALIGNMENT START:', self.j.imgt_gapped_alignment.target_begin)
         self.log('IMGT GERMLINE CODING START:', self.j.imgt_germline.coding_start)
         self.log('J-GENE ALIGNMENT READING FRAME:', self.j.alignment_reading_frame)
-        self.log('j-GENE CODING REGION:', self.j.coding_region)
+        self.log('J-GENE CODING REGION:', self.j.coding_region)
         self.log('J-GENE AA SEQUENCE:', self.j.aa_sequence)
 
         # realign D (if needed)
