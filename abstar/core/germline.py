@@ -420,7 +420,9 @@ class GermlineSegment(object, LoggingMixin):
     def _get_coding_region(self):
         coding_region = self.query_alignment[self.alignment_reading_frame:]
         truncation = len(coding_region) % 3
-        return coding_region[:-truncation]
+        if truncation > 0:
+            coding_region = coding_region[:-truncation]
+        return coding_region
 
 
     def _get_aa_sequence(self):
