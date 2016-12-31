@@ -45,6 +45,7 @@ from abtools.sequence import Sequence
 from .antibody import Antibody
 from ..assigners.assigner import BaseAssigner
 from ..assigners.registry import ASSIGNERS
+from ..utils import output
 from ..utils.output import get_abstar_result, write_output
 from ..utils.queue.celery import celery
 
@@ -512,11 +513,11 @@ def run_abstar(seq_file, output_dir, log_dir, file_format, arg_dict):
             try:
                 ab.annotate(args.uid)
                 # annotated.append(ab)
-                result = get_abstar_result(ab,
+                result = output.get_abstar_result(ab,
                                            pretty=args.pretty,
                                            padding=args.padding,
                                            raw=args.raw)
-                outputs.append(get_output(result, args.output_type))
+                outputs.append(output.get_output(result, args.output_type))
                 if args.debug:
                     assigned_loghandle.write(ab.format_log())
             except:
@@ -524,7 +525,7 @@ def run_abstar(seq_file, output_dir, log_dir, file_format, arg_dict):
                 assigned_loghandle.write(ab.format_log())
         # results = get_abstar_results(annotated, pretty=args.pretty, padding=args.padding, raw=args.raw)
         # write_output(results, output_file, args.output_type)
-        write_output(outputs, output_file)
+        output.write_output(outputs, output_file)
         # capture the log for all unsuccessful sequences
         for vdj in assigner.unassigned:
             unassigned_loghandle.write(vdj.format_log())
