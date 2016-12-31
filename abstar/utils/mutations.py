@@ -220,5 +220,5 @@ class Mutations(object):
         return region_mutations
 
 
-    def in_regio_count(self, region):
+    def in_region_count(self, region):
         return len(self.in_region(region))
