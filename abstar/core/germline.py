@@ -27,11 +27,12 @@ import traceback
 
 from Bio import SeqIO
 
-from ..utils.mixins import LoggingMixin
-
 from abtools.alignment import global_alignment, local_alignment
+from abtools.sequence import Sequence
 from abtools.utils.codons import codon_lookup
 from abtools.utils.decorators import lazy_property
+
+from ..utils.mixins import LoggingMixin
 
 
 class GermlineSegment(object, LoggingMixin):
