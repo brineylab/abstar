@@ -150,7 +150,7 @@ def parse_arguments(print_help=False):
 
 class Args(object):
     def __init__(self, project_dir=None, input=None, output=None, log=None, temp=None,
-                 sequences=None, chunksize=500, output_type='json',
+                 sequences=None, chunksize=500, output_type='json', assigner='blastn',
                  merge=False, pandaseq_algo='simple_bayesian',
                  nextseq=False, uid=0, isotype=False, pretty=False,
                  basespace=False, cluster=False,
@@ -164,6 +164,7 @@ class Args(object):
         self.temp = os.path.abspath(temp) if temp is not None else temp
         self.chunksize = int(chunksize)
         self.output_type = str(output_type)
+        self.assigner = assigner
         self.merge = True if basespace else merge
         self.pandaseq_algo = str(pandaseq_algo)
         self.nextseq = nextseq
