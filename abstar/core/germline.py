@@ -201,7 +201,7 @@ class GermlineSegment(object, LoggingMixin):
                 should be truncated prior to alignment with the germline sequence
         '''
         oriented_input = antibody.oriented_input
-        germline_seq = self._get_germline_sequence_for_realignment(self.full)
+        germline_seq = self._get_germline_sequence_for_realignment()
         aln_params = self._realignment_scoring_params(self.gene_type)
         # if the alignment start/end positions have been annotated by the assigner,
         # force re-alignment using those parameters
