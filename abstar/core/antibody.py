@@ -22,7 +22,7 @@
 #
 
 
-from ..utils import junction, mixins, mutations, positions, regions
+from ..utils import junction, mixins, mutations, regions
 from .germline import get_imgt_germlines
 
 from abtools.alignment import global_alignment, local_alignment
