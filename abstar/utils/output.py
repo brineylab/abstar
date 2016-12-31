@@ -35,7 +35,7 @@ def get_abstar_results(antibodies, pretty=False, padding=True, raw=False):
     return [AbstarResult(ab, pretty, padding, raw) for ab in antibodies]
 
 
-def get_abstar_result(antibodie, pretty=False, padding=True, raw=False):
+def get_abstar_result(ab, pretty=False, padding=True, raw=False):
     return AbstarResult(ab, pretty, padding, raw)
 
 
