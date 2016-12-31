@@ -24,11 +24,13 @@
 
 import traceback
 
+from Bio.Seq import Seq
+
+from abtools.alignment import global_alignment, local_alignment
+
 from ..utils import junction, mutations, regions
 from ..utils.mixins import LoggingMixin
 from .germline import get_imgt_germlines
-
-from abtools.alignment import global_alignment, local_alignment
 
 
 class Antibody(object, LoggingMixin):
