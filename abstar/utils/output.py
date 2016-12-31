@@ -38,7 +38,7 @@ def get_abstar_results(antibodies, pretty=False, padding=True, raw=False):
 class AbstarResult(object):
     """docstring for AbstarOutput"""
     def __init__(self, antibody, pretty, padding, raw):
-        super(AbstarOutput, self).__init__()
+        super(AbstarResult, self).__init__()
         self.antibody = antibody
         self.pretty = pretty
         self.padding = padding
