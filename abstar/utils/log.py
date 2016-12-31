@@ -69,13 +69,12 @@ class LoggingMixin():
         # self._log += ['', '']
         output = '\n'.join(self._log)
         if self._check_for_exceptions():
-            output += '\n'
             output += self._format_exceptions()
         return output
 
 
     def initialize_vdj_log(self):
-        log = []
+        log = ['', ]
         log.append('=' * len(self.id))
         log.append(self.id)
         log.append('=' * len(self.id))

@@ -68,29 +68,24 @@ class Antibody(object, LoggingMixin):
 
 
     def initialize_log(self):
-        try:
-            log = []
-            log.append('=' * len(self.id))
-            log.append(self.id)
-            log.append('=' * len(self.id))
-            log.append('')
-            log.append(self.raw_input.fasta)
-            log.append('')
-            log.append('RAW INPUT: {}'.format(self.raw_input.sequence))
-            log.append('ORIENTED INPUT: {}'.format(self.oriented_input.sequence))
-            log.append('CHAIN: {}'.format(self.chain))
-            log.append('')
-            if self.v is not None:
-                log.append('V-GENE: {}'.format(self.v.full))
-            if self.d is not None:
-                log.append('D-GENE: {}'.format(self.d.full))
-            if self.j is not None:
-                log.append('J-GENE: {}'.format(self.j.full))
-            self._log = log
-        except:
-            print('\n')
-            print('LOG INITIALIZATION ERROR')
-            print(traceback.format_exc())
+        log = []
+        log.append('=' * len(self.id))
+        log.append(self.id)
+        log.append('=' * len(self.id))
+        log.append('')
+        log.append(self.raw_input.fasta)
+        log.append('')
+        log.append('RAW INPUT: {}'.format(self.raw_input.sequence))
+        log.append('ORIENTED INPUT: {}'.format(self.oriented_input.sequence))
+        log.append('CHAIN: {}'.format(self.chain))
+        log.append('')
+        if self.v is not None:
+            log.append('V-GENE: {}'.format(self.v.full))
+        if self.d is not None:
+            log.append('D-GENE: {}'.format(self.d.full))
+        if self.j is not None:
+            log.append('J-GENE: {}'.format(self.j.full))
+        self._log = log
 
 
 
@@ -103,24 +98,24 @@ class Antibody(object, LoggingMixin):
         '''
         try:
             print(self.id)
-            print('Parsing UIDs...')
+            # print('Parsing UIDs...')
             self._parse_uid(uid)
-            print('Realigning germlines...')
+            # print('Realigning germlines...')
             self._realign_germlines()
-            print('Processing junction...')
+            # print('Processing junction...')
             self._get_junction()
-            print('Assembling VDJ sequence...')
+            # print('Assembling VDJ sequence...')
             self._assemble_vdj_sequence()
-            print('Identifying regions...')
+            # print('Identifying regions...')
             self._identify_regions()
-            print('Mutations...')
+            # print('Mutations...')
             self._mutations()
-            print('Productivity...')
+            # print('Productivity...')
             self._productivity()
         except:
 
 
-            print(traceback.format_exc())
+            # print(traceback.format_exc())
 
             self.exception('ANNOTATION', traceback.format_exc())
 
@@ -148,6 +143,8 @@ class Antibody(object, LoggingMixin):
         self.log('  QUERY: ', self.v.imgt_gapped_alignment.aligned_query)
         self.log('         ', self.v.imgt_gapped_alignment.alignment_midline)
         self.log('GERMLINE:', self.v.imgt_gapped_alignment.aligned_target)
+        self.log('')
+        self.log('V-GENE AA SEQUENCE:', self.v.aa_sequence)
 
         # realign J
         jstart = self.v.query_end + 1
@@ -168,6 +165,8 @@ class Antibody(object, LoggingMixin):
         self.log('  QUERY: ', self.j.imgt_gapped_alignment.aligned_query)
         self.log('         ', self.j.imgt_gapped_alignment.alignment_midline)
         self.log('GERMLINE:', self.j.imgt_gapped_alignment.aligned_target)
+        self.log('')
+        self.log('J-GENE AA SEQUENCE:', self.j.aa_sequence)
 
         # realign D (if needed)
         if self.chain == 'heavy':

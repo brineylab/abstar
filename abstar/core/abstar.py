@@ -535,7 +535,7 @@ def run_abstar(seq_file, output_dir, log_dir, file_format, arg_dict):
         unassigned_loghandle.close()
         assigned_loghandle.close()
         # return the number of successful assignments
-        return (output_file, len(assigned), assigned_logfile, unassigned_logfile)
+        return (output_file, len(outputs), assigned_logfile, unassigned_logfile)
     except:
         raise Exception("".join(traceback.format_exception(*sys.exc_info())))
 
