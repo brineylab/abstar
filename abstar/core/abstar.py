@@ -852,7 +852,7 @@ def main(args):
             start_time = time.time()
             print_input_file_info(f, fmt)
             subfiles, seq_count = split_file(f, fmt, temp_dir, args)
-            run_info = run_jobs(subfiles, temp_dir, log_dir, file_format, args)
+            run_info = run_jobs(subfiles, temp_dir, log_dir, fmt, args)
             temp_json_files = [r[0] for r in run_info if r is not None]
             processed_seq_counts = [r[1] for r in run_info if r is not None]
             assigned_log_files = [r[2] for r in run_info if r is not None]
