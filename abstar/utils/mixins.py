@@ -96,6 +96,8 @@ class LoggingMixin():
 
 
     def _format_exceptions(self):
+        if self._exceptions is None:
+            self._exceptions = []
         estring = '\n\nEXCEPTIONS\n'
         estring += '----------\n\n'
         if self.v is not None:
