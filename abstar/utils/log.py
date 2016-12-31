@@ -130,11 +130,14 @@ class LoggingMixin():
         estring = 'EXCEPTIONS\n'
         estring += '----------\n\n'
         if self.v is not None:
-            self._exceptions += self.v._exceptions
+            if self.v._exceptions is not None:
+                self._exceptions += self.v._exceptions
         if self.d is not None:
-            self._exceptions += self.d._exceptions
+            if self.d._exceptions is not None:
+                self._exceptions += self.d._exceptions
         if self.j is not None:
-            self._exceptions += self.j._exceptions
+            if self.j._exceptions is not None:
+                self._exceptions += self.j._exceptions
         estring += '\n\n'.join([e for e in self._exceptions])
         return estring
 
