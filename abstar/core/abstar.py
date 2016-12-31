@@ -75,7 +75,7 @@ def parse_arguments(print_help=False):
                         help="The output directory, into which the JSON-formatted output files will be deposited. \
                         If the directory does not exist, it will be created. \
                         Required, unless <project> is provided.")
-    parser.add_argument('-l', '--log', dest='log_dir', default=None,
+    parser.add_argument('-l', '--log', dest='log', default=None,
                         help="The log directory, into which log files will be deposited. \
                         Default is <project_directory>/log if <project> is supplied, otherwise \
                         the parent directory of <output> will be used. \
