@@ -231,7 +231,7 @@ def make_merge_dir(args):
 
 def setup_logging(log_dir, debug):
     logfile = os.path.join(log_dir, 'abstar.log')
-    debug = True if args.debug > 0 else False
+    debug = True if debug > 0 else False
     print_debug = True if debug == 2 else False
     log.setup_logging(logfile, debug=debug)
     global logger
