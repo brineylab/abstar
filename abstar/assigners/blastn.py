@@ -89,6 +89,14 @@ class Blastn(BaseAssigner):
                 else:
                     vdj = VDJ(seq)
                     vdj.log('J-GENE QUERY ERROR:', 'Query sequence for J-gene assignment is too short.')
+                    vdj.log('')
+                    query = vbr.alignments[0].hsps[0].query
+                    subject = vbr.alignments[0].hsps[0].subject
+                    vdj.log(' QUERY :', query)
+                    vdj.log(''.join(['|' if _q == _s else ' ' for _q, _s in zip(q, s)]))
+                    vdj.log('SUBJECT:', s)
+                    vdj.log('')
+                    vdj.log('J-QUERY SEQUENCE:', jquery)
                     self.unassigned.append(vdj)
             except:
                 vdj = VDJ(seq)

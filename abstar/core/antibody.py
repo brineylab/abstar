@@ -97,7 +97,7 @@ class Antibody(object, LoggingMixin):
         indels, etc).
         '''
         try:
-            print(self.id)
+            # print(self.id)
             # print('Parsing UIDs...')
             self._parse_uid(uid)
             # print('Realigning germlines...')
