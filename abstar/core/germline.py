@@ -23,6 +23,7 @@
 
 
 import os
+import traceback
 
 from Bio import SeqIO
 
