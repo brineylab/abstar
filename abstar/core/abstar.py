@@ -532,7 +532,7 @@ def _run_jobs_singlethreaded(files, output_dir, log_dir, args):
     results = []
     for i, f in enumerate(files):
         try:
-            results.append(run_abstar(f, output_dir, log_dir, vars(args)))
+            results.append(run_abstar(f, output_dir, log_dir, dict(vars(args))))
             update_progress(i + 1, len(files))
         except:
             logger.debug('FILE-LEVEL EXCEPTION: {}'.format(f))
