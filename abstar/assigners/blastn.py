@@ -181,7 +181,7 @@ class Blastn(BaseAssigner):
 
 
     def assign_dgene(self, seq, species):
-        db_file = os.path.join(self.germline_directory, '/fasta/{}_D.fasta'.format(species.lower()))
+        db_file = os.path.join(self.germline_directory, 'fasta/{}_D.fasta'.format(species.lower()))
         db_handle = open(db_file, 'r')
         germs = [Sequence(s) for s in SeqIO.parse(db_handle, 'fasta')]
         rc_germs = [Sequence(s.reverse_complement, id=s.id) for s in germs]
