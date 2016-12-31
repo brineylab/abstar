@@ -271,8 +271,8 @@ def list_files(d, log=False):
         files = [d, ]
     if log:
         fnames = [os.path.basename(f) for f in files]
-        log.info('')
-        log.info('FILE COUNT: {}'.format(len(fnames)))
+        logger.info('')
+        logger.info('FILE COUNT: {}'.format(len(fnames)))
         logger.info('FILES: {}'.format(', '.join(fnames)))
     return files
 
