@@ -174,7 +174,8 @@ class AbstarResult(object):
 
         output = collections.OrderedDict([
             ('seq_id', self.antibody.id),
-            ('uaid', self.antibody.uaid),
+            ('uid', self.antibody.uid),
+            ('uaid', self.antibody.uid),
             ('chain', self.antibody.chain),
             ('v_gene', {'full': self.antibody.v.top_germline,
                         'fam': self.antibody.v.top_germline.split('-')[0],
