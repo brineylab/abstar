@@ -54,7 +54,10 @@ class AbstarResult(object):
     @property
     def json_output(self):
         if self._json_output is None:
-            self._json_output = self._build_json_output()
+            try:
+                self._json_output = self._build_json_output()
+            except:
+                self._json_output = None
         return self._json_output
 
     @json_output.setter
@@ -186,7 +189,7 @@ class AbstarResult(object):
                         'others': [{'full': o.full,
                                     'assigner_score': o.assigner_score}
                                    for o in self.antibody.v.others]
-                       }),
+                        }),
             ('d_gene', d_info),
             ('j_gene', {'full': self.antibody.j.full,
                         'gene': self.antibody.j.gene,
@@ -343,7 +346,7 @@ def write_output(results, outfile, output_type):
         output = [r.minimal_output for r in results]
     else:
         output = [r.json_output for r in results]
-    open(outfile, 'w').write('\n'.join(output))
+    open(outfile, 'w').write('\n'.join([o for o in output if o is not None]))
     return len(results)
     # from abstar.utils.output import build_output
     # logger.debug("Padding - {}\t Pretty - {}\t".format(padding, pretty))
