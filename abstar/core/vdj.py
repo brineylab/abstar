@@ -54,6 +54,7 @@ class VDJ(object, LoggingMixin):
         super(VDJ, self).__init__()
         LoggingMixin.__init__(self)
         self.sequence = Sequence(sequence)
+        self.id = self.sequence.id
         self.oriented = self.sequence
         self.v = v
         self.d = d
