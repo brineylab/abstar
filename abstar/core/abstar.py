@@ -137,6 +137,8 @@ def parse_arguments(print_help=False):
                         choices=['human', 'macaque', 'mouse', 'rabbit', 'b12mouse', 'vrc01mouse', '9114mouse'])
     parser.add_argument('-z', '--gzip', dest='gzip', default=False, action='store_true',
                         help="Compress the output to a gzipped file")
+    parser.add_argument('--raw', dest='raw', default=False, action='store_true',
+                        help='Returns raw output (a dict).')
     parser.add_argument('--pretty', dest='pretty', default=False, action='store_true',
                         help='Pretty format json file')
     parser.add_argument('--no-padding', dest='padding', default=True, action='store_false',
@@ -154,7 +156,7 @@ class Args(object):
                  sequences=None, chunksize=500, output_type='json', assigner='blastn',
                  merge=False, pandaseq_algo='simple_bayesian',
                  nextseq=False, uid=0, isotype=False, pretty=False,
-                 basespace=False, cluster=False, padding=True,
+                 basespace=False, cluster=False, padding=True, raw=False,
                  debug=False, species='human', gzip=False):
         super(Args, self).__init__()
         self.sequences = sequences
@@ -188,6 +190,7 @@ def validate_args(args):
         sys.exit(1)
     if args.sequences:
         args.output_type = 'json'
+        args.raw = True
     if all([args.sequences is not None, args.temp is None]):
         args.temp = './tmp'
 
