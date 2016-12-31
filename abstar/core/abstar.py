@@ -43,12 +43,12 @@ from abtools import log
 from abtools.sequence import Sequence
 
 from ..assigners.assigner import BaseAssigner
-# from ..assigners.registry import ASSIGNERS
+from ..assigners.registry import ASSIGNERS
 from ..utils.output import get_abstar_results, write_output
 from ..utils.queue.celery import celery
 
 
-ASSIGNERS = {cls.__name__.lower(): cls for cls in vars()['BaseAssigner'].__subclasses__()}
+# ASSIGNERS = {cls.__name__.lower(): cls for cls in vars()['BaseAssigner'].__subclasses__()}
 
 
 #####################################################################

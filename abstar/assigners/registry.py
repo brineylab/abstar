@@ -23,9 +23,10 @@
 
 
 from .assigner import BaseAssigner
+from .blasstn import Blastn
 
-# ASSIGNERS = {}
-ASSIGNERS = {cls.__name__.lower(): cls for cls in vars()['BaseAssigner'].__subclasses__()}
+ASSIGNERS = {'blastn': Blastn}
+# ASSIGNERS = {cls.__name__.lower(): cls for cls in vars()['BaseAssigner'].__subclasses__()}
 
 
 class Registration(type):
