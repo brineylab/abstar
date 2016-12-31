@@ -177,29 +177,27 @@ class AbstarResult(object):
             ('uid', self.antibody.uid),
             ('uaid', self.antibody.uid),
             ('chain', self.antibody.chain),
-            ('v_gene', {'full': self.antibody.v.top_germline,
-                        'fam': self.antibody.v.top_germline.split('-')[0],
-                        'gene': self.antibody.v.top_germline.split('*')[0],
-                        'score': self.antibody.v.top_score,
-                        'others': [{'full': germ,
-                                    # 'fam': germ.split('-')[0],
-                                    # 'gene': germ.split('*')[0],
-                                    'score': score}
-                                   for germ, score in zip(self.antibody.v.all_germlines[1:], self.antibody.v.all_scores[1:])]
-                        }),
+            ('v_gene', {'full': self.antibody.v.full,
+                        'fam': self.antibody.v.family,
+                        'gene': self.antibody.v.gene,
+                        'score': self.antibody.v.score,
+                        'assigner_score': self.antibody.v.assigner_score,
+                        'others': [{'full': o.full,
+                                    'assigner_score': o.assigner_score}
+                                   for o in self.antibody.v.others]
+                       }),
             ('d_gene', d_info),
-            ('j_gene', {'full': self.antibody.j.top_germline,
-                        'gene': self.antibody.j.top_germline.split('*')[0],
-                        'score': self.antibody.j.top_score,
-                        'others': [{'full': germ,
-                                    # 'fam': germ.split('*')[0],
-                                    'score': score}
-                                   for germ, score in zip(self.antibody.j.all_germlines[1:], self.antibody.j.all_scores[1:])]
+            ('j_gene', {'full': self.antibody.j.full,
+                        'gene': self.antibody.j.gene,
+                        'score': self.antibody.j.score,
+                        'assigner_score': self.antibody.j.assigner_score,
+                        'others': [{'full': o.full,
+                                    'score': o.assigner_score}
+                                   for o in self.antibody.j.others]
+#                                    for germ, score in zip(self.antibody.j.all_germlines[1:], self.antibody.j.all_scores[1:])]
                         }),
-            ('bitscores', {'v': self.antibody.v.top_bitscore,
-                           'j': self.antibody.j.top_bitscore}),
-            ('e_values', {'v': self.antibody.v.top_evalue,
-                          'j': self.antibody.j.top_evalue}),
+            ('assigner_scores', assigner_scores),
+            ('vdj_assigner', self.antibody.v.assigner),
             ('isotype', isotype),
             ('isotype_score', isotype_score),
             ('isotype_alignment', isotype_alignment),
