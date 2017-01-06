@@ -6,9 +6,10 @@ include abstar/core/*
 include abstar/assigners/*
 include abstar/assigners/bin/*
 include abstar/assigners/germline_dbs/*
-include abstar/assigners/germline_dbs/blast/*
-include abstar/assigners/germline_dbs/fasta/*
-include abstar/assigners/germline_dbs/imgt_gapped/*
+include abstar/assigners/germline_dbs/human/*
+include abstar/assigners/germline_dbs/human/blast/*
+include abstar/assigners/germline_dbs/human/fasta/*
+include abstar/assigners/germline_dbs/human/imgt_gapped/*
 include abstar/utils/*
 include abstar/utils/queue/*
 
