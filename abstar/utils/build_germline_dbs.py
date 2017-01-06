@@ -36,7 +36,7 @@ from Bio import SeqIO
 
 
 def parse_arguments():
-    parser = ArgumentParser("Creates AbStar antibody germline databases using an IMGT-gapped FASTA files of germline sequences. \
+    parser = ArgumentParser("Creates AbStar germline databases using an IMGT-gapped FASTA files of germline sequences. \
         Properly formatted germline sequence files can be obtained from: http://www.imgt.org/genedb/")
     parser.add_argument('-v', '--variable', dest='v', required=True,
                         help="Path to an IMGT-gapped, FASTA-formatted file containing Variable gene sequences. \
@@ -96,15 +96,15 @@ def get_binary_directory():
 
 
 def check_for_existing_db(addon_dir, species):
-    dbs = [d[0] for d in os.walk(addon_dir)]
+    dbs = [os.path.basename(d[0]) for d in os.walk(addon_dir)]
     if species.lower() in dbs:
         print('\n')
         print('WARNING: A {} germline database already exists.'.format(species.lower()))
         print('Creating a new database with that name will overwrite the old one.')
         print('')
         keep_going = raw_input('Do you want to continue? [y/N]: ')
-        print('')
         if keep_going.upper() not in ['Y', 'YES']:
+            print('')
             print('Aborting germline database creation.')
             print('\n')
             sys.exit()
