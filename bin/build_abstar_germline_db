@@ -1,0 +1,123 @@
+#!/usr/bin/env python
+# filename: build_abstar_germline_db
+
+#
+# Copyright (c) 2016 Bryan Briney
+# License: The MIT license (http://opensource.org/licenses/MIT)
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy of this software
+# and associated documentation files (the "Software"), to deal in the Software without restriction,
+# including without limitation the rights to use, copy, modify, merge, publish, distribute,
+# sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all copies or
+# substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING
+# BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+# DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+#
+
+
+from __future__ import print_function
+
+from argparse import ArgumentParser
+import os
+import subprocess as sp
+import sys
+
+
+
+DB_MAP = {'blast': make_blast_db,
+          'ungapped': make_ungapped_db,
+          'imgt_gapped': make_imgt_gapped_db}
+
+
+
+def parse_arguments():
+    parser = ArgumentParser("Creates AbStar antibody germline databases using an IMGT-gapped FASTA files of germline sequences. \
+        Properly formatted germline sequence files can be obtained from: http://www.imgt.org/genedb/")
+    parser.add_argument('-v', '--variable', dest='v', required=True,
+                        help="Path to an IMGT-gapped, FASTA-formatted file containing Variable gene sequences. \
+                        Sequences for both heavy and light chains should be included in a single file.")
+    parser.add_argument('-d', '--diversity', dest='d', required=True,
+                        help="Path to an IMGT-gapped, FASTA-formatted file containing Diversity gene sequences.")
+    parser.add_argument('-j', '--joining', dest='j', required=True,
+                        help="Path to an IMGT-gapped, FASTA-formatted file containing Joining gene sequences. \
+                        Sequences for both heavy and light chains should be included in a single file.")
+    parser.add_argument('-s', '--species', dest='species', required=True,
+                        help="Name of the species from which the germline sequences are derived. \
+                        If an AbStar germline database for the species already exists, it will be overwritten. \
+                        Germline database names are converted to lowercase, so 'Human' and 'human' are equivalent. \
+                        User-added germline databases will persist even after AbStar updates, so if you have added a \
+                        'human' database and a new version of AbStar contains an updated 'human' database, the user-added \
+                        database will still be used after the update.")
+    args = parser.parse_args()
+    return args
+
+
+
+def get_addon_directory():
+    addon_dir = os.path.expanduser('~/.abstar')
+    if not os.path.isdir(addon_dir):
+        os.makedirs(addon_dir)
+    return addon_dir
+
+
+def check_for_existing_db(addon_dir):
+    dbs = [d[0] for d in os.walk(addon_dir)]
+    if args.species.lower() in dbs:
+        print('\n')
+        print('WARNING: A {} germline database for already exists.'.format(args.species.lower()))
+        print('Creating a new database with that name will overwrite the old one.')
+        print('')
+        keep_going = raw_input('Do you want to continue? [y/N]: ')
+        print('')
+        if keep_going.upper() not in ['Y', 'YES']:
+            print('Aborting germline database creation.')
+            print('\n')
+            sys.exit()
+
+
+def make_db_directories(addon_dir):
+    species_dir = os.path.join(addon_dir, args.species.lower())
+    if not os.path.isdir(species_dir):
+        os.makedirs(species_dir)
+    for db_name in DB_MAP.keys():
+        db_dir = os.path.join(species_dir, db_name)
+        if os.path.isdir(db_dir):
+            os.unlink(db_dir)
+        os.makedirs(db_dir)
+
+
+
+
+def make_blast_db():
+    pass
+
+
+
+def make_ungapped_db():
+    pass
+
+
+
+def make_imgt_gapped_db():
+    pass
+
+
+
+
+def main():
+    addon_dir = get_addon_directory()
+    check_for_existing_db(addon_dir)
+    make_db_directories(addon_dir)
+
+
+
+if __name__ == '__main__':
+    args = parse_arguments()
+    main()

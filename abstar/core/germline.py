@@ -559,8 +559,8 @@ def get_imgt_germlines(species, gene_type, gene=None):
     except:
         # TODO: log that the germline database file couldn't be found
 
-        print('Could not locate the IMGT germline database file ({}).'.format(db_file))
-        print(traceback.format_exc())
+        # print('Could not locate the IMGT germline database file ({}).'.format(db_file))
+        # print(traceback.format_exc())
 
 
         return None
@@ -571,8 +571,8 @@ def get_imgt_germlines(species, gene_type, gene=None):
     except IndexError:
 
 
-        print('Could not locate the IMGT germline gene ({}).'.format(gene))
-        print(traceback.format_exc())
+        # print('Could not locate the IMGT germline gene ({}).'.format(gene))
+        # print(traceback.format_exc())
 
 
         return None
