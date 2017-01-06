@@ -31,12 +31,6 @@ import sys
 
 
 
-DB_MAP = {'blast': make_blast_db,
-          'ungapped': make_ungapped_db,
-          'imgt_gapped': make_imgt_gapped_db}
-
-
-
 def parse_arguments():
     parser = ArgumentParser("Creates AbStar antibody germline databases using an IMGT-gapped FASTA files of germline sequences. \
         Properly formatted germline sequence files can be obtained from: http://www.imgt.org/genedb/")
@@ -55,23 +49,52 @@ def parse_arguments():
                         User-added germline databases will persist even after AbStar updates, so if you have added a \
                         'human' database and a new version of AbStar contains an updated 'human' database, the user-added \
                         database will still be used after the update.")
+    parser.add_argument('-l', '--location', dest='db_location', default=None,
+                        help="Location into which the new germline databases will be deposited. \
+                        Default is '~/.abstar/'. \
+                        Note that AbStar will only use user-generated databases found in '~/abstar/', \
+                        so this option is provided primarily to test database creation without overwriting \
+                        current databases of the same name. \
+                        If the directory does not exist, it will be created.")
     args = parser.parse_args()
     return args
 
 
+# -------------------------
+#
+#    FILES/DIRECTORIES
+#
+# -------------------------
+
 
 def get_addon_directory():
-    addon_dir = os.path.expanduser('~/.abstar')
+    if args.db_location is not None:
+        print('')
+        print('NOTE: You have selected a non-default location for the germline directory.')
+        string = 'AbStar only looks in the default location (~/.abstar/) for user-created germline databases, '
+        string += 'so this database will not be used by AbStar. The custom database location option is primarily '
+        string += 'provided so that users can test the database creation process without overwriting existing databases.'
+        print(string)
+        print('')
+        addon_dir = args.db_location
+    else:
+        addon_dir = '~/.abstar'
     if not os.path.isdir(addon_dir):
         os.makedirs(addon_dir)
     return addon_dir
+
+
+def get_binary_directory():
+    mod_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    bin_dir = os.path.join(mod_dir, 'abstar/assigners/bin')
+    return bin_dir
 
 
 def check_for_existing_db(addon_dir):
     dbs = [d[0] for d in os.walk(addon_dir)]
     if args.species.lower() in dbs:
         print('\n')
-        print('WARNING: A {} germline database for already exists.'.format(args.species.lower()))
+        print('WARNING: A {} germline database already exists.'.format(args.species.lower()))
         print('Creating a new database with that name will overwrite the old one.')
         print('')
         keep_going = raw_input('Do you want to continue? [y/N]: ')
@@ -86,7 +109,7 @@ def make_db_directories(addon_dir):
     species_dir = os.path.join(addon_dir, args.species.lower())
     if not os.path.isdir(species_dir):
         os.makedirs(species_dir)
-    for db_name in DB_MAP.keys():
+    for db_name in ['imgt_gapped', 'ungapped', 'blast']:
         db_dir = os.path.join(species_dir, db_name)
         if os.path.isdir(db_dir):
             os.unlink(db_dir)
@@ -94,20 +117,68 @@ def make_db_directories(addon_dir):
 
 
 
-
-def make_blast_db():
-    pass
-
-
-
-def make_ungapped_db():
-    pass
+# -------------------------
+#
+#    DATABASE CREATION
+#
+# -------------------------
 
 
 
-def make_imgt_gapped_db():
-    pass
+def make_blast_db(ungapped_germline_file, addon_directory, segment):
+    print('BLASTn...')
+    bin_dir = get_binary_directory()
+    mbd_binary = os.path.join(bin_dir, 'makeblastdb_{}'.format(platform.system().lower()))
+    mbd_output = os.path.join(addon_directory, '{}/blast/{}'.format(args.species.lower(), segment.lower()))
+    mbd_log = os.path.join(addon_directory, '{}/blast/{}.blastlog'.format(args.species.lower(), segment.lower()))
+    mbd_cmd = '{} -in {} -out {} -parse_seqids -dbtype nucl -logfile {}'.format(mbd_binary,
+                                                                                ungapped_germline_file,
+                                                                                mbd_output,
+                                                                                mbd_log)
+    p = sp.Popen(mbd_cmd, stdout=sp.PIPE, stderr=sp.PIPE, shell=True)
+    stdout, stderr = p.communicate()
+    return mbd_output
 
+
+
+def make_ungapped_db(ungapped_germline_file, addon_directory, segment):
+    print('ungapped FASTA...')
+    output_file = os.path.join(addon_directory, '{}/ungapped/{}.fasta'.format(args.species.lower(), segment.lower()))
+    seqs = SeqIO.parse(open(ungapped_germline_file), 'fasta')
+    fastas = ['>{}\n{}'.format(s.id.split('|')[0], str(s.seq).replace('.', '')) for s in seqs]
+    open(output_file, 'w').write('\n'.join(fastas))
+    return output_file
+
+
+def make_imgt_gapped_db(input_file, addon_directory, segment):
+    print('IMGT-gapped...')
+    output_file = os.path.join(addon_directory, '{}/imgt_gapped/{}.fasta'.format(args.species.lower(), segment.lower()))
+    seqs = sorted(list(SeqIO.parse(open(input_file), 'fasta')), key=lambda x: x.id)
+    fastas = ['>{}\n{}'.format(s.id, str(s.seq) for s in seqs)]
+    open(output_file, 'w').write('\n'.join(fastas))
+    return output_file
+
+
+
+# -------------------------
+#
+#        PRINTING
+#
+# -------------------------
+
+
+
+def print_segment_info(segment, input_file):
+    seqs = list(SeqIO.parse(open(input_file), 'fasta'))
+    print('\n')
+    seg_string = '  ' + segment.upper() + '  '
+    print('-' + len(seg_string))
+    print(seg_string)
+    print('-' * len(seg_string))
+    print(input_file)
+    print('input file contains {} sequences'.format(len(seqs)))
+    print('')
+    print('Building germline databases:')
 
 
 
@@ -115,7 +186,11 @@ def main():
     addon_dir = get_addon_directory()
     check_for_existing_db(addon_dir)
     make_db_directories(addon_dir)
-
+    for segment, infile in [('Variable', args.v), ('Diversity', args.d), ('Joining', args.j)]:
+        print_segment_info(segment, infile)
+        imgt_gapped_file = make_imgt_gapped_db(infile, addon_dir, segment[0].lower())
+        ungapped_file = make_ungapped_db(imgt_gapped_file, addon_dir, segment[0].lower())
+        blast_file = make_blast_db(ungapped_file, addon_dir, segment[0].lower())
 
 
 if __name__ == '__main__':
