@@ -47,11 +47,11 @@ class Blastn(BaseAssigner):
 
     # __metaclass__ = Registry
 
-    def __init__(self):
-        super(Blastn, self).__init__()
+    def __init__(self, species):
+        super(Blastn, self).__init__(species)
 
 
-    def __call__(self, sequence_file, species, file_format):
+    def __call__(self, sequence_file, file_format):
         seqs = [Sequence(s) for s in SeqIO.parse(open(sequence_file, 'r'), file_format)]
         vdjs = []
 
@@ -62,7 +62,7 @@ class Blastn(BaseAssigner):
             handle.close()
 
         # assign V-genes
-        vblast_records = self.blast(sequence_file, species, 'V')
+        vblast_records = self.blast(sequence_file, self.species, 'V')
         # if there aren't any vblast_records, that means that none of the
         # sequences in the input file contained sequences with a significant
         # match to any germline V-gene. These are likely all non-antibody sequences.
@@ -77,7 +77,7 @@ class Blastn(BaseAssigner):
         jquery_seqs = []
         for seq, vbr in zip(seqs, vblast_records):
             try:
-                germ = self.process_blast_record(vbr, species)
+                germ = self.process_blast_record(vbr, self.species)
                 vdj = VDJ(seq, v=germ)
                 self.orient_query(vdj, vbr)
                 jquery = self.get_jquery_sequence(vdj.oriented, vbr)
@@ -108,9 +108,9 @@ class Blastn(BaseAssigner):
         _vdjs = []
         dquery_seqs = []
         jblast_infile = self.build_jblast_input(jquery_seqs)
-        jblast_records = self.blast(jblast_infile, species, 'J')
+        jblast_records = self.blast(jblast_infile, self.species, 'J')
         for vdj, jquery, jbr in zip(vdjs, jquery_seqs, jblast_records):
-            germ = self.process_blast_record(jbr, species)
+            germ = self.process_blast_record(jbr, self.species)
             vdj.j = germ
             # sanity check to make sure there's not an obvious problem with the V/J
             # assignments (likely due to poor germline matches to a non-antibody sequence)
@@ -130,7 +130,7 @@ class Blastn(BaseAssigner):
         for vdj, dquery in zip(vdjs, dquery_seqs):
             if vdj.v.chain == 'heavy':
                 try:
-                    germ = self.assign_dgene(dquery, species)
+                    germ = self.assign_dgene(dquery, self.species)
                     vdj.d = germ
                 except:
                     vdj.exception('D-GENE ASSIGNMENT ERROR:', traceback.format_exc())
@@ -160,7 +160,7 @@ class Blastn(BaseAssigner):
             segment (str): Germline segment to query. Options are ``V`` and ``J``.
         '''
         blast_path = os.path.join(self.binary_directory, 'blastn_{}'.format(platform.system().lower()))
-        blast_db_path = os.path.join(self.germline_directory, 'blast/{}_gl_{}'.format(species.lower(), segment.upper()))
+        blast_db_path = os.path.join(self.germline_directory, '{}/blast/{}'.format(species.lower(), segment.lower()))
         blastout = NamedTemporaryFile(delete=False)
         blastn_cmd = NcbiblastnCommandline(cmd=blast_path,
                                            db=blast_db_path,
@@ -182,7 +182,7 @@ class Blastn(BaseAssigner):
 
 
     def assign_dgene(self, seq, species):
-        db_file = os.path.join(self.germline_directory, 'fasta/{}_D.fasta'.format(species.lower()))
+        db_file = os.path.join(self.germline_directory, '{}/ungapped/d.fasta'.format(species.lower()))
         db_handle = open(db_file, 'r')
         germs = [Sequence(s) for s in SeqIO.parse(db_handle, 'fasta')]
         rc_germs = [Sequence(s.reverse_complement, id=s.id) for s in germs]

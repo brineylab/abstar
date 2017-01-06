@@ -25,6 +25,8 @@
 import abc
 import os
 
+from ..core.germline import get_germline_database_directory
+
 
 class BaseAssigner(object):
     """
@@ -283,9 +285,10 @@ class BaseAssigner(object):
 
     __metaclass__ = abc.ABCMeta
 
-    def __init__(self):
+    def __init__(self, species):
         super(BaseAssigner, self).__init__()
         self.name = self.__class__.__name__.lower()
+        self.species = species
         self._assigned = None
         self._unassigned = None
         self._germline_directory = None
@@ -293,16 +296,19 @@ class BaseAssigner(object):
 
 
     @abc.abstractmethod
-    def __call__(self, sequence_file, species):
+    def __call__(self, sequence_file, file_format):
         pass
 
 
     @property
     def germline_directory(self):
         if self._germline_directory is None:
-            mod_dir = os.path.dirname(os.path.abspath(__file__))
-            self._germline_directory = os.path.join(mod_dir, 'germline_dbs')
+            self._germline_directory = get_germline_database_directory(self.species)
         return self._germline_directory
+
+    @germline_directory.setter
+    def germline_directory(self, directory):
+        self._germline_directory = directory
 
 
     @property
