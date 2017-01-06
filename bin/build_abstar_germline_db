@@ -60,6 +60,8 @@ def parse_arguments():
                         so this option is provided primarily to test database creation without overwriting \
                         current databases of the same name. \
                         If the directory does not exist, it will be created.")
+    parser.add_argument('-D', '--debug', dest="debug", action='store_true', default=False,
+                        help="More verbose logging if set.")
     args = parser.parse_args()
     return args
 
@@ -73,13 +75,12 @@ def parse_arguments():
 
 def get_addon_directory():
     if args.db_location is not None:
-        print('')
+        print('\n')
         print('NOTE: You have selected a non-default location for the germline directory.')
         string = 'AbStar only looks in the default location (~/.abstar/) for user-created germline databases, '
         string += 'so this database will not be used by AbStar. The custom database location option is primarily '
         string += 'provided so that users can test the database creation process without overwriting existing databases.'
         print(string)
-        print('')
         addon_dir = args.db_location
     else:
         addon_dir = '~/.abstar'
@@ -141,7 +142,7 @@ def make_blast_db(ungapped_germline_file, addon_directory, segment):
                                                                                 mbd_log)
     p = sp.Popen(mbd_cmd, stdout=sp.PIPE, stderr=sp.PIPE, shell=True)
     stdout, stderr = p.communicate()
-    return mbd_output
+    return mbd_output, stdout, stderr
 
 
 
@@ -155,7 +156,7 @@ def make_ungapped_db(ungapped_germline_file, addon_directory, segment):
 
 
 def make_imgt_gapped_db(input_file, addon_directory, segment):
-    print('  - IMGT-gapped')
+    print('  - IMGT-gapped FASTA')
     output_file = os.path.join(addon_directory, '{}/imgt_gapped/{}.fasta'.format(args.species.lower(), segment.lower()))
     seqs = sorted(list(SeqIO.parse(open(input_file), 'fasta')), key=lambda x: x.id)
     fastas = ['>{}\n{}'.format(s.id, str(s.seq)) for s in seqs]
@@ -194,7 +195,11 @@ def main():
         print_segment_info(segment, infile)
         imgt_gapped_file = make_imgt_gapped_db(infile, addon_dir, segment[0].lower())
         ungapped_file = make_ungapped_db(imgt_gapped_file, addon_dir, segment[0].lower())
-        blast_file = make_blast_db(ungapped_file, addon_dir, segment[0].lower())
+        blast_file, stdout, stderr = make_blast_db(ungapped_file, addon_dir, segment[0].lower())
+        if args.debug:
+            print(stdout)
+            print(stderr)
+    print('\n')
 
 
 if __name__ == '__main__':
