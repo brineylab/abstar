@@ -34,6 +34,7 @@ config = {
     'packages': ['abstar'],
     'scripts': ['bin/abstar',
                 'bin/batch_mongoimport',
+                'bin/build_abstar_germline_db',
                 'bin/make_basespace_credfile'],
     'name': 'abstar',
     'include_package_data': True
