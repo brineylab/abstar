@@ -312,6 +312,7 @@ class GermlineSegment(object, LoggingMixin):
         # db_file = os.path.join(mod_dir, 'assigners/germline_dbs/{}_{}.fasta'.format(self.species.lower(), self.gene_type))
         germ_dir = get_germline_database_directory(self.species)
         db_file = os.path.join(germ_dir, '{}/ungapped/{}.fasta'.format(self.species.lower(), self.gene_type.lower()))
+        print(db_file)
         try:
             for s in SeqIO.parse(open(db_file), 'fasta'):
                 if s.id == self.full:
