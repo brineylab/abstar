@@ -29,6 +29,8 @@ import os
 import subprocess as sp
 import sys
 
+from Bio import SeqIO
+
 
 
 def parse_arguments():
@@ -154,7 +156,7 @@ def make_imgt_gapped_db(input_file, addon_directory, segment):
     print('IMGT-gapped...')
     output_file = os.path.join(addon_directory, '{}/imgt_gapped/{}.fasta'.format(args.species.lower(), segment.lower()))
     seqs = sorted(list(SeqIO.parse(open(input_file), 'fasta')), key=lambda x: x.id)
-    fastas = ['>{}\n{}'.format(s.id, str(s.seq) for s in seqs)]
+    fastas = ['>{}\n{}'.format(s.id, str(s.seq)) for s in seqs]
     open(output_file, 'w').write('\n'.join(fastas))
     return output_file
 
