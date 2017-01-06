@@ -26,6 +26,7 @@ from __future__ import print_function
 
 from argparse import ArgumentParser
 import os
+import shutil
 import subprocess as sp
 import sys
 
@@ -114,7 +115,7 @@ def make_db_directories(addon_dir):
     for db_name in ['imgt_gapped', 'ungapped', 'blast']:
         db_dir = os.path.join(species_dir, db_name)
         if os.path.isdir(db_dir):
-            os.unlink(db_dir)
+            shutil.rmtree(db_dir)
         os.makedirs(db_dir)
 
 
