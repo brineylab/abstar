@@ -174,7 +174,7 @@ def print_segment_info(segment, input_file):
     seqs = list(SeqIO.parse(open(input_file), 'fasta'))
     print('\n')
     seg_string = '  ' + segment.upper() + '  '
-    print('-' + len(seg_string))
+    print('-' * len(seg_string))
     print(seg_string)
     print('-' * len(seg_string))
     print(input_file)
