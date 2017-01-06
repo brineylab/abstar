@@ -147,7 +147,7 @@ def make_ungapped_db(ungapped_germline_file, addon_directory, segment):
     print('ungapped FASTA...')
     output_file = os.path.join(addon_directory, '{}/ungapped/{}.fasta'.format(args.species.lower(), segment.lower()))
     seqs = SeqIO.parse(open(ungapped_germline_file), 'fasta')
-    fastas = ['>{}\n{}'.format(s.id.split('|')[0], str(s.seq).replace('.', '')) for s in seqs]
+    fastas = ['>{}\n{}'.format(s.id.split('|')[1], str(s.seq).replace('.', '')) for s in seqs]
     open(output_file, 'w').write('\n'.join(fastas))
     return output_file
 
