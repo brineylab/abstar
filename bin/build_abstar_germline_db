@@ -26,6 +26,7 @@ from __future__ import print_function
 
 from argparse import ArgumentParser
 import os
+import platform
 import shutil
 import subprocess as sp
 import sys
@@ -129,7 +130,7 @@ def make_db_directories(addon_dir):
 
 
 def make_blast_db(ungapped_germline_file, addon_directory, segment):
-    print('BLASTn...')
+    print('  - BLASTn')
     bin_dir = get_binary_directory()
     mbd_binary = os.path.join(bin_dir, 'makeblastdb_{}'.format(platform.system().lower()))
     mbd_output = os.path.join(addon_directory, '{}/blast/{}'.format(args.species.lower(), segment.lower()))
@@ -145,7 +146,7 @@ def make_blast_db(ungapped_germline_file, addon_directory, segment):
 
 
 def make_ungapped_db(ungapped_germline_file, addon_directory, segment):
-    print('ungapped FASTA...')
+    print('  - ungapped FASTA')
     output_file = os.path.join(addon_directory, '{}/ungapped/{}.fasta'.format(args.species.lower(), segment.lower()))
     seqs = SeqIO.parse(open(ungapped_germline_file), 'fasta')
     fastas = ['>{}\n{}'.format(s.id.split('|')[1], str(s.seq).replace('.', '')) for s in seqs]
@@ -154,7 +155,7 @@ def make_ungapped_db(ungapped_germline_file, addon_directory, segment):
 
 
 def make_imgt_gapped_db(input_file, addon_directory, segment):
-    print('IMGT-gapped...')
+    print('  - IMGT-gapped')
     output_file = os.path.join(addon_directory, '{}/imgt_gapped/{}.fasta'.format(args.species.lower(), segment.lower()))
     seqs = sorted(list(SeqIO.parse(open(input_file), 'fasta')), key=lambda x: x.id)
     fastas = ['>{}\n{}'.format(s.id, str(s.seq)) for s in seqs]
