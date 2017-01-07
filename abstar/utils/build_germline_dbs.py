@@ -88,7 +88,7 @@ def get_addon_directory(db_location):
         print(string)
         addon_dir = db_location
     else:
-        addon_dir = os.path.expanduser('~/.abstar')
+        addon_dir = os.path.expanduser('~/.abstar/germline_dbs')
     if not os.path.isdir(addon_dir):
         os.makedirs(addon_dir)
     return addon_dir

@@ -520,7 +520,7 @@ class GermlineSegment(object, LoggingMixin):
 
 def get_germline_database_directory(species):
     addon_dir = os.path.expanduser('~/.abstar/germline_dbs')
-    if os.path.exists(addon_dir):
+    if os.path.isdir(addon_dir):
         if species.lower() in [os.path.basename(d[0]) for d in os.walk(addon_dir)]:
             return addon_dir
     mod_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
