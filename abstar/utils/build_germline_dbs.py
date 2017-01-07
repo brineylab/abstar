@@ -224,16 +224,17 @@ def main():
     args = parse_arguments()
     addon_dir = get_addon_directory(args.db_location)
     check_for_existing_db(addon_dir, args.species)
-    make_db_directories(addon_dir, args.species, args.allow_partials)
+    make_db_directories(addon_dir, args.species, args.isotypes)
     for segment, infile in [('Variable', args.v), ('Diversity', args.d), ('Joining', args.j)]:
         print_segment_info(segment, infile)
-        imgt_gapped_file = make_imgt_gapped_db(infile, addon_dir, segment[0].lower(), args.species, args.isotypes)
+        imgt_gapped_file = make_imgt_gapped_db(infile, addon_dir, segment[0].lower(), args.species, args.allow_partials)
         ungapped_file = make_ungapped_db(imgt_gapped_file, addon_dir, segment[0].lower(), args.species)
         blast_file, stdout, stderr = make_blast_db(ungapped_file, addon_dir, segment[0].lower(), args.species)
         if args.debug:
             print(stdout)
             print(stderr)
     if args.isotypes is not None:
+        print_segment_info('ISOTYPES', args.isotypes)
         isotype_file = make_isotype_db(args.isotypes, addon_dir, args.species)
     print('\n')
 
