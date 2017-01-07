@@ -23,13 +23,13 @@
 
 
 # from .assigner import BaseAssigner
-# from .blastn import Blastn
+from .blastn import Blastn
 
 # import all assigner modules so that I can add them to the ASSIGNERS dict
-from . import *
+# from . import *
 
-# ASSIGNERS = {'blastn': Blastn}
-ASSIGNERS = {cls.__name__.lower(): cls for cls in vars()['BaseAssigner'].__subclasses__()}
+ASSIGNERS = {'blastn': Blastn}
+# ASSIGNERS = {cls.__name__.lower(): cls for cls in vars()['BaseAssigner'].__subclasses__()}
 
 
 # class Registration(type):
