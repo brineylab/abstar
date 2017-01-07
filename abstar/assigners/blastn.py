@@ -160,7 +160,7 @@ class Blastn(BaseAssigner):
             segment (str): Germline segment to query. Options are ``V`` and ``J``.
         '''
         blast_path = os.path.join(self.binary_directory, 'blastn_{}'.format(platform.system().lower()))
-        blast_db_path = os.path.join(self.germline_directory, '{}/blast/{}'.format(species.lower(), segment.lower()))
+        blast_db_path = os.path.join(self.germline_directory, 'blast/{}'.format(segment.lower()))
         blastout = NamedTemporaryFile(delete=False)
         blastn_cmd = NcbiblastnCommandline(cmd=blast_path,
                                            db=blast_db_path,
@@ -182,7 +182,7 @@ class Blastn(BaseAssigner):
 
 
     def assign_dgene(self, seq, species):
-        db_file = os.path.join(self.germline_directory, '{}/ungapped/d.fasta'.format(species.lower()))
+        db_file = os.path.join(self.germline_directory, 'ungapped/d.fasta')
         db_handle = open(db_file, 'r')
         germs = [Sequence(s) for s in SeqIO.parse(db_handle, 'fasta')]
         rc_germs = [Sequence(s.reverse_complement, id=s.id) for s in germs]

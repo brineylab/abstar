@@ -110,6 +110,8 @@ class Antibody(object, LoggingMixin):
             self._identify_regions()
             # print('Mutations...')
             self._mutations()
+            # print('Isotypes...')
+            self._isotypes()
             # print('Productivity...')
             self._productivity()
         except:

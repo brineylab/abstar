@@ -46,6 +46,12 @@ def parse_arguments():
     parser.add_argument('-j', '--joining', dest='j', required=True,
                         help="Path to an IMGT-gapped, FASTA-formatted file containing Joining gene sequences. \
                         Sequences for both heavy and light chains should be included in a single file.")
+    parser.add_argument('-i', '--isotypes', dest='isotypes', default=None,
+                        help="Path to a FASTA-formatted file containing isotype sequences. \
+                        The name of the isotype in the FASTA file is what will be reported by AbStar, \
+                        so the use of standard nomenclature (IgG, IgG1, etc) is encouraged. \
+                        If an isotype file is not provided, isotypes will not be parsed by AbStar when \
+                        using the germline database.")
     parser.add_argument('-s', '--species', dest='species', required=True,
                         help="Name of the species from which the germline sequences are derived. \
                         If an AbStar germline database for the species already exists, it will be overwritten. \
@@ -125,13 +131,11 @@ def make_db_directories(addon_dir, species):
         os.makedirs(db_dir)
 
 
-
 # -------------------------
 #
 #    DATABASE CREATION
 #
 # -------------------------
-
 
 
 def make_blast_db(ungapped_germline_file, addon_directory, segment, species):
@@ -147,7 +151,6 @@ def make_blast_db(ungapped_germline_file, addon_directory, segment, species):
     p = sp.Popen(mbd_cmd, stdout=sp.PIPE, stderr=sp.PIPE, shell=True)
     stdout, stderr = p.communicate()
     return mbd_output, stdout, stderr
-
 
 
 def make_ungapped_db(ungapped_germline_file, addon_directory, segment, species):
@@ -168,15 +171,23 @@ def make_imgt_gapped_db(input_file, addon_directory, segment, species, allow_par
         partial = s.description.split('|')[13].strip()
         if "3" in partial:
             if any([allow_partials == "3'", allow_partials == 'both']):
-                fastas.append('>{}\n{}'.format(s.description, str(s.seq)))
+                fastas.append('>{}\n{}'.format(s.description, str(s.seq).upper()))
         elif "5" in partial:
             if any([allow_partials == "5'", allow_partials == 'both']):
-                fastas.append('>{}\n{}'.format(s.description, str(s.seq)))
+                fastas.append('>{}\n{}'.format(s.description, str(s.seq).upper()))
         else:
-            fastas.append('>{}\n{}'.format(s.description, str(s.seq)))
+            fastas.append('>{}\n{}'.format(s.description, str(s.seq).upper()))
     open(output_file, 'w').write('\n'.join(fastas))
     return output_file
 
+
+def make_isotype_db(input_file, addon_directory, species):
+    print('  - isotypes')
+    output_file = os.path.join(addon_directory, '{}/isotypes/isotypes.fasta'.format(species.lower(), segment.lower()))
+    seqs = sorted(list(SeqIO.parse(open(input_file), 'fasta')), key=lambda x: x.id)
+    fastas = ['>{}\n{}'.format(s.id, str(s.seq).upper()) for s in seqs]
+    open(output_file, 'w').write('\n'.join(fastas))
+    return output_file
 
 
 # -------------------------
@@ -184,7 +195,6 @@ def make_imgt_gapped_db(input_file, addon_directory, segment, species, allow_par
 #        PRINTING
 #
 # -------------------------
-
 
 
 def print_segment_info(segment, input_file):
@@ -200,6 +210,12 @@ def print_segment_info(segment, input_file):
     print('Building germline databases:')
 
 
+# -------------------------
+#
+#          MAIN
+#
+# -------------------------
+
 
 def main():
     args = parse_arguments()
@@ -214,9 +230,10 @@ def main():
         if args.debug:
             print(stdout)
             print(stderr)
+    if args.isotypes is not None:
+        isotype_file = make_isotype_db(args.isotypes, addon_dir, args.species.lower)
     print('\n')
 
 
 if __name__ == '__main__':
-    # args = parse_arguments()
     main()

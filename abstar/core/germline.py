@@ -311,7 +311,7 @@ class GermlineSegment(object, LoggingMixin):
         # mod_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         # db_file = os.path.join(mod_dir, 'assigners/germline_dbs/{}_{}.fasta'.format(self.species.lower(), self.gene_type))
         germ_dir = get_germline_database_directory(self.species)
-        db_file = os.path.join(germ_dir, '{}/ungapped/{}.fasta'.format(self.species.lower(), self.gene_type.lower()))
+        db_file = os.path.join(germ_dir, 'ungapped/{}.fasta'.format(self.gene_type.lower()))
         try:
             for s in SeqIO.parse(open(db_file), 'fasta'):
                 if s.id == self.full:
@@ -522,10 +522,9 @@ def get_germline_database_directory(species):
     addon_dir = os.path.expanduser('~/.abstar/germline_dbs')
     if os.path.isdir(addon_dir):
         if species.lower() in [os.path.basename(d[0]) for d in os.walk(addon_dir)]:
-            return addon_dir
+            return os.path.join(addon_dir, species.lower())
     mod_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    builtin_dir = os.path.join(mod_dir, 'assigners/germline_dbs')
-    return builtin_dir
+    return os.path.join(mod_dir, 'assigners/germline_dbs/{}'.format(species.lower()))
 
 
 def get_imgt_germlines(species, gene_type, gene=None):
@@ -553,7 +552,7 @@ def get_imgt_germlines(species, gene_type, gene=None):
     # mod_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     # db_file = os.path.join(mod_dir, 'assigners/germline_dbs/imgt_gapped/{}_{}_imgt-gapped.fasta'.format(species, gene_type))
     germ_dir = get_germline_database_directory(species)
-    db_file = os.path.join(germ_dir, '{}/imgt_gapped/{}.fasta'.format(species.lower(), gene_type.lower()))
+    db_file = os.path.join(germ_dir, 'imgt_gapped/{}.fasta'.format(gene_type.lower()))
     try:
         germs = [IMGTGermlineGene(g) for g in SeqIO.parse(open(db_file, 'r'), 'fasta')]
     except:
