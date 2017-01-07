@@ -23,8 +23,6 @@
 
 
 from .assigner import BaseAssigner
-from .registry import register
-
 
 
 class MiXCR(BaseAssigner):

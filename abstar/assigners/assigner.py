@@ -84,8 +84,8 @@ class BaseAssigner(object):
                             Blastn binary for OSX would be at ``binary_directory/blastn_darwin``.
 
     In order to build a custom assigner, you simply need to subclass BaseAssigner add the ``@register`` decorator
-    (which will register your assigner by name), ``super()`` your Assigner class at the start of ``__init__()``,
-    and implement the  ``__call__()`` method.
+    (which will register your assigner by name), call the BaseAssigner ``__init__()`` at the start of your ``__init__()``
+    (using ``super()``), and implement the  ``__call__()`` method.
 
 
     The ``@register`` decorator
