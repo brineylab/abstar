@@ -120,11 +120,14 @@ def check_for_existing_db(addon_dir, species):
             sys.exit()
 
 
-def make_db_directories(addon_dir, species):
+def make_db_directories(addon_dir, species, isotypes):
     species_dir = os.path.join(addon_dir, species.lower())
     if not os.path.isdir(species_dir):
         os.makedirs(species_dir)
-    for db_name in ['imgt_gapped', 'ungapped', 'blast']:
+    db_names = ['imgt_gapped', 'ungapped', 'blast']
+    if isotypes is not None:
+        db_names.append('isotypes')
+    for db_name in db_names:
         db_dir = os.path.join(species_dir, db_name)
         if os.path.isdir(db_dir):
             shutil.rmtree(db_dir)
@@ -221,10 +224,10 @@ def main():
     args = parse_arguments()
     addon_dir = get_addon_directory(args.db_location)
     check_for_existing_db(addon_dir, args.species)
-    make_db_directories(addon_dir, args.species)
+    make_db_directories(addon_dir, args.species, args.allow_partials)
     for segment, infile in [('Variable', args.v), ('Diversity', args.d), ('Joining', args.j)]:
         print_segment_info(segment, infile)
-        imgt_gapped_file = make_imgt_gapped_db(infile, addon_dir, segment[0].lower(), args.species, args.allow_partials)
+        imgt_gapped_file = make_imgt_gapped_db(infile, addon_dir, segment[0].lower(), args.species, args.isotypes)
         ungapped_file = make_ungapped_db(imgt_gapped_file, addon_dir, segment[0].lower(), args.species)
         blast_file, stdout, stderr = make_blast_db(ungapped_file, addon_dir, segment[0].lower(), args.species)
         if args.debug:
