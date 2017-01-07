@@ -183,7 +183,7 @@ def make_imgt_gapped_db(input_file, addon_directory, segment, species, allow_par
 
 def make_isotype_db(input_file, addon_directory, species):
     print('  - isotypes')
-    output_file = os.path.join(addon_directory, '{}/isotypes/isotypes.fasta'.format(species.lower(), segment.lower()))
+    output_file = os.path.join(addon_directory, '{}/isotypes/isotypes.fasta'.format(species.lower()))
     seqs = sorted(list(SeqIO.parse(open(input_file), 'fasta')), key=lambda x: x.id)
     fastas = ['>{}\n{}'.format(s.id, str(s.seq).upper()) for s in seqs]
     open(output_file, 'w').write('\n'.join(fastas))
