@@ -231,7 +231,7 @@ def main():
             print(stdout)
             print(stderr)
     if args.isotypes is not None:
-        isotype_file = make_isotype_db(args.isotypes, addon_dir, args.species.lower)
+        isotype_file = make_isotype_db(args.isotypes, addon_dir, args.species)
     print('\n')
 
 
