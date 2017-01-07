@@ -111,7 +111,7 @@ class Antibody(object, LoggingMixin):
             # print('Mutations...')
             self._mutations()
             # print('Isotypes...')
-            self._isotypes()
+            self._isotype()
             # print('Productivity...')
             self._productivity()
         except:
