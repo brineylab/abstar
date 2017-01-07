@@ -60,6 +60,11 @@ def parse_arguments():
                         so this option is provided primarily to test database creation without overwriting \
                         current databases of the same name. \
                         If the directory does not exist, it will be created.")
+    parser.add_argument('--allow-partials', dest='allow_partials', default=None, choices=("3'", "5'", "both")
+                        help="If set, will include 'partial' sequences (partial in 3', partial in 5' or both) to the \
+                        AbStar germline database. 'Partial' is an annotation (field 14 in the IMGT/GENE-DB header) \
+                        that indicates a germline sequence is incomplete, even if it is otherwise considered \
+                        functional. Default is to exclude all partial sequences.")
     parser.add_argument('-D', '--debug', dest="debug", action='store_true', default=False,
                         help="More verbose logging if set.")
     args = parser.parse_args()
@@ -154,11 +159,21 @@ def make_ungapped_db(ungapped_germline_file, addon_directory, segment, species):
     return output_file
 
 
-def make_imgt_gapped_db(input_file, addon_directory, segment, species):
+def make_imgt_gapped_db(input_file, addon_directory, segment, species, allow_partials):
     print('  - IMGT-gapped FASTA')
     output_file = os.path.join(addon_directory, '{}/imgt_gapped/{}.fasta'.format(species.lower(), segment.lower()))
     seqs = sorted(list(SeqIO.parse(open(input_file), 'fasta')), key=lambda x: x.id)
-    fastas = ['>{}\n{}'.format(s.description, str(s.seq)) for s in seqs]
+    fastas = []
+    for s in seqs:
+        partial = s.description.split('|')[13].strip()
+        if "3" in partial:
+            if any([allow_partials == "3'", allow_partials == 'both']):
+                fastas.append('>{}\n{}'.format(s.description, str(s.seq)))
+        elif "5" in partial:
+            if any([allow_partials == "5'", allow_partials == 'both']):
+                fastas.append('>{}\n{}'.format(s.description, str(s.seq)))
+        else:
+            fastas.append('>{}\n{}'.format(s.description, str(s.seq)))
     open(output_file, 'w').write('\n'.join(fastas))
     return output_file
 
@@ -193,7 +208,7 @@ def main():
     make_db_directories(addon_dir, args.species)
     for segment, infile in [('Variable', args.v), ('Diversity', args.d), ('Joining', args.j)]:
         print_segment_info(segment, infile)
-        imgt_gapped_file = make_imgt_gapped_db(infile, addon_dir, segment[0].lower(), args.species)
+        imgt_gapped_file = make_imgt_gapped_db(infile, addon_dir, segment[0].lower(), args.species, args.allow_partials)
         ungapped_file = make_ungapped_db(imgt_gapped_file, addon_dir, segment[0].lower(), args.species)
         blast_file, stdout, stderr = make_blast_db(ungapped_file, addon_dir, segment[0].lower(), args.species)
         if args.debug:
