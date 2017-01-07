@@ -83,7 +83,7 @@ def get_addon_directory(db_location):
         print(string)
         addon_dir = db_location
     else:
-        addon_dir = '~/.abstar'
+        addon_dir = os.path.expanduser('~/.abstar')
     if not os.path.isdir(addon_dir):
         os.makedirs(addon_dir)
     return addon_dir
