@@ -101,7 +101,6 @@ def check_for_existing_db(addon_dir, species):
         print('\n')
         print('WARNING: A {} germline database already exists.'.format(species.lower()))
         print('Creating a new database with that name will overwrite the old one.')
-        print('')
         keep_going = raw_input('Do you want to continue? [y/N]: ')
         if keep_going.upper() not in ['Y', 'YES']:
             print('')
@@ -150,7 +149,7 @@ def make_ungapped_db(ungapped_germline_file, addon_directory, segment, species):
     print('  - ungapped FASTA')
     output_file = os.path.join(addon_directory, '{}/ungapped/{}.fasta'.format(species.lower(), segment.lower()))
     seqs = SeqIO.parse(open(ungapped_germline_file), 'fasta')
-    fastas = ['>{}\n{}'.format(s.id.split('|')[1], str(s.seq).replace('.', '')) for s in seqs]
+    fastas = ['>{}\n{}'.format(s.description.split('|')[1], str(s.seq).replace('.', '')) for s in seqs]
     open(output_file, 'w').write('\n'.join(fastas))
     return output_file
 
@@ -159,7 +158,7 @@ def make_imgt_gapped_db(input_file, addon_directory, segment, species):
     print('  - IMGT-gapped FASTA')
     output_file = os.path.join(addon_directory, '{}/imgt_gapped/{}.fasta'.format(species.lower(), segment.lower()))
     seqs = sorted(list(SeqIO.parse(open(input_file), 'fasta')), key=lambda x: x.id)
-    fastas = ['>{}\n{}'.format(s.id, str(s.seq)) for s in seqs]
+    fastas = ['>{}\n{}'.format(s.description, str(s.seq)) for s in seqs]
     open(output_file, 'w').write('\n'.join(fastas))
     return output_file
 
