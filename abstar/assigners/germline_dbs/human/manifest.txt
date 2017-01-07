@@ -1,0 +1,15 @@
+Homo sapiens germline gene database
+
+SOURCE: www.imgt.org/genedb
+DOWNLOAD DATE: January 7, 2017
+
+DOWNLOAD OPTIONS
+----------------
+SPECIES: Homo sapiens
+FUNCTIONALITY: functional
+MOLECULAR COMPONENT: IG
+LOCUS: any
+MAIN LOCUS: any
+OR CHROMOSOMAL ORPHON SET: any
+
+DISPLAY: F+ORF+in-frame P nucleotide sequences with IMGT gaps

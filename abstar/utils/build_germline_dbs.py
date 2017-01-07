@@ -40,18 +40,27 @@ def parse_arguments():
         Properly formatted germline sequence files can be obtained from: http://www.imgt.org/genedb/")
     parser.add_argument('-v', '--variable', dest='v', required=True,
                         help="Path to an IMGT-gapped, FASTA-formatted file containing Variable gene sequences. \
-                        Sequences for both heavy and light chains should be included in a single file.")
+                        Sequences for both heavy and light chains should be included in a single file. \
+                        Required.")
     parser.add_argument('-d', '--diversity', dest='d', required=True,
-                        help="Path to an IMGT-gapped, FASTA-formatted file containing Diversity gene sequences.")
+                        help="Path to an IMGT-gapped, FASTA-formatted file containing Diversity gene sequences. \
+                        Required.")
     parser.add_argument('-j', '--joining', dest='j', required=True,
                         help="Path to an IMGT-gapped, FASTA-formatted file containing Joining gene sequences. \
-                        Sequences for both heavy and light chains should be included in a single file.")
+                        Sequences for both heavy and light chains should be included in a single file. \
+                        Required.")
     parser.add_argument('-i', '--isotypes', dest='isotypes', default=None,
                         help="Path to a FASTA-formatted file containing isotype sequences. \
                         The name of the isotype in the FASTA file is what will be reported by AbStar, \
                         so the use of standard nomenclature (IgG, IgG1, etc) is encouraged. \
                         If an isotype file is not provided, isotypes will not be parsed by AbStar when \
                         using the germline database.")
+    parser.add_argument('-m', '--manifest', dest='manifest', default=None,
+                        help="Path to a plain-text file containing information about the germline database. \
+                        Format is not important, but this is the place for optional inforamtion like the origin \
+                        of the germline database, the date of download, etc. Optional. If provided, the contents \
+                        of the file will be stored as 'manifest.txt' in the top level of the germline database \
+                        (for user-provided databases, that would be '~/.abstar/germline_dbs/<species>/).")
     parser.add_argument('-s', '--species', dest='species', required=True,
                         help="Name of the species from which the germline sequences are derived. \
                         If an AbStar germline database for the species already exists, it will be overwritten. \
@@ -193,6 +202,13 @@ def make_isotype_db(input_file, addon_directory, species):
     return output_file
 
 
+def transfer_manifest_data(manifest, addon_directory, species):
+    output_file = os.path.join(addon_directory, '{}/manifest.txt'.format(species.lower()))
+    manifest_data = open(manifest, 'r').read()
+    open(output_file, 'w').write(manifest_data)
+    return output_file
+
+
 # -------------------------
 #
 #        PRINTING
@@ -211,6 +227,17 @@ def print_segment_info(segment, input_file):
     print('input file contains {} sequences'.format(len(seqs)))
     print('')
     print('Building germline databases:')
+
+
+def print_manifest_info(manifest):
+    seg_string = '  MANIFEST  '
+    print('\n')
+    print('-' * len(seg_string))
+    print(seg_string)
+    print('-' * len(seg_string))
+    print(manifest)
+    print('')
+    print('Transferring manifest data...')
 
 
 # -------------------------
@@ -236,6 +263,9 @@ def main():
     if args.isotypes is not None:
         print_segment_info('ISOTYPES', args.isotypes)
         isotype_file = make_isotype_db(args.isotypes, addon_dir, args.species)
+    if args.manifest is not None:
+        print_manifest_info(args.manifest)
+        transfer_manifest_data(args.manifest, addon_dir, args.species)
     print('\n')
 
 
