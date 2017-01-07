@@ -60,7 +60,7 @@ def parse_arguments():
                         so this option is provided primarily to test database creation without overwriting \
                         current databases of the same name. \
                         If the directory does not exist, it will be created.")
-    parser.add_argument('--allow-partials', dest='allow_partials', default=None, choices=("3'", "5'", "both")
+    parser.add_argument('--allow-partials', dest='allow_partials', default=None, choices=("3'", "5'", "both"),
                         help="If set, will include 'partial' sequences (partial in 3', partial in 5' or both) to the \
                         AbStar germline database. 'Partial' is an annotation (field 14 in the IMGT/GENE-DB header) \
                         that indicates a germline sequence is incomplete, even if it is otherwise considered \
