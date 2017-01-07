@@ -26,7 +26,7 @@ from .assigner import BaseAssigner
 from .registry import register
 
 
-# @register
+
 class MiXCR(BaseAssigner):
     """
     docstring for MiXCRAssigner

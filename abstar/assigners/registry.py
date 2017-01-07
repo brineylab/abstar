@@ -22,20 +22,23 @@
 #
 
 
-from .assigner import BaseAssigner
-from .blastn import Blastn
+# from .assigner import BaseAssigner
+# from .blastn import Blastn
 
-ASSIGNERS = {'blastn': Blastn}
-# ASSIGNERS = {cls.__name__.lower(): cls for cls in vars()['BaseAssigner'].__subclasses__()}
+# import all assigner modules so that I can add them to the ASSIGNERS dict
+from . import *
 
-
-class Registration(type):
-    """docstring for Registration"""
-    def __init__(self, cls, name, bases, attrs):
-        ASSIGNERS[cls.__name__] = cls
-        super(Registration, cls).__init__(name, bases, attrs)
+# ASSIGNERS = {'blastn': Blastn}
+ASSIGNERS = {cls.__name__.lower(): cls for cls in vars()['BaseAssigner'].__subclasses__()}
 
 
-def register(cls):
-    ASSIGNERS[cls.__name__.lower()] = cls
-    return cls
+# class Registration(type):
+#     """docstring for Registration"""
+#     def __init__(self, cls, name, bases, attrs):
+#         ASSIGNERS[cls.__name__] = cls
+#         super(Registration, cls).__init__(name, bases, attrs)
+
+
+# def register(cls):
+#     ASSIGNERS[cls.__name__.lower()] = cls
+#     return cls

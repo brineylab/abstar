@@ -34,18 +34,15 @@ from abtools.alignment import local_alignment
 from abtools.sequence import Sequence
 
 from .assigner import BaseAssigner
-# from .registry import register, Registration
 from ..core.germline import GermlineSegment
 from ..core.vdj import VDJ
 
 
-# @register
+
 class Blastn(BaseAssigner):
     """
     docstring for Blastn
     """
-
-    # __metaclass__ = Registry
 
     def __init__(self, species):
         super(Blastn, self).__init__(species)
