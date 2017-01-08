@@ -279,23 +279,26 @@ class GermlineSegment(object, LoggingMixin):
 
 
     def _process_realignment(self, antibody, aln, query_start):
-        self.realignment = aln
-        self.score = aln.score
-        self.raw_query = aln.raw_query
-        self.raw_germline = aln.raw_target
-        self.query_alignment = aln.aligned_query
-        self.germline_alignment = aln.aligned_target
-        self.alignment_midline = ''.join(['|' if q == g else ' ' for q, g in zip(aln.aligned_query,
-                                                                                 aln.aligned_target)])
-        # only update alignment start/end positions if not already annotated by aligner
-        if any([x is None for x in [self.query_start, self.query_end, self.germline_start, self.germline_end]]):
-            offset = query_start if query_start is not None else 0
-            self.query_start = aln.query_begin + offset
-            self.query_end = aln.query_end + offset
-            self.germline_start = aln.target_begin
-            self.germline_end = aln.target_end
-        self._fix_ambigs(antibody)
-        self._find_indels(antibody)
+        try:
+            self.realignment = aln
+            self.score = aln.score
+            self.raw_query = aln.raw_query
+            self.raw_germline = aln.raw_target
+            self.query_alignment = aln.aligned_query
+            self.germline_alignment = aln.aligned_target
+            self.alignment_midline = ''.join(['|' if q == g else ' ' for q, g in zip(aln.aligned_query,
+                                                                                     aln.aligned_target)])
+            # only update alignment start/end positions if not already annotated by aligner
+            if any([x is None for x in [self.query_start, self.query_end, self.germline_start, self.germline_end]]):
+                offset = query_start if query_start is not None else 0
+                self.query_start = aln.query_begin + offset
+                self.query_end = aln.query_end + offset
+                self.germline_start = aln.target_begin
+                self.germline_end = aln.target_end
+            self._fix_ambigs(antibody)
+            self._find_indels(antibody)
+        except:
+            antibody.exception('PROCESS REALIGNMENT ERROR', traceback.format_exc(), aln)
 
 
     def _get_germline_sequence_for_realignment(self):

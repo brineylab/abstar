@@ -188,6 +188,7 @@ class Antibody(object, LoggingMixin):
 
         # realign D (if needed)
         if all([self.chain == 'heavy', self.d is not None]):
+            # try:
             dstart = self.v.query_end + 1
             dend = self.j.query_start
             self.log('')
@@ -203,6 +204,9 @@ class Antibody(object, LoggingMixin):
             self.log('  QUERY: ', self.d.query_alignment)
             self.log('         ', self.d.alignment_midline)
             self.log('GERMLINE:', self.d.germline_alignment)
+            # except:
+            #     self.exception('D-GENE REALIGNMENT ERROR', traceback.format_exc())
+            #     self.d = None
 
 
 
