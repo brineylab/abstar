@@ -459,8 +459,11 @@ def print_input_file_info(f, fmt):
     logger.info('FORMAT: {}'.format(fmt.lower()))
 
 
-def print_job_stats(total_seqs, good_seqs, start_time, end_time):
+def print_job_stats(total_seqs, good_seq_counts, start_time, end_time):
     run_time = end_time - start_time
+    zero_files = sum([c == 0 for c in good_seq_counts])
+    good_seqs = sum(good_seq_counts)
+    logger.info('{} files contained no successfully processed sequences'.format(zero_files))
     logger.info('{} sequences contained an identifiable rearrangement'.format(good_seqs))
     logger.info('AbStar completed in {} seconds'.format(run_time))
 
@@ -881,17 +884,19 @@ def main(args):
             run_info = run_jobs(subfiles, temp_dir, log_dir, fmt, args)
             temp_json_files = [r[0] for r in run_info if r is not None]
             processed_seq_counts = [r[1] for r in run_info if r is not None]
-            assigned_log_files = [r[2] for r in run_info if r is not None]
-            unassigned_log_files = [r[3] for r in run_info if r is not None]
+            annotated_log_files = [r[2] for r in run_info if r is not None]
+            failed_log_files = [r[3] for r in run_info if r is not None]
+            unassigned_log_files = [r[4] for r in run_info if r is not None]
             vdj_end_time = time.time()
             output_file = concat_output(f, temp_json_files, output_dir, args)
             unassigned_file = concat_logs(f, unassigned_log_files, log_dir, 'unassigned')
+            failed_file = concat_logs(f, failed_log_files, log_dir, 'failed')
             if args.debug:
-                assigned_file = concat_logs(f, assigned_log_files, log_dir, 'assigned')
+                annotated_file = concat_logs(f, annotated_log_files, log_dir, 'annotated')
             output_files.append(output_file)
             if not args.debug:
-                clear_temp_files(subfiles + temp_json_files + assigned_log_files + unassigned_log_files)
-            print_job_stats(seq_count, sum(processed_seq_counts), start_time, vdj_end_time)
+                clear_temp_files(subfiles + temp_json_files + annotated_log_files + failed_log_files + unassigned_log_files)
+            print_job_stats(seq_count, processed_seq_counts, start_time, vdj_end_time)
         return output_files
 
 
