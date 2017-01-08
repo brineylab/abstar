@@ -67,6 +67,16 @@ class Antibody(object, LoggingMixin):
         return self._strand
 
 
+    @property
+    def has_exceptions(self):
+        if len(self.exceptions) > 0:
+            return True
+        segs = [s for s in [self.v, self.d, self.j] if s is not None]
+        if any([len(seg.exceptions) > 0 for seg in segs]):
+            return True
+        return False
+
+
     def initialize_log(self):
         log = []
         log.append('=' * len(self.id))
