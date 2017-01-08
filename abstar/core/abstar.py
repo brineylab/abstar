@@ -503,9 +503,9 @@ def run_abstar(seq_file, output_dir, log_dir, file_format, arg_dict):
             output_file = os.path.join(output_dir, output_filename + '.txt')
         # setup log files
         annotated_logfile = os.path.join(log_dir, 'temp/{}.annotated'.format(output_filename))
-        annotated_loghandle = open(assigned_logfile, 'a')
+        annotated_loghandle = open(annotated_logfile, 'a')
         failed_logfile = os.path.join(log_dir, 'temp/{}.failed'.format(output_filename))
-        failed_loghandle = open(assigned_logfile, 'a')
+        failed_loghandle = open(failed_logfile, 'a')
         unassigned_logfile = os.path.join(log_dir, 'temp/{}.unassigned'.format(output_filename))
         unassigned_loghandle = open(unassigned_logfile, 'a')
         # start assignment
