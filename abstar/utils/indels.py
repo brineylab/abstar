@@ -82,6 +82,14 @@ class Insertion(Indel):
 
 
     @property
+    def abstar_formatted(self):
+        return '{}:{}{}>{}'.format(self.imgt_position,
+                                   self.length,
+                                   '' if self.in_frame else '!',
+                                   self.sequence,)
+
+
+    @property
     def json_formatted(self):
         j = {'in_frame': 'yes' if self.in_frame else 'no',
              'length': self.length,
@@ -111,6 +119,21 @@ class Deletion(Indel):
                                                   self.imgt_position + self.length - 1,
                                                   self.length,
                                                   '' if self.in_frame else '#')
+
+
+    @property
+    def abstar_formatted(self):
+        if self.length == 1:
+            return '{}:{}{}>{}'.format(self.imgt_position,
+                                       self.length,
+                                       '' if self.in_frame else '!',
+                                       self.sequence,)
+        else:
+            return '{}-{}:{}{}>{}'.format(self.imgt_position,
+                                          self.imgt_position + self.length - 1,
+                                          self.length,
+                                          '' if self.in_frame else '!',
+                                          self.sequence,)
 
     @property
     def json_formatted(self):
