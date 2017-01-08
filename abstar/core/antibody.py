@@ -187,7 +187,7 @@ class Antibody(object, LoggingMixin):
         self.log('J-GENE AA SEQUENCE:', self.j.aa_sequence)
 
         # realign D (if needed)
-        if self.chain == 'heavy':
+        if all([self.chain == 'heavy', self.d is not None]):
             dstart = self.v.query_end + 1
             dend = self.j.query_start
             self.log('')
