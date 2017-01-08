@@ -295,8 +295,8 @@ def concat_output(input_file, jsons, output_dir, args):
     osuffix = '.json' if args.output_type == 'json' else '.txt'
     oname = oprefix + osuffix
     ofile = os.path.join(output_dir, oname)
-    logger.info('Concatenating {} job outputs into a single output file.'.format(len(jsons)))
-    logger.info('')
+    logger.info('Concatenating {} job outputs into a single output file'.format(len(jsons)))
+    # logger.info('')
     if args.gzip:
         ohandle = gzip.open(ofile + ".gz", 'wb')
     else:
@@ -462,8 +462,10 @@ def print_input_file_info(f, fmt):
 def print_job_stats(total_seqs, good_seq_counts, start_time, end_time):
     run_time = end_time - start_time
     zero_files = sum([c == 0 for c in good_seq_counts])
+    if zero_files >= 0:
+        logger.info('{} files contained no successfully processed sequences'.format(zero_files))
     good_seqs = sum(good_seq_counts)
-    logger.info('{} files contained no successfully processed sequences'.format(zero_files))
+    logger.info('')
     logger.info('{} sequences contained an identifiable rearrangement'.format(good_seqs))
     logger.info('AbStar completed in {} seconds'.format(run_time))
 
@@ -561,6 +563,7 @@ def run_jobs(files, output_dir, log_dir, file_format, args):
 
 def _run_jobs_singlethreaded(files, output_dir, log_dir, file_format, args):
     results = []
+    update_progress(0, len(files))
     for i, f in enumerate(files):
         try:
             results.append(run_abstar(f, output_dir, log_dir, file_format, vars(args)))
@@ -575,6 +578,7 @@ def _run_jobs_singlethreaded(files, output_dir, log_dir, file_format, args):
 def _run_jobs_via_multiprocessing(files, output_dir, log_dir, file_format, args):
     p = Pool(maxtasksperchild=50)
     async_results = []
+    update_progress(0, len(files))
     for f in files:
         async_results.append((f, p.apply_async(run_abstar, (f,
                                                          output_dir,
