@@ -143,6 +143,11 @@ class Junction(object):
         start_codons = ['TGT', 'TGC']
         # position 310 is the start of codon 104, the conserved 2nd-Cys
         junc_start = antibody.v.get_raw_position_from_imgt(310)
+        if junc_start is None:
+            log_str = 'WARNING: The full 2nd-Cys codon does not appear to be present in the V-gene alignment, '
+            log_str += 'likely due to extensive trimming during recombinatinon. '
+            log_str += 'Using fallback alignment method to find junction start.'
+            antibody.log()
         junc_start_codon = antibody.oriented_input[junc_start:junc_start + 3]
         antibody.log('JUNC START:', junc_start_codon, codons[junc_start_codon], junc_start)
         # if the identified junction start isn't normal, use the fallback (and slower)
