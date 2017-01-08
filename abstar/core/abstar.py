@@ -499,8 +499,10 @@ def run_abstar(seq_file, output_dir, log_dir, file_format, arg_dict):
         elif args.output_type in ['imgt', 'hadoop']:
             output_file = os.path.join(output_dir, output_filename + '.txt')
         # setup log files
-        assigned_logfile = os.path.join(log_dir, 'temp/{}.assigned'.format(output_filename))
-        assigned_loghandle = open(assigned_logfile, 'a')
+        annotated_logfile = os.path.join(log_dir, 'temp/{}.annotated'.format(output_filename))
+        annotated_loghandle = open(assigned_logfile, 'a')
+        failed_logfile = os.path.join(log_dir, 'temp/{}.failed'.format(output_filename))
+        failed_loghandle = open(assigned_logfile, 'a')
         unassigned_logfile = os.path.join(log_dir, 'temp/{}.unassigned'.format(output_filename))
         unassigned_loghandle = open(unassigned_logfile, 'a')
         # start assignment
@@ -521,11 +523,13 @@ def run_abstar(seq_file, output_dir, log_dir, file_format, arg_dict):
                 output = get_output(result, args.output_type)
                 if output is not None:
                     outputs.append(get_output(result, args.output_type))
-                if any([output is None, args.debug]):
-                    assigned_loghandle.write(ab.format_log())
+                else:
+                    failed_loghandle.write(ab.format_log())
+                if args.debug:
+                    annotated_loghandle.write(ab.format_log())
             except:
                 ab.exception('ANNOTATION ERROR', traceback.format_exc())
-                assigned_loghandle.write(ab.format_log())
+                failed_loghandle.write(ab.format_log())
         # results = get_abstar_results(annotated, pretty=args.pretty, padding=args.padding, raw=args.raw)
         # write_output(results, output_file, args.output_type)
         write_output(outputs, output_file)
@@ -534,9 +538,10 @@ def run_abstar(seq_file, output_dir, log_dir, file_format, arg_dict):
             unassigned_loghandle.write(vdj.format_log())
         # close the log handles
         unassigned_loghandle.close()
-        assigned_loghandle.close()
+        annotated_loghandle.close()
+        failed_loghandle.close()
         # return the number of successful assignments
-        return (output_file, len(outputs), assigned_logfile, unassigned_logfile)
+        return (output_file, len(outputs), annotated_logfile, failed_logfile, unassigned_logfile)
     except:
         raise Exception("".join(traceback.format_exception(*sys.exc_info())))
 
