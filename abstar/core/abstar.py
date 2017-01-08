@@ -462,7 +462,7 @@ def print_input_file_info(f, fmt):
 def print_job_stats(total_seqs, good_seq_counts, start_time, end_time):
     run_time = end_time - start_time
     zero_files = sum([c == 0 for c in good_seq_counts])
-    if zero_files >= 0:
+    if zero_files > 0:
         logger.info('{} files contained no successfully processed sequences'.format(zero_files))
     good_seqs = sum(good_seq_counts)
     logger.info('')
