@@ -190,6 +190,8 @@ class Blastn(BaseAssigner):
         alignments.sort(key=lambda x: x.score, reverse=True)
         all_gls = [a.target.id for a in alignments]
         all_scores = [a.score for a in alignments]
+        if not all([all_gls, all_scores]):
+            return None
         top_gl = all_gls[0]
         top_score = all_scores[0]
         others = [GermlineSegment(germ, species, score=score) for germ, score in zip(all_gls[1:6], all_scores[1:6])]
