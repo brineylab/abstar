@@ -147,7 +147,8 @@ class Junction(object):
             log_str = 'WARNING: The full 2nd-Cys codon does not appear to be present in the V-gene alignment, '
             log_str += 'likely due to extensive trimming during recombinatinon. '
             log_str += 'Using fallback alignment method to find junction start.'
-            antibody.log()
+            antibody.log(log_str)
+            return self._fallback_find_junc_nt_start(antibody)
         junc_start_codon = antibody.oriented_input[junc_start:junc_start + 3]
         antibody.log('JUNC START:', junc_start_codon, codons[junc_start_codon], junc_start)
         # if the identified junction start isn't normal, use the fallback (and slower)
