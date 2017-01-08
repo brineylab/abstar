@@ -51,7 +51,7 @@ def nt_mutations(antibody):
                         continue
                     imgt_codon = int(math.ceil(imgt_pos / 3.0))
                     if segment.gene_type == 'J':
-                        imgt_pos = segment.correct_imgt_nt_position_from_imgt[imgt_pos]
+                        imgt_pos = segment.correct_imgt_nt_position_from_imgt(imgt_pos)
                     mutations.add(Mutation(g, q, raw_pos, imgt_pos, imgt_codon))
             segment.nt_mutations = mutations
             segment.nt_identity = 100. - (100. * mutations.count / min(len(segment.query_alignment), len(segment.germline_alignment)))
@@ -112,7 +112,7 @@ def aa_mutations(antibody):
                 if q_aa != g_aa:
                     imgt_aa_pos = int(math.ceil(imgt_nt_pos / 3.0))
                     if segment.gene_type == 'J':
-                        imgt_aa_pos = segment.correct_imgt_aa_position_from_imgt[imgt_aa_pos]
+                        imgt_aa_pos = segment.correct_imgt_aa_position_from_imgt(imgt_aa_pos)
                     mutations.add(Mutation(g_aa, q_aa, None, imgt_aa_pos, imgt_aa_pos))
             segment.aa_mutations = mutations
             segment.aa_identity = 100. - (100. * mutations.count / len(segment.aa_sequence))

@@ -120,6 +120,8 @@ class GermlineSegment(object, LoggingMixin):
         self.imgt_aa_positions = []
         self._imgt_position_from_raw = {}
         self._raw_position_from_imgt = {}
+        self._correct_imgt_nt_position_from_imgt = None
+        self._correct_imgt_aa_position_from_imgt = None
         self.fs_indel_adjustment = 0
         self.nfs_indel_adjustment = 0
         self.has_insertion = 'no'
@@ -185,6 +187,18 @@ class GermlineSegment(object, LoggingMixin):
     @deletions.setter
     def deletions(self, deletions):
         self._deletions = deletions
+
+
+    def correct_imgt_nt_position_from_imgt(self, position):
+        if self._correct_imgt_nt_position_from_imgt is not None:
+            return self._correct_imgt_nt_position_from_imgt.get(position, None)
+        return None
+
+
+    def correct_imgt_aa_position_from_imgt(self, position):
+        if self._correct_imgt_aa_position_from_imgt is not None:
+            return self._correct_imgt_aa_position_from_imgt.get(position, None)
+        return None
 
 
     def initialize_log(self):
