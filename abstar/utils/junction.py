@@ -135,8 +135,8 @@ class Junction(object):
             antibody.log('NEW AA:', ', '.join([str(p) for p in antibody.j.imgt_aa_positions]))
             antibody.log('NEW NT:', ', '.join([str(p) for p in antibody.j.imgt_nt_positions]))
         else:
-            antibody.j.correct_imgt_aa_position_from_imgt = {p: p for p in antibody.j.imgt_aa_positions}
-            antibody.j.correct_imgt_nt_position_from_imgt = {p: p for p in antibody.j.imgt_nt_positions}
+            antibody.j._correct_imgt_aa_position_from_imgt = {p: p for p in antibody.j.imgt_aa_positions}
+            antibody.j._correct_imgt_nt_position_from_imgt = {p: p for p in antibody.j.imgt_nt_positions}
 
 
     def _find_junction_nt_start(self, antibody):
@@ -292,11 +292,11 @@ class Junction(object):
         aa_positions_to_replace = [p for p in antibody.j.imgt_aa_positions if p < 118]
         dot_positions = self.cdr3_imgt_aa_numbering[-len(aa_positions_to_replace):]
         new_positions = dot_positions + [p for p in antibody.j.imgt_aa_positions if p >= 118]
-        antibody.j.correct_imgt_aa_position_from_imgt = {o: n for o, n in zip(antibody.j.imgt_aa_positions, new_positions)}
+        antibody.j._correct_imgt_aa_position_from_imgt = {o: n for o, n in zip(antibody.j.imgt_aa_positions, new_positions)}
         antibody.j.imgt_aa_positions = new_positions
         # adjust NT numbering
         nt_positions_to_replace = [p for p in antibody.j.imgt_nt_positions if p < 352]
         dot_positions = self.cdr3_imgt_nt_numbering[-len(nt_positions_to_replace):]
         new_positions = dot_positions + [p for p in antibody.j.imgt_nt_positions if p >= 352]
-        antibody.j.correct_imgt_nt_position_from_imgt = {o: n for o, n in zip(antibody.j.imgt_nt_positions, new_positions)}
+        antibody.j._correct_imgt_nt_position_from_imgt = {o: n for o, n in zip(antibody.j.imgt_nt_positions, new_positions)}
         antibody.j.imgt_nt_positions = new_positions
