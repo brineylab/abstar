@@ -351,7 +351,7 @@ def clear_temp_files(temp_files):
 
 
 def download_files(input_dir):
-    from utils.basespace import BaseSpace
+    from ..utils.basespace import BaseSpace
     bs = BaseSpace()
     logger.info('')
     logger.info('BASESPACE PROJECT NAME: {}'.format(bs.project_name))
@@ -362,7 +362,7 @@ def download_files(input_dir):
 
 
 def merge_reads(input_dir, args):
-    from utils import pandaseq
+    from ..utils import pandaseq
     merge_dir = make_merge_dir(args)
     pandaseq.run(input_dir,
                  merge_dir,
