@@ -144,8 +144,7 @@ class Junction(object):
         # position 310 is the start of codon 104, the conserved 2nd-Cys
         junc_start = antibody.v.get_raw_position_from_imgt(310)
         if junc_start is None:
-            log_str = 'WARNING: The full 2nd-Cys codon does not appear to be present in the V-gene alignment, '
-            log_str += 'likely due to extensive trimming during recombinatinon. '
+            log_str = 'WARNING: The full 2nd-Cys codon does not appear to be present in the V-gene alignment. '
             log_str += 'Using fallback alignment method to find junction start.'
             antibody.log(log_str)
             return self._fallback_find_junc_nt_start(antibody)
@@ -163,8 +162,12 @@ class Junction(object):
         self.fallback_5prime = True
         # get the FR3 nt sequence of the IMGT gapped germline
         germ_fr3_sequence = antibody.v.imgt_germline.gapped_nt_sequence[196:309].replace('.', '')
+        antibody.log('GERM FR3 SEQUENCE:', germ_fr3_sequence)
         # find the start of the junction (immediately after the end of FR3)
         aln = local_alignment(antibody.oriented_input, germ_fr3_sequence)
+        antibody.log('  QUERY: ', aln.aligned_query)
+        antibody.log('         ', aln.alignment_midline)
+        antibody.log('GERM FR3:', aligned_target)
         fr3_end = aln.query_end + (len(germ_fr3_sequence) - aln.target_end)
         junc_start_codon = antibody.oriented_input[fr3_end:fr3_end + 3]
         antibody.log('JUNC START:', junc_start_codon, codons[junc_start_codon], fr3_end)
