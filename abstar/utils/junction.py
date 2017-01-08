@@ -167,7 +167,7 @@ class Junction(object):
         aln = local_alignment(antibody.oriented_input, germ_fr3_sequence)
         antibody.log('  QUERY: ', aln.aligned_query)
         antibody.log('         ', aln.alignment_midline)
-        antibody.log('GERM FR3:', aligned_target)
+        antibody.log('GERM FR3:', aln.aligned_target)
         fr3_end = aln.query_end + (len(germ_fr3_sequence) - aln.target_end)
         junc_start_codon = antibody.oriented_input[fr3_end:fr3_end + 3]
         antibody.log('JUNC START:', junc_start_codon, codons[junc_start_codon], fr3_end)
