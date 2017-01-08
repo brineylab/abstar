@@ -209,6 +209,9 @@ def _fix_frameshift_insertion(antibody, segment, s, e):
     oi_secondhalf = antibody.oriented_input.sequence[e + segment.query_start:]
     antibody.oriented_input.sequence = oi_firsthalf + oi_secondhalf
 
+    # adjust the alignment end position
+    segment.query_end -= (e - s)
+
 
 # ------------
 #  Deletions
@@ -275,3 +278,6 @@ def _fix_frameshift_deletion(antibody, segment, s, e):
     middle = segment.germline_alignment[s:e]
     oi_secondhalf = antibody.oriented_input.sequence[s + segment.query_start:]
     antibody.oriented_input.sequence = oi_firsthalf + middle + oi_secondhalf
+
+    # adjust the alignment end position
+    segment.query_end += (e - s)
