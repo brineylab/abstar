@@ -156,10 +156,11 @@ def make_blast_db(ungapped_germline_file, addon_directory, segment, species):
     mbd_binary = os.path.join(bin_dir, 'makeblastdb_{}'.format(platform.system().lower()))
     mbd_output = os.path.join(addon_directory, '{}/blast/{}'.format(species.lower(), segment.lower()))
     mbd_log = os.path.join(addon_directory, '{}/blast/{}.blastlog'.format(species.lower(), segment.lower()))
-    mbd_cmd = '{} -in {} -out {} -parse_seqids -dbtype nucl -logfile {}'.format(mbd_binary,
-                                                                                ungapped_germline_file,
-                                                                                mbd_output,
-                                                                                mbd_log)
+    mbd_cmd = '{} -in {} -out {} -parse_seqids -dbtype nucl -title {} -logfile {}'.format(mbd_binary,
+                                                                                          ungapped_germline_file,
+                                                                                          mbd_output,
+                                                                                          segment.lower(),
+                                                                                          mbd_log)
     p = sp.Popen(mbd_cmd, stdout=sp.PIPE, stderr=sp.PIPE, shell=True)
     stdout, stderr = p.communicate()
     return mbd_output, stdout, stderr

@@ -1,9 +1,9 @@
 
 
-Building a new DB, current time: 01/07/2017 16:37:28
+Building a new DB, current time: 01/07/2017 17:02:56
 New DB name:   /Users/bryanbriney/git/abstar/abstar/assigners/germline_dbs/mouse/blast/v
-New DB title:  abstar/assigners/germline_dbs/mouse/ungapped/v.fasta
+New DB title:  v
 Sequence type: Nucleotide
 Keep MBits: T
 Maximum file size: 1000000000B
-Adding sequences from FASTA; added 381 sequences in 0.0368631 seconds.
+Adding sequences from FASTA; added 381 sequences in 0.035933 seconds.
