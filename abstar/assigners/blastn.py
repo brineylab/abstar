@@ -210,14 +210,25 @@ class Blastn(BaseAssigner):
     @staticmethod
     def orient_query(vdj, vbr):
         hsp = vbr.alignments[0].hsps[0]
+        # BLASTn always reverse complements the Subject sequence, never the query.
+        # To determine whether the input sequence is the reverse complement, check
+        # to see if the Subject sequence was reverse-complemented by BLASTn
         if hsp.sbjct_start > hsp.sbjct_end:
             vdj.oriented = Sequence(vdj.sequence.reverse_complement, id=vdj.sequence.id)
 
 
     @staticmethod
     def get_jquery_sequence(seq, vbr):
-        query_end = vbr.alignments[0].hsps[0].query_end
-        return Sequence(seq[query_end:], id=seq.id)
+        hsp = vbr.alignments[0].hsps[0]
+        # check to see if the raw input was reverse-complemented
+        if hsp.sbjct_start > hsp.sbjct_end:
+            # since the BLASTn alignment was done on the raw input
+            # (which has since been reverse complemented), we need
+            # to take the portion of the sequence that was 5' of the alignment
+            # with the raw input (which is the 3' end of the correctly oriented sequence)
+            return Sequence(seq[-hsp.query_start:], id=seq.id)
+        else:
+            return Sequence(seq[hsp.query_end:], id=seq.id)
 
 
     @staticmethod
