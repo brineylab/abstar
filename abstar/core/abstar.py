@@ -520,7 +520,6 @@ def run_abstar(seq_file, output_dir, log_dir, file_format, arg_dict):
         for ab in assigned:
             try:
                 ab.annotate(args.uid)
-                # annotated.append(ab)
                 result = get_abstar_result(ab,
                                            pretty=args.pretty,
                                            padding=args.padding,
@@ -528,15 +527,13 @@ def run_abstar(seq_file, output_dir, log_dir, file_format, arg_dict):
                 output = get_output(result, args.output_type)
                 if output is not None:
                     outputs.append(get_output(result, args.output_type))
+                    if args.debug:
+                        annotated_loghandle.write(ab.format_log())
                 else:
                     failed_loghandle.write(ab.format_log())
-                if args.debug:
-                    annotated_loghandle.write(ab.format_log())
             except:
                 ab.exception('ANNOTATION ERROR', traceback.format_exc())
                 failed_loghandle.write(ab.format_log())
-        # results = get_abstar_results(annotated, pretty=args.pretty, padding=args.padding, raw=args.raw)
-        # write_output(results, output_file, args.output_type)
         write_output(outputs, output_file)
         # capture the log for all unsuccessful sequences
         for vdj in assigner.unassigned:
@@ -548,7 +545,7 @@ def run_abstar(seq_file, output_dir, log_dir, file_format, arg_dict):
         # return the number of successful assignments
         return (output_file, len(outputs), annotated_logfile, failed_logfile, unassigned_logfile)
     except:
-        raise Exception("".join(traceback.format_exception(*sys.exc_info())))
+        raise
 
 
 def run_jobs(files, output_dir, log_dir, file_format, args):

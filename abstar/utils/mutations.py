@@ -68,11 +68,6 @@ def nt_mutations(antibody):
         antibody.log('FR4:', ', '.join([m.abstar_formatted for m in all_mutations.in_region('FR4')]))
         return all_mutations
     except:
-
-
-        print(antibody.id, traceback.format_exc(), sep='\n')
-
-
         antibody.exception('NT MUTATIONS', traceback.format_exc())
         return Mutations()
 
@@ -130,6 +125,7 @@ def aa_mutations(antibody):
         return all_mutations
     except:
         antibody.exception('AA MUTATIONS', traceback.format_exc())
+        return Mutations()
 
 
 def _get_joining_imgt_mutation_position(codon_num, j):

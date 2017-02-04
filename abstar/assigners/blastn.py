@@ -107,18 +107,22 @@ class Blastn(BaseAssigner):
         jblast_infile = self.build_jblast_input(jquery_seqs)
         jblast_records = self.blast(jblast_infile, self.species, 'J')
         for vdj, jquery, jbr in zip(vdjs, jquery_seqs, jblast_records):
-            germ = self.process_blast_record(jbr, self.species)
-            vdj.j = germ
-            # sanity check to make sure there's not an obvious problem with the V/J
-            # assignments (likely due to poor germline matches to a non-antibody sequence)
-            if vdj.v.chain != vdj.j.chain:
-                vdj.log('GERMLINE ASSIGNMENT ERROR:',
-                        'V-gene ({}) and J-gene ({}) chains do not match'.format(vdj.v.chain, vdj.j.chain))
+            try:
+                germ = self.process_blast_record(jbr, self.species)
+                vdj.j = germ
+                # sanity check to make sure there's not an obvious problem with the V/J
+                # assignments (likely due to poor germline matches to a non-antibody sequence)
+                if vdj.v.chain != vdj.j.chain:
+                    vdj.log('GERMLINE ASSIGNMENT ERROR:',
+                            'V-gene ({}) and J-gene ({}) chains do not match'.format(vdj.v.chain, vdj.j.chain))
+                    self.unassigned.append(vdj)
+                    continue
+                dquery = self.get_dquery_sequence(jquery, jbr)
+                dquery_seqs.append(dquery)
+                _vdjs.append(vdj)
+            except:
+                vdj.exception('V-GENE ASSIGNMENT ERROR', traceback.format_exc())
                 self.unassigned.append(vdj)
-                continue
-            dquery = self.get_dquery_sequence(jquery, jbr)
-            dquery_seqs.append(dquery)
-            _vdjs.append(vdj)
         os.unlink(jblast_infile)
         vdjs = _vdjs
 
