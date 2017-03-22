@@ -155,7 +155,7 @@ class Args(object):
         self.output = str(output) if output is not None else output
         self.log = str(log) if log is not None else log
         self.temp = str(temp) if temp is not None else temp
-        args.use_test_data = use_test_data
+        self.use_test_data = use_test_data
         self.chunksize = int(chunksize)
         self.output_type = str(output_type)
         self.merge = True if basespace else merge
@@ -222,6 +222,7 @@ def _make_direc(d, args):
 
 
 def make_merge_dir(args):
+    merge_parent = args.data_dir if args.data_dir is not None else './'
     merge_dir = os.path.join(args.data_dir, 'merged')
     _make_direc(merge_dir, args)
     return merge_dir

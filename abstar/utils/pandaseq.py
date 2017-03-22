@@ -41,9 +41,9 @@ def pair_files(files, nextseq):
     pairs = {}
     for f in files:
         if nextseq:
-            f_prefix = '_'.join(os.path.basename(f).split('_')[:3])
+            f_prefix = '_'.join(os.path.basename(f).split('_')[:-2])
         else:
-            f_prefix = '_'.join(os.path.basename(f).split('_')[:2])
+            f_prefix = '_'.join(os.path.basename(f).split('_')[:-3])
         if f_prefix in pairs:
             pairs[f_prefix].append(f)
         else:
@@ -61,11 +61,11 @@ def merge_reads(files, output, algo, nextseq, i):
     f = files[0]
     r = files[1]
     if nextseq:
-        lane = os.path.basename(f).split('_')[-3]
-        sample_id = os.path.basename(f).split('_')[0]
+        lane = os.path.basename(f).split('_')[-1]
+        sample_id = '_'.join(os.path.basename(f).split('_')[:-2])
         sample = sample_id + '_' + lane
     else:
-        sample = os.path.basename(f).split('_')[0]
+        sample = '_'.join(os.path.basename(f).split('_')[:-4])
     print_sample_info(i, sample)
     o = os.path.join(output, '{}.fasta'.format(sample))
     run_pandaseq(f, r, o, algo)
@@ -178,7 +178,7 @@ def run(input, output, algorithm='simple_bayesian', nextseq=False):
     merged_files = []
     for i, pair in enumerate(sorted(pairs.keys())):
         if len(pairs[pair]) == 2:
-            logger.info('[ {} ]  Merging {} and {}'.format(i + 1, pairs[pair][0], pairs[pair][1]))
+            # logger.info('[ {} ]  Merging {} and {}'.format(i + 1, pairs[pair][0], pairs[pair][1]))
             mf = merge_reads(pairs[pair], output, algorithm, nextseq, i)
             merged_files.append(mf)
     return merged_files
