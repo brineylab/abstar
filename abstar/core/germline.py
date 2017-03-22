@@ -567,7 +567,8 @@ def get_imgt_germlines(species, gene_type, gene=None):
     --------
 
         IMGTGermlineGene: a single ``IMGTGermlineGene`` object (if ``gene`` is provided) or a list of
-                          ``IMGTGermlineGene`` objects.
+                          ``IMGTGermlineGene`` objects. If no sequences match the criteria or if a germline
+                          database for the requested species is not found, ``None`` is returned.
     '''
     # mod_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     # db_file = os.path.join(mod_dir, 'assigners/germline_dbs/imgt_gapped/{}_{}_imgt-gapped.fasta'.format(species, gene_type))
@@ -597,6 +598,41 @@ def get_imgt_germlines(species, gene_type, gene=None):
         return None
 
 
+def get_germlines(species, gene_type, chain=None, gene=None):
+    '''
+    Returns one or more IMGTGermlineGene objects that each contain a single IMGT-gapped germline gene.
+
+    Args:
+    -----
+
+        species (str): Species for which the germline genes should be obtained.
+
+        gene_type (str): Options are 'V', 'D', and 'J'.
+
+        chain (str): Options are 'heavy', 'kappa', and 'lambda'. If not provided, germline sequences
+                     from all chains are returned.
+
+        gene (str): Full name of a germline gene (using IMGT-style names, like IGHV1-2*02).
+                    If provided, a single ``IMGTGermlineGene`` object will be returned, or None if the
+                    specified gene could not be found. If not provided, a list of ``IMGTGermlineGene``
+                    objects for all germline genes matching the ``species`` and ``gene_type`` will be returned.
+
+    Returns:
+    --------
+
+        IMGTGermlineGene: a single ``IMGTGermlineGene`` object (if ``gene`` is provided) or a list of
+                          ``IMGTGermlineGene`` objects. If no sequences match the criteria or if a germline
+                          database for the requested species is not found, ``None`` is returned.
+    '''
+    germs = get_imgt_germlines(species, gene_type, gene=gene)
+    if germs is None:
+        return germs
+    if chain is not None:
+        c = chain[0].upper()
+        germs = [g for g in germs if g.name[2] == c]
+    if len(germs) == 1:
+        return germs[0]
+    return germs
 
 
 class IMGTGermlineGene(object):

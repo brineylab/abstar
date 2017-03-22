@@ -33,6 +33,7 @@ import os
 import re
 from subprocess import Popen, PIPE
 import sys
+import tempfile
 import time
 import traceback
 import warnings
@@ -194,7 +195,7 @@ def validate_args(args):
         args.output_type = 'json'
         args.raw = True
     if all([args.sequences is not None, args.temp is None]):
-        args.temp = './tmp'
+        args.temp = '/tmp'
 
 
 #####################################################################
@@ -548,6 +549,33 @@ def run_abstar(seq_file, output_dir, log_dir, file_format, arg_dict):
         raise
 
 
+
+def process_sequences(sequences, args):
+    seq_file = tempfile.NamedTemporaryFile(dir=args.temp, delete=False)
+    seq_file.write('\n'.join([s.fasta for s in sequences]))
+    seq_file.close()
+    assigner_class = ASSIGNERS[args.assigner]
+    assigner = assigner_class(args.species)
+    assigner(seq_file.name, 'fasta')
+    # process all of the successfully assigned sequences
+    outputs = []
+    assigned = [Antibody(vdj, args.species) for vdj in assigner.assigned]
+    for ab in assigned:
+        try:
+            ab.annotate(args.uid)
+            result = get_abstar_result(ab,
+                                       pretty=False,
+                                       padding=False,
+                                       raw=True)
+            output = get_output(result, args.output_type)
+            if output is not None:
+                outputs.append(get_output(result, args.output_type))
+        except:
+            continue
+    os.unlink(seq_file.name)
+    return outputs
+
+
 def run_jobs(files, output_dir, log_dir, file_format, args):
     sys.stdout.write('\nRunning VDJ...\n')
     if args.cluster:
@@ -844,10 +872,10 @@ def run(*args, **kwargs):
     global logger
     logger = log.get_logger('abstar')
     output = main(args)
-    if args.sequences is not None:
-        output = [Sequence(o) for o in output]
-        if len(output) == 1:
-            return output[0]
+    # if args.sequences is not None:
+    #     output = [Sequence(o) for o in output]
+    #     if len(output) == 1:
+    #         return output[0]
     return output
 
 
@@ -857,9 +885,11 @@ def run_standalone(args):
 
 def main(args):
     if args.sequences is not None:
-        from utils import output, vdj
-        vdjs = vdj.process_sequences(args.sequences, args)
-        return output.as_dict(vdjs)
+        # from utils import output, vdj
+        processed = process_sequences(args.sequences, args)
+        if len(processed) == 1:
+            return Sequence(dict(processed[0]))
+        return [Sequence(dict(p)) for p in processed]
     else:
         input_dir, output_dir, temp_dir, log_dir = make_directories(args)
         setup_logging(log_dir, args.debug)

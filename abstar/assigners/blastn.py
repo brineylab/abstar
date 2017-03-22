@@ -129,7 +129,7 @@ class Blastn(BaseAssigner):
         # assign D-genes
         _vdjs = []
         for vdj, dquery in zip(vdjs, dquery_seqs):
-            if vdj.v.chain == 'heavy':
+            if all([vdj.v.chain == 'heavy', dquery]):
                 try:
                     germ = self.assign_dgene(dquery, self.species)
                     vdj.d = germ
