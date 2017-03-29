@@ -1,5 +1,6 @@
 include README.md
 include requirements.txt
+include bin/*
 include docs/*.txt
 include abstar/blast/blastn*
 include abstar/blast/dbs/*
