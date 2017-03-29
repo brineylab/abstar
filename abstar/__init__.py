@@ -1,4 +1,4 @@
-from abstar import run, run_standalone, main, parse_arguments, validate_args
+from core.abstar import run, run_standalone, main, parse_arguments, validate_args
 from preprocess import fastqc, adapter_trim, quality_trim
 
 from pkg_resources import get_distribution, DistributionNotFound

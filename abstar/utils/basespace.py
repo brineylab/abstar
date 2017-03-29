@@ -41,7 +41,7 @@ logger = log.get_logger('basespace')
 
 
 class BaseSpace(object):
-    def __init__(self, project_id=None, project_name=None):
+    def __init__(self, project_id=None, project_name=None, get_all_projects=False):
         super(BaseSpace, self).__init__()
         # BaseSpace credentials
         creds = self._get_credentials()
@@ -59,7 +59,17 @@ class BaseSpace(object):
             self.project_name = project_name
             self.project_id = self._get_project_id_from_name(project_name)
         else:
-            self.project_id, self.project_name = self._user_selected_project_id()
+            self.project_id = None
+            self.project_name = None
+            # self.project_id, self.project_name = self._user_selected_project_id()
+        self._runs = None
+
+
+    @property
+    def runs(self):
+        if self._runs is None:
+            self._runs = self.api.getAccessibleRunsByUser(queryPars=self.params)
+        return self._runs
 
 
     def _get_credentials(self):
@@ -129,6 +139,8 @@ class BaseSpace(object):
 
 
     def download(self, direc):
+        if all([self.project_id is None, self.project_name is None]):
+            self.project_id, self.project_name = self._user_selected_project_id()
         files = self._get_files()
         self.print_download_info(files)
         start = time.time()
