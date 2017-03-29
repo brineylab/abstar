@@ -31,8 +31,8 @@ CELERY_RESULT_BACKEND = 'redis://master:6379/0'
 # Additional Redis-specific configs
 BROKER_TRANSPORT_OPTIONS = {'fanout_prefix': True,
                             'fanout_patterns': True,
-                            'visibility_timeout': 300}
+                            'visibility_timeout': 900}
 
 # Other configs
-CELERYD_MAX_TASKS_PER_CHILD = 32
+CELERYD_MAX_TASKS_PER_CHILD = 320
 CELERY_ACKS_LATE = True
