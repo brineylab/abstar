@@ -364,6 +364,7 @@ def main(args):
         raise RuntimeError(err)
     log_handle = open(args.log, 'a')
     open(args.log, 'w').write('')
+    log_handle.write('\nImporting {} files.\n'.format(len(in_files)))
     for i, f in enumerate(in_files):
         coll = get_collection(f, args)
         print "\n[ {} ] Importing {} into collection {}.".format(i + 1, os.path.basename(f), coll)
