@@ -1,0 +1,13 @@
+include README.md
+include requirements.txt
+include docs/*.txt
+include abstar/blast/blastn*
+include abstar/blast/dbs/*
+include abstar/nw/*
+include abstar/ssw/*
+include abstar/ssw/dbs/*
+include abstar/ssw/isotypes/*
+include abstar/test_data/test_1k.fasta
+include abstar/utils/*
+include abstar/utils/germline_data/*
+include abstar/utils/queue/*
