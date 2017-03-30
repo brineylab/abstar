@@ -22,6 +22,7 @@ include abstar/assigners/germline_dbs/vrc01mouse/blast/*
 include abstar/assigners/germline_dbs/vrc01mouse/ungapped/*
 include abstar/assigners/germline_dbs/vrc01mouse/imgt_gapped/*
 include abstar/assigners/germline_dbs/vrc01mouse/isotypes/*
+include abstar/test_data/*
 include abstar/utils/*
 include abstar/utils/queue/*
 
