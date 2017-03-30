@@ -909,7 +909,7 @@ def main(args):
         setup_logging(log_dir, args.debug)
         log_options(input_dir, output_dir, temp_dir, args)
         if args.use_test_data:
-            mod_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            mod_dir = os.path.dirname(os.path.abspath(__file__))
             input_files = [os.path.join(mod_dir, 'test_data/test_1k.fasta'), ]
         else:
             if args.basespace:
