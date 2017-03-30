@@ -96,7 +96,7 @@ def parse_arguments(print_help=False):
                         Defaults to 500. \
                         Set to 0 if you want file splitting to be turned off \
                         Don't change unless you know what you're doing.")
-    parser.add_argument('-T', '--output_type', dest="output_type", choices=['json', 'imgt', 'hadoop'], default='json',
+    parser.add_argument('-O', '--output-type', dest="output_type", choices=['json', 'imgt', 'hadoop'], default='json',
                         help="Select the output type. Options are 'json', 'imgt' and 'impala'. \
                         IMGT output mimics the Summary table produced by IMGT High-V/Quest, \
                         to maintain some level of compatibility with existing IMGT-based pipelines. \
@@ -109,7 +109,7 @@ def parse_arguments(print_help=False):
                         (either gzip compressed or uncompressed) from Illumina platforms. \
                         Prior to running the germline assignment pipeline, \
                         paired reads will be merged with PANDAseq.")
-    parser.add_argument('-P', '--pandaseq_algo', dest="pandaseq_algo", default='simple_bayesian',
+    parser.add_argument('-P', '--pandaseq-algo', dest="pandaseq_algo", default='simple_bayesian',
                         choices=['simple_bayesian', 'ea_util', 'flash', 'pear', 'rdp_mle', 'stitch', 'uparse'],
                         help="Define merging algorithm to be used by PANDAseq.\
                         Options are 'simple_bayesian', 'ea_util', 'flash', 'pear', 'rdp_mle', 'stitch', or 'uparse'.\
@@ -135,7 +135,7 @@ def parse_arguments(print_help=False):
                         as unsuccessful sequences. Useful for debugging small test datasets, \
                         as the logging is fairly detailed. \
                         Default is to only log unsuccessful sequences.")
-    parser.add_argument('--use-test-data', dest='use_test_data', action='store_true', default=False,
+    parser.add_argument('-T', '--use-test-data', dest='use_test_data', action='store_true', default=False,
                         help="If set, AbStar will run on a small sample of test data (1000 sequences). \
                         These samples are of human origin, but AbStar doesn't force the use of the human \
                         germline database. Of the 1000 sequences, only 999 contain an antibody rearrangement, \
@@ -217,13 +217,19 @@ def make_directories(args):
     full_paths = []
     if args.project_dir is not None and not os.path.exists(args.project_dir):
         _make_direc(args.project_dir, args)
-    indir = args.input if args.input is not None else os.path.join(args.project_dir, 'input')
+    if args.use_test_data:
+        indir = None
+    else:
+        indir = args.input if args.input is not None else os.path.join(args.project_dir, 'input')
     outdir = args.output if args.output is not None else os.path.join(args.project_dir, 'output')
     tempdir = args.temp if args.temp is not None else os.path.join(args.project_dir, 'temp')
     log_parent = args.project_dir if args.project_dir is not None else os.path.dirname(outdir)
     logdir = args.log if args.log is not None else os.path.join(log_parent, 'log')
     logtempdir = os.path.join(logdir, 'temp')
     for d in [indir, outdir, tempdir, logdir, logtempdir]:
+        if d is None:
+            full_paths.append(None)
+            continue
         d = os.path.abspath(d)
         full_paths.append(d)
         _make_direc(d, args.cluster)
