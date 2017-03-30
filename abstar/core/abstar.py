@@ -96,7 +96,7 @@ def parse_arguments(print_help=False):
                         Defaults to 500. \
                         Set to 0 if you want file splitting to be turned off \
                         Don't change unless you know what you're doing.")
-    parser.add_argument('-T', '--output_type', dest="output_type", choices=['json', 'imgt', 'hadoop'], default='json',
+    parser.add_argument('-O', '--output-type', dest="output_type", choices=['json', 'imgt', 'hadoop'], default='json',
                         help="Select the output type. Options are 'json', 'imgt' and 'impala'. \
                         IMGT output mimics the Summary table produced by IMGT High-V/Quest, \
                         to maintain some level of compatibility with existing IMGT-based pipelines. \
@@ -109,7 +109,7 @@ def parse_arguments(print_help=False):
                         (either gzip compressed or uncompressed) from Illumina platforms. \
                         Prior to running the germline assignment pipeline, \
                         paired reads will be merged with PANDAseq.")
-    parser.add_argument('-P', '--pandaseq_algo', dest="pandaseq_algo", default='simple_bayesian',
+    parser.add_argument('-P', '--pandaseq-algo', dest="pandaseq_algo", default='simple_bayesian',
                         choices=['simple_bayesian', 'ea_util', 'flash', 'pear', 'rdp_mle', 'stitch', 'uparse'],
                         help="Define merging algorithm to be used by PANDAseq.\
                         Options are 'simple_bayesian', 'ea_util', 'flash', 'pear', 'rdp_mle', 'stitch', or 'uparse'.\
@@ -135,6 +135,13 @@ def parse_arguments(print_help=False):
                         as unsuccessful sequences. Useful for debugging small test datasets, \
                         as the logging is fairly detailed. \
                         Default is to only log unsuccessful sequences.")
+    parser.add_argument('-T', '--use-test-data', dest='use_test_data', action='store_true', default=False,
+                        help="If set, AbStar will run on a small sample of test data (1000 sequences). \
+                        These samples are of human origin, but AbStar doesn't force the use of the human \
+                        germline database. Of the 1000 sequences, only 999 contain an antibody rearrangement, \
+                        so one sequence should fail the germline assignment process. \
+                        Default is False. \
+                        Providing temp and output directories (or a project directory) is required.")
     parser.add_argument('-s', '--species', dest='species', default='human',
                         choices=['human', 'macaque', 'mouse', 'rabbit', 'b12mouse', 'vrc01mouse', '9114mouse'])
     parser.add_argument('-z', '--gzip', dest='gzip', default=False, action='store_true',
@@ -156,7 +163,7 @@ def parse_arguments(print_help=False):
 class Args(object):
     def __init__(self, project_dir=None, input=None, output=None, log=None, temp=None,
                  sequences=None, chunksize=500, output_type='json', assigner='blastn',
-                 merge=False, pandaseq_algo='simple_bayesian',
+                 merge=False, pandaseq_algo='simple_bayesian', use_test_data=False,
                  nextseq=False, uid=0, isotype=False, pretty=False,
                  basespace=False, cluster=False, padding=True, raw=False,
                  debug=False, species='human', gzip=False):
@@ -165,6 +172,7 @@ class Args(object):
         self.project_dir = os.path.abspath(project_dir) if project_dir is not None else project_dir
         self.input = os.path.abspath(input) if input is not None else input
         self.output = os.path.abspath(output) if output is not None else output
+        self.use_test_data = use_test_data
         self.log = os.path.abspath(log) if log is not None else log
         self.temp = os.path.abspath(temp) if temp is not None else temp
         self.chunksize = int(chunksize)
@@ -188,7 +196,7 @@ class Args(object):
 def validate_args(args):
     if not any([args.project_dir,
                 args.sequences,
-                all([args.input, args.output, args.temp])]):
+                all([any([args.input, args.use_test_data]), args.output, args.temp])]):
         parse_arguments(print_help=True)
         sys.exit(1)
     if args.sequences:
@@ -209,13 +217,19 @@ def make_directories(args):
     full_paths = []
     if args.project_dir is not None and not os.path.exists(args.project_dir):
         _make_direc(args.project_dir, args)
-    indir = args.input if args.input is not None else os.path.join(args.project_dir, 'input')
+    if args.use_test_data:
+        indir = None
+    else:
+        indir = args.input if args.input is not None else os.path.join(args.project_dir, 'input')
     outdir = args.output if args.output is not None else os.path.join(args.project_dir, 'output')
     tempdir = args.temp if args.temp is not None else os.path.join(args.project_dir, 'temp')
     log_parent = args.project_dir if args.project_dir is not None else os.path.dirname(outdir)
     logdir = args.log if args.log is not None else os.path.join(log_parent, 'log')
     logtempdir = os.path.join(logdir, 'temp')
     for d in [indir, outdir, tempdir, logdir, logtempdir]:
+        if d is None:
+            full_paths.append(None)
+            continue
         d = os.path.abspath(d)
         full_paths.append(d)
         _make_direc(d, args.cluster)
@@ -894,14 +908,18 @@ def main(args):
         input_dir, output_dir, temp_dir, log_dir = make_directories(args)
         setup_logging(log_dir, args.debug)
         log_options(input_dir, output_dir, temp_dir, args)
-        if args.basespace:
-            args.merge = True
-            download_files(input_dir)
-        if args.merge:
-            input_dir = merge_reads(input_dir, args)
-        if args.isotype:
-            args.isotype = args.species
-        input_files = [f for f in list_files(input_dir, log=True) if os.stat(f).st_size > 0]
+        if args.use_test_data:
+            mod_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            input_files = [os.path.join(mod_dir, 'test_data/test_1k.fasta'), ]
+        else:
+            if args.basespace:
+                args.merge = True
+                download_files(input_dir)
+            if args.merge:
+                input_dir = merge_reads(input_dir, args)
+            if args.isotype:
+                args.isotype = args.species
+            input_files = [f for f in list_files(input_dir, log=True) if os.stat(f).st_size > 0]
         output_files = []
         assigned_files = []
         unassigned_files = []
