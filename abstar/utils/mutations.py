@@ -102,8 +102,8 @@ def aa_mutations(antibody):
                 while len(g_codon.replace('-', '')) < 3:
                     g_codon_end_pos += 1
                     g_codon = segment.germline_alignment[i:g_codon_end_pos]
-                q_aa = codons[q_codon.replace('-', '')]
-                g_aa = codons[g_codon.replace('-', '')]
+                q_aa = codons.get(q_codon.replace('-', ''), 'X')
+                g_aa = codons.get(g_codon.replace('-', ''), 'X')
                 if q_aa != g_aa:
                     imgt_aa_pos = int(math.ceil(imgt_nt_pos / 3.0))
                     if segment.gene_type == 'J':
