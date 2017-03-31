@@ -103,8 +103,9 @@ class GermlineSegment(object, LoggingMixin):
         # initialize log
         self.initialize_log()
 
-        # These properties get assigned after re-alignment.
-        # New assigners don't need to populate these.
+        # These properties are populated by AbStar.
+        # Assigners don't need to populate these (and they'll be overwritten
+        # by AbStar if an assigner does populate them).
         self.score = None
         self.realignment = None
         self.raw_query = None

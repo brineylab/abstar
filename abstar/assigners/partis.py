@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# filename: registry.py
+# filename: partis.py
 
 #
 # Copyright (c) 2016 Bryan Briney
@@ -22,8 +22,17 @@
 #
 
 
-# from .assigner import BaseAssigner
-from .blastn import Blastn
+from .assigner import BaseAssigner
 
 
-ASSIGNERS = {'blastn': Blastn}
+class Partis(BaseAssigner):
+    """
+    docstring for Partis
+    """
+
+    def __init__(self, species):
+        super(Partis, self).__init__(species)
+
+
+    def __call__(self, sequence_file, file_format):
+        pass

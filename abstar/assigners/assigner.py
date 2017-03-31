@@ -50,7 +50,7 @@ class BaseAssigner(object):
     produce ``VDJ`` objects. ``VDJ`` objects package the input sequence together with
     ``GermlineSegment`` objects that contain information about V, D and/or J assignments.
     Following germline assignment by the Assigner, addtional annotation will be performed
-    by AbStar. The ``VDJ`` objects provide a known interface by which various Assigners
+    by AbStar. The ``VDJ`` objects provide a common interface by which various Assigners
     can communicate with the additional sequence annotation components in AbStar. This additional
     annotation is consistent regardless of the Assigner (as is the output schema), and provides
     a unified method by which different germline Assigners can be used across different projects
@@ -68,52 +68,57 @@ class BaseAssigner(object):
       - ``unassigned``: a list designed to contain ``VDJ`` objects for which
                       V(D)J assigjment was unsuccessful. These ``VDJ`` objects
                       will not be additionally annotated by AbStar and any exception/log
-                      information contained in these ``VDJ`` objects will be written
-                      to the log file (even if AbStar was not run in debug mode).
+                      information contained in these ``VDJ`` objects will be logged
+                      (even if AbStar was not run in debug mode).
 
       - ``germline_directory``: path to the directory containing germline databases.
-                              Germline DBs are in separate folders, corresponding
-                              to the Assigner for which they were designed (``blastn``,
-                              for example). Within each folder, germline DB files are
-                              named as ``{species}_gl_{segment}``, so the Blast V-gene DB for
-                              human would be ``germline_directory/blast/human_gl_V``.
+                              Germline DBs are heirarchically grouped into separate folders
+                              first by species, then by the Assigner for which they were
+                              designed (``blastn``, for example). Within each folder, germline
+                              DB files are named as ``{segment}.fasta``, so the Blast V-gene
+                              DB for human would be ``human/blast/v.fasta``. Note that this will
+                              change as AbStar is updated to annotate TCRs in addition to antibodies
 
       - ``binary_directory``: path to the directory containing Assigner binaries. Binaries
                             are named as ``{binary}_{system}``, where ``system`` is the
                             lowercase output from platform.system(). For example, the
                             Blastn binary for OSX would be at ``binary_directory/blastn_darwin``.
+                            Some assigners require more than a simple binary for execution (Partis,
+                            for example). In this case, all required elements will be placed into
+                            a folder within the binary directory, named using the same convention
+                            as binaries. So the folder containing Linux-compiled Partis components
+                            will be ``binary_directory/partis_linux``. The main Partis executable
+                            would then be located at ``binary_directory/partis_linux/bin/partis``.
 
-    In order to build a custom assigner, you simply need to subclass BaseAssigner add the ``@register`` decorator
-    (which will register your assigner by name), call the BaseAssigner ``__init__()`` at the start of your ``__init__()``
-    (using ``super()``), and implement the  ``__call__()`` method.
+    In order to build a custom assignment class, you simply need to subclass BaseAssigner, implement
+    your assigner, and register your assigner in abstar.assigners.registry.ASSIGNERS. Obviously, this
+    is in addition to adding any required binaries and specialized germline database formats. AbStar
+    prefers to incorporate assigner binaries if at all possible (as opposed to relying on system
+    installations) to smooth the process of installing AbStar and eliminate the need for users to
+    install several additional programs before having a fully operational AbStar installation.
+
+    There are two critical elements to the design of your assigner class. First, ensure that
+    you call the BaseAssigner's ``__init__()`` at the start of your class's ``__init__()``. Second,
+    you must implement the  ``__call__()`` method.
 
 
-    The ``@register`` decorator
-    ---------------------------
+    ``__init__()``
+    --------------
 
-    Using the ``@register`` decorator is critically important. The ``@register`` decorator automatically registers
-    your assigner and avoids the need to keep a list or dictionary of available assigners (which must then be updated
-    every time an Assigner is added or removed). Note that ``@register`` will register the custom Assigner class
-    using the class name, in all lowercase. This name is what will be specified by users at runtime and will be present
-    in the JSON output for each sequence. For example, the default Assigner, ``Blastn`` will be named ``'blastn'``. The
-    registered name is accessable from Assigner class instances using the ``name`` attribute, so if you would like a
-    different assigner name to be written to the JSON output, you can define the ``name`` attribute in your custom
-    Assigner. This will not change the name that must be specified at runtime, however. One additional caveat is that
-    there cannot be multiple Assigners with the same name. When creating a new Assigner, please name it uniquely (and
-    remember that Assigner names are converted to lowercase, so BLASTn and Blastn will be considered identical).
+    Your custom assigner class's ``__init__()`` must accept a single argument (``species``, in
+    addition to the required ``self``). You must then call the BaseAssigner's ``__init__()`` and pass
+    the ``species`` argument. The simplest was to do this is by using ``super()``, like this:
+    ``super(MyAssigner, self).__init__(species)``, where ``MyAssigner`` is your assigner class.
 
 
     Implementing the ``__call__()`` method
     --------------------------------------
 
-      - ``__call__()`` must accept three arguments. The first (``sequence_file``) is a FASTA- or
-        FASTQ-formatted file of input sequences, depending on the user-provided input. The
-        second argument passed to ``__call__()`` is ``species``, which is a string corresponding to the
-        user-selected species from which the input sequences are derived. ``species`` may be used to
-        select the appropriate germline database for germline assignment. The final argument (``file_format``)
-        defines the format of ``sequence_file``, either ``'fasta'`` or ``'fastq'``. If a FASTQ file is
-        required by your assigner, ensure that ``__call__()`` raises the appropriate exception (and
-        provides a sufficiently clear description of the problem) if a FASTA-formatted file is provided.
+      - ``__call__()`` must accept two arguments. The first (``sequence_file``) is a FASTA- or
+        FASTQ-formatted file of input sequences, depending on the user-provided input. The second argument
+        (``file_format``) defines the format of ``sequence_file``, either ``'fasta'`` or ``'fastq'``. If
+        a FASTQ file is required by your assigner, ensure that ``__call__()`` raises the appropriate exception
+        (and provides a sufficiently clear description of the problem) if a FASTA-formatted file is provided.
 
       - The result of ``__call__()`` should be the generation of a ``VDJ`` object for each input sequence
         (more on this below). The ``VDJ`` objects should be appended to either the ``assigned`` or ``unassigned``
@@ -163,7 +168,7 @@ class BaseAssigner(object):
                 vdj.log('V-GENE ASSIGNMENT ERROR:', 'Alignment score ({}) was too low'.format(v.score))
                 continue
 
-    ``VDJ`` objects also contain a method for logging exceptions: ``exception()``. This is typically used
+    ``VDJ`` objects also contain a mechanism for logging exceptions: ``exception()``. This is typically used
     to log unexpected exceptions (ie, those that are not caught and handled by the Assigner). It is useful
     to provide some information about when/where in the Assigner the exception occured, as well as a formatted
     version of the exception traceback. An example of ``exceptions()`` being used to log an exception that
@@ -213,7 +218,7 @@ class BaseAssigner(object):
 
     The following is an example of a custom Assigner class, named MyAssigner. It uses BioPython's SeqIO
     to parse the input file, and because BioPython is a dependency of AbStar, you can assume that BioPython
-    will be present on any system running AbStar. All custom Assigners should be located in the ``Assigners``
+    will be present on any system running AbStar. All custom Assigners should be located in the ``assigners``
     directory::
 
         import os
@@ -221,52 +226,52 @@ class BaseAssigner(object):
         import traceback
 
         from abstar.assigners.assigner import BaseAssigner
-        from abstar.assigners.registry import register
         from abstar.core.vdj import VDJ
         from abstar.core.germline import GermlineSegment
 
         from Bio import SeqIO
 
-        @register
         class MyAssigner(BaseAssigner):
 
-            def __init__(self):
-                super(MyAssigner, self).__init__()
+            def __init__(self, species):
+                super(MyAssigner, self).__init__(species)
                 self.binary = os.path.join(self.binary_directory, 'mybinary_{}'.format(platform.system()))
 
-            def __call__(self, sequence_file, species, file_format):
+            def __call__(self, sequence_file, file_format):
                 for sequence in SeqIO.parse(open(sequence_file, 'r'), file_format):
                     seq = Sequence(sequence)
                     vdj = VDJ(seq)
 
                     # V-gene assignment
-                    # The VDJ object is passed to the assignment function for three reasons:
+                    # The VDJ object (rather than just the sequence) is passed to the assignment
+                    # function for three reasons:
                     #    1) it contains the sequence, so we don't need to pass it separately
                     #    2) it allows logging during germline assignment, via vdj.log()
                     #    3) subsequent assignments will have access to information about
                     #       previous assignments (J-gene assignment operations have access
                     #       to information about the V-gene assignment, etc.)
                     try:
-                        vdj.v = self.assign_germline(vdj, species, 'V')
+                        vdj.v = self.assign_germline(vdj, 'V')
                     except:
                         vdj.exception('V-ASSIGNMENT:', traceback.format_exc())
 
                     # J-gene assignment
                     try:
-                        vdj.j = self.assign_germline(vdj, species, 'J')
+                        vdj.j = self.assign_germline(vdj, 'J')
                     except:
                         vdj.exception('J-ASSIGNMENT:', traceback.format_exc())
 
                     # D-gene assignment
                     try:
-                        vdj.d = self.assign_germline(vdj, species, 'D')
+                        vdj.d = self.assign_germline(vdj, 'D')
                     except:
                         vdj.exception('D-ASSIGNMENT:', traceback.format_exc())
 
                     return vdj
 
-            def assign_germline(self, vdj, species, segment):
-                germ_db = os.path.join(self.germline_directory, '{}_gl_{}'.format(species, segment))
+            def assign_germline(self, vdj, segment):
+                germ_db = os.path.join(self.germline_directory, '{}/ungapped/{}.fasta'.format(self.species,
+                                                                                              segment.lower()))
 
                 # do stuff to assign the germline gene, using the species-appropriate germline DB
                 # ...
@@ -278,8 +283,8 @@ class BaseAssigner(object):
                     vdj.log('{}-ASSIGNMENT ERROR:'.format(segment),
                             'Score ({}) is too low'.format(germs[0].score))
                     return None
-                others = [GermlineSegment(germ.name, species, score=germ.score) for germ in germs[1:6]]
-                v = GermlineSegment(germs[0].name, species, score=germs[0].score, others=others)
+                others = [GermlineSegment(germ.name, self.species, score=germ.score) for germ in germs[1:6]]
+                return GermlineSegment(germs[0].name, self.species, score=germs[0].score, others=others)
 
     """
 
