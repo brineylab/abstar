@@ -30,9 +30,9 @@ class MiXCR(BaseAssigner):
     docstring for MiXCRAssigner
     """
 
-    def __init__(self):
-        super(MiXCR, self).__init__()
+    def __init__(self, species):
+        super(MiXCR, self).__init__(species)
 
 
-    def __call__(self, sequence_file, species):
+    def __call__(self, sequence_file, file_format):
         pass
