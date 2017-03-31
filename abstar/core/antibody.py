@@ -200,25 +200,25 @@ class Antibody(object, LoggingMixin):
 
         # realign D (if needed)
         if all([self.chain == 'heavy', self.d is not None]):
-            # try:
-            dstart = self.v.query_end + 1
-            dend = self.j.query_start
-            self.log('')
-            self.log('D-GENE REALIGNMENT')
-            self.log('------------------')
-            self.d.realign_germline(self, query_start=dstart, query_end=dend)
-            self.log('RAW QUERY LENGTH:', len(self.d.raw_query))
-            self.log('RAW GERMLNE LENGTH:', len(self.d.raw_germline))
-            self.log('QUERY START:', self.d.query_start)
-            self.log('QUERY END:', self.d.query_end)
-            self.log('GERMLINE START:', self.d.germline_start)
-            self.log('GERMLINE END:', self.d.germline_end)
-            self.log('  QUERY: ', self.d.query_alignment)
-            self.log('         ', self.d.alignment_midline)
-            self.log('GERMLINE:', self.d.germline_alignment)
-            # except:
-            #     self.exception('D-GENE REALIGNMENT ERROR', traceback.format_exc())
-            #     self.d = None
+            try:
+                dstart = self.v.query_end + 1
+                dend = self.j.query_start
+                self.log('')
+                self.log('D-GENE REALIGNMENT')
+                self.log('------------------')
+                self.d.realign_germline(self, query_start=dstart, query_end=dend)
+                self.log('RAW QUERY LENGTH:', len(self.d.raw_query))
+                self.log('RAW GERMLNE LENGTH:', len(self.d.raw_germline))
+                self.log('QUERY START:', self.d.query_start)
+                self.log('QUERY END:', self.d.query_end)
+                self.log('GERMLINE START:', self.d.germline_start)
+                self.log('GERMLINE END:', self.d.germline_end)
+                self.log('  QUERY: ', self.d.query_alignment)
+                self.log('         ', self.d.alignment_midline)
+                self.log('GERMLINE:', self.d.germline_alignment)
+            except:
+                self.exception('D-GENE REALIGNMENT ERROR', traceback.format_exc())
+                self.d = None
 
 
 
