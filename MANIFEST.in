@@ -12,6 +12,11 @@ include abstar/assigners/germline_dbs/human/blast/*
 include abstar/assigners/germline_dbs/human/ungapped/*
 include abstar/assigners/germline_dbs/human/imgt_gapped/*
 include abstar/assigners/germline_dbs/human/isotypes/*
+include abstar/assigners/germline_dbs/macaque/*
+include abstar/assigners/germline_dbs/macaque/blast/*
+include abstar/assigners/germline_dbs/macaque/ungapped/*
+include abstar/assigners/germline_dbs/macaque/imgt_gapped/*
+include abstar/assigners/germline_dbs/macaque/isotypes/*
 include abstar/assigners/germline_dbs/mouse/*
 include abstar/assigners/germline_dbs/mouse/blast/*
 include abstar/assigners/germline_dbs/mouse/ungapped/*
