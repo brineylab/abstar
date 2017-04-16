@@ -20,7 +20,8 @@ from celery import Celery
 
 
 # instantiate Celery object
-celery = Celery(include=['abstar.utils.vdj'])
+# celery = Celery(include=['abstar.utils.vdj'])
+celery = Celery(include=['abstar.core.abstar'])
 
 
 # import celery config file

@@ -13,10 +13,11 @@
 ###########################################################################
 
 
-from abstar.utils.vdj import run
+# from abstar.utils.vdj import run
 from abstar.utils.queue.celery import celery
 
 
 @celery.task
 def run_vdj(*args):
-    return run(*args)
+    pass
+    # return run(*args)
