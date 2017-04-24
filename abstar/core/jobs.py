@@ -81,9 +81,9 @@ def run_abstar(sequence_file, output_directory, args):
     #     clean_vdjs = [vdj for vdj in vdj_output if vdj.rearrangement]
     #     output_count = write_output(clean_vdjs, output_file, args.output_type, args.pretty, args.padding)
     #     return (output_file, output_count)
-    # except:
-    #     logger.debug(traceback.format_exc())
-    #     raise Exception("".join(traceback.format_exception(*sys.exc_info())))
+    except:
+        logger.debug(traceback.format_exc())
+        raise Exception("".join(traceback.format_exception(*sys.exc_info())))
 
 
 def run_jobs(files, output_dir, args):

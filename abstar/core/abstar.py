@@ -47,7 +47,7 @@ from .antibody import Antibody
 from ..assigners.assigner import BaseAssigner
 from ..assigners.registry import ASSIGNERS
 # from ..utils import output
-from ..utils.output import get_abstar_result, get_output, write_output
+from ..utils.output import get_abstar_result, get_output, write_output, get_header
 from ..utils.queue.celery import celery
 
 
@@ -81,8 +81,7 @@ def parse_arguments(print_help=False):
     parser.add_argument('-l', '--log', dest='log', default=None,
                         help="The log directory, into which log files will be deposited. \
                         Default is <project_directory>/log if <project> is supplied, otherwise \
-                        the parent directory of <output> will be used. \
-                        Required, unless <project> is provided.")
+                        the parent directory of <output> will be used.")
     parser.add_argument('-t', '--temp', dest='temp', default=None,
                         help="The directory in which temp files will be stored. If the directory doesn't exist, \
                         it will be created. Required, unless <project> is provided.")
@@ -96,13 +95,13 @@ def parse_arguments(print_help=False):
                         Defaults to 500. \
                         Set to 0 if you want file splitting to be turned off \
                         Don't change unless you know what you're doing.")
-    parser.add_argument('-O', '--output-type', dest="output_type", choices=['json', 'imgt', 'hadoop'], default='json',
-                        help="Select the output type. Options are 'json', 'imgt' and 'impala'. \
+    parser.add_argument('-O', '--output-type', dest="output_type", action='append',
+                        choices=['json', 'imgt', 'minimal'],
+                        help="Select the output type. Options are 'json', 'imgt' and 'minimal'. \
                         IMGT output mimics the Summary table produced by IMGT High-V/Quest, \
                         to maintain some level of compatibility with existing IMGT-based pipelines. \
                         JSON output is much more detailed, and is suitable for direct import into MongoDB. \
-                        Hadoop output is columnar and easily converted to binary HDFS-friendly formats \
-                        (Parquet, Avro) for use in Impala or other Hadoop query engines. \
+                        Minimal output is in tab-delimited format. \
                         Defaults to JSON output.")
     parser.add_argument('-m', '--merge', dest="merge", action='store_true', default=False,
                         help="Use if the input files are paired-end FASTQs \
@@ -162,7 +161,7 @@ def parse_arguments(print_help=False):
 
 class Args(object):
     def __init__(self, project_dir=None, input=None, output=None, log=None, temp=None,
-                 sequences=None, chunksize=500, output_type='json', assigner='blastn',
+                 sequences=None, chunksize=500, output_type=['json', ], assigner='blastn',
                  merge=False, pandaseq_algo='simple_bayesian', use_test_data=False,
                  nextseq=False, uid=0, isotype=False, pretty=False,
                  basespace=False, cluster=False, padding=True, raw=False,
@@ -176,7 +175,7 @@ class Args(object):
         self.log = os.path.abspath(log) if log is not None else log
         self.temp = os.path.abspath(temp) if temp is not None else temp
         self.chunksize = int(chunksize)
-        self.output_type = str(output_type)
+        self.output_type = [output_type, ] if output_type in [str, unicode] else output_type
         self.assigner = assigner
         self.merge = True if basespace else merge
         self.pandaseq_algo = str(pandaseq_algo)
@@ -200,10 +199,12 @@ def validate_args(args):
         parse_arguments(print_help=True)
         sys.exit(1)
     if args.sequences:
-        args.output_type = 'json'
+        args.output_type = ['json', ]
         args.raw = True
     if all([args.sequences is not None, args.temp is None]):
         args.temp = '/tmp'
+    if not args.output_type:
+        args.output_type = ['json', ]
 
 
 #####################################################################
@@ -270,7 +271,7 @@ def log_options(input_dir, output_dir, temp_dir, args):
     logger.info('')
     logger.info('SPECIES: {}'.format(args.species))
     logger.info('CHUNKSIZE: {}'.format(args.chunksize))
-    logger.info('OUTPUT TYPE: {}'.format(args.output_type))
+    logger.info('OUTPUT TYPE: {}'.format(', '.join(args.output_type)))
     if args.merge or args.basespace:
         logger.info('PANDASEQ ALGORITHM: {}'.format(args.pandaseq_algo))
     logger.info('UID: {}'.format(args.uid))
@@ -300,40 +301,65 @@ def list_files(d, log=False):
     return files
 
 
-def concat_output(input_file, jsons, output_dir, args):
+def get_output_suffix(output_format):
+    osuffixes = {'json': '.json',
+                 'imgt': '.csv',
+                 'minimal': '.txt'}
+    return osuffixes[output_format.lower()]
+
+
+def build_output_base(output_types):
+    needs_header = ['imgt', 'minimal']
+    output_dict = {}
+    for output_type in output_types:
+        if output_type in needs_header:
+            output_dict[output_type] = [get_header(output_type), ]
+        else:
+            output_dict[output_type] = []
+    return output_dict
+
+
+def concat_outputs(input_file, temp_output_files, output_dir, args):
+    ofiles = []
     bname = os.path.basename(input_file)
     if '.' in bname:
         split_name = bname.split('.')
         oprefix = '.'.join(split_name[:-1])
     else:
         oprefix = bname
-    osuffix = '.json' if args.output_type == 'json' else '.txt'
-    oname = oprefix + osuffix
-    ofile = os.path.join(output_dir, oname)
-    logger.info('Concatenating {} job outputs into a single output file'.format(len(jsons)))
-    # logger.info('')
-    if args.gzip:
-        ohandle = gzip.open(ofile + ".gz", 'wb')
-    else:
-        ohandle = open(ofile, 'w')
-
-    with ohandle as out_file:
-        if args.output_type in ['json', 'hadoop']:
-            for json in jsons:
-                with open(json) as f:
-                    for line in f:
-                        out_file.write(line)
-                out_file.write('\n')
-        if args.output_type == 'imgt':
-            for i, json in enumerate(jsons):
-                with open(json) as f:
-                    for j, line in enumerate(f):
-                        if i == 0:
-                            out_file.write(line)
-                        elif j >= 1:
+    # temp_output_files is a 2D list in the same order as sorted(args.output_type)
+    logger.info('')
+    for output_type, temp_files in zip(sorted(args.output_type), zip(*temp_output_files)):
+        osuffix = get_output_suffix(output_type)
+        oname = oprefix + osuffix
+        ofile = os.path.join(output_dir, oname)
+        # temp_files = [tf for tf in temp_output_files if tf.endswith(osuffix)]
+        logger.info('Concatenating {} {}-formatted job outputs into a single output file'.format(len(temp_output_files),
+                                                                                                 output_type.upper()))
+        if args.gzip:
+            ohandle = gzip.open(ofile + ".gz", 'wb')
+        else:
+            ohandle = open(ofile, 'w')
+        with ohandle as out_file:
+            # JSON-formatted files don't have headers, so we don't worry about it
+            if output_type == 'json':
+                for temp_file in temp_files:
+                    with open(temp_file) as f:
+                        for line in f:
                             out_file.write(line)
                     out_file.write('\n')
-    return ofile
+            # For file formats with headers, only keep headers from the first file
+            if output_type in ['imgt', 'minimal']:
+                for i, temp_file in enumerate(temp_files):
+                    with open(temp_file) as f:
+                        for j, line in enumerate(f):
+                            if i == 0:
+                                out_file.write(line)
+                            elif j >= 1:
+                                out_file.write(line)
+                        out_file.write('\n')
+        ofiles.append(ofile)
+    return ofiles
 
 
 def concat_logs(input_file, logs, log_dir, log_type):
@@ -516,10 +542,12 @@ def run_abstar(seq_file, output_dir, log_dir, file_format, arg_dict):
         args = Args(**arg_dict)
         # identify output file
         output_filename = os.path.basename(seq_file)
-        if args.output_type == 'json':
-            output_file = os.path.join(output_dir, output_filename + '.json')
-        elif args.output_type in ['imgt', 'hadoop']:
-            output_file = os.path.join(output_dir, output_filename + '.txt')
+        output_suffixes = [get_output_suffix(output_type) for output_type in sorted(args.output_type)]
+        output_files = [os.path.join(output_dir, output_filename + output_suffix) for output_suffix in output_suffixes]
+        # if args.output_type == 'json':
+        #     output_file = os.path.join(output_dir, output_filename + '.json')
+        # elif args.output_type in ['imgt', 'hadoop']:
+        #     output_file = os.path.join(output_dir, output_filename + '.txt')
         # setup log files
         annotated_logfile = os.path.join(log_dir, 'temp/{}.annotated'.format(output_filename))
         annotated_loghandle = open(annotated_logfile, 'a')
@@ -532,8 +560,9 @@ def run_abstar(seq_file, output_dir, log_dir, file_format, arg_dict):
         assigner = assigner_class(args.species)  # initialize the assigner class with the species
         assigner(seq_file, file_format)  # call the assigner
         # process all of the successfully assigned sequences
-        outputs = []
+        outputs_dict = build_output_base(args.output_type)
         assigned = [Antibody(vdj, args.species) for vdj in assigner.assigned]
+        successful = 0
         for ab in assigned:
             try:
                 ab.annotate(args.uid)
@@ -541,17 +570,23 @@ def run_abstar(seq_file, output_dir, log_dir, file_format, arg_dict):
                                            pretty=args.pretty,
                                            padding=args.padding,
                                            raw=args.raw)
-                output = get_output(result, args.output_type)
-                if output is not None:
-                    outputs.append(get_output(result, args.output_type))
-                    if args.debug:
-                        annotated_loghandle.write(ab.format_log())
-                else:
-                    failed_loghandle.write(ab.format_log())
+                for i, output_type in enumerate(args.output_type):
+                    output = get_output(result, output_type)
+                    if output is not None:
+                        outputs_dict[output_type].append(get_output(result, output_type))
+                        # only write debug log data once
+                        if i == 0:
+                            successful += 1
+                            if args.debug:
+                                annotated_loghandle.write(ab.format_log())
+                    # only write failed log data once
+                    elif i == 0:
+                        failed_loghandle.write(ab.format_log())
             except:
                 ab.exception('ANNOTATION ERROR', traceback.format_exc())
                 failed_loghandle.write(ab.format_log())
-        write_output(outputs, output_file)
+        outputs = [outputs_dict[ot] for ot in sorted(args.output_type)]
+        write_output(outputs, output_files)
         # capture the log for all unsuccessful sequences
         for vdj in assigner.unassigned:
             unassigned_loghandle.write(vdj.format_log())
@@ -560,9 +595,9 @@ def run_abstar(seq_file, output_dir, log_dir, file_format, arg_dict):
         annotated_loghandle.close()
         failed_loghandle.close()
         # return the number of successful assignments
-        return (output_file, len(outputs), annotated_logfile, failed_logfile, unassigned_logfile)
+        return (output_files, successful, annotated_logfile, failed_logfile, unassigned_logfile)
     except:
-        raise
+        logging.debug(traceback.format_exc())
 
 
 
@@ -933,20 +968,21 @@ def main(args):
             print_input_file_info(f, fmt)
             subfiles, seq_count = split_file(f, fmt, temp_dir, args)
             run_info = run_jobs(subfiles, temp_dir, log_dir, fmt, args)
-            temp_json_files = [r[0] for r in run_info if r is not None]
+            temp_output_files = [r[0] for r in run_info if r is not None]
             processed_seq_counts = [r[1] for r in run_info if r is not None]
             annotated_log_files = [r[2] for r in run_info if r is not None]
             failed_log_files = [r[3] for r in run_info if r is not None]
             unassigned_log_files = [r[4] for r in run_info if r is not None]
             vdj_end_time = time.time()
-            output_file = concat_output(f, temp_json_files, output_dir, args)
+            _output_files = concat_outputs(f, temp_output_files, output_dir, args)
             unassigned_file = concat_logs(f, unassigned_log_files, log_dir, 'unassigned')
             failed_file = concat_logs(f, failed_log_files, log_dir, 'failed')
             if args.debug:
                 annotated_file = concat_logs(f, annotated_log_files, log_dir, 'annotated')
-            output_files.append(output_file)
+            output_files.extend(output_files)
             if not args.debug:
-                clear_temp_files(subfiles + temp_json_files + annotated_log_files + failed_log_files + unassigned_log_files)
+                flat_temp_files = [f for subl in temp_output_files for f in subl]
+                clear_temp_files(subfiles + flat_temp_files + annotated_log_files + failed_log_files + unassigned_log_files)
             print_job_stats(seq_count, processed_seq_counts, start_time, vdj_end_time)
         return output_files
 
