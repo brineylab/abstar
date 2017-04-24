@@ -84,8 +84,7 @@ class AbstarResult(object):
     @property
     def minimal_output(self):
         if self._minimal_output is None:
-            # TODO: build minimal-formatted output
-            pass
+            self._minimal_output = self._build_minimal_output()
         return self._minimal_output
 
     @minimal_output.setter
@@ -341,6 +340,64 @@ class AbstarResult(object):
             return json.dumps(output)
 
 
+    def _build_minimal_output(self):
+        # pre-fill the isotype info
+        try:
+            isotype = self.antibody.isotype.isotype
+        except AttributeError:
+            isotype = 'unknown'
+        # pre-fill the D-gene info
+        if self.antibody.d:
+            d_full = self.antibody.d.full
+            d_gene = self.antibody.d.gene
+        else:
+            d_full = ''
+            d_gene = ''
+        output = collections.OrderedDict([
+            ('seq_id', self.antibody.id),
+            ('uid', self.antibody.uid),
+            ('chain', self.antibody.chain),
+            ('productive', 'yes' if self.antibody.productivity.is_productive else 'no'),
+            ('v_full', self.antibody.v.full),
+            ('v_gene', self.antibody.v.gene),
+            # ('v_allele', vdj.v.top_germline.split('*')[-1]),
+            ('d_full', d_full),
+            ('d_gene', d_gene),
+            ('j_full', self.antibody.j.full),
+            ('j_gene', self.antibody.j.gene),
+            # ('j_allele', vdj.j.top_germline.split('*')[-1]),
+            # ('junction_aa', vdj.junction.junction_aa),
+            # ('junction_nt', vdj.junction.junction_nt),
+            ('cdr3_length', len(self.antibody.junction.cdr3_aa)),
+            # ('fr1_aa', vdj.v.regions.aa_seqs['FR1']),
+            # ('fr2_aa', vdj.v.regions.aa_seqs['FR2']),
+            # ('fr3_aa', vdj.v.regions.aa_seqs['FR3']),
+            # ('fr4_aa', vdj.j.regions.aa_seqs['FR4']),
+            # ('cdr1_aa', vdj.v.regions.aa_seqs['CDR1']),
+            # ('cdr2_aa', vdj.v.regions.aa_seqs['CDR2']),
+            ('cdr3_aa', self.antibody.junction.cdr3_aa),
+            ('vdj_nt', self.antibody.vdj_nt),
+            ('vj_aa', self.antibody.vdj_aa),
+            ('var_muts_nt', ','.join([m.abstar_formatted for m in self.antibody.v.nt_mutations])),
+            ('var_muts_aa', ','.join([m.abstar_formatted for m in self.antibody.v.aa_mutations])),
+            ('var_identity_nt', self.antibody.v.nt_identity),
+            ('var_identity_aa', self.antibody.v.aa_identity),
+            ('var_ins', ','.join([i.abstar_formatted for i in self.antibody.v.insertions])),
+            ('var_del', ','.join([d.abstar_formatted for d in self.antibody.v.deletions])),
+            ('isotype', isotype),
+            ('raw_input', self.antibody.raw_input.sequence)
+        ])
+        return '\t'.join([str(v) for v in output.values()])
+
+
+def get_header(output_type):
+    if output_type == 'minimal':
+        return '\t'.join(MINIMAL_HEADER)
+    if output_type == 'imgt':
+        return ','.join(IMGT_HEADER)
+    return None
+
+
 def get_output(result, output_type):
     if output_type.lower() == 'json':
         return result.json_output
@@ -352,25 +409,10 @@ def get_output(result, output_type):
         return result.json_output
 
 
-def write_output(outputs, outfile):
-    # if output_type.lower() == 'json':
-    #     output = [r.json_output for r in results]
-    # elif output_type.lower() == 'imgt':
-    #     output = [r.imgt_output for r in results]
-    # elif output_type.lower() == 'minimal':
-    #     output = [r.minimal_output for r in results]
-    # else:
-    #     output = [r.json_output for r in results]
-    open(outfile, 'w').write('\n'.join(outputs))
-    # from abstar.utils.output import build_output
-    # logger.debug("Padding - {}\t Pretty - {}\t".format(padding, pretty))
-    # output_data = build_output(output, output_type, pretty, padding)
-    # open(outfile, 'w').write('\n'.join(output_data))
-    # if output_type in ['json', 'hadoop']:
-    #     return len(output_data)
-    # else:
-    #     return len(output_data) - 1
-
+def write_output(outputs, outfiles):
+    for _outputs, outfile in zip(outputs, outfiles):
+        with open(outfile, 'w') as f:
+            f.write('\n'.join(_outputs))
 
 
 def build_output(vdjs, output_type, pretty, padding):
@@ -792,3 +834,58 @@ def _hadoop_minimal_output(vdj):
         ('var_del', _get_imgt_indel_string(vdj.v, 'del', hadoop=True))
     ])
     return ','.join([str(v) for v in output.values()])
+
+
+
+IMGT_HEADER = ['Sequence number',
+               'Sequence ID',
+               'Functionality',
+               'V-GENE and allele',
+               'V-REGION score',
+               'V-REGION identity %',
+               'V-REGION identity nt',
+               'V-REGION identity %with ins/del events)',
+               'V-REGION identity ntwith ins/del events)',
+               'J-GENE and allele',
+               'J-REGION score',
+               'J-REGION identity %',
+               'J-REGION identity nt',
+               'D-GENE and allele',
+               'D-REGION reading frame',
+               'CDR1-IMGT length',
+               'CDR2-IMGT length',
+               'CDR3-IMGT length',
+               'CDR-IMGT lengths',
+               'FR-IMGT lengths',
+               'AA JUNCTION',
+               'JUNCTION frame',
+               'Orientation',
+               'Functionality comment',
+               'V-REGION potential ins/del',
+               'J-GENE and allele comment',
+               'V-REGION insertions',
+               'V-REGION deletions',
+               'Sequence']
+
+MINIMAL_HEADER = ['seq_id',
+                  'uid',
+                  'chain',
+                  'productive',
+                  'v_full',
+                  'v_gene',
+                  'd_full',
+                  'd_gene',
+                  'j_full',
+                  'j_gene',
+                  'cdr3_length',
+                  'cdr3_aa',
+                  'vdj_nt',
+                  'vj_aa',
+                  'var_muts_nt',
+                  'var_muts_aa',
+                  'var_identity_nt',
+                  'var_identity_aa',
+                  'var_ins',
+                  'var_del',
+                  'isotype',
+                  'raw_input']

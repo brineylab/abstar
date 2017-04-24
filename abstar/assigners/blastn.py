@@ -49,14 +49,14 @@ class Blastn(BaseAssigner):
 
 
     def __call__(self, sequence_file, file_format):
-        seqs = [Sequence(s) for s in SeqIO.parse(open(sequence_file, 'r'), file_format)]
+        with open(sequence_file, 'r') as sequence_handle:
+            seqs = [Sequence(s) for s in SeqIO.parse(sequence_handle, file_format)]
         vdjs = []
 
         # if the input file is FASTQ-formatted, need to convert it to FASTA for BLASTn to work
         if file_format == 'fastq':
-            handle = open(sequence_file, 'w')
-            handle.write('\n'.join(s.fasta for s in seqs))
-            handle.close()
+            with open(sequence_file, 'w') as handle:
+                handle.write('\n'.join(s.fasta for s in seqs))
 
         # assign V-genes
         vblast_records = self.blast(sequence_file, self.species, 'V')
@@ -184,11 +184,10 @@ class Blastn(BaseAssigner):
 
     def assign_dgene(self, seq, species):
         db_file = os.path.join(self.germline_directory, 'ungapped/d.fasta')
-        db_handle = open(db_file, 'r')
-        germs = [Sequence(s) for s in SeqIO.parse(db_handle, 'fasta')]
-        rc_germs = [Sequence(s.reverse_complement, id=s.id) for s in germs]
-        germs.extend(rc_germs)
-        db_handle.close()
+        with open(db_file, 'r') as db_handle:
+            germs = [Sequence(s) for s in SeqIO.parse(db_handle, 'fasta')]
+            rc_germs = [Sequence(s.reverse_complement, id=s.id) for s in germs]
+            germs.extend(rc_germs)
         alignments = local_alignment(seq, targets=germs,
                                      gap_open=-20, gap_extend=-2)
         alignments.sort(key=lambda x: x.score, reverse=True)
