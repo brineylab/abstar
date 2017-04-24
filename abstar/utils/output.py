@@ -84,8 +84,7 @@ class AbstarResult(object):
     @property
     def minimal_output(self):
         if self._minimal_output is None:
-            # TODO: build minimal-formatted output
-            pass
+            self._minimal_output = self._build_minimal_output()
         return self._minimal_output
 
     @minimal_output.setter
@@ -339,6 +338,45 @@ class AbstarResult(object):
             return json.dumps(output, indent=4)
         else:
             return json.dumps(output)
+
+
+    def _build_minimal_output(self):
+        try:
+            isotype = self.antibody.isotype.isotype
+        except AttributeError:
+            isotype = 'unknown'
+        output = collections.OrderedDict([
+            ('seq_uuid', uuid.uuid4()),
+            ('seq_id', self.antibody.id),
+            ('chain', self.antibody.chain),
+            ('productive', 'yes' if self.antibody.productivity.is_productive else 'no'),
+            ('v_fam', self.antibody.v.top_germline.split('-')[0]),
+            ('v_gene', vdj.v.top_germline.split('*')[0]),
+            ('v_allele', vdj.v.top_germline.split('*')[-1]),
+            ('j_gene', vdj.j.top_germline.split('*')[0]),
+            ('j_allele', vdj.j.top_germline.split('*')[-1]),
+            # ('junction_aa', vdj.junction.junction_aa),
+            # ('junction_nt', vdj.junction.junction_nt),
+            ('cdr3_length', len(vdj.junction.cdr3_aa)),
+            # ('fr1_aa', vdj.v.regions.aa_seqs['FR1']),
+            # ('fr2_aa', vdj.v.regions.aa_seqs['FR2']),
+            # ('fr3_aa', vdj.v.regions.aa_seqs['FR3']),
+            # ('fr4_aa', vdj.j.regions.aa_seqs['FR4']),
+            # ('cdr1_aa', vdj.v.regions.aa_seqs['CDR1']),
+            # ('cdr2_aa', vdj.v.regions.aa_seqs['CDR2']),
+            ('cdr3_aa', vdj.junction.cdr3_aa),
+            ('vdj_nt', vdj.vdj_nt),
+            ('vj_aa', vdj.vdj_aa),
+            ('var_muts_nt', [m.abstar_formatted for m in self.antibody.v.nt_mutations]),
+            ('var_muts_aa', [m.abstar_formatted for m in self.antibody.v.aa_mutations]),
+            ('var_identity_nt', self.antibody.v.nt_identity),
+            ('var_identity_aa', self.antibody.v.aa_identity),
+            ('var_ins', [i.abstar_formatted for i in self.antibody.v.insertions]),
+            ('var_del', [d.abstar_formatted for d in self.antibody.v.deletions]),
+            ('isotype', isotype),
+            ('raw_input', self.antibody.raw_input.sequence)
+        ])
+        return ','.join([str(v) for v in output.values()])
 
 
 def get_output(result, output_type):
