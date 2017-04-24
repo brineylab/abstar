@@ -51,7 +51,8 @@ class Partis(BaseAssigner):
 
 
     def run_partis(self, sequence_file, file_format, locus):
-        seqs = [Sequence(s) for s in SeqIO.parse(open(sequence_file, 'r'), file_format)]
+        with open(sequence_file, 'r') as sequence_handle:
+            seqs = [Sequence(s) for s in SeqIO.parse(sequence_handle, file_format)]
         seq_dict = {s.id.replace(':', 'c'): s for s in seqs}
         partis_out = NamedTemporaryFile(delete=False)
         germline_dir = os.path.join(self.germline_directory, 'partis/')

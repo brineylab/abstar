@@ -418,19 +418,20 @@ def split_file(f, fmt, temp_dir, args):
         out_prefix = os.path.basename(f)
     if args.chunksize != 0:
         try:
-            for seq in SeqIO.parse(open(f, 'r'), fmt.lower()):
-                sequences.append(seq.format(fmt.lower()))
-                seq_counter += 1
-                total_seq_counter += 1
-                if seq_counter == args.chunksize:
-                    out_file = os.path.join(temp_dir, '{}_{}'.format(out_prefix, file_counter))
-                    ohandle = open(out_file, 'w')
-                    ohandle.write('\n'.join(sequences))
-                    ohandle.close()
-                    sequences = []
-                    seq_counter = 0
-                    file_counter += 1
-                    subfiles.append(out_file)
+            with open(f, 'r') as f_handle:
+                for seq in SeqIO.parse(f_handle, fmt.lower()):
+                    sequences.append(seq.format(fmt.lower()))
+                    seq_counter += 1
+                    total_seq_counter += 1
+                    if seq_counter == args.chunksize:
+                        out_file = os.path.join(temp_dir, '{}_{}'.format(out_prefix, file_counter))
+                        ohandle = open(out_file, 'w')
+                        ohandle.write('\n'.join(sequences))
+                        ohandle.close()
+                        sequences = []
+                        seq_counter = 0
+                        file_counter += 1
+                        subfiles.append(out_file)
         except ValueError:
             print('')
             print('ERROR: invalid file.')
@@ -441,10 +442,11 @@ def split_file(f, fmt, temp_dir, args):
 
     # We don't want our files split
     else:
-        for seq in SeqIO.parse(open(f, 'r'), fmt.lower()):
-            total_seq_counter += 1
-        subfiles.append(f)
-        file_counter = 1
+        with open(f, 'r') as f_handle:
+            for seq in SeqIO.parse(f_handle, fmt.lower()):
+                total_seq_counter += 1
+            subfiles.append(f)
+            file_counter = 1
 
     # unless the input file is an exact multiple of args.chunksize,
     # need to write the last few sequences to a split file.
