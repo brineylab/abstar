@@ -101,7 +101,7 @@ def parse_arguments(print_help=False):
                         IMGT output mimics the Summary table produced by IMGT High-V/Quest, \
                         to maintain some level of compatibility with existing IMGT-based pipelines. \
                         JSON output is much more detailed, and is suitable for direct import into MongoDB. \
-                        Minimal output is in tab-delimited format. \
+                        Minimal output is in CSV format. \
                         Defaults to JSON output.")
     parser.add_argument('-m', '--merge', dest="merge", action='store_true', default=False,
                         help="Use if the input files are paired-end FASTQs \
@@ -618,9 +618,9 @@ def process_sequences(sequences, args):
                                        pretty=False,
                                        padding=False,
                                        raw=True)
-            output = get_output(result, args.output_type)
+            output = get_output(result, 'json')
             if output is not None:
-                outputs.append(get_output(result, args.output_type))
+                outputs.append(get_output(result, 'json'))
         except:
             continue
     os.unlink(seq_file.name)

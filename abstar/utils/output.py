@@ -351,8 +351,8 @@ class AbstarResult(object):
             d_full = self.antibody.d.full
             d_gene = self.antibody.d.gene
         else:
-            d_full = ''
-            d_gene = ''
+            d_full = '-'
+            d_gene = '-'
         output = collections.OrderedDict([
             ('seq_id', self.antibody.id),
             ('uid', self.antibody.uid),
@@ -368,31 +368,34 @@ class AbstarResult(object):
             # ('j_allele', vdj.j.top_germline.split('*')[-1]),
             # ('junction_aa', vdj.junction.junction_aa),
             # ('junction_nt', vdj.junction.junction_nt),
-            ('cdr3_length', len(self.antibody.junction.cdr3_aa)),
+            ('cdr3_length', str(len(self.antibody.junction.cdr3_aa))),
             # ('fr1_aa', vdj.v.regions.aa_seqs['FR1']),
             # ('fr2_aa', vdj.v.regions.aa_seqs['FR2']),
             # ('fr3_aa', vdj.v.regions.aa_seqs['FR3']),
             # ('fr4_aa', vdj.j.regions.aa_seqs['FR4']),
             # ('cdr1_aa', vdj.v.regions.aa_seqs['CDR1']),
             # ('cdr2_aa', vdj.v.regions.aa_seqs['CDR2']),
+            ('cdr3_nt', self.antibody.junction.cdr3_nt),
             ('cdr3_aa', self.antibody.junction.cdr3_aa),
             ('vdj_nt', self.antibody.vdj_nt),
             ('vj_aa', self.antibody.vdj_aa),
-            ('var_muts_nt', ','.join([m.abstar_formatted for m in self.antibody.v.nt_mutations])),
-            ('var_muts_aa', ','.join([m.abstar_formatted for m in self.antibody.v.aa_mutations])),
-            ('var_identity_nt', self.antibody.v.nt_identity),
-            ('var_identity_aa', self.antibody.v.aa_identity),
-            ('var_ins', ','.join([i.abstar_formatted for i in self.antibody.v.insertions])),
-            ('var_del', ','.join([d.abstar_formatted for d in self.antibody.v.deletions])),
+            ('var_muts_nt', '|'.join([m.abstar_formatted for m in self.antibody.v.nt_mutations])),
+            ('var_muts_aa', '|'.join([m.abstar_formatted for m in self.antibody.v.aa_mutations])),
+            ('var_identity_nt', str(self.antibody.v.nt_identity)),
+            ('var_identity_aa', str(self.antibody.v.aa_identity)),
+            ('var_mut_count_nt', str(self.antibody.v.nt_mutations.count)),
+            ('var_mut_count_aa', str(self.antibody.v.aa_mutations.count)),
+            ('var_ins', '|'.join([i.abstar_formatted for i in self.antibody.v.insertions])),
+            ('var_del', '|'.join([d.abstar_formatted for d in self.antibody.v.deletions])),
             ('isotype', isotype),
             ('raw_input', self.antibody.raw_input.sequence)
         ])
-        return '\t'.join([str(v) for v in output.values()])
+        return ','.join(output.values())
 
 
 def get_header(output_type):
     if output_type == 'minimal':
-        return '\t'.join(MINIMAL_HEADER)
+        return ','.join(MINIMAL_HEADER)
     if output_type == 'imgt':
         return ','.join(IMGT_HEADER)
     return None
