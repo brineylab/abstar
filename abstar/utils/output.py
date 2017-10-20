@@ -31,22 +31,23 @@ from abtools import log
 
 
 
-def get_abstar_results(antibodies, pretty=False, padding=True, raw=False):
-    return [AbstarResult(ab, pretty, padding, raw) for ab in antibodies]
+def get_abstar_results(antibodies, pretty=False, padding=True, raw=False, keys=None):
+    return [AbstarResult(ab, pretty, padding, raw, keys) for ab in antibodies]
 
 
-def get_abstar_result(ab, pretty=False, padding=True, raw=False):
-    return AbstarResult(ab, pretty, padding, raw)
+def get_abstar_result(ab, pretty=False, padding=True, raw=False, keys=None):
+    return AbstarResult(ab, pretty, padding, raw, keys)
 
 
 class AbstarResult(object):
     """docstring for AbstarOutput"""
-    def __init__(self, antibody, pretty, padding, raw):
+    def __init__(self, antibody, pretty, padding, raw, keys):
         super(AbstarResult, self).__init__()
         self.antibody = antibody
         self.pretty = pretty
         self.padding = padding
         self.raw = raw
+        self.keys = keys
         # property vars
         self._json_output = None
         self._imgt_output = None
@@ -61,6 +62,7 @@ class AbstarResult(object):
             try:
                 self._json_output = self._build_json_output()
             except:
+                self.antibody.exception('JSON CREATION EXCEPTION', traceback.format_exc())
                 self._json_output = None
         return self._json_output
 
@@ -319,6 +321,9 @@ class AbstarResult(object):
             ('align_info', align_info),  # TODO!!  Add things like V/D/J start and end positions, etc.
         ])
 
+        if self.keys is not None:
+            output = collections.OrderedDict([(k, v) for k, v in output.items() if k in self.keys])
+
         if self.padding:
             output['padding'] = ['n' * 100] * 10
 
@@ -377,6 +382,7 @@ class AbstarResult(object):
             # ('cdr2_aa', vdj.v.regions.aa_seqs['CDR2']),
             ('cdr3_nt', self.antibody.junction.cdr3_nt),
             ('cdr3_aa', self.antibody.junction.cdr3_aa),
+            ('v_start', str(self.antibody.v.germline_start)),
             ('vdj_nt', self.antibody.vdj_nt),
             ('vj_aa', self.antibody.vdj_aa),
             ('var_muts_nt', '|'.join([m.abstar_formatted for m in self.antibody.v.nt_mutations])),
@@ -883,8 +889,9 @@ MINIMAL_HEADER = ['seq_id',
                   'cdr3_length',
                   'cdr3_nt',
                   'cdr3_aa',
+                  'v_start',
                   'vdj_nt',
-                  'vj_aa',
+                  'vdj_aa',
                   'var_muts_nt',
                   'var_muts_aa',
                   'var_identity_nt',
