@@ -29,7 +29,7 @@ import sys
 
 from Bio import SeqIO
 
-from utils.pandaseq import pair_files
+from .utils.pandaseq import pair_files
 
 from abutils.utils.log import get_logger
 from abutils.utils.pipeline import list_files, make_dir

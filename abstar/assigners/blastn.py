@@ -30,8 +30,8 @@ from Bio import SeqIO
 from Bio.Blast.Applications import NcbiblastnCommandline
 from Bio.Blast import NCBIXML
 
-from abtools.alignment import local_alignment
-from abtools.sequence import Sequence
+from abutils.core.sequence import Sequence
+from abutils.utils.alignment import local_alignment
 
 from .assigner import BaseAssigner
 from ..core.germline import GermlineSegment
