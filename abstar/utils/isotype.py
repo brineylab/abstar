@@ -30,10 +30,10 @@ from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.Alphabet import generic_dna
 
-from abtools import log
-from abtools.alignment import local_alignment
-from abtools.sequence import Sequence
-from abtools.utils.decorators import lazy_property
+from abutils.core.sequence import Sequence
+from abutils.utils import log
+from abutils.utils.alignment import local_alignment
+from abutils.utils.decorators import lazy_property
 
 from ..core.germline import get_germline_database_directory
 

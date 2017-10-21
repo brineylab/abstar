@@ -30,8 +30,8 @@ import sys
 import time
 import uuid
 
-from abtools.pipeline import make_dir
 from abtools.utils import progbar
+from abtools.utils.pipeline import make_dir
 
 
 def parse_arguments():

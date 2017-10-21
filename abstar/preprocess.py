@@ -31,8 +31,8 @@ from Bio import SeqIO
 
 from utils.pandaseq import pair_files
 
-from abtools.log import get_logger
-from abtools.pipeline import list_files, make_dir
+from abutils.utils.log import get_logger
+from abutils.utils.pipeline import list_files, make_dir
 
 
 logger = get_logger('preprocess')

@@ -25,8 +25,8 @@
 import re
 import traceback
 
-from abtools import log
-from abtools.utils.decorators import lazy_property
+from abutils.utils import log
+from abutils.utils.decorators import lazy_property
 
 
 

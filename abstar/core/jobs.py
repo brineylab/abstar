@@ -28,7 +28,7 @@ from abstar.assigners.registry import ASSIGNERS
 from abstar.utils.output import get_abstar_results, write_output
 from abstar.utils.queue.celery import celery
 
-from abtools import log
+from abutils.utils import log
 
 
 @celery.task

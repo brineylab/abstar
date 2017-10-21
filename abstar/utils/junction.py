@@ -29,9 +29,9 @@ import traceback
 from Bio.Seq import Seq
 from Bio.Alphabet import generic_dna
 
-from abtools import log
-from abtools.alignment import global_alignment, local_alignment
-from abtools.utils.codons import codon_lookup as codons
+from abutils.utils import log
+from abutils.utils.alignment import global_alignment, local_alignment
+from abutils.utils.codons import codon_lookup as codons
 
 
 def get_junction(antibody):

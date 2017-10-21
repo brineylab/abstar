@@ -24,7 +24,7 @@
 
 from ..utils.mixins import LoggingMixin
 
-from abtools.sequence import Sequence
+from abutils.core.sequence import Sequence
 
 
 class VDJ(object, LoggingMixin):

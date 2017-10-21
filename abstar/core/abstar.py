@@ -40,9 +40,9 @@ import warnings
 
 from Bio import SeqIO
 
-from abtools import log
-from abtools.pipeline import list_files
-from abtools.sequence import Sequence
+from abutils.core.sequence import Sequence
+from abutils.utils import log
+from abutils.utils.pipeline import list_files
 
 from .antibody import Antibody
 from ..assigners.assigner import BaseAssigner
