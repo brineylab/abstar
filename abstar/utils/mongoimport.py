@@ -22,6 +22,8 @@
 #
 
 
+from __future__ import print_function
+
 import itertools
 import multiprocessing as mp
 import os
@@ -367,12 +369,12 @@ def main(args):
     log_handle.write('\nImporting {} files.\n'.format(len(in_files)))
     for i, f in enumerate(in_files):
         coll = get_collection(f, args)
-        print "\n[ {} ] Importing {} into collection {}.".format(i + 1, os.path.basename(f), coll)
+        print("\n[ {} ] Importing {} into collection {}.".format(i + 1, os.path.basename(f), coll))
         log_handle.write('\n\n----------------------------------------')
         log_handle.write('File: {0}\nCollection: {1}'.format(f, coll))
         log_handle.write('----------------------------------------\n')
         mongo_import(f, args.db, coll, log_handle, args)
-    print "\nDone. {0} files were imported into MongoDB.\n\n".format(len(in_files))
+    print("\nDone. {0} files were imported into MongoDB.\n\n".format(len(in_files)))
 
 
 if __name__ == '__main__':
