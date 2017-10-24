@@ -762,8 +762,8 @@ def monitor_celery_jobs(results):
 
 def update_progress(finished, jobs, failed=None):
     pct = int(100. * finished / jobs)
-    ticks = pct / 2
-    spaces = 50 - ticks
+    ticks = int(pct / 2)
+    spaces = int(50 - ticks)
     if failed:
         prog_bar = '\r({}/{}) |{}{}|  {}% ({}, {})'.format(finished, jobs, '|' * ticks, ' ' * spaces, pct, finished - failed, failed)
     else:
