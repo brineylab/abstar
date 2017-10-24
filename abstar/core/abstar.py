@@ -461,9 +461,9 @@ def format_check(input_list):
 
 def _get_format(in_file):
     with open(in_file) as f:
-        line = f.next()
+        line = f.readline()
         while line.strip() == '':
-            line = f.next()
+            line = f.readline()
         if line.lstrip().startswith('>'):
             return 'fasta'
         elif line.lstrip().startswith('@'):
