@@ -72,8 +72,8 @@ class Isotype(object):
 
     @lazy_property
     def isotype(self):
-    	if self.alignment.score < 30:
-    		return 'unknown'
+        if self.alignment.score < 30:
+            return 'unknown'
         return self.alignment.target.id
 
     @lazy_property
