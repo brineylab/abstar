@@ -34,7 +34,7 @@ from ..utils import isotype, junction, mutations, productivity, regions
 from ..utils.mixins import LoggingMixin
 
 
-class Antibody(object, LoggingMixin):
+class Antibody(LoggingMixin):
     """
     docstring for Antibody
     """

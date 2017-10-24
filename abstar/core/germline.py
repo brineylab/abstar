@@ -38,7 +38,7 @@ from abutils.utils.decorators import lazy_property
 from ..utils.mixins import LoggingMixin
 
 
-class GermlineSegment(object, LoggingMixin):
+class GermlineSegment(LoggingMixin):
     """
     docstring for Germline
 

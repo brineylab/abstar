@@ -27,7 +27,7 @@ from ..utils.mixins import LoggingMixin
 from abutils.core.sequence import Sequence
 
 
-class VDJ(object, LoggingMixin):
+class VDJ(LoggingMixin):
     """
 
     Args:
