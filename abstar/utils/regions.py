@@ -166,16 +166,16 @@ class BaseRegions(object):
                         # of FR2, deletes the entire CDR2, and ends near the start of FR3).
                         next_regions = self.region_names[i + 1:]
                         reg_iter = iter(next_regions)
-                        region2 = reg_iter.next()
+                        region2 = next(reg_iter)
                         while len(self.nt_seqs[region2].strip('-')) == 0:
                             to_translate[region2] = ''
-                            region2 = reg_iter.next()
+                            region2 = next(reg_iter)
                         # if the current region and the next region with sequence data combine to form an in-frame
                         # sequence, we can fix the region-spanning deletion so that both regions are translated
                         # correctly.
                         if len(region_nt + self.nt_seqs[region2]) % 3 == 0:
                             region_seq, region2_seq = self._fix_region_spanning_indel(region_nt,
-                                                                                      self.nt_seqs[region2])
+                                                                     self.nt_seqs[region2])
                             to_translate[region] = region_seq
                             to_translate[region2] = region2_seq
                         # if the combined regions are still out of frame, the current region likely contains a
