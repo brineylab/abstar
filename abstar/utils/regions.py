@@ -223,7 +223,7 @@ class BaseRegions(object):
         # or if the query sequence doesn't contain the region, then there isn't a
         # corresponding raw sequence position.
         # First, check to see if the query sequence begins after the end of the region
-        if imgt_end < list(min(self.segment._imgt_position_from_raw.values())):
+        if imgt_end < min(list(self.segment._imgt_position_from_raw.values())):
             return None
         # Now we need to try to find the start of a deletion that includes the region
         # end position
