@@ -162,7 +162,7 @@ class Blastn(BaseAssigner):
         '''
         blast_path = os.path.join(self.binary_directory, 'blastn_{}'.format(platform.system().lower()))
         blast_db_path = os.path.join(self.germline_directory, 'blast/{}'.format(segment.lower()))
-        blastout = NamedTemporaryFile(delete=False, mode='w')
+        blastout = NamedTemporaryFile(delete=False, mode='r')
         blastn_cmd = NcbiblastnCommandline(cmd=blast_path,
                                            db=blast_db_path,
                                            query=seq_file,
