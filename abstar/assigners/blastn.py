@@ -162,7 +162,7 @@ class Blastn(BaseAssigner):
         '''
         blast_path = os.path.join(self.binary_directory, 'blastn_{}'.format(platform.system().lower()))
         blast_db_path = os.path.join(self.germline_directory, 'blast/{}'.format(segment.lower()))
-        blastout = NamedTemporaryFile(delete=False)
+        blastout = NamedTemporaryFile(delete=False, mode='w')
         blastn_cmd = NcbiblastnCommandline(cmd=blast_path,
                                            db=blast_db_path,
                                            query=seq_file,
@@ -177,8 +177,7 @@ class Blastn(BaseAssigner):
                                            gapopen=self._gap_open(segment),
                                            gapextend=self._gap_extend(segment))
         stdout, stderr = blastn_cmd()
-        with open(blastout.name, 'rb') as blastout_handle:
-            blast_records = [br for br in NCBIXML.parse(blastout_handle)]
+        blast_records = [br for br in NCBIXML.parse(blastout)]
         os.unlink(blastout.name)
         return blast_records
 
@@ -243,7 +242,7 @@ class Blastn(BaseAssigner):
 
     @staticmethod
     def build_jblast_input(jseqs):
-        jblast_input = NamedTemporaryFile(delete=False)
+        jblast_input = NamedTemporaryFile(delete=False, mode='w')
         jblast_input.write('\n'.join([s.fasta for s in jseqs]))
         jblast_input.close()
         return jblast_input.name

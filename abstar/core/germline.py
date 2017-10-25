@@ -713,7 +713,7 @@ class IMGTGermlineGene(object):
     def gapped_aa_sequence(self):
         res = []
         coding = self.gapped_nt_sequence[self.coding_start - 1:]
-        for codon in (coding[pos:pos + 3] for pos in xrange(0, len(coding), 3)):
+        for codon in (coding[pos:pos + 3] for pos in range(0, len(coding), 3)):
             if len(codon) != 3:
                 continue
             if codon == '...':
