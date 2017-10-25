@@ -177,7 +177,8 @@ class Blastn(BaseAssigner):
                                            gapopen=self._gap_open(segment),
                                            gapextend=self._gap_extend(segment))
         stdout, stderr = blastn_cmd()
-        blast_records = [br for br in NCBIXML.parse(blastout)]
+        with open(blastout.name, 'rb') as blastout_handle:
+            blast_records = [br for br in NCBIXML.parse(blastout_handle)]
         os.unlink(blastout.name)
         return blast_records
 
