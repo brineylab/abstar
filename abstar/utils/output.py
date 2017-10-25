@@ -328,7 +328,7 @@ class AbstarResult(object):
             output['padding'] = ['n' * 100] * 10
 
         # remove empty entries to save MongoDB space
-        for i in output.keys():
+        for i in list(output.keys()):
             if output[i] == "":
                 del output[i]
             elif output[i] == []:
