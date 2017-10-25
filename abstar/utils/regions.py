@@ -201,14 +201,8 @@ class BaseRegions(object):
         # removed the region start position.
         # First, let's check to see if there's any query sequence prior to the start of
         # the region.
-        try:
-            if imgt_start > max(list(self.segment._imgt_position_from_raw.values())):
-                return None
-        except TypeError:
-            self.antibody.log('')
-            self.antibody.log('ANTIBODY ID:', self.antibody.id)
-            self.antibody.log('IMGT START:', imgt_start)
-            self.antibody.log('MAX START POSITION:', max(list(self.segment._imgt_position_from_raw.values())))
+        if imgt_start > max([p for p in self.segment._imgt_position_from_raw.values() if p is not None]):
+            return None
         # If there's sequence prior to the start of the region but the region start position
         # isn't present, we must have a deletion that removed the region start position. In
         # this case, we just scan forward in the sequence to find the earliest non-deleted
@@ -229,7 +223,7 @@ class BaseRegions(object):
         # or if the query sequence doesn't contain the region, then there isn't a
         # corresponding raw sequence position.
         # First, check to see if the query sequence begins after the end of the region
-        if imgt_end < min(list(self.segment._imgt_position_from_raw.values())):
+        if imgt_end < min([p for p in self.segment._imgt_position_from_raw.values() if p is not None]):
             return None
         # Now we need to try to find the start of a deletion that includes the region
         # end position
