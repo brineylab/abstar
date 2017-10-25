@@ -136,7 +136,7 @@ class BaseRegions(object):
                 # in the case of region-spanning indels, we need to process multiple regions
                 # simultaneously. The following prevents us from reprocessing a region
                 # that contains the second half of a region-spanning deletion.
-                if region in to_translate.keys():
+                if region in list(to_translate.keys()):
                     continue
                 # if we're looking at the first region in the query sequence, we need to make
                 # sure that we're in the correct reading frame.
@@ -201,7 +201,7 @@ class BaseRegions(object):
         # removed the region start position.
         # First, let's check to see if there's any query sequence prior to the start of
         # the region.
-        if imgt_start > max(self.segment._imgt_position_from_raw.values()):
+        if imgt_start > max(list(self.segment._imgt_position_from_raw.values())):
             return None
         # If there's sequence prior to the start of the region but the region start position
         # isn't present, we must have a deletion that removed the region start position. In
@@ -223,7 +223,7 @@ class BaseRegions(object):
         # or if the query sequence doesn't contain the region, then there isn't a
         # corresponding raw sequence position.
         # First, check to see if the query sequence begins after the end of the region
-        if imgt_end < min(self.segment._imgt_position_from_raw.values()):
+        if imgt_end < list(min(self.segment._imgt_position_from_raw.values())):
             return None
         # Now we need to try to find the start of a deletion that includes the region
         # end position
