@@ -52,6 +52,12 @@ from ..utils.output import get_abstar_result, get_output, write_output, get_head
 from ..utils.queue.celery import celery
 
 
+if sys.version_info[0] > 2:
+    STR_TYPES = [str, ]
+else:
+    STR_TYPES = [str, unicode]
+
+
 # ASSIGNERS = {cls.__name__.lower(): cls for cls in vars()['BaseAssigner'].__subclasses__()}
 
 
@@ -182,7 +188,7 @@ class Args(object):
         self.log = os.path.abspath(log) if log is not None else log
         self.temp = os.path.abspath(temp) if temp is not None else temp
         self.chunksize = int(chunksize)
-        self.output_type = [output_type, ] if output_type in [str, unicode] else output_type
+        self.output_type = [output_type, ] if output_type in STR_TYPES else output_type
         self.assigner = assigner
         self.merge = True if basespace else merge
         self.pandaseq_algo = str(pandaseq_algo)
