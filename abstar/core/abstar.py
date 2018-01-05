@@ -653,8 +653,9 @@ def run_abstar(seq_file, output_dir, log_dir, file_format, arg_dict):
 
 def process_sequences(sequences, args):
     seq_file = tempfile.NamedTemporaryFile(dir=args.temp, delete=False)
-    seq_file.write('\n'.join([s.fasta for s in sequences]))
     seq_file.close()
+    with open(seq_file.name, 'w') as f:
+        f.write('\n'.join([s.fasta for s in sequences]))
     assigner_class = ASSIGNERS[args.assigner]
     assigner = assigner_class(args.species)
     assigner(seq_file.name, 'fasta')
