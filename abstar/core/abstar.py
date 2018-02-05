@@ -30,6 +30,7 @@ import gzip
 import logging
 from multiprocessing import Pool
 import os
+import pkg_resources
 import re
 from subprocess import Popen, PIPE
 import sys
