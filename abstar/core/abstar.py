@@ -58,6 +58,8 @@ else:
     STR_TYPES = [str, unicode]
 
 
+__version__ = pkg_resources.require("abstar")[0].version
+
 # ASSIGNERS = {cls.__name__.lower(): cls for cls in vars()['BaseAssigner'].__subclasses__()}
 
 
@@ -162,6 +164,7 @@ def parse_arguments(print_help=False):
                         padding key name is included in --json-keys.')
     parser.add_argument('--pretty', dest='pretty', default=False, action='store_true',
                         help='Pretty format json file')
+    parser.add_argument('-v', '--version', action='version', version='%(prog)s {version}'.format(version=__version__))
     parser.add_argument('--add-padding', dest='padding', default=False, action='store_true',
                         help="If passed, will eliminate padding from json file. \
                         Don't use if you don't know what you are doing")
