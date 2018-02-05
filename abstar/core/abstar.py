@@ -72,7 +72,7 @@ __version__ = pkg_resources.require("abstar")[0].version
 
 
 def parse_arguments(print_help=False):
-    parser = ArgumentParser("Performs germline assignment and other relevant annotation on antibody sequence data from NGS platforms.")
+    parser = ArgumentParser(prog='AbStar', description="Performs germline assignment and other relevant annotation on antibody sequence data from NGS platforms.")
     parser.add_argument('-p', '--project', dest='project_dir', default=None,
                         help="The data directory, where files will be downloaded (or have previously \
                         been download), temp files will be stored, and output files will be \
