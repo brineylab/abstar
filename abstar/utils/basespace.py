@@ -34,8 +34,8 @@ import time
 from BaseSpacePy.api.BaseSpaceAPI import BaseSpaceAPI
 from BaseSpacePy.model.QueryParameters import QueryParameters as qp
 
-from abtools import log
-from abtools.pipeline import make_dir
+from abutils.utils import log
+from abutils.utils.pipeline import make_dir
 
 logger = log.get_logger('basespace')
 

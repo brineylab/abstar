@@ -30,8 +30,8 @@ from Bio import SeqIO
 from Bio.Blast.Applications import NcbiblastnCommandline
 from Bio.Blast import NCBIXML
 
-from abtools.alignment import local_alignment
-from abtools.sequence import Sequence
+from abutils.core.sequence import Sequence
+from abutils.utils.alignment import local_alignment
 
 from .assigner import BaseAssigner
 from ..core.germline import GermlineSegment
@@ -162,7 +162,7 @@ class Blastn(BaseAssigner):
         '''
         blast_path = os.path.join(self.binary_directory, 'blastn_{}'.format(platform.system().lower()))
         blast_db_path = os.path.join(self.germline_directory, 'blast/{}'.format(segment.lower()))
-        blastout = NamedTemporaryFile(delete=False)
+        blastout = NamedTemporaryFile(delete=False, mode='r')
         blastn_cmd = NcbiblastnCommandline(cmd=blast_path,
                                            db=blast_db_path,
                                            query=seq_file,
@@ -242,7 +242,7 @@ class Blastn(BaseAssigner):
 
     @staticmethod
     def build_jblast_input(jseqs):
-        jblast_input = NamedTemporaryFile(delete=False)
+        jblast_input = NamedTemporaryFile(delete=False, mode='w')
         jblast_input.write('\n'.join([s.fasta for s in jseqs]))
         jblast_input.close()
         return jblast_input.name

@@ -1,4 +1,5 @@
 import os
+import sys
 
 try:
     from setuptools import setup
@@ -15,7 +16,10 @@ if os.environ.get('READTHEDOCS', None):
     # Set empty install_requires to get install to work on readthedocs
     install_requires = []
 else:
-    req_file = 'requirements.txt'
+    if sys.version_info[0] > 2:
+        req_file = 'requirements.txt'
+    else:
+        req_file = 'requirements2.txt'
     try:
         reqs = parse_requirements(req_file, session=False)
     except TypeError:
@@ -29,7 +33,7 @@ config = {
     'url': 'https://www.github.com/briney/abstar',
     # 'download_url': 'www.github.com/briney/abstar/',
     'author_email': 'briney@scripps.edu',
-    'version': '0.2.11',
+    'version': '0.3.0',
     'install_requires': install_requires,
     'packages': ['abstar'],
     'scripts': ['bin/abstar',

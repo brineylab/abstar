@@ -26,7 +26,7 @@
 from __future__ import print_function
 
 
-class LoggingMixin():
+class LoggingMixin(object):
     """docstring for LoggingMixin"""
     def __init__(self):
         self._log = None

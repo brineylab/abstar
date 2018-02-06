@@ -30,15 +30,15 @@ from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.Alphabet import generic_dna
 
-from abtools.alignment import global_alignment, local_alignment
-from abtools.sequence import Sequence
-from abtools.utils.codons import codon_lookup
-from abtools.utils.decorators import lazy_property
+from abutils.core.sequence import Sequence
+from abutils.utils.alignment import global_alignment, local_alignment
+from abutils.utils.codons import codon_lookup
+from abutils.utils.decorators import lazy_property
 
 from ..utils.mixins import LoggingMixin
 
 
-class GermlineSegment(object, LoggingMixin):
+class GermlineSegment(LoggingMixin):
     """
     docstring for Germline
 
@@ -713,7 +713,7 @@ class IMGTGermlineGene(object):
     def gapped_aa_sequence(self):
         res = []
         coding = self.gapped_nt_sequence[self.coding_start - 1:]
-        for codon in (coding[pos:pos + 3] for pos in xrange(0, len(coding), 3)):
+        for codon in (coding[pos:pos + 3] for pos in range(0, len(coding), 3)):
             if len(codon) != 3:
                 continue
             if codon == '...':

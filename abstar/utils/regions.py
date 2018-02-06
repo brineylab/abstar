@@ -30,7 +30,7 @@ import traceback
 from Bio.Seq import Seq
 from Bio.Alphabet import generic_dna
 
-from abtools import log
+from abutils.utils import log
 
 
 
@@ -136,7 +136,7 @@ class BaseRegions(object):
                 # in the case of region-spanning indels, we need to process multiple regions
                 # simultaneously. The following prevents us from reprocessing a region
                 # that contains the second half of a region-spanning deletion.
-                if region in to_translate.keys():
+                if region in list(to_translate.keys()):
                     continue
                 # if we're looking at the first region in the query sequence, we need to make
                 # sure that we're in the correct reading frame.
@@ -166,16 +166,16 @@ class BaseRegions(object):
                         # of FR2, deletes the entire CDR2, and ends near the start of FR3).
                         next_regions = self.region_names[i + 1:]
                         reg_iter = iter(next_regions)
-                        region2 = reg_iter.next()
+                        region2 = next(reg_iter)
                         while len(self.nt_seqs[region2].strip('-')) == 0:
                             to_translate[region2] = ''
-                            region2 = reg_iter.next()
+                            region2 = next(reg_iter)
                         # if the current region and the next region with sequence data combine to form an in-frame
                         # sequence, we can fix the region-spanning deletion so that both regions are translated
                         # correctly.
                         if len(region_nt + self.nt_seqs[region2]) % 3 == 0:
                             region_seq, region2_seq = self._fix_region_spanning_indel(region_nt,
-                                                                                      self.nt_seqs[region2])
+                                                                     self.nt_seqs[region2])
                             to_translate[region] = region_seq
                             to_translate[region2] = region2_seq
                         # if the combined regions are still out of frame, the current region likely contains a
@@ -201,7 +201,7 @@ class BaseRegions(object):
         # removed the region start position.
         # First, let's check to see if there's any query sequence prior to the start of
         # the region.
-        if imgt_start > max(self.segment._imgt_position_from_raw.values()):
+        if imgt_start > max([p for p in self.segment._imgt_position_from_raw.values() if p is not None]):
             return None
         # If there's sequence prior to the start of the region but the region start position
         # isn't present, we must have a deletion that removed the region start position. In
@@ -223,7 +223,7 @@ class BaseRegions(object):
         # or if the query sequence doesn't contain the region, then there isn't a
         # corresponding raw sequence position.
         # First, check to see if the query sequence begins after the end of the region
-        if imgt_end < min(self.segment._imgt_position_from_raw.values()):
+        if imgt_end < min([p for p in self.segment._imgt_position_from_raw.values() if p is not None]):
             return None
         # Now we need to try to find the start of a deletion that includes the region
         # end position

@@ -28,7 +28,7 @@ import glob
 import subprocess as sp
 from multiprocessing import cpu_count
 
-from abtools import log
+from abutils.utils import log
 
 logger = log.get_logger('basespace')
 

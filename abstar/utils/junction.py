@@ -29,9 +29,9 @@ import traceback
 from Bio.Seq import Seq
 from Bio.Alphabet import generic_dna
 
-from abtools import log
-from abtools.alignment import global_alignment, local_alignment
-from abtools.utils.codons import codon_lookup as codons
+from abutils.utils import log
+from abutils.utils.alignment import global_alignment, local_alignment
+from abutils.utils.codons import codon_lookup as codons
 
 
 def get_junction(antibody):
@@ -127,7 +127,9 @@ class Junction(object):
 
         # if the J-gene is long enough to extend into the variable-length portion of the
         # junction numbering, need to adjust the IMGT numbering for the J-gene
-        if min(antibody.j.imgt_aa_positions) < 112 or min(antibody.j.imgt_nt_positions) < 334:
+        min_aa = min([p for p in antibody.j.imgt_aa_positions if p is not None])
+        min_nt = min([p for p in antibody.j.imgt_nt_positions if p is not None])
+        if min_aa < 112 or min_nt < 334:
             antibody.log('ADJUSTING J-GENE IMGT NUMBERING')
             antibody.log('OLD AA:', ', '.join([str(p) for p in antibody.j.imgt_aa_positions]))
             antibody.log('OLD NT:', ', '.join([str(p) for p in antibody.j.imgt_nt_positions]))

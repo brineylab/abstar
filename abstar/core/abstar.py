@@ -30,6 +30,7 @@ import gzip
 import logging
 from multiprocessing import Pool
 import os
+import pkg_resources
 import re
 from subprocess import Popen, PIPE
 import sys
@@ -40,9 +41,9 @@ import warnings
 
 from Bio import SeqIO
 
-from abtools import log
-from abtools.pipeline import list_files
-from abtools.sequence import Sequence
+from abutils.core.sequence import Sequence
+from abutils.utils import log
+from abutils.utils.pipeline import list_files
 
 from .antibody import Antibody
 from ..assigners.assigner import BaseAssigner
@@ -51,6 +52,14 @@ from ..assigners.registry import ASSIGNERS
 from ..utils.output import get_abstar_result, get_output, write_output, get_header
 from ..utils.queue.celery import celery
 
+
+if sys.version_info[0] > 2:
+    STR_TYPES = [str, ]
+else:
+    STR_TYPES = [str, unicode]
+
+
+__version__ = pkg_resources.require("abstar")[0].version
 
 # ASSIGNERS = {cls.__name__.lower(): cls for cls in vars()['BaseAssigner'].__subclasses__()}
 
@@ -63,7 +72,7 @@ from ..utils.queue.celery import celery
 
 
 def parse_arguments(print_help=False):
-    parser = ArgumentParser("Performs germline assignment and other relevant annotation on antibody sequence data from NGS platforms.")
+    parser = ArgumentParser(prog='abstar', description="VDJ assignment and antibody sequence annotation. Scalable from a single sequence to billions of sequences.")
     parser.add_argument('-p', '--project', dest='project_dir', default=None,
                         help="The data directory, where files will be downloaded (or have previously \
                         been download), temp files will be stored, and output files will be \
@@ -156,6 +165,8 @@ def parse_arguments(print_help=False):
                         padding key name is included in --json-keys.')
     parser.add_argument('--pretty', dest='pretty', default=False, action='store_true',
                         help='Pretty format json file')
+    parser.add_argument('-v', '--version', action='version', \
+                        version='%(prog)s {version}'.format(version=__version__))
     parser.add_argument('--add-padding', dest='padding', default=False, action='store_true',
                         help="If passed, will eliminate padding from json file. \
                         Don't use if you don't know what you are doing")
@@ -182,7 +193,7 @@ class Args(object):
         self.log = os.path.abspath(log) if log is not None else log
         self.temp = os.path.abspath(temp) if temp is not None else temp
         self.chunksize = int(chunksize)
-        self.output_type = [output_type, ] if output_type in [str, unicode] else output_type
+        self.output_type = [output_type, ] if output_type in STR_TYPES else output_type
         self.assigner = assigner
         self.merge = True if basespace else merge
         self.pandaseq_algo = str(pandaseq_algo)
@@ -461,9 +472,9 @@ def format_check(input_list):
 
 def _get_format(in_file):
     with open(in_file) as f:
-        line = f.next()
+        line = f.readline()
         while line.strip() == '':
-            line = f.next()
+            line = f.readline()
         if line.lstrip().startswith('>'):
             return 'fasta'
         elif line.lstrip().startswith('@'):
@@ -647,8 +658,9 @@ def run_abstar(seq_file, output_dir, log_dir, file_format, arg_dict):
 
 def process_sequences(sequences, args):
     seq_file = tempfile.NamedTemporaryFile(dir=args.temp, delete=False)
-    seq_file.write('\n'.join([s.fasta for s in sequences]))
     seq_file.close()
+    with open(seq_file.name, 'w') as f:
+        f.write('\n'.join([s.fasta for s in sequences]))
     assigner_class = ASSIGNERS[args.assigner]
     assigner = assigner_class(args.species)
     assigner(seq_file.name, 'fasta')
@@ -762,8 +774,8 @@ def monitor_celery_jobs(results):
 
 def update_progress(finished, jobs, failed=None):
     pct = int(100. * finished / jobs)
-    ticks = pct / 2
-    spaces = 50 - ticks
+    ticks = int(pct / 2)
+    spaces = int(50 - ticks)
     if failed:
         prog_bar = '\r({}/{}) |{}{}|  {}% ({}, {})'.format(finished, jobs, '|' * ticks, ' ' * spaces, pct, finished - failed, failed)
     else:

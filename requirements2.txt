@@ -1,6 +1,6 @@
 abutils
 biopython
 celery
-nwalign3
+nwalign
 pymongo
-scikit-bio
+scikit-bio<=0.4.2

@@ -27,14 +27,14 @@ import traceback
 from Bio.Seq import Seq
 from Bio.Alphabet import generic_dna
 
-from abtools.alignment import global_alignment, local_alignment
+from abutils.utils.alignment import global_alignment, local_alignment
 
+from .germline import get_imgt_germlines
 from ..utils import isotype, junction, mutations, productivity, regions
 from ..utils.mixins import LoggingMixin
-from .germline import get_imgt_germlines
 
 
-class Antibody(object, LoggingMixin):
+class Antibody(LoggingMixin):
     """
     docstring for Antibody
     """
