@@ -166,7 +166,7 @@ def parse_arguments(print_help=False):
     parser.add_argument('--pretty', dest='pretty', default=False, action='store_true',
                         help='Pretty format json file')
     parser.add_argument('-v', '--version', action='version', \
-                        version='%(prog)s {version}\n%(description)s'.format(version=__version__))
+                        version='%(prog)s {version}\n{description}'.format(version=__version__, description=decription))
     parser.add_argument('--add-padding', dest='padding', default=False, action='store_true',
                         help="If passed, will eliminate padding from json file. \
                         Don't use if you don't know what you are doing")
