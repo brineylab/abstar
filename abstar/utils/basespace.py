@@ -37,6 +37,9 @@ from BaseSpacePy.model.QueryParameters import QueryParameters as qp
 from abutils.utils import log
 from abutils.utils.pipeline import make_dir
 
+if sys.version_info[0] > 2:
+    raw_input = input
+
 logger = log.get_logger('basespace')
 
 
@@ -83,6 +86,8 @@ class BaseSpace(object):
         projects = self.api.getProjectByUser(queryPars=self.params)
         for project in projects:
             name = project.Name.encode('ascii', 'ignore')
+            if sys.version_info[0] > 2:
+                    name = name.decode('utf-8')
             if name == self.project_name:
                 return project.Id
         print('No projects matched the given project name ({})'.format(name))
@@ -96,15 +101,26 @@ class BaseSpace(object):
         while True:
             for i, project in enumerate(projects[offset * 25:(offset * 25) + 25]):
                 project_name = project.Name.encode('ascii', 'ignore')
+                if sys.version_info[0] > 2:
+                    project_name = project_name.decode('utf-8')
                 print('[ {} ] {}'.format(i + (offset * 25), project_name))
             print('')
             project_index = raw_input("Select the project number (or 'next' to see more projects): ")
             try:
                 project_index = int(project_index)
-                return projects[project_index].Id, projects[project_index].Name.encode('ascii', 'ignore')
+                selected_id = projects[project_index].Id
+                selected_name = projects[project_index].Name.encode('ascii', 'ignore')
+                if sys.version_info[0] > 2:
+                    selected_name = selected_name.decode('utf-8')
+                return selected_id, selected_name
             except:
                 offset += 1
-        return projects[project_index].Id, projects[project_index].Name.encode('ascii', 'ignore')
+        selected_id = projects[project_index].Id
+        selected_name = projects[project_index].Name.encode('ascii', 'ignore')
+        if sys.version_info[0] > 2:
+            selected_name = selected_name.decode('utf-8')
+        return selected_id, selected_name
+        # return projects[project_index].Id, projects[project_index].Name.encode('ascii', 'ignore')
 
 
     def _get_projects(self, start=0):
@@ -112,6 +128,8 @@ class BaseSpace(object):
         self.print_basespace_project()
         for i, project in enumerate(projects[:25]):
             project_name = project.Name.encode('ascii', 'ignore')
+            if sys.version_info[0] > 2:
+                project_name = project_name.decode('utf-8')
             print('[ {} ] {}'.format(i, project_name))
         print('')
         return projects
@@ -122,7 +140,7 @@ class BaseSpace(object):
         offset = 0
         while True:
             query_params = qp(pars={'Limit': 1024, 'SortDir': 'Asc', 'Offset': offset * 1024})
-            s = self.api.getSamplesByProject(self.project_id, queryPars=query_params)
+            s = self.api.getSamplesByProject(project_id, queryPars=query_params)
             if not s:
                 break
             samples.extend(s)
