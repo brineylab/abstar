@@ -168,7 +168,7 @@ class BaseSpace(object):
         samples = self._get_samples(self.project_id)
 
 
-        print('SAMPLES:' samples)
+        print('SAMPLES:', samples)
 
 
         for sample in samples:
