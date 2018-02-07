@@ -108,10 +108,25 @@ class BaseSpace(object):
             project_index = raw_input("Select the project number (or 'next' to see more projects): ")
             try:
                 project_index = int(project_index)
+
+
+
+                print('PROJECT INDEX:', project_index)
+
+
+
                 selected_id = projects[project_index].Id
                 selected_name = projects[project_index].Name.encode('ascii', 'ignore')
                 if sys.version_info[0] > 2:
                     selected_name = selected_name.decode('utf-8')
+                
+
+
+                print('SELECTED ID:', selected_id)
+                print('SELECTED NAME:', selected_name)
+
+
+
                 return selected_id, selected_name
             except:
                 offset += 1
@@ -151,8 +166,18 @@ class BaseSpace(object):
     def _get_files(self):
         files = []
         samples = self._get_samples(self.project_id)
+
+
+        print('SAMPLES:' samples)
+
+
         for sample in samples:
             files.extend(self.api.getFilesBySample(sample.Id, queryPars=self.params))
+        
+
+
+        print('FILES:', files)
+
         return files
 
 
