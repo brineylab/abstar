@@ -155,7 +155,7 @@ class BaseSpace(object):
         offset = 0
         while True:
             query_params = qp(pars={'Limit': 1024, 'SortDir': 'Asc', 'Offset': offset * 1024})
-            s = self.api.getSamplesByProject(self.project_id, queryPars=query_params)
+            s = self.api.getSamplesByProject(project_id, queryPars=query_params)
             if not s:
                 break
             samples.extend(s)
@@ -165,6 +165,14 @@ class BaseSpace(object):
 
     def _get_files(self):
         files = []
+
+
+
+        print('SELF PROJECT ID:', self.project_id)
+
+
+
+
         samples = self._get_samples(self.project_id)
 
 
