@@ -43,7 +43,7 @@ class BaseAssigner(object):
     that is optimal for every use case, the germline assignment component of AbStar has been
     designed to be modular and replaceable, allowing the relatively straightforward addition
     of new germline assignment tools and the selection of the desired Assigner at runtime.
-    AbStar's default Assigner (`blastn`) identifies V- and J-genes using BLASTn and identifies
+    AbStar's default Assigner (``blastn``) identifies V- and J-genes using BLASTn and identifies
     D-genes using rapid Smith-Waterman local alignment.
 
     The basic purpose of any custom Assigner class is to accept sequences and
