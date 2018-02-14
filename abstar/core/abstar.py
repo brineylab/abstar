@@ -298,7 +298,7 @@ def _make_direc(d, cluster):
 
 
 def make_merge_dir(args):
-    merge_parent = args.project_dir if args.project_dir is not None else os.path.dirname(indir)
+    merge_parent = args.project_dir if args.project_dir is not None else os.path.dirname(args.input)
     merge_dir = os.path.abspath(os.path.join(merge_parent, 'merged'))
     _make_direc(merge_dir, args)
     return merge_dir
