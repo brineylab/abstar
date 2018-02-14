@@ -29,6 +29,9 @@ import platform
 import os
 import sys
 
+if sys.version_info[0] > 2:
+    raw_input = input
+
 
 def main():
     creds = {}
