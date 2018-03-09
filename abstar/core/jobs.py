@@ -22,6 +22,8 @@
 #
 
 
+from __future__ import absolute_import, division, print_function, unicode_literals
+
 from multiprocessing import Pool
 
 from ..assigners.registry import ASSIGNERS

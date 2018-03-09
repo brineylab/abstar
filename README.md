@@ -1,4 +1,4 @@
-# AbStar  
+# abstar  
   
 VDJ assignment and antibody sequence annotation. Scalable from a single sequence to billions of sequences.  
   
@@ -12,16 +12,16 @@ VDJ assignment and antibody sequence annotation. Scalable from a single sequence
   
 ### use  
 
-To run AbStar on a single FASTA or FASTQ file:  
+To run abstar on a single FASTA or FASTQ file:  
 `abstar -i <input-file> -o <output-directory> -t <temp-directory>`
 
-To iteratively run AbStar on all files in an input directory:  
+To iteratively run abstar on all files in an input directory:  
 `abstar -i <input-directory> -o <output-directory> -t <temp-directory>`
   
-To run AbStar using the included test data as input:  
+To run abstar using the included test data as input:  
 `abstar -o <output-directory> -t <temp-directory> --use-test-data`  
   
-When using the AbStar test data, note that although the test data file contains 1,000 sequences, one of the test sequences is not a valid antibody recombination. Only 999 sequences should be processed successfully.  
+When using the abstar test data, note that although the test data file contains 1,000 sequences, one of the test sequences is not a valid antibody recombination. Only 999 sequences should be processed successfully.  
   
 ### additional options  
 `-l, --log` Change the log file location. Default is `<output_directory>/mongo.log`.  
@@ -34,7 +34,7 @@ When using the AbStar test data, note that although the test data file contains 
   
 `-s, --species` Select the species from which the input sequences are derived. Supported options are 'human', 'mouse', and 'macaque'. Default is 'human'.  
    
-`-c, --cluster` Runs AbStar in distributed mode on a Celery cluster.  
+`-c, --cluster` Runs abstar in distributed mode on a Celery cluster.  
   
 `-h, --help` Prints detailed information about all runtime options.
   
@@ -44,18 +44,19 @@ When using the AbStar test data, note that although the test data file contains 
 ### helper scripts  
 Two helper scripts are included:  
 `batch_mongoimport` automates the import of multiple JSON output files into a MongoDB database.  
-`make_basespace_credfile` makes a credentials file for BaseSpace, which is required if downloading sequences from BaseSpace with Abstar. Developer credentials are required, and the process for obtaining them is explained [here](https://support.basespace.illumina.com/knowledgebase/articles/403618-python-run-downloader)  
+`make_basespace_credfile` makes a credentials file for BaseSpace, which is required if downloading sequences from BaseSpace with abstar. Developer credentials are required, and the process for obtaining them is explained [here](https://support.basespace.illumina.com/knowledgebase/articles/403618-python-run-downloader)  
   
   
 ### requirements  
-Python 2.7 (3.x probably doesn't work, but hasn't been tested)  
-abtools  
+Python 3.3+ (2.7.x may work, but isn't well tested)  
+abutils  
 biopython  
 celery  
+nwalign3 (nwalign for Python 2.7.x)  
 pymongo  
-scikit-bio  
+scikit-bio (<=0.4.2 for Python 2.7.x)  
 
-All of the above dependencies can be installed with pip, and will be installed automatically when installing AbStar with pip.  
+All of the above dependencies can be installed with pip, and will be installed automatically when installing abstar with pip.  
 If you're new to Python, a great way to get started is to install the [Anaconda Python distribution](https://www.continuum.io/downloads), which includes pip as well as a ton of useful scientific Python packages.
   
 sequence merging requires [PANDAseq](https://github.com/neufeld/pandaseq)  

@@ -22,7 +22,7 @@
 #
 
 
-from __future__ import print_function, unicode_literals
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 from argparse import ArgumentParser
 from glob import glob
@@ -43,7 +43,7 @@ from Bio import SeqIO
 
 from abutils.core.sequence import Sequence
 from abutils.utils import log
-from abutils.utils.pipeline import list_files
+# from abutils.utils.pipeline import list_files
 
 from .antibody import Antibody
 from ..assigners.assigner import BaseAssigner
@@ -307,7 +307,7 @@ def make_merge_dir(args):
 def setup_logging(log_dir, debug):
     logfile = os.path.join(log_dir, 'abstar.log')
     debug = True if debug > 0 else False
-    print_debug = True if debug == 2 else False
+    # print_debug = True if debug == 2 else False
     log.setup_logging(logfile, debug=debug)
     global logger
     logger = log.get_logger('abstar')
@@ -1014,8 +1014,8 @@ def main(args):
                 args.isotype = args.species
             input_files = [f for f in list_files(input_dir, log=True) if os.stat(f).st_size > 0]
         output_files = []
-        assigned_files = []
-        unassigned_files = []
+        # assigned_files = []
+        # unassigned_files = []
         for f, fmt in zip(input_files, format_check(input_files)):
             # skip the non-FASTA/Q files
             if fmt is None:

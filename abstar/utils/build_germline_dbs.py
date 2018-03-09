@@ -22,7 +22,7 @@
 #
 
 
-from __future__ import print_function
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 from argparse import ArgumentParser
 import os
@@ -32,6 +32,9 @@ import subprocess as sp
 import sys
 
 from Bio import SeqIO
+
+if sys.version_info[0] > 2:
+    raw_input = input
 
 
 
