@@ -22,13 +22,19 @@ To run abstar using the included test data as input:
 `abstar -o <output-directory> -t <temp-directory> --use-test-data`  
   
 When using the abstar test data, note that although the test data file contains 1,000 sequences, one of the test sequences is not a valid antibody recombination. Only 999 sequences should be processed successfully.  
+
+When using BaseSpace as the input data source, you can optionally provide all of the required directories:  
+`abstar -i <input-directory> -o <output-directory> -t <temp-directory> -b`  
+  
+Or you can simply provide a single project directory, and all required directories will be created in the project directory:  
+`abstar -p <project_directory> -b`  
   
 ### additional options  
-`-l, --log` Change the log file location. Default is `<output_directory>/mongo.log`.  
+`-l, --log` Change the log directory location. Default is the parent directory of `<output_directory>`.  
   
 `-m, --merge` Input directory should contain paired FASTQ (or gzipped FASTQ) files. Paired files will be merged with PANDAseq prior to processing with AbAnalysis.  
   
-`-b, --basespace` Download a sequencing run from BaseSpace, which is Illumina's cloud storage environment. Since Illumina sequencers produce paired-end reads, --merge is also set.  
+`-b, --basespace` Download a sequencing run from BaseSpace, which is Illumina's cloud storage environment. Since Illumina sequencers produce paired-end reads, `--merge` is implied.  
   
 `-u N, --uaid N` Sequences contain a unique antibody ID (UAID, or molecular barcode) of length N. The uaid will be parsed from the beginning of each input sequence and added to the JSON output. Negative values result in the UAID being parsed from the end of the sequence.  
   
@@ -42,8 +48,9 @@ When using the abstar test data, note that although the test data file contains 
   
   
 ### helper scripts  
-Two helper scripts are included:  
+A few helper scripts are included with abstar:  
 `batch_mongoimport` automates the import of multiple JSON output files into a MongoDB database.  
+`build_abstar_germline_db` creates abstar germline databases from IMGT-gapped FASTA files of V, D and J gene segments.  
 `make_basespace_credfile` makes a credentials file for BaseSpace, which is required if downloading sequences from BaseSpace with abstar. Developer credentials are required, and the process for obtaining them is explained [here](https://support.basespace.illumina.com/knowledgebase/articles/403618-python-run-downloader)  
   
   
