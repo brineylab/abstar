@@ -1,9 +1,9 @@
 
 
-Building a new DB, current time: 03/31/2017 01:07:39
-New DB name:   /Users/bryanbriney/Google_Drive/burton_lab/sequencing/germline_dbs/imgt-gapped_macaque/macaque/blast/j
+Building a new DB, current time: 04/02/2018 13:26:15
+New DB name:   /Users/bryanbriney/.abstar/germline_dbs/macaque/blast/j
 New DB title:  j
 Sequence type: Nucleotide
 Keep MBits: T
 Maximum file size: 1000000000B
-Adding sequences from FASTA; added 19 sequences in 0.00205421 seconds.
+Adding sequences from FASTA; added 17 sequences in 0.00151205 seconds.

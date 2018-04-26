@@ -1,38 +1,34 @@
-> |IGHJ1*01|Macaca mulatta|F|J-REGION| | |1| | | | | | | |
+>null|IGHJ1*01|Macaca mulatta|F|J-REGION| |52 nt|1| | | | |52+0=52| | |
 GCTGAATACTTCGAGTTCTGGGGCCAGGGCGCCCTGGTCACCGTCTCCTCAG
-> |IGHJ2*01|Macaca mulatta|F|J-REGION| | |2| | | | | | | |
-CTACTGGTACTTCGATCTCTGGGGCCCTGGCACCCCAATCACCATCTCCTCAG
-> |IGHJ3*01|Macaca mulatta|F|J-REGION| | |2| | | | | | | |
+>null|IGHJ3*01|Macaca mulatta|F|J-REGION| |50 nt|2| | | | |50+0=50| | |
 TGATGCTTTTGATTTCTGGGGCCAAGGGCTCAGGGTCACCGTCTCTTCAG
-> |IGHJ4*01|Macaca mulatta|F|J-REGION| | |3| | | | | | | |
+>null|IGHJ4*01|Macaca mulatta|F|J-REGION| |48 nt|3| | | | |48+0=48| | |
 ACTACTTTGACTACTGGGGCCAGGGAGTCCTGGTCACCGTCTCCTCAG
-> |IGHJ5-1*01|Macaca mulatta|F|J-REGION| | |3| | | | | | | |
-ACAACCGGTTCGATGTCTGGGGCCCGGGAGTCCTGGTCACCGTCTCCTCAG
-> |IGHJ5-2*01|Macaca mulatta|F|J-REGION| | |3| | | | | | | |
-ACAACTCATTGGATGTCTGGGGCCAGGGAGTTCTGGTCACCGTCTCCTCAG
-> |IGHJ5-2*02|Macaca mulatta|F|J-REGION| | |3| | | | | | | |
+>null|IGHJ5*01|Macaca mulatta|F|J-REGION| |51 nt|3| | | | |51+0=51| | |
+ACAACCGGTTCGATGTCTGGGGCGCGGGAGTCCTGGTCACCGTCTCCTCAG
+>null|IGHJ5*02|Macaca mulatta|F|J-REGION| |51 nt|3| | | | |51+0=51| | |
 ACAACTCATTGGATGTCTGGGGCCGGGGAGTTCTGGTCACCGTCTCCTCAG
-> |IGHJ6*01|Macaca mulatta|F|J-REGION| | |3| | | | | | | |
+>null|IGHJ6*01|Macaca mulatta|F|J-REGION| |54 nt|3| | | | |54+0=54| | |
 ATTACTACGGTTTGGATTCCTGGGGCCAAGGGGTCGTCGTCACCGTCTCCTCAG
-> |IGKJ1*01|Macaca mulatta|F|J-REGION| | |2| | | | | | | |
+>null|IGKJ1*01|Macaca mulatta|F|J-REGION| |38 nt|2| | | | |38+0=38| | |
 GTGGACGTTCGGCCAAGGGACCAAGGTGGAAATCAAAC
-> |IGKJ2*01|Macaca mulatta|F|J-REGION| | |3| | | | | | | |
+>null|IGKJ2*01|Macaca mulatta|F|J-REGION| |39 nt|3| | | | |39+0=39| | |
 TGTACAGTTTTGGCCAGGGGACCAAAGTGGAGATCAAAC
-> |IGKJ3*01|Macaca mulatta|F|J-REGION| | |2| | | | | | | |
+>null|IGKJ3*01|Macaca mulatta|F|J-REGION| |38 nt|2| | | | |38+0=38| | |
 ATTCACTTTCGGCCCCGGGACCAAACTGGATATCAAAC
-> |IGKJ4*01|Macaca mulatta|F|J-REGION| | |2| | | | | | | |
+>null|IGKJ4*01|Macaca mulatta|F|J-REGION| |38 nt|2| | | | |38+0=38| | |
 GCTCACTTTCGGCGGAGGGACCAAGGTGGAGATCAAAC
-> |IGKJ5*01|Macaca mulatta|F|J-REGION| | |2| | | | | | | |
+>null|IGKJ5*01|Macaca mulatta|F|J-REGION| |38 nt|2| | | | |38+0=38| | |
 GATCACCTTCGGCCAAGGGACACGACTGGAGATTAAAC
-> |IGLJ1*01|Macaca mulatta|F|J-REGION| | |2| | | | | | | |
+>null|IGLJ1*01|Macaca mulatta|F|J-REGION| |38 nt|2| | | | |38+0=38| | |
 TTACATCTTCGGTGCTGGGACCCGGCTCACCGTCCTAG
-> |IGLJ2*01|Macaca mulatta|F|J-REGION| | |2| | | | | | | |
+>null|IGLJ2*01|Macaca mulatta|F|J-REGION| |38 nt|2| | | | |38+0=38| | |
 TGGCTTATTCGGAGGAGGGACCCGGCTGACCGTCCTAG
-> |IGLJ3*01|Macaca mulatta|F|J-REGION| | |2| | | | | | | |
+>null|IGLJ3*01|Macaca mulatta|F|J-REGION| |38 nt|2| | | | |38+0=38| | |
 TGTGTTATTCGGAGGAGGGACCCGGCTGACCGTCCTAG
-> |IGLJ4*01|Macaca mulatta|F|J-REGION| | |2| | | | | | | |
+>null|IGLJ4*01|Macaca mulatta|F|J-REGION| |38 nt|2| | | | |38+0=38| | |
 TTTGGTATTCTGTGGAGGGACCCAGCTGACCATTGTAG
-> |IGLJ5*01|Macaca mulatta|F|J-REGION| | |2| | | | | | | |
+>null|IGLJ5*01|Macaca mulatta|F|J-REGION| |38 nt|2| | | | |38+0=38| | |
 TTGGGTGTTCGGCGAGGGGACCAAGCTGACCATCCTAG
-> |IGLJ6*01|Macaca mulatta|F|J-REGION| | |2| | | | | | | |
-TGATGTGTTCGGAAGTGGCACCAAGTTGACCGTCCTCG
+>null|IGLJ6*01|Macaca mulatta|F|J-REGION| |38 nt|2| | | | |38+0=38| | |
+TGATGTGTTCGGAAGTGGCACCAAGTTGACCATCCTCG
