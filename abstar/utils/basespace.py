@@ -25,9 +25,11 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 import argparse
+from datetime import datetime
 import json
 import os
 import platform
+from shutil import copyfile
 import sys
 import time
 
@@ -36,6 +38,7 @@ from BaseSpacePy.model.QueryParameters import QueryParameters as qp
 
 from abutils.utils import log
 from abutils.utils.pipeline import make_dir
+from abutils.utils.progbar import progress_bar
 
 if sys.version_info[0] > 2:
     raw_input = input
@@ -263,6 +266,31 @@ def download(download_directory, project_id=None, project_name=None):
     make_dir(download_directory)
     bs = BaseSpace(project_id, project_name)
     return bs.download(download_directory)
+
+
+def copy_from_basemount(basemount_directory, destination_directory):
+    make_dir(os.path.abspath(destination_directory))
+    fastqs = []
+    for (path, dirs, files) in os.walk(basemount_directory):
+        for f in files:
+            if f.endswith('.fastq.gz'):
+                fastqs.append(os.path.join(path, f))
+    logger.info('')
+    logger.info('')
+    logger.info('========================================')
+    logger.info('Copying files from BaseMount')
+    logger.info('========================================')
+    logger.info('')
+    logger.info('Found {0} FASTQ files.'.format(len(fastqs)))
+    logger.info('')
+    logger.info('Copying:')
+    start = datetime.now()
+    progress_bar(0, len(fastqs), start_time=start)
+    for i, fastq in enumerate(fastqs):
+        dest = os.path.join(destination_directory, os.path.basename(fastq))
+        copyfile(fastq, dest)
+        progress_bar(i + 1, len(fastqs), start_time=start)
+    print('\n')
 
 
 if __name__ == '__main__':
