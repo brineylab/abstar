@@ -9,7 +9,7 @@ VDJ assignment and antibody sequence annotation. Scalable from a single sequence
   
 ### install  
 `pip install abstar`  
-  test
+  test2
 ### use  
 
 To run abstar on a single FASTA or FASTQ file:  
