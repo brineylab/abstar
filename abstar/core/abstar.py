@@ -152,6 +152,10 @@ def parse_arguments(print_help=False):
                         Default is False. \
                         Providing temp and output directories (or a project directory) is required.")
     parser.add_argument('-s', '--species', dest='species', default='human')
+    parser.add_argument('-q', '--tcr', dest="tcr", action='store_true', default=False,
+                        help="Use if the input sequence or file(s) only contain T Cell Receptors \
+                        Abstar will run and try to find a germline assignment from a database \
+                        of germline T Cell receptors.")
     parser.add_argument('-z', '--gzip', dest='gzip', default=False, action='store_true',
                         help="Compress the output to a gzipped file")
     parser.add_argument('--raw', dest='raw', default=False, action='store_true',
@@ -183,7 +187,7 @@ class Args(object):
                  merge=False, pandaseq_algo='simple_bayesian', use_test_data=False,
                  nextseq=False, uid=0, isotype=False, pretty=False,
                  basespace=False, cluster=False, padding=True, raw=False, json_keys=None,
-                 debug=False, species='human', gzip=False):
+                 debug=False, species='human', tcr=False, gzip=False):
         super(Args, self).__init__()
         self.sequences = sequences
         self.project_dir = os.path.abspath(project_dir) if project_dir is not None else project_dir
@@ -209,6 +213,7 @@ class Args(object):
         self.json_keys = json_keys
         self.padding = padding
         self.species = species
+        self.tcr = tcr
 
 
 def validate_args(args):
@@ -236,13 +241,16 @@ def validate_args(args):
         args.json_keys = args.json_keys.split(',')
 
     # check to ensure a germline database exists for the requested species
+    receptor_type = 'tcr' if args.tcr else 'ab'
     addon_species_dbs = []
     builtin_species_dbs = []
-    addon_germline_dbs_dir = os.path.expanduser('~/.abstar/germline_dbs')
+    addon_germline_dbs_dir = os.path.expanduser(f'~/.abstar/germline_dbs/{receptor_type}')
+    print(addon_germline_dbs_dir)
     if os.path.isdir(addon_germline_dbs_dir):
         addon_species_dbs += [os.path.basename(d[0]) for d in os.walk(addon_germline_dbs_dir)]
     mod_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    builtin_germline_dbs_dir = os.path.join(mod_dir, 'assigners/germline_dbs/')
+    builtin_germline_dbs_dir = os.path.join(mod_dir, f'assigners/germline_dbs/{receptor_type}/')
+    print(builtin_germline_dbs_dir)
     if os.path.isdir(builtin_germline_dbs_dir):
         builtin_species_dbs += [os.path.basename(d) for d in list_files(builtin_germline_dbs_dir)]
     if not any([args.species.lower() in addon_species_dbs, args.species.lower() in builtin_species_dbs]):
@@ -608,11 +616,11 @@ def run_abstar(seq_file, output_dir, log_dir, file_format, arg_dict):
         unassigned_loghandle = open(unassigned_logfile, 'a')
         # start assignment
         assigner_class = ASSIGNERS[args.assigner]
-        assigner = assigner_class(args.species)  # initialize the assigner class with the species
+        assigner = assigner_class(args.species, args.tcr)  # initialize the assigner class with the species
         assigner(seq_file, file_format)  # call the assigner
         # process all of the successfully assigned sequences
         outputs_dict = build_output_base(args.output_type)
-        assigned = [Antibody(vdj, args.species) for vdj in assigner.assigned]
+        assigned = [Antibody(vdj, args.species, args.tcr) for vdj in assigner.assigned]
         successful = 0
         for ab in assigned:
             try:
@@ -666,7 +674,7 @@ def process_sequences(sequences, args):
     assigner(seq_file.name, 'fasta')
     # process all of the successfully assigned sequences
     outputs = []
-    assigned = [Antibody(vdj, args.species) for vdj in assigner.assigned]
+    assigned = [Antibody(vdj, args.species, args.tcr) for vdj in assigner.assigned]
     for ab in assigned:
         try:
             ab.annotate(args.uid)
@@ -910,6 +918,10 @@ def run(*args, **kwargs):
 
         species (str): Species of the antibody sequences. Choices are 'human', 'macaque',
             'mouse' and 'rabbit'. Default is 'human'.
+
+        tcr (bool): If True, abstar will think the input sequence or file(s) only contain T Cell 
+                Receptors. Abstar will run and try to find a germline assignment from a database
+                of germline T Cell receptors.
 
         isotype (bool): If True, the isotype will infered by aligning the sequence region
             downstream of the J-gene. If False, the isotype will not be determined.

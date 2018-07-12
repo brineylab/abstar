@@ -52,12 +52,13 @@ class VDJ(LoggingMixin):
         j (Germline): an AbStar Germline object representing the assigned Joining gene
 
     """
-    def __init__(self, sequence, v=None, d=None, j=None):
+    def __init__(self, sequence, tcr, v=None, d=None, j=None):
         super(VDJ, self).__init__()
         LoggingMixin.__init__(self)
         self.sequence = Sequence(sequence)
         self.id = self.sequence.id
         self.oriented = self.sequence
+        self.tcr = tcr
         self.v = v
         self.d = d
         self.j = j

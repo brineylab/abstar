@@ -105,10 +105,10 @@ class BaseAssigner(object):
     ``__init__()``
     --------------
 
-    Your custom assigner class's ``__init__()`` must accept a single argument (``species``, in
+    Your custom assigner class's ``__init__()`` must accept two arguments (``species``and "tcr" in
     addition to the required ``self``). You must then call the BaseAssigner's ``__init__()`` and pass
-    the ``species`` argument. The simplest was to do this is by using ``super()``, like this:
-    ``super(MyAssigner, self).__init__(species)``, where ``MyAssigner`` is your assigner class.
+    the ``species`` and "tcr" arguments. The simplest was to do this is by using ``super()``, like this:
+    ``super(MyAssigner, self).__init__(species, tcr)``, where ``MyAssigner`` is your assigner class.
 
 
     Implementing the ``__call__()`` method
@@ -116,7 +116,7 @@ class BaseAssigner(object):
 
       - ``__call__()`` must accept two arguments. The first (``sequence_file``) is a FASTA- or
         FASTQ-formatted file of input sequences, depending on the user-provided input. The second argument
-        (``file_format``) defines the format of ``sequence_file``, either ``'fasta'`` or ``'fastq'``. If
+        (``file_format``) defines the format of ``sequence_file``, either ``'fasta'`` or ``'fastq'``. If 
         a FASTQ file is required by your assigner, ensure that ``__call__()`` raises the appropriate exception
         (and provides a sufficiently clear description of the problem) if a FASTA-formatted file is provided.
 
@@ -234,7 +234,7 @@ class BaseAssigner(object):
         class MyAssigner(BaseAssigner):
 
             def __init__(self, species):
-                super(MyAssigner, self).__init__(species)
+                super(MyAssigner, self).__init__(species, tcr)
                 self.binary = os.path.join(self.binary_directory, 'mybinary_{}'.format(platform.system()))
 
             def __call__(self, sequence_file, file_format):
@@ -290,10 +290,11 @@ class BaseAssigner(object):
 
     __metaclass__ = abc.ABCMeta
 
-    def __init__(self, species):
+    def __init__(self, species, tcr):
         super(BaseAssigner, self).__init__()
         self.name = self.__class__.__name__.lower()
         self.species = species
+        self.tcr = tcr
         self._assigned = None
         self._unassigned = None
         self._germline_directory = None
@@ -308,7 +309,7 @@ class BaseAssigner(object):
     @property
     def germline_directory(self):
         if self._germline_directory is None:
-            self._germline_directory = get_germline_database_directory(self.species)
+            self._germline_directory = get_germline_database_directory(self.species, self.tcr)
         return self._germline_directory
 
     @germline_directory.setter

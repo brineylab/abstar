@@ -63,7 +63,8 @@ def parse_arguments():
                         Format is not important, but this is the place for optional inforamtion like the origin \
                         of the germline database, the date of download, etc. Optional. If provided, the contents \
                         of the file will be stored as 'manifest.txt' in the top level of the germline database \
-                        (for user-provided databases, that would be '~/.abstar/germline_dbs/<species>/).")
+                        (for user-provided databases, that would be '~/.abstar/germline_dbs/ab/<species>/' or \
+                        ~/.abstar/germline_dbs/tcr/<species>/' if the '-t' argument is used).")
     parser.add_argument('-s', '--species', dest='species', required=True,
                         help="Name of the species from which the germline sequences are derived. \
                         If an AbStar germline database for the species already exists, it will be overwritten. \
@@ -71,6 +72,9 @@ def parse_arguments():
                         User-added germline databases will persist even after AbStar updates, so if you have added a \
                         'human' database and a new version of AbStar contains an updated 'human' database, the user-added \
                         database will still be used after the update.")
+    parser.add_argument('-t', '--tcr', dest='tcr', action='store_true', default=False,
+                        help="Use if the database you are creating is from T Cell Receptor genes. The default is to treat \
+                        input files as from antibody in origin")
     parser.add_argument('-l', '--location', dest='db_location', default=None,
                         help="Location into which the new germline databases will be deposited. \
                         Default is '~/.abstar/'. \
@@ -96,7 +100,7 @@ def parse_arguments():
 # -------------------------
 
 
-def get_addon_directory(db_location):
+def get_addon_directory(db_location, receptor_type):
     if db_location is not None:
         print('\n')
         print('NOTE: You have selected a non-default location for the germline directory.')
@@ -106,7 +110,7 @@ def get_addon_directory(db_location):
         print(string)
         addon_dir = db_location
     else:
-        addon_dir = os.path.expanduser('~/.abstar/germline_dbs')
+        addon_dir = os.path.expanduser(f'~/.abstar/germline_dbs/{receptor_type}')
     if not os.path.isdir(addon_dir):
         os.makedirs(addon_dir)
     return addon_dir
@@ -253,7 +257,9 @@ def print_manifest_info(manifest):
 
 def main():
     args = parse_arguments()
-    addon_dir = get_addon_directory(args.db_location)
+    # allowing creation of tcr databases
+    receptor_type = 'tcr' if args.tcr else 'ab'
+    addon_dir = get_addon_directory(args.db_location, receptor_type)
     check_for_existing_db(addon_dir, args.species)
     make_db_directories(addon_dir, args.species, args.isotypes)
     for segment, infile in [('Variable', args.v), ('Diversity', args.d), ('Joining', args.j)]:

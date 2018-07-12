@@ -44,8 +44,8 @@ class Blastn(BaseAssigner):
     docstring for Blastn
     """
 
-    def __init__(self, species):
-        super(Blastn, self).__init__(species)
+    def __init__(self, species, tcr):
+        super(Blastn, self).__init__(species, tcr)
 
 
     def __call__(self, sequence_file, file_format):
@@ -57,14 +57,14 @@ class Blastn(BaseAssigner):
         if file_format == 'fastq':
             with open(sequence_file, 'w') as handle:
                 handle.write('\n'.join(s.fasta for s in seqs))
-
+        
         # assign V-genes
         vblast_records = self.blast(sequence_file, self.species, 'V')
         # if there aren't any vblast_records, that means that none of the
         # sequences in the input file contained sequences with a significant
         # match to any germline V-gene. These are likely all non-antibody sequences.
         if not vblast_records:
-            vdjs = [VDJ(seq) for seq in seqs]
+            vdjs = [VDJ(seq, self.tcr) for seq in seqs]
             for vdj in vdjs:
                 vdj.log('V-GENE ASSIGNMENT ERROR:',
                         'No variable gene was found.',
@@ -75,7 +75,7 @@ class Blastn(BaseAssigner):
         for seq, vbr in zip(seqs, vblast_records):
             try:
                 germ = self.process_blast_record(vbr, self.species)
-                vdj = VDJ(seq, v=germ)
+                vdj = VDJ(seq, self.tcr, v=germ)
                 self.orient_query(vdj, vbr)
                 jquery = self.get_jquery_sequence(vdj.oriented, vbr)
                 # only try to find J-genes if there's a minimum of 10 nucleotides
@@ -85,7 +85,7 @@ class Blastn(BaseAssigner):
                     jquery_seqs.append(jquery)
                 # abort VDJ assignment if the J-gene query sequence is too short
                 else:
-                    vdj = VDJ(seq)
+                    vdj = VDJ(seq, self.tcr)
                     vdj.log('J-GENE QUERY ERROR:', 'Query sequence for J-gene assignment is too short.')
                     vdj.log('')
                     query = vbr.alignments[0].hsps[0].query
@@ -97,7 +97,7 @@ class Blastn(BaseAssigner):
                     vdj.log('J-QUERY SEQUENCE:', jquery.sequence)
                     self.unassigned.append(vdj)
             except:
-                vdj = VDJ(seq)
+                vdj = VDJ(seq, self.tcr)
                 vdj.exception('V-GENE ASSIGNMENT ERROR', traceback.format_exc())
                 self.unassigned.append(vdj)
 
@@ -129,7 +129,7 @@ class Blastn(BaseAssigner):
         # assign D-genes
         _vdjs = []
         for vdj, dquery in zip(vdjs, dquery_seqs):
-            if all([vdj.v.chain == 'heavy', dquery]):
+            if all([vdj.v.chain == 'heavy' or 'beta', dquery]):
                 try:
                     germ = self.assign_dgene(dquery, self.species)
                     vdj.d = germ
@@ -197,8 +197,8 @@ class Blastn(BaseAssigner):
             return None
         top_gl = all_gls[0]
         top_score = all_scores[0]
-        others = [GermlineSegment(germ, species, score=score) for germ, score in zip(all_gls[1:6], all_scores[1:6])]
-        return GermlineSegment(top_gl, species, score=top_score, others=others, assigner_name=self.name)
+        others = [GermlineSegment(germ, species, self.tcr, score=score) for germ, score in zip(all_gls[1:6], all_scores[1:6])]
+        return GermlineSegment(top_gl, species, self.tcr, score=top_score, others=others, assigner_name=self.name)
 
 
     def process_blast_record(self, blast_record, species):
@@ -206,8 +206,8 @@ class Blastn(BaseAssigner):
         all_scores = [a.hsps[0].bits for a in blast_record.alignments]
         top_gl = all_gls[0]
         top_score = all_scores[0]
-        others = [GermlineSegment(germ, species, score=score) for germ, score in zip(all_gls[1:], all_scores[1:])]
-        return GermlineSegment(top_gl, species, score=top_score, others=others[:5], assigner_name=self.name)
+        others = [GermlineSegment(germ, species, self.tcr, score=score) for germ, score in zip(all_gls[1:], all_scores[1:])]
+        return GermlineSegment(top_gl, species, self.tcr, score=top_score, others=others[:5], assigner_name=self.name)
 
 
     @staticmethod

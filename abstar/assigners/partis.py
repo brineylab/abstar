@@ -42,8 +42,8 @@ class Partis(BaseAssigner):
     docstring for Partis
     """
 
-    def __init__(self, species):
-        super(Partis, self).__init__(species)
+    def __init__(self, species, tcr):
+        super(Partis, self).__init__(species, tcr)
 
 
     def __call__(self, sequence_file, file_format, locus='ig'):

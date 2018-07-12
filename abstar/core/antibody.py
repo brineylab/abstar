@@ -40,7 +40,7 @@ class Antibody(LoggingMixin):
     """
     docstring for Antibody
     """
-    def __init__(self, vdj, species):
+    def __init__(self, vdj, species, tcr):
         super(Antibody, self).__init__()
         LoggingMixin.__init__(self)
         self.id = vdj.sequence.id
@@ -57,6 +57,8 @@ class Antibody(LoggingMixin):
         self._strand = None
         self._imgt_position_from_aligned = {}
         self._aligned_position_from_imgt = {}
+        #tcr?
+        self.tcr=tcr
 
 
     @property
@@ -201,7 +203,7 @@ class Antibody(LoggingMixin):
         self.log('J-GENE AA SEQUENCE:', self.j.aa_sequence)
 
         # realign D (if needed)
-        if all([self.chain == 'heavy', self.d is not None]):
+        if all([self.chain == 'heavy' or 'beta', self.d is not None]):
             try:
                 dstart = self.v.query_end + 1
                 dend = self.j.query_start

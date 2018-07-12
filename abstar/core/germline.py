@@ -68,11 +68,12 @@ class GermlineSegment(LoggingMixin):
         assigner_name (str): The assigner name. Will be converted to lowercase. Optional.
             If not provided, ``assigner_name`` will be set to ``'unknown'``.
     """
-    def __init__(self, full, species, score=None, strand=None, others=None, assigner_name=None):
+    def __init__(self, full, species, tcr, score=None, strand=None, others=None, assigner_name=None):
         super(GermlineSegment, self).__init__()
         LoggingMixin.__init__(self)
         self.full = full
         self.species = species
+        self.tcr = tcr
         self.assigner_score = score
         self.strand = strand
         self.others = others
@@ -165,7 +166,9 @@ class GermlineSegment(LoggingMixin):
         if self._chain is None:
             c = {'H': 'heavy',
                  'K': 'kappa',
-                 'L': 'lambda'}
+                 'L': 'lambda',
+                 'B': 'beta',
+                 'A': 'alpha'}
             self._chain = c.get(self.full[2], None)
         return self._chain
 
@@ -259,6 +262,7 @@ class GermlineSegment(LoggingMixin):
         antibody regions is simplified.
         '''
         self.imgt_germline = get_imgt_germlines(species=self.species,
+                                                tcr=self.tcr,
                                                 gene_type=self.gene_type,
                                                 gene=self.full)
         query = self.germline_alignment.replace('-', '')
@@ -333,7 +337,7 @@ class GermlineSegment(LoggingMixin):
         '''
         # mod_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         # db_file = os.path.join(mod_dir, 'assigners/germline_dbs/{}_{}.fasta'.format(self.species.lower(), self.gene_type))
-        germ_dir = get_germline_database_directory(self.species)
+        germ_dir = get_germline_database_directory(self.species, self.tcr)
         db_file = os.path.join(germ_dir, 'ungapped/{}.fasta'.format(self.gene_type.lower()))
         try:
             for s in SeqIO.parse(open(db_file), 'fasta'):
@@ -541,16 +545,17 @@ class GermlineSegment(LoggingMixin):
         return scores[gene]
 
 
-def get_germline_database_directory(species):
-    addon_dir = os.path.expanduser('~/.abstar/germline_dbs')
+def get_germline_database_directory(species, tcr):
+    receptor_type = 'tcr' if tcr else 'ab'
+    addon_dir = os.path.expanduser(f'~/.abstar/germline_dbs/{receptor_type}')
     if os.path.isdir(addon_dir):
         if species.lower() in [os.path.basename(d[0]) for d in os.walk(addon_dir)]:
             return os.path.join(addon_dir, species.lower())
     mod_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    return os.path.join(mod_dir, 'assigners/germline_dbs/{}'.format(species.lower()))
+    return os.path.join(mod_dir, 'assigners/germline_dbs/{}/{}'.format(receptor_type, species.lower()))
 
 
-def get_imgt_germlines(species, gene_type, gene=None):
+def get_imgt_germlines(species, tcr, gene_type, gene=None):
     '''
     Returns one or more IMGTGermlineGene objects that each contain a single IMGT-gapped germline gene.
 
@@ -565,6 +570,7 @@ def get_imgt_germlines(species, gene_type, gene=None):
                     If provided, a single ``IMGTGermlineGene`` object will be returned, or None if the
                     specified gene could not be found. If not provided, a list of ``IMGTGermlineGene``
                     objects for all germline genes matching the ``species`` and ``gene_type`` will be returned.
+        tcr (bool): True if looking to TCR germline database, false is looking for Ab germline database
 
     Returns:
     --------
@@ -575,7 +581,7 @@ def get_imgt_germlines(species, gene_type, gene=None):
     '''
     # mod_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     # db_file = os.path.join(mod_dir, 'assigners/germline_dbs/imgt_gapped/{}_{}_imgt-gapped.fasta'.format(species, gene_type))
-    germ_dir = get_germline_database_directory(species)
+    germ_dir = get_germline_database_directory(species, tcr)
     db_file = os.path.join(germ_dir, 'imgt_gapped/{}.fasta'.format(gene_type.lower()))
     try:
         germs = [IMGTGermlineGene(g) for g in SeqIO.parse(open(db_file, 'r'), 'fasta')]
@@ -627,7 +633,7 @@ def get_germlines(species, gene_type, chain=None, gene=None):
                           ``IMGTGermlineGene`` objects. If no sequences match the criteria or if a germline
                           database for the requested species is not found, ``None`` is returned.
     '''
-    germs = get_imgt_germlines(species, gene_type, gene=gene)
+    germs = get_imgt_germlines(species, tcr, gene_type, gene=gene)
     if germs is None:
         return germs
     if chain is not None:

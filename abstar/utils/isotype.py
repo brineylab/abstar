@@ -42,7 +42,7 @@ from ..core.germline import get_germline_database_directory
 
 def get_isotype(antibody):
     try:
-        germ_dir = get_germline_database_directory(antibody.species)
+        germ_dir = get_germline_database_directory(antibody.species, antibody.tcr)
         isotype_file = os.path.join(germ_dir, 'isotypes/isotypes.fasta')
         isotype_seqs = [Sequence(s) for s in SeqIO.parse(open(isotype_file, 'r'), 'fasta')]
         return Isotype(antibody, isotype_seqs)
