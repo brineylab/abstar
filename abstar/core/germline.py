@@ -37,6 +37,7 @@ from abutils.utils.alignment import global_alignment, local_alignment
 from abutils.utils.codons import codon_lookup
 from abutils.utils.decorators import lazy_property
 
+from ..utils import indels
 from ..utils.mixins import LoggingMixin
 
 
@@ -68,7 +69,7 @@ class GermlineSegment(LoggingMixin):
         assigner_name (str): The assigner name. Will be converted to lowercase. Optional.
             If not provided, ``assigner_name`` will be set to ``'unknown'``.
     """
-    def __init__(self, full, species, score=None, strand=None, others=None, assigner_name=None):
+    def __init__(self, full, species, score=None, strand=None, others=None, assigner_name=None, initialize_log=True):
         super(GermlineSegment, self).__init__()
         LoggingMixin.__init__(self)
         self.full = full
@@ -103,7 +104,8 @@ class GermlineSegment(LoggingMixin):
         self.germline_end = None
 
         # initialize log
-        self.initialize_log()
+        if initialize_log:
+            self.initialize_log()
 
         # These properties are populated by AbStar.
         # Assigners don't need to populate these (and they'll be overwritten
@@ -478,7 +480,6 @@ class GermlineSegment(LoggingMixin):
         Identifies and annotates indels in the query sequence.
         '''
         if self._indel_check():
-            from ..utils import indels
             self.insertions = indels.find_insertions(antibody, self)
             if self.insertions:
                 # only set self.has_insertion to 'yes' if the sequence has an in-frame insertion
