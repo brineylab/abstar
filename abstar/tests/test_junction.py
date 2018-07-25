@@ -25,10 +25,10 @@ def compare_junction_to_reference(antibodies):
     for ab in antibodies:
         ab.j.imgt_aa_positions = [p if not isinstance(p, STR) else None for p in ab.j.imgt_aa_positions]
         ab.j.imgt_nt_positions = [p if not isinstance(p, STR) else None for p in ab.j.imgt_nt_positions]
-        if sys.version_info[0] == 2:
-            ab.oriented_input = ab.oriented_input.encode('ascii')
-            ab.v.imgt_germline.gapped_nt_sequence = ab.v.imgt_germline.gapped_nt_sequence.encode('ascii')
-            ab.j.imgt_germline.gapped_nt_sequence = ab.j.imgt_germline.gapped_nt_sequence.encode('ascii')
+        # if sys.version_info[0] == 2:
+        #     ab.oriented_input.sequence = ab.oriented_input.sequence.encode('ascii')
+        #     ab.v.imgt_germline.gapped_nt_sequence = ab.v.imgt_germline.gapped_nt_sequence.encode('ascii')
+        #     ab.j.imgt_germline.gapped_nt_sequence = ab.j.imgt_germline.gapped_nt_sequence.encode('ascii')
         ref = ab.junction
         j = get_junction(ab)
         if ref.in_frame != j.in_frame:
