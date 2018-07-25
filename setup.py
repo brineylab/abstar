@@ -26,6 +26,9 @@ else:
         reqs = parse_requirements(req_file)
     install_requires = [str(r.req) for r in reqs]
 
+# read version
+exec(open('abstar/version.py').read())
+
 
 config = {
     'description': 'VDJ assignment and antibody sequence annotation. Scalable from a single sequence to billions of sequences.',
@@ -33,7 +36,7 @@ config = {
     'url': 'https://www.github.com/briney/abstar',
     # 'download_url': 'www.github.com/briney/abstar/',
     'author_email': 'briney@scripps.edu',
-    'version': '0.3.3',
+    'version': __version__,
     'install_requires': install_requires,
     'packages': ['abstar'],
     'scripts': ['bin/abstar',
