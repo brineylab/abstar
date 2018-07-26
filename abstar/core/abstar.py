@@ -59,7 +59,8 @@ else:
     STR_TYPES = [str, unicode]
 
 
-__version__ = pkg_resources.require("abstar")[0].version
+from ..version import __version__
+# __version__ = pkg_resources.require("abstar")[0].version
 
 # ASSIGNERS = {cls.__name__.lower(): cls for cls in vars()['BaseAssigner'].__subclasses__()}
 

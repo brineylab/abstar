@@ -139,8 +139,8 @@ class Junction(object):
             antibody.log('NEW AA:', ', '.join([str(p) for p in antibody.j.imgt_aa_positions]))
             antibody.log('NEW NT:', ', '.join([str(p) for p in antibody.j.imgt_nt_positions]))
         else:
-            antibody.j._correct_imgt_aa_position_from_imgt = {p: p for p in antibody.j.imgt_aa_positions}
-            antibody.j._correct_imgt_nt_position_from_imgt = {p: p for p in antibody.j.imgt_nt_positions}
+            antibody.j._initial_correct_imgt_aa_position_from_imgt = {p: p for p in antibody.j.imgt_aa_positions}
+            antibody.j._initial_correct_imgt_nt_position_from_imgt = {p: p for p in antibody.j.imgt_nt_positions}
 
 
     def _find_junction_nt_start(self, antibody):
