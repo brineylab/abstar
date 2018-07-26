@@ -1,7 +1,7 @@
 Install
 =======
 
-The easiest way to install AbStar locally (on OSX or Linux) is to use pip::
+The easiest way to install abstar locally (on OSX or Linux) is to use pip::
 
     $ pip install abstar
 
@@ -9,13 +9,13 @@ If you don't have pip, the Anaconda_ Python distribution contains pip along
 with a ton of useful scientific Python packages and is a great way to get 
 started with Python.
 
-AbStar does not run natively on Windows, but Windows users can run AbStar with Docker_::
+abstar does not run natively on Windows, but Windows users can run abstar with Docker_::
 
     $ docker pull briney/abstar
     $ docker run -it briney/abstar
 
-Stable_ and development_ versions of AbStar can also be downloaded from Github. 
-You can manually install the latest development version of AbStar with::
+Stable_ and development_ versions of abstar can also be downloaded from Github. 
+You can manually install the latest development version of abstar with::
 
     $ git clone https://github.com/briney/abstar
     $ cd abstar/
@@ -29,24 +29,28 @@ You can manually install the latest development version of AbStar with::
 
         $ pip install scikit-bio
 
-    and then retrying the manual install of AbStar.
+    and then retrying the manual install of abstar. Starting with version 0.5, scikit-bio 
+    dropped support for Python 2.7, so install scikit-bio on Python 2.7 with::
+
+        $ pip install scikit-bio<=0.4.2
 
 
 Requirements
 ------------
 
-* Python 2.7.x (Python 3 compatability is in the works)
-* abtools_
+* Python 2.7 or 3.5+
+* abutils_
 * biopython_
 * celery_
 * pymongo_
+* pytest_
 * `scikit bio`_
 
 
 Optional dependencies
 ---------------------
 
-Several optional AbStar components have additional dependencies:
+Several optional abstar components have additional dependencies:
 
 * ``abstar.preprocessing`` requires FASTQC_, cutadapt_ and sickle_
 * sequence merging requires PANDAseq_
@@ -60,7 +64,7 @@ If using Docker, all of the the optional dependencies are included.
 .. _Anaconda: https://www.continuum.io/downloads
 .. _stable: https://github.com/briney/abstar/releases
 .. _development: https://github.com/briney/abstar
-.. _abtools: https://github.com/briney/abtools
+.. _abutils: https://github.com/briney/abutils
 .. _biopython: http://biopython.org/
 .. _scikit bio: http://scikit-bio.org/
 .. _pymongo: https://api.mongodb.org/python/current/
@@ -71,3 +75,4 @@ If using Docker, all of the the optional dependencies are included.
 .. _sickle: https://github.com/najoshi/sickle
 .. _BaseSpace Python SDK: https://github.com/basespace/basespace-python-sdk
 .. _MongoDB: https://www.mongodb.org/
+.. _pytest: https://docs.pytest.org/en/latest/

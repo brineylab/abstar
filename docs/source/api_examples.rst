@@ -3,9 +3,9 @@
 API Examples
 ============
 
-AbStar and AbTools both expose a public API containing many of the core functions.
+abstar and abutils_ both expose a public API containing many of the core functions.
 This makes it reasonably straightforward to build custom pipelines that include
-several AbStar/AbTools components or integrate these tools with third-party tools. 
+several abstar/abutils components or integrate these tools with third-party tools. 
 A few simple examples are shown below.
 
 Case #1
@@ -19,7 +19,7 @@ be downloaded from BaseSpace as a separate pair of read files. We'd like to do s
   - quality trim
   - get another FASTQC report on the cleaned data
   - merge paired reads
-  - annotate with AbStar
+  - annotate with abstar
 
 ::
 
@@ -56,7 +56,7 @@ be downloaded from BaseSpace as a separate pair of read files. We'd like to do s
     merged_dir = os.path.join(PROJECT_DIR, 'merged')
     pandaseq.run(quality_dir, merged_dir)
 
-    # run AbStar
+    # run abstar
     temp_dir = os.path.join(PROJECT_DIR, 'temp')
     json_dir = os.path.join(PROJECT_DIR, 'json')
     abstar.run(input=merged_dir,
@@ -71,10 +71,10 @@ Sequencing data is a directory of single-read FASTQ files that have already been
 We'd like to do the following:
 
   - get a FASTQC report
-  - annotate with AbStar
+  - annotate with abstar
   - import the JSONs into a MongoDB database named ``MyDatabase``
 
-Our FASTQ file names are formatted as: ``SampleNumber-SampleName.fastq``, which means the AbStar output
+Our FASTQ file names are formatted as: ``SampleNumber-SampleName.fastq``, which means the abstar output
 file name would be ``SampleNumber-SampleName.json``. We'd like the corresponding MongoDB collection 
 to just be named ``SampleName``.
 
@@ -97,7 +97,7 @@ to just be named ``SampleName``.
     fastqc_dir = os.path.join(PROJECT_DIR, 'fastqc')
     abstar.fastqc(FASTQ_DIR, output=fastqc_dir)
 
-    # run AbStar
+    # run abstar
     temp_dir = os.path.join(PROJECT_DIR, 'temp')
     json_dir = os.path.join(PROJECT_DIR, 'json')
     abstar.run(input=FASTQ_DIR,
@@ -117,23 +117,23 @@ to just be named ``SampleName``.
 
 Case #3
 -------
-Now we'd like to use AbStar as part of an analysis script in which sequence annotation 
+Now we'd like to use abstar as part of an analysis script in which sequence annotation 
 isn't the primary output. In the previous
 examples, we started with raw(ish) sequence data and ended with either a directory of 
-JSON files or a MongoDB database populated with AbStar output. In this case, we're 
+JSON files or a MongoDB database populated with abstar output. In this case, we're 
 going to start with a MongoDB database, query that database for some sequences, and 
 generate the unmutated common ancestor (UCA). We'd like to annotate the UCA sequence 
 inline (as part of the script) so that we can do world-changing things with the 
 annotated UCA later in our script. For simplicity's sake, we're querying a local MongoDB 
-database that doesn't have authentication enabled, although ``abtools.mongodb`` can 
+database that doesn't have authentication enabled, although ``abutils.utils.mongodb`` can 
 work with remote MongoDB servers that require authentication.
 
 ::
 
     import abstar
 
-    from abtools import mongodb
-    from abtools.sequence import Sequence
+    from abutils.utils import mongodb
+    from abutils.utils.sequence import Sequence
 
     DB_NAME = 'MyDatabase'
     COLLECTION_NAME = 'MyCollection'
@@ -154,10 +154,13 @@ work with remote MongoDB servers that require authentication.
     sequences = get_sequences(DB_NAME, COLLECTION_NAME)
     uca_seq = calculate_uca(sequences)
 
-    # run AbStar on the UCA, returns an AbTools Sequence object
+    # run abstar on the UCA, returns an abutils Sequence object
     uca = abstar.run(['UCA', uca_seq])
 
     # do amazing, world-changing things with the UCA
     # ...
     # ...
     # ... 
+
+
+.. _abutils: https://github.com/briney/abutils
