@@ -1,5 +1,5 @@
 [![Build Status](https://travis-ci.com/briney/abstar.svg?branch=master)](https://travis-ci.com/briney/abstar)
-https://img.shields.io/pypi/pyversions/Django.svg
+![](https://img.shields.io/pypi/pyversions/Django.svg)
 
 # abstar  
   
