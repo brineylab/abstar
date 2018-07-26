@@ -16,9 +16,14 @@ import sys
 import os
 import shlex
 import sphinx_rtd_theme
-from mock import MagicMock
 
-from ...version import __version__
+from abstar import __version__
+
+if sys.version_info[0] > 2:
+    from unittest.mock import MagicMock
+else:
+    from mock import MagicMock
+
 
 if os.environ.get('READTHEDOCS', None) == 'True':
     class Mock(MagicMock):
@@ -26,9 +31,9 @@ if os.environ.get('READTHEDOCS', None) == 'True':
         def __getattr__(cls, name):
                 return Mock()
 
-    MOCK_MODULES = ['pygtk', 'gtk', 'gobject', 'argparse', 'numpy', 'nwalign', 'pandas',
-                    'abtools', 'abtools.sequence', 'abtools.log', 'abtools.alignment', 'abtools.utils',
-                    'abtools.pipeline', 'abtools.utils.decorators', 'abtools.utils.progbar',
+    MOCK_MODULES = ['pygtk', 'gtk', 'gobject', 'argparse', 'numpy', 'nwalign', 'pandas', 'abutils',
+                    'abutils.utils', 'abutils.utils.sequence', 'abutils.utils.log', 'abutils.utils.alignment',
+                    'abutils.utils.pipeline', 'abutils.utils.decorators', 'abutils.utils.utils.progbar',
                     'biopython', 'celery', 'pymongo', 'scikit-bio', 'BaseSpacePy', 'BaseSpacePy.api',
                     'BaseSpacePy.model', 'BaseSpacePy.api.BaseSpaceAPI', 'BaseSpacePy.model.QueryParameters',
                     'Bio', 'Bio.Align', 'Bio.Alphabet', 'Bio.SeqIO', 'Bio.Seq', 'Bio.SeqRecord',
