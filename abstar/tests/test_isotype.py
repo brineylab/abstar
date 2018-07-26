@@ -1,5 +1,5 @@
 #!usr/env/python
-# filename: test_integration.py
+# filename: test_isotype.py
 
 import os
 import sys

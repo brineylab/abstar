@@ -11,8 +11,6 @@ else:
     import cPickle as pickle
     bnab_hc_antibodies_file = 'bnab_hc_antibodies.pkl'
     bnab_lc_antibodies_file = 'bnab_lc_antibodies.pkl'
-    # bnab_hc_antibodies_file = 'bnab_hc_antibodies_py2.pkl'
-    # bnab_lc_antibodies_file = 'bnab_lc_antibodies_py2.pkl'
 
 with open(os.path.join(data_dir, bnab_hc_antibodies_file), 'rb') as f:
     REFERENCE_BNAB_HC_ANTIBODIES = pickle.load(f)

@@ -76,6 +76,8 @@ def aa_mutations(antibody):
     try:
         all_mutations = Mutations()
         for segment in [antibody.v, antibody.j]:
+            if segment is None:
+                continue
             mutations = Mutations()
             for i, (q, g) in enumerate(zip(segment.query_alignment, segment.germline_alignment)):
                 raw_nt_pos = i + segment.query_start
@@ -211,7 +213,7 @@ class Mutations(object):
         start = IMGT_REGION_START_POSITIONS_AA[region]
         end = IMGT_REGION_END_POSITIONS_AA[region]
         for mut in self.mutations:
-            if all([mut.imgt_codon >= start, mut.imgt_codon <= end]):
+            if all([float(mut.imgt_codon) >= start, float(mut.imgt_codon) <= end]):
                 region_mutations.append(mut)
         return region_mutations
 
