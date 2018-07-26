@@ -1,5 +1,6 @@
 [![Build Status](https://travis-ci.com/briney/abstar.svg?branch=master)](https://travis-ci.com/briney/abstar)
-![](https://img.shields.io/pypi/pyversions/Django.svg)
+![](https://img.shields.io/pypi/pyversions/abstar.svg)
+![](https://img.shields.io/badge/license-MIT-blue.svg)
 
 # abstar  
   
