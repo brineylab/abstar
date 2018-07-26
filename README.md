@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.com/briney/abstar.svg?branch=master)](https://travis-ci.com/briney/abstar)
+
 # abstar  
   
 VDJ assignment and antibody sequence annotation. Scalable from a single sequence to billions of sequences.  
