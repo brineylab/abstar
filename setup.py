@@ -51,11 +51,11 @@ config = {
                 'bin/build_abstar_germline_db',
                 'bin/make_basespace_credfile',],
     'include_package_data': True,
-    'classifiers': ('License :: OSI Approved :: MIT License',
+    'classifiers': ['License :: OSI Approved :: MIT License',
                     'Programming Language :: Python :: 2.7',
                     'Programming Language :: Python :: 3.5',
                     'Programming Language :: Python :: 3.6',
-                    'Topic :: Scientific/Engineering :: Bio-Informatics')
+                    'Topic :: Scientific/Engineering :: Bio-Informatics']
 }
 
 setup(**config)
