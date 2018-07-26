@@ -1,5 +1,6 @@
 ![](https://img.shields.io/pypi/v/abstar.svg?colorB=blue)
 [![Build Status](https://travis-ci.com/briney/abstar.svg?branch=master)](https://travis-ci.com/briney/abstar)
+[![Documentation Status](https://readthedocs.org/projects/abstar/badge/?version=latest)](https://abstar.readthedocs.io/en/latest/?badge=latest)
 ![](https://img.shields.io/pypi/pyversions/abstar.svg)
 ![](https://img.shields.io/badge/license-MIT-blue.svg)
 
