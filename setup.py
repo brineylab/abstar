@@ -29,14 +29,20 @@ else:
 # read version
 exec(open('abstar/version.py').read())
 
+# read long description
+with open("README.md", "r") as fh:
+    long_description = fh.read()
+
 
 config = {
-    'description': 'VDJ assignment and antibody sequence annotation. Scalable from a single sequence to billions of sequences.',
-    'author': 'Bryan Briney',
-    'url': 'https://www.github.com/briney/abstar',
-    # 'download_url': 'www.github.com/briney/abstar/',
-    'author_email': 'briney@scripps.edu',
+    'name': 'abstar',
     'version': __version__,
+    'author': 'Bryan Briney',
+    'author_email': 'briney@scripps.edu',
+    'description': 'VDJ assignment and antibody sequence annotation. Scalable from a single sequence to billions of sequences.',
+    'long_description': long_description,
+    'long_description_content_type': 'text/markdown',
+    'url': 'https://www.github.com/briney/abstar',
     'install_requires': install_requires,
     'packages': ['abstar'],
     'scripts': ['bin/abstar',
@@ -44,8 +50,12 @@ config = {
                 'bin/basespace_downloader',
                 'bin/build_abstar_germline_db',
                 'bin/make_basespace_credfile',],
-    'name': 'abstar',
-    'include_package_data': True
+    'include_package_data': True,
+    'classifiers': ('License :: OSI Approved :: MIT License',
+                    'Programming Language :: Python :: 2.7',
+                    'Programming Language :: Python :: 3.5',
+                    'Programming Language :: Python :: 3.6',
+                    'Topic :: Scientific/Engineering :: Bio-Informatics')
 }
 
 setup(**config)
