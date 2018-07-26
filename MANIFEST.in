@@ -1,5 +1,5 @@
 include README.md
-include req*.txt
+include requirements*
 include bin/*
 include docs/*.txt
 
