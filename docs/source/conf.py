@@ -32,7 +32,7 @@ if os.environ.get('READTHEDOCS', None) == 'True':
                 return Mock()
 
     MOCK_MODULES = ['pygtk', 'gtk', 'gobject', 'argparse', 'numpy', 'nwalign', 'pandas', 'abutils',
-                    'abutils.utils', 'abutils.utils.sequence', 'abutils.utils.log', 'abutils.utils.alignment',
+                    'abutils.utils', 'abutils.core.sequence', 'abutils.utils.log', 'abutils.utils.alignment',
                     'abutils.utils.pipeline', 'abutils.utils.decorators', 'abutils.utils.progbar',
                     'biopython', 'celery', 'pymongo', 'scikit-bio', 'BaseSpacePy', 'BaseSpacePy.api',
                     'BaseSpacePy.model', 'BaseSpacePy.api.BaseSpaceAPI', 'BaseSpacePy.model.QueryParameters',
