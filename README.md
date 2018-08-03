@@ -39,10 +39,17 @@ Or you can simply provide a single project directory, and all required directori
 `-u N, --uaid N` Sequences contain a unique antibody ID (UAID, or molecular barcode) of length N. The uaid will be parsed from the beginning of each input sequence and added to the JSON output. Negative values result in the UAID being parsed from the end of the sequence.  
   
 `-s, --species` Select the species from which the input sequences are derived. Supported options are 'human', 'mouse', and 'macaque'. Default is 'human'.  
+<<<<<<< HEAD
+   
+`-c, --cluster` Runs abstar in distributed mode on a Celery cluster. 
+
+`-q, --tcr` Runs abstar on input sequences against database of TCR genes from specified species.
+=======
 
 `-q, --tcr` Runs abstar on input sequences against database of TCR genes from specified species.
 
 `-c, --cluster` Runs abstar in distributed mode on a Celery cluster.  
+>>>>>>> b9ffc73a927fd33e0056f83bb3cf077d6a272293
   
 `-h, --help` Prints detailed information about all runtime options.
   
