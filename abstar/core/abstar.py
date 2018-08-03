@@ -449,7 +449,7 @@ def clear_temp_files(temp_files):
 #
 #####################################################################
 
-
+## update to use Basemount!
 def download_files(input_dir):
     from ..utils.basespace import BaseSpace
     bs = BaseSpace()
