@@ -49,7 +49,6 @@ Or you can simply provide a single project directory, and all required directori
 `-q, --tcr` Runs abstar on input sequences against database of TCR genes from specified species.
 
 `-c, --cluster` Runs abstar in distributed mode on a Celery cluster.  
->>>>>>> b9ffc73a927fd33e0056f83bb3cf077d6a272293
   
 `-h, --help` Prints detailed information about all runtime options.
   
