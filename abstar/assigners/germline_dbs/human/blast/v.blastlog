@@ -1,9 +1,9 @@
 
 
-Building a new DB, current time: 01/07/2017 20:28:47
-New DB name:   /Users/bryanbriney/git/abstar/abstar/assigners/germline_dbs/human/blast/v
+Building a new DB, current time: 09/24/2018 11:23:53
+New DB name:   /Users/bryanbriney/google_drive/brineylab/projects/abstar_germline-dbs/human_092418/human/blast/v
 New DB title:  v
 Sequence type: Nucleotide
 Keep MBits: T
 Maximum file size: 1000000000B
-Adding sequences from FASTA; added 341 sequences in 0.0325549 seconds.
+Adding sequences from FASTA; added 352 sequences in 0.0249321 seconds.
