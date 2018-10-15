@@ -185,6 +185,7 @@ class AbstarResult(object):
 
         output = collections.OrderedDict([
             ('seq_id', self.antibody.id),
+            ('description', self.antibody.raw_input.description),
             ('uid', self.antibody.uid),
             ('uaid', self.antibody.uid),
             ('chain', self.antibody.chain),
