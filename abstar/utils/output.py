@@ -163,7 +163,7 @@ class AbstarResult(object):
                     'n1_nt': self.antibody.junction.n1_nt,
                     'd_nt': self.antibody.junction.d_nt,
                     'n2_nt': self.antibody.junction.n2_nt,
-                    'j_nt': self.antibody.junction.v_nt,
+                    'j_nt': self.antibody.junction.j_nt, #Change from 'self.antibody.junction.v_nt' to 'self.antibody.junction.j_nt'
 #                     'd_cdr3_pos': {'start': self.antibody.junction.d_start_position_nt,
 #                                    'end': self.antibody.junction.d_end_position_nt},
                     'd_dist_from_cdr3_start': self.antibody.junction.d_dist_from_cdr3_start_nt,
@@ -181,7 +181,7 @@ class AbstarResult(object):
         else:
             junc = {'v_nt': self.antibody.junction.v_nt,
                     'n_nt': self.antibody.junction.n_nt,
-                    'j_nt': self.antibody.junction.v_nt}
+                    'j_nt': self.antibody.junction.j_nt} #Change from 'self.antibody.junction.v_nt' to 'self.antibody.junction.j_nt'
 
         output = collections.OrderedDict([
             ('seq_id', self.antibody.id),
