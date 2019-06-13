@@ -74,13 +74,17 @@ class Isotype(object):
 
     @lazy_property
     def isotype(self):
-        if self.alignment.score < 30:
+        if self.normalized_score < 2:
             return 'unknown'
         return self.alignment.target.id
 
     @lazy_property
     def score(self):
         return self.alignment.score
+
+    @lazy_property
+    def normalized_score(self):
+        return float(self.alignment.score) / len(self.alignment)
 
 
     def _get_alignments(self, antibody, isotype_seqs):
