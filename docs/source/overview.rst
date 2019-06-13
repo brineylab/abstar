@@ -29,7 +29,7 @@ that mimics the IMGT-HighV/Quest Summary output file.
 File formats
 ------------
 
-AbTools accepts standard FASTA or FASTQ files and produces, by default,
+abstar accepts standard FASTA or FASTQ files and produces, by default,
 JSON-formatted output. This output format allows us to build the output using
 data structures that match the way we process data programatically.
 JSON is also easily importable into NoSQL databases like MongoDB. We have 
