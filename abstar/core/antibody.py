@@ -250,8 +250,10 @@ class Antibody(LoggingMixin):
         # functions operate on the sequence provided by the alignment, which is defines the start of the match
         # the only offset that matters is the offset between the full germline and the portion that matched.
         #self.v_rf_offset = self.oriented_input.sequence.find(self.vdj_nt) % 3
-        if(self.v.germline_start > 0):
-            self.v_rf_offset = 3 - self.v.germline_start
+        if(self.v.germline_start > 3):
+            self.v_rf_offset = 3 - (self.v.germline_start % 3)
+        elif(self.v.germline_start > 0):
+            self.v_rf_offset = 3 - (self.v.germline_start)
         else:
             self.v_rf_offset = 0
         self.coding_start = self.v.query_start + self.v_rf_offset
