@@ -28,7 +28,7 @@ from argparse import ArgumentParser
 from glob import glob
 import gzip
 import logging
-from multiprocessing import Pool
+from multiprocessing import Pool, cpu_count
 import os
 import pkg_resources
 import re
@@ -140,6 +140,9 @@ def parse_arguments(print_help=False):
                         If set, input files will be split into many subfiles and passed \
                         to a Celery queue. If not set, input files will still be split, but \
                         will be distributed to local processors using multiprocessing.")
+    parser.add_argument('-N', 'num-cores', dest='num_cores', default=0, type=int,
+                        help="Number of cores used by abstar. Default is `0`, which uses \
+                        all available cores.")
     parser.add_argument('-D', '--debug', dest="debug", action='store_true', default=False,
                         help="If set, logs information about successfully assigned sequences as well \
                         as unsuccessful sequences. Useful for debugging small test datasets, \
@@ -169,8 +172,8 @@ def parse_arguments(print_help=False):
     parser.add_argument('-v', '--version', action='version', \
                         version='%(prog)s {version}'.format(version=__version__))
     parser.add_argument('--add-padding', dest='padding', default=False, action='store_true',
-                        help="If passed, will eliminate padding from json file. \
-                        Don't use if you don't know what you are doing")
+                        help="If passed, will add padding to the json output file. \
+                        Really only useful if you're using an old version of MongoDB.")
     if print_help:
         parser.print_help()
     else:
@@ -182,7 +185,7 @@ class Args(object):
     def __init__(self, project_dir=None, input=None, output=None, log=None, temp=None,
                  sequences=None, chunksize=500, output_type=['json', ], assigner='blastn',
                  merge=False, pandaseq_algo='simple_bayesian', use_test_data=False,
-                 nextseq=False, uid=0, isotype=False, pretty=False,
+                 nextseq=False, uid=0, isotype=False, pretty=False, num_cores=0,
                  basespace=False, cluster=False, padding=True, raw=False, json_keys=None,
                  debug=False, species='human', gzip=False):
         super(Args, self).__init__()
@@ -203,6 +206,7 @@ class Args(object):
         self.isotype = isotype
         self.basespace = basespace
         self.cluster = cluster
+        self.num_cores = num_cores
         self.pretty = pretty
         self.debug = debug
         self.gzip = gzip
@@ -223,6 +227,10 @@ def validate_args(args):
     if args.sequences:
         args.output_type = ['json', ]
         args.raw = True
+
+    # find the number of available cores if abstar is being run on all of them
+    if args.num_cores == 0:
+        args.num_cores = cpu_count()
 
     # set default temp directory if not provided
     if all([args.sequences is not None, args.temp is None]):
@@ -709,7 +717,7 @@ def _run_jobs_singlethreaded(files, output_dir, log_dir, file_format, args):
 
 
 def _run_jobs_via_multiprocessing(files, output_dir, log_dir, file_format, args):
-    p = Pool(maxtasksperchild=50)
+    p = Pool(processes=args.num_cores, maxtasksperchild=50)
     async_results = []
     update_progress(0, len(files))
     for f in files:
