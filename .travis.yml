@@ -8,6 +8,10 @@ matrix:
       env: REQUIREMENTS=requirements.txt
     - python: "3.6"
       env: REQUIREMENTS=requirements.txt
+    - python: "3.7"
+      env: REQUIREMENTS=requirements.txt
+    - python: "3.8"
+      env: REQUIREMENTS=requirements.txt
 branches:
   only:
   - master
