@@ -1,5 +1,5 @@
-abstar.core.abstar
-=============
+core
+==================
 
 .. automodule:: abstar.core.abstar
     :no-undoc-members:

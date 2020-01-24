@@ -2,7 +2,7 @@ API Reference
 =============
 
 
-abstar.abstar
+core
 -------------
 
 .. toctree::
@@ -10,8 +10,17 @@ abstar.abstar
     modules/abstar
 
 
+assigner
+-------------
 
-abstar.preprocess
+.. toctree::
+
+    modules/base_assigner
+    modules/blastn_assigner
+
+
+
+preprocess
 -----------------
 
 .. toctree::
@@ -21,8 +30,8 @@ abstar.preprocess
 
 
 
-abstar.utils
-------------
+helper utilities
+------------------
 
 .. toctree::
 

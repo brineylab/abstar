@@ -9,42 +9,46 @@ from a single sequence to billions of sequences.
 
 
 
-Getting Started
+getting started
 ---------------
 
 .. toctree::
    :maxdepth: 1
+   :caption: getting started
 
    overview
    installation
 
 
-Usage
+usage
 -----
 
 .. toctree::
    :maxdepth: 1
+   :caption: usage
 
    cli
    api_examples
    api
    
 
-About
+about
 -----
 
 .. toctree::
    :maxdepth: 1
+   :caption: about
 
    license
    news
 
 
-Related Projects
+related projects
 ----------------
 
 .. toctree::
    :maxdepth: 1
+   :caption: related projects
 
    abutils <https://github.com/briney/abutils>
    abcloud <https://github.com/briney/abcloud>

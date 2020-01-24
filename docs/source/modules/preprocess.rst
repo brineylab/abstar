@@ -1,4 +1,4 @@
-abstar.preprocess
+preprocess
 =================
 
 .. automodule:: abstar.preprocess
