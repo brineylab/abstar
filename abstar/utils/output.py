@@ -190,6 +190,7 @@ class AbstarResult(object):
             ('uaid', self.antibody.uid),
             ('chain', self.antibody.chain),
             ('v_gene', {'full': self.antibody.v.full,
+                         'aa_sequence': str(self.antibody.v.aa_sequence),
                         'fam': self.antibody.v.family,
                         'gene': self.antibody.v.gene,
                         'score': self.antibody.v.score,
