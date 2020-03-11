@@ -69,15 +69,14 @@ A few helper scripts are included with abstar:
 To run the test suite, clone or download the repository and run `pytest ./` from the top-level directory.  
   
 ### requirements  
-Python 2.7, 3.5+   
+Python 3.5+   
 abutils  
 biopython  
 celery  
-mock (Python 2.7 only)  
-nwalign3 (nwalign for Python 2.7)  
+nwalign3  
 pymongo  
 pytest  
-scikit-bio (<=0.4.2 for Python 2.7)  
+scikit-bio  
 
 All of the above dependencies can be installed with pip, and will be installed automatically when installing abstar with pip.  
 If you're new to Python, a great way to get started is to install the [Anaconda Python distribution](https://www.continuum.io/downloads), which includes pip as well as a ton of useful scientific Python packages.
