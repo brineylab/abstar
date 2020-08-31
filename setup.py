@@ -28,7 +28,10 @@ else:
         reqs = parse_requirements(req_file, session=False)
     except TypeError:
         reqs = parse_requirements(req_file)
-    install_requires = [str(r.req) for r in reqs]
+    try:
+        install_requires = [str(r.req) for r in reqs]
+    except:
+        install_requires = [str(r.requirement) for r in reqs]
 
 # read version
 exec(open('abstar/version.py').read())
