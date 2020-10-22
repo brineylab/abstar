@@ -1,9 +1,7 @@
 language: python
-# pick the appropriate requirements file for 2.7 or 3.x
+# pick the appropriate requirements file
 matrix:
   include:
-    - python: "3.6"
-      env: REQUIREMENTS=requirements.txt
     - python: "3.7"
       env: REQUIREMENTS=requirements.txt
     - python: "3.8"

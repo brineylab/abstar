@@ -69,7 +69,7 @@ A few helper scripts are included with abstar:
 To run the test suite, clone or download the repository and run `pytest ./` from the top-level directory.  
   
 ### requirements  
-Python 3.6+   
+Python 3.7+   
 abutils  
 biopython  
 celery  
