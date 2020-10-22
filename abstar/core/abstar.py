@@ -140,7 +140,7 @@ def parse_arguments(print_help=False):
                         If set, input files will be split into many subfiles and passed \
                         to a Celery queue. If not set, input files will still be split, but \
                         will be distributed to local processors using multiprocessing.")
-    parser.add_argument('-N', 'num-cores', dest='num_cores', default=0, type=int,
+    parser.add_argument('-N', '--num-cores', dest='num_cores', default=0, type=int,
                         help="Number of cores used by abstar. Default is `0`, which uses \
                         all available cores.")
     parser.add_argument('-D', '--debug', dest="debug", action='store_true', default=False,
