@@ -97,6 +97,7 @@ def compare_j_nt_mutations_to_reference(antibodies):
         j._imgt_position_from_raw = antibody.j._imgt_position_from_raw
         j.query_start = antibody.j.query_start
         j._correct_imgt_nt_position_from_imgt = antibody.j._correct_imgt_nt_position_from_imgt
+        j._initial_correct_imgt_nt_position_from_imgt = antibody.j._initial_correct_imgt_nt_position_from_imgt
         ab.j = j
         ab.v = None
         m = nt_mutations(ab)
@@ -152,11 +153,8 @@ def compare_v_aa_mutations_to_reference(antibodies):
         ab.j = None
         m = aa_mutations(ab)
 
-
         if ab.exceptions:
             errors.append('\n'.join(ab.exceptions))
-
-
 
         if len(ref.mutations) != len(m.mutations):
             e = '{} V-gene: '.format(antibody.id)
@@ -206,17 +204,14 @@ def compare_j_aa_mutations_to_reference(antibodies):
         j._imgt_position_from_raw = antibody.j._imgt_position_from_raw
         j.query_start = antibody.j.query_start
         j._correct_imgt_aa_position_from_imgt = antibody.j._correct_imgt_aa_position_from_imgt
+        j._initial_correct_imgt_aa_position_from_imgt = antibody.j._initial_correct_imgt_aa_position_from_imgt
         j.aa_sequence = antibody.j.aa_sequence
         ab.j = j
         ab.v = None
         m = aa_mutations(ab)
 
-
         if ab.exceptions:
             errors.append('\n'.join(ab.exceptions))
-
-
-
 
         if len(ref.mutations) != len(m.mutations):
             e = '{} J-gene: '.format(antibody.id)
