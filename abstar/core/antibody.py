@@ -27,7 +27,10 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import traceback
 
 from Bio.Seq import Seq
-from Bio.Alphabet import generic_dna
+try:
+    from Bio.Alphabet import generic_dna
+except ImportError:
+    generic_dna = 'DNA'
 
 from abutils.utils.alignment import global_alignment, local_alignment
 
