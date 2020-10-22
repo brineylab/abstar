@@ -29,7 +29,10 @@ import os
 import traceback
 
 from Bio.Seq import Seq
-from Bio.Alphabet import generic_dna
+try:
+    from Bio.Alphabet import generic_dna
+except ImportError:
+    generic_dna = 'DNA'
 
 from abutils.utils import log
 from abutils.utils.alignment import global_alignment, local_alignment
