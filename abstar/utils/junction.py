@@ -29,7 +29,6 @@ import os
 import traceback
 
 from Bio.Seq import Seq
-from Bio.Alphabet import generic_dna
 
 from abutils.utils import log
 from abutils.utils.alignment import global_alignment, local_alignment
@@ -78,7 +77,7 @@ class Junction(object):
                 antibody.log('JUNCTION NT:', self.junction_nt, len(self.junction_nt))
             if len(self.junction_nt) % 3 != 0:
                 self.in_frame = False
-        self.junction_aa = str(Seq(self.junction_nt.replace('-', ''), generic_dna).translate())
+        self.junction_aa = str(Seq(self.junction_nt.replace('-', '')).translate())
         antibody.log('JUNCTION AA:', self.junction_aa, len(self.junction_aa))
 
         # identify CDR3 sequence

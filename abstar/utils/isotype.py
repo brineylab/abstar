@@ -30,7 +30,6 @@ import traceback
 
 from Bio import SeqIO
 from Bio.Seq import Seq
-from Bio.Alphabet import generic_dna
 
 from abutils.core.sequence import Sequence
 from abutils.utils import log
