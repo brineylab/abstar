@@ -30,10 +30,6 @@ import sys
 import traceback
 
 from Bio.Seq import Seq
-try:
-    from Bio.Alphabet import generic_dna
-except ImportError:
-    generic_dna = 'DNA'
 
 from abutils.utils import log
 
@@ -193,7 +189,7 @@ class BaseRegions(object):
             for region, nt_seq in to_translate.items():
                 if len(nt_seq) % 3:
                     nt_seq = nt_seq[:-(len(nt_seq) % 3)]
-                aa_seq = str(Seq(nt_seq, generic_dna).translate())
+                aa_seq = str(Seq(nt_seq).translate())
                 aa_seqs[region] = aa_seq
             self._aa_seqs = aa_seqs
         return self._aa_seqs

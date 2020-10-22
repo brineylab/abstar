@@ -27,10 +27,6 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import traceback
 
 from Bio.Seq import Seq
-try:
-    from Bio.Alphabet import generic_dna
-except ImportError:
-    generic_dna = 'DNA'
 
 from abutils.utils.alignment import global_alignment, local_alignment
 
@@ -261,7 +257,7 @@ class Antibody(LoggingMixin):
         self.coding_start = self.v.query_start + self.v_rf_offset
         self.coding_end = self.j.query_end - (len(self.oriented_input[self.coding_start:self.j.query_end])) % 3
         self.coding_region = self.oriented_input[self.coding_start:self.coding_end + 1]
-        translated_seq = Seq(self.coding_region, generic_dna).translate()
+        translated_seq = Seq(self.coding_region).translate()
         self.log('READING FRAME OFFSET:', self.v_rf_offset)
         self.log('CODING START:', self.coding_start)
         self.log('CODING END:', self.coding_end)
@@ -285,7 +281,7 @@ class Antibody(LoggingMixin):
     def _vdj_germ_aa(self):
         'Returns the germline amino acid sequence of the VDJ region.'
         trim = len(self.vdj_germ_nt) - (len(self.vdj_germ_nt[self.v_rf_offset:]) % 3)
-        translated_seq = Seq(self.vdj_germ_nt[self.v_rf_offset:trim], generic_dna).translate()
+        translated_seq = Seq(self.vdj_germ_nt[self.v_rf_offset:trim]).translate()
         return str(translated_seq)
 
 

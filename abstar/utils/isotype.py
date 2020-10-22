@@ -30,10 +30,6 @@ import traceback
 
 from Bio import SeqIO
 from Bio.Seq import Seq
-try:
-    from Bio.Alphabet import generic_dna
-except ImportError:
-    generic_dna = 'DNA'
 
 from abutils.core.sequence import Sequence
 from abutils.utils import log

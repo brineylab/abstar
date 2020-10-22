@@ -30,10 +30,6 @@ import traceback
 
 from Bio import SeqIO
 from Bio.Seq import Seq
-try:
-    from Bio.Alphabet import generic_dna
-except ImportError:
-    generic_dna = 'DNA'
 
 from abutils.core.sequence import Sequence
 from abutils.utils.alignment import global_alignment, local_alignment
@@ -471,7 +467,7 @@ class GermlineSegment(LoggingMixin):
 
 
     def _get_aa_sequence(self):
-        return Seq(self.coding_region, generic_dna).translate()
+        return Seq(self.coding_region).translate()
 
 
     def _fix_ambigs(self, antibody):

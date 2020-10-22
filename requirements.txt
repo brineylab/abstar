@@ -1,5 +1,5 @@
 abutils
-biopython
+biopython>=1.78
 celery
 nwalign3
 pymongo
