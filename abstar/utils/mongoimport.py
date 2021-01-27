@@ -96,7 +96,7 @@ class Args(object):
         self.password = password
         self.input = input
         self.db = db
-        self.log = log if log else sys.stdout
+        self.log = log if log is not None else sys.stdout
         self.split_file = split_file
         self.split_file_lines = int(split_file_lines)
         self.delim1 = delim1
@@ -364,8 +364,12 @@ def main(args):
         err += '  3. the path to a directory of JSON files\n\n'
         err += 'You supplied: {}\n'.format(input)
         raise RuntimeError(err)
-    log_handle = open(args.log, 'a')
-    open(args.log, 'w').write('')
+    try:
+        log_handle = open(args.log, 'a')
+        open(args.log, 'w').write('')
+    except TypeError:
+        # log is being written to stdout, not a file
+        log_handle = args.log
     log_handle.write('\nImporting {} files.\n'.format(len(in_files)))
     for i, f in enumerate(in_files):
         coll = get_collection(f, args)
