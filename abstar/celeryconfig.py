@@ -17,13 +17,15 @@
 # config file for Celery Daemon
 
 # RabbitMQ broker
-BROKER_URL = 'pyamqp://abcloud:abcloud@master:5672/abcloud_host'
+BROKER_URL = 'rpc://abcloud:abcloud@master:5672/abcloud_host'
+# BROKER_URL = 'pyamqp://guest@master//'
 
 # Redis broker
 # BROKER_URL = 'redis://master:6379/0'
 
 # RabbitMQ backend
-CELERY_RESULT_BACKEND = 'pyamqp://abcloud:abcloud@master:5672/abcloud_host'
+RESULT_BACKEND = 'rpc://abcloud:abcloud@master:5672/abcloud_host'
+# RESULT_BACKEND = 'pyamqp://guest@master//'
 
 # Redis backend
 # CELERY_RESULT_BACKEND = 'redis://master:6379/0'
