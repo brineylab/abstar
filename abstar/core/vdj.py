@@ -35,11 +35,11 @@ class VDJ(LoggingMixin):
     Args:
     -----
 
-        sequence: The query sequence, in any format that AbTools' Sequence can accept:
+        sequence: The query sequence, in any format that ```abutils.core.sequence.Sequence``` can accept:
 
                 1. a nucleotide sequence, as a string
                 2. a Biopython ``SeqRecord`` object
-                3. an AbTools ``Sequence`` object
+                3. an abutils ``Sequence`` object
                 4. a list/tuple of the format ``[seq_id, sequence]``
 
             Note that if a plain nucleotide sequence is provided, a random sequence seq_id

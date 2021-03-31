@@ -24,12 +24,25 @@
 
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-import json
-import uuid
 import collections
+import json
+import os
 import traceback
+import uuid
 
 from abutils.utils import log
+
+from .cigar import make_cigar
+
+
+PARQUET_INCOMPATIBLE = ['json', ]
+OUTPUT_SEPARATORS = {'airr': '\t',
+                     'imgt': ',',
+                     'tabular': ','}
+OUTPUT_EXTENSIONS = {'airr': '.txt',
+                     'json': '.json',
+                     'imgt': '.csv',
+                     'tabular': '.csv'}
 
 
 
@@ -53,9 +66,11 @@ class AbstarResult(object):
         # property vars
         self._json_output = None
         self._imgt_output = None
-        self._minimal_output = None
+        self._tabular_output = None
+        self._airr_output = None
         self._imgt_header = None
-        self._minimal_header = None
+        self._tabular_header = None
+        self._airr_header = None
 
 
     @property
@@ -86,14 +101,36 @@ class AbstarResult(object):
 
 
     @property
-    def minimal_output(self):
-        if self._minimal_output is None:
-            self._minimal_output = self._build_minimal_output()
-        return self._minimal_output
+    def tabular_output(self):
+        if self._tabular_output is None:
+            self._tabular_output = self._build_tabular_output()
+        return self._tabular_output
 
-    @minimal_output.setter
-    def minimal_output(self, minimal):
-        self._minimal_output = minimal
+    @tabular_output.setter
+    def tabular_output(self, tabular):
+        self._tabular_output = tabular
+
+    
+    @property
+    def airr_output(self):
+        if self._airr_output is None:
+            self._airr_output = self._build_airr_output()
+        return self._airr_output
+
+    @airr_output.setter
+    def airr_output(self, airr):
+        self._airr_output = airr
+
+    
+    # @property
+    # def parquet_output(self):
+    #     if self._parquet_output is None:
+    #         self._parquet_output = self._build_parquet_output()
+    #     return self._parquet_output
+
+    # @parquet_output.setter
+    # def parquet_output(self, parquet):
+    #     self._parquet_output = parquet
 
 
     def _build_json_output(self, raw=False):
@@ -347,7 +384,7 @@ class AbstarResult(object):
             return json.dumps(output)
 
 
-    def _build_minimal_output(self):
+    def _build_tabular_output(self):
         # pre-fill the isotype info
         try:
             isotype = self.antibody.isotype.isotype
@@ -373,20 +410,20 @@ class AbstarResult(object):
             ('j_full', self.antibody.j.full),
             ('j_gene', self.antibody.j.gene),
             # ('j_allele', vdj.j.top_germline.split('*')[-1]),
-            # ('junction_aa', vdj.junction.junction_aa),
-            # ('junction_nt', vdj.junction.junction_nt),
+            ('junction_aa', self.antibody.junction.junction_aa),
+            ('junction_nt', self.antibody.junction.junction_nt),
             ('cdr3_length', str(len(self.antibody.junction.cdr3_aa))),
-            # ('fr1_aa', vdj.v.regions.aa_seqs['FR1']),
-            # ('fr2_aa', vdj.v.regions.aa_seqs['FR2']),
-            # ('fr3_aa', vdj.v.regions.aa_seqs['FR3']),
-            # ('fr4_aa', vdj.j.regions.aa_seqs['FR4']),
-            # ('cdr1_aa', vdj.v.regions.aa_seqs['CDR1']),
-            # ('cdr2_aa', vdj.v.regions.aa_seqs['CDR2']),
+            ('fr1_aa', self.antibody.v.regions.aa_seqs['FR1']),
+            ('fr2_aa', self.antibody.v.regions.aa_seqs['FR2']),
+            ('fr3_aa', self.antibody.v.regions.aa_seqs['FR3']),
+            ('fr4_aa', self.antibody.j.regions.aa_seqs['FR4']),
+            ('cdr1_aa', self.antibody.v.regions.aa_seqs['CDR1']),
+            ('cdr2_aa', self.antibody.v.regions.aa_seqs['CDR2']),
             ('cdr3_nt', self.antibody.junction.cdr3_nt),
             ('cdr3_aa', self.antibody.junction.cdr3_aa),
             ('v_start', str(self.antibody.v.germline_start)),
             ('vdj_nt', self.antibody.vdj_nt),
-            ('vj_aa', self.antibody.vdj_aa),
+            ('vdj_aa', self.antibody.vdj_aa),
             ('var_muts_nt', '|'.join([m.abstar_formatted for m in self.antibody.v.nt_mutations])),
             ('var_muts_aa', '|'.join([m.abstar_formatted for m in self.antibody.v.aa_mutations])),
             ('var_identity_nt', str(self.antibody.v.nt_identity)),
@@ -401,11 +438,53 @@ class AbstarResult(object):
         return ','.join(output.values())
 
 
+    def _build_airr_output(self):
+        # format specification: https://docs.airr-community.org/en/latest/datarep/rearrangements.html
+        try:
+            c_call = self.antibody.isotype.isotype
+        except AttributeError:
+            isotype = 'null'
+        if self.antibody.d:
+            d_call = self.antibody.d.full
+            d_cigar = make_cigar(self.antibody.d)
+        else:
+            d_call = 'null'
+            d_cigar = 'null'
+        output = collections.OrderedDict([
+            ('sequence_id', self.antibody.id),
+            ('sequence', self.antibody.raw_input.sequence),
+            ('rev_comp', 'True' if self.antibody.v.strand == '-' else 'False'),
+            ('productive', 'True' if self.antibody.productivity.is_productive else 'False'),
+            ('v_call', self.antibody.v.full),
+            ('d_call', d_call),
+            ('j_call', self.antibody.j.full),
+            ('c_call', c_call),
+            ('sequence_alignment', self.antibody.gapped_vdj_nt),
+            ('germline_alignment', self.antibody.gapped_vdj_germ_nt),
+            ('junction', self.antibody.junction.junction_nt),
+            ('junction_aa', self.antibody.junction.junction_aa),
+            ('v_cigar', make_cigar(self.antibody.v)),
+            ('d_cigar', d_cigar),
+            ('j_cigar', make_cigar(self.antibody.j)),
+        ])
+        return '\t'.join(output.values())
+
+
+def get_output_suffix(output_format):
+    return OUTPUT_EXTENSIONS[output_format.lower()]
+
+
+def get_output_separator(output_format):
+    return OUTPUT_SEPARATORS[output_format.lower()]
+
+
 def get_header(output_type):
-    if output_type == 'minimal':
-        return ','.join(MINIMAL_HEADER)
+    if output_type == 'tabular':
+        return ','.join(TABULAR_HEADER)
     if output_type == 'imgt':
         return ','.join(IMGT_HEADER)
+    if output_type == 'airr':
+        return '\t'.join(AIRR_HEADER)
     return None
 
 
@@ -414,16 +493,29 @@ def get_output(result, output_type):
         return result.json_output
     elif output_type.lower() == 'imgt':
         return result.imgt_output
-    elif output_type.lower() == 'minimal':
-        return result.minimal_output
+    elif output_type.lower() == 'tabular':
+        return result.tabular_output
+    elif output_type.lower() == 'airr':
+        return result.airr_output
     else:
         return result.json_output
 
 
-def write_output(outputs, outfiles):
-    for _outputs, outfile in zip(outputs, outfiles):
-        with open(outfile, 'w') as f:
-            f.write('\n'.join(_outputs))
+# def write_output(outputs, outfiles):
+#     for _outputs, outfile in zip(outputs, outfiles):
+#         with open(outfile, 'w') as f:
+#             f.write('\n'.join(_outputs))
+
+def write_output(output_dict, output_dir, output_prefix):
+    output_file_dict = {}
+    for fmt in output_dict.keys():
+        subdir = os.path.join(output_dir, fmt)
+        output_name = output_prefix + get_output_suffix(fmt)
+        output_file = os.path.join(subdir, output_name)
+        with open(output_file, 'w') as f:
+            f.write('\n'.join(output_dict[fmt]))
+        output_file_dict[fmt] = output_file
+    return output_file_dict
 
 
 def build_output(vdjs, output_type, pretty, padding):
@@ -449,7 +541,7 @@ def build_output(vdjs, output_type, pretty, padding):
             output = []
             for vdj in vdjs:
                 try:
-                    output.append(_hadoop_minimal_output(vdj))
+                    output.append(_hadoop_tabular_output(vdj))
                 except AttributeError:
                     logger.debug('OUTPUT ERROR: {}'.format(vdj.id))
         return output
@@ -471,7 +563,7 @@ def as_dict(vdjs):
 def output_func(output_type):
     outputs = {'json': _json_output,
                'imgt': _imgt_summary_output,
-               'hadoop': _hadoop_minimal_output}
+               'hadoop': _hadoop_tabular_output}
     return outputs[output_type]
 
 
@@ -815,7 +907,7 @@ def _get_imgt_indel_string(v, indel_type, hadoop=False):
     return ', '.join(indel_list)
 
 
-def _hadoop_minimal_output(vdj):
+def _hadoop_tabular_output(vdj):
     output = collections.OrderedDict([
         ('seq_uuid', uuid.uuid4()),
         ('seq_id', vdj.id),
@@ -878,7 +970,7 @@ IMGT_HEADER = ['Sequence number',
                'V-REGION deletions',
                'Sequence']
 
-MINIMAL_HEADER = ['seq_id',
+TABULAR_HEADER = ['seq_id',
                   'uid',
                   'chain',
                   'productive',
@@ -904,3 +996,19 @@ MINIMAL_HEADER = ['seq_id',
                   'var_del',
                   'isotype',
                   'raw_input']
+
+AIRR_HEADER = ['sequence_id',
+               'sequence',
+               'rev_comp',
+               'productive',
+               'v_call',
+               'd_call',
+               'j_call',
+               'c_call',
+               'sequence_alignment',
+               'germline_alignment',
+               'junction',
+               'junction_aa',
+               'v_cigar',
+               'd_cigar',
+               'j_cigar']

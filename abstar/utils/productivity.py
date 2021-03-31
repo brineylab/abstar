@@ -38,14 +38,48 @@ class Productivity(object):
         self.antibody = antibody
         self.productivity_issues = []
         self._is_productive = None
+        self._is_productive_strict = None
 
 
     @property
-    def is_productive(self):
-        if self._is_productive is None:
+    def is_productive_strict(self):
+        '''
+        Predicts Ab functionality. Similar to ``is_productive``, except sequences with 
+        ambiguous nucleotides will be flagged as non-productive.
+        '''
+        if self._is_productive_strict is None:
             try:
                 problems = any([self.stop_codons(self.antibody),
                                 self.ambig_codons(self.antibody),
+                                self.vdj_disagreement(self.antibody),
+                                self.missing_conserved_junc_residues(self.antibody),
+                                self.junction_not_in_frame(self.antibody),
+                                self.out_of_frame_indels(self.antibody),
+                                ])
+                if problems:
+                    self._is_productive_strict = False
+                else:
+                    self._is_productive_strict = True
+            except:
+                self.antibody.exception('PRODUCTIVITY ERROR', traceback.format_exc())
+                raise
+        return self._is_productive_strict
+
+    
+    @property
+    def is_productive(self):
+        '''
+        Predicts Ab functionality. Abs are considered non-productive if they contain
+        any of the following:
+            - stop codon(s)
+            - locus disagreement between V and J genes (an IGHV with an IGKJ, for example)
+            - missing conserved junction anchor residues (initial C and terminal W/F)
+            - out-of-frame junction
+            - indels that are not codon-length
+        '''
+        if self._is_productive is None:
+            try:
+                problems = any([self.stop_codons(self.antibody),
                                 self.vdj_disagreement(self.antibody),
                                 self.missing_conserved_junc_residues(self.antibody),
                                 self.junction_not_in_frame(self.antibody),
