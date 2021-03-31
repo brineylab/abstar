@@ -1,7 +1,10 @@
 abutils>=0.2.1
 biopython>=1.78
 celery
+dask[complete]
 nwalign3
+pandas
+pyarrow
 pymongo
 pytest
 scikit-bio

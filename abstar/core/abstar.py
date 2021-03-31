@@ -41,6 +41,8 @@ import warnings
 
 from Bio import SeqIO
 
+import dask.dataframe as dd
+
 from abutils.core.sequence import Sequence
 from abutils.utils import log
 # from abutils.utils.pipeline import list_files
@@ -49,7 +51,8 @@ from .antibody import Antibody
 from ..assigners.assigner import BaseAssigner
 from ..assigners.registry import ASSIGNERS
 # from ..utils import output
-from ..utils.output import get_abstar_result, get_output, write_output, get_header
+from ..utils.output import get_abstar_result, get_abstar_results, get_output, write_output, get_header, get_output_suffix, get_output_separator
+from ..utils.output import PARQUET_INCOMPATIBLE
 from ..utils.queue.celery import celery
 
 
@@ -107,13 +110,17 @@ def parse_arguments(print_help=False):
                         Set to 0 if you want file splitting to be turned off \
                         Don't change unless you know what you're doing.")
     parser.add_argument('-O', '--output-type', dest="output_type", action='append',
-                        choices=['json', 'imgt', 'minimal'],
-                        help="Select the output type. Options are 'json', 'imgt' and 'minimal'. \
+                        choices=['json', 'imgt', 'tabular', 'airr'],
+                        help="Select the output type. Options are 'json', 'imgt', 'csv' and 'airr'. \
                         IMGT output mimics the Summary table produced by IMGT High-V/Quest, \
                         to maintain some level of compatibility with existing IMGT-based pipelines. \
                         JSON output is much more detailed, and is suitable for direct import into MongoDB. \
-                        Minimal output is in CSV format. \
+                        Tabular output contains a subset of the JSON output format in CSV format. \
+                        AIRR output is tab-delimited and conforms to AIRR data standards. \
                         Defaults to JSON output.")
+    parser.add_argument('--parquet', dest='parquet', action='store_true', default=False, 
+                        help="For tabular output formats, create parquet formatted output in addition to \
+                        the tabular delimited output. Default is False.")
     parser.add_argument('-m', '--merge', dest="merge", action='store_true', default=False,
                         help="Use if the input files are paired-end FASTQs \
                         (either gzip compressed or uncompressed) from Illumina platforms. \
@@ -185,7 +192,7 @@ class Args(object):
     def __init__(self, project_dir=None, input=None, output=None, log=None, temp=None,
                  sequences=None, chunksize=500, output_type=['json', ], assigner='blastn',
                  merge=False, pandaseq_algo='simple_bayesian', use_test_data=False,
-                 nextseq=False, uid=0, isotype=False, pretty=False, num_cores=0,
+                 parquet=False, nextseq=False, uid=0, isotype=False, pretty=False, num_cores=0,
                  basespace=False, cluster=False, padding=True, raw=False, json_keys=None,
                  debug=False, species='human', gzip=False):
         super(Args, self).__init__()
@@ -198,6 +205,7 @@ class Args(object):
         self.temp = os.path.abspath(temp) if temp is not None else temp
         self.chunksize = int(chunksize)
         self.output_type = [output_type, ] if output_type in STR_TYPES else output_type
+        self.parquet = parquet
         self.assigner = assigner
         self.merge = True if basespace else merge
         self.pandaseq_algo = str(pandaseq_algo)
@@ -294,6 +302,12 @@ def make_directories(args):
         d = os.path.abspath(d)
         full_paths.append(d)
         _make_direc(d, args.cluster)
+    if tempdir is not None:
+        for subdir in ['input'] + args.output_type:
+            _make_direc(os.path.join(tempdir, subdir), args.cluster)
+    if outdir is not None:
+        for subdir in args.output_type:
+            _make_direc(os.path.join(outdir, subdir), args.cluster)
     return full_paths[:-1]
 
 
@@ -361,15 +375,15 @@ def list_files(d, log=False):
     return files
 
 
-def get_output_suffix(output_format):
-    osuffixes = {'json': '.json',
-                 'imgt': '.csv',
-                 'minimal': '.txt'}
-    return osuffixes[output_format.lower()]
+# def get_output_suffix(output_format):
+#     osuffixes = {'json': '.json',
+#                  'imgt': '.csv',
+#                  'tabular': '.txt'}
+#     return osuffixes[output_format.lower()]
 
 
 def build_output_base(output_types):
-    needs_header = ['imgt', 'minimal']
+    needs_header = ['imgt', 'tabular', 'airr']
     output_dict = {}
     for output_type in output_types:
         if output_type in needs_header:
@@ -379,7 +393,8 @@ def build_output_base(output_types):
     return output_dict
 
 
-def concat_outputs(input_file, temp_output_files, output_dir, args):
+def concat_outputs(input_file, temp_output_file_dicts, output_dir, args):
+    # temp_output_file_dicts is a list of dicts with output format as key and output file as value
     ofiles = []
     bname = os.path.basename(input_file)
     if '.' in bname:
@@ -387,14 +402,15 @@ def concat_outputs(input_file, temp_output_files, output_dir, args):
         oprefix = '.'.join(split_name[:-1])
     else:
         oprefix = bname
-    # temp_output_files is a 2D list in the same order as sorted(args.output_type)
     logger.info('')
-    for output_type, temp_files in zip(sorted(args.output_type), zip(*temp_output_files)):
+    for output_type in sorted(args.output_type):
+        temp_files = [d[output_type] for d in temp_output_file_dicts]
         osuffix = get_output_suffix(output_type)
         oname = oprefix + osuffix
-        ofile = os.path.join(output_dir, oname)
+        output_subdir = os.path.join(output_dir, output_type)
+        ofile = os.path.join(output_subdir, oname)
         # temp_files = [tf for tf in temp_output_files if tf.endswith(osuffix)]
-        logger.info('Concatenating {} {}-formatted job outputs into a single output file'.format(len(temp_output_files),
+        logger.info('Concatenating {} {}-formatted job outputs into a single output file'.format(len(temp_files),
                                                                                                  output_type.upper()))
         if args.gzip:
             ohandle = gzip.open(ofile + ".gz", 'wb')
@@ -409,7 +425,7 @@ def concat_outputs(input_file, temp_output_files, output_dir, args):
                             out_file.write(line)
                     out_file.write('\n')
             # For file formats with headers, only keep headers from the first file
-            if output_type in ['imgt', 'minimal']:
+            if output_type in ['imgt', 'tabular', 'airr']:
                 for i, temp_file in enumerate(temp_files):
                     with open(temp_file) as f:
                         for j, line in enumerate(f):
@@ -418,6 +434,12 @@ def concat_outputs(input_file, temp_output_files, output_dir, args):
                             elif j >= 1:
                                 out_file.write(line)
                         out_file.write('\n')
+        if args.parquet and output_type not in PARQUET_INCOMPATIBLE:
+            logger.info('Converting concatenated output to parquet format')
+            pname = oprefix + '.parquet'
+            pfile = os.path.join(output_subdir, pname)
+            df = dd.read_csv(ofile, sep=get_output_separator(output_type))
+            df.to_parquet(pfile, engine='pyarrow')
         ofiles.append(ofile)
     return ofiles
 
@@ -620,6 +642,7 @@ def run_abstar(seq_file, output_dir, log_dir, file_format, arg_dict):
         assigner = assigner_class(args.species)  # initialize the assigner class with the species
         assigner(seq_file, file_format)  # call the assigner
         # process all of the successfully assigned sequences
+        # results = AbstarResults()
         outputs_dict = build_output_base(args.output_type)
         assigned = [Antibody(vdj, args.species) for vdj in assigner.assigned]
         successful = 0
@@ -631,6 +654,7 @@ def run_abstar(seq_file, output_dir, log_dir, file_format, arg_dict):
                                    padding=args.padding,
                                    raw=args.raw,
                                    keys=args.json_keys)
+                # results.add_result(result)
                 for i, output_type in enumerate(args.output_type):
                     try:
                         output = get_output(result, output_type)
@@ -649,8 +673,9 @@ def run_abstar(seq_file, output_dir, log_dir, file_format, arg_dict):
             except:
                 ab.exception('ANNOTATION ERROR', traceback.format_exc())
                 failed_loghandle.write(ab.format_log())
-        outputs = [outputs_dict[ot] for ot in sorted(args.output_type)]
-        write_output(outputs, output_files)
+        # outputs = [outputs_dict[ot] for ot in sorted(args.output_type)]
+        # write_output(outputs, output_files)
+        output_file_dict = write_output(outputs_dict, output_dir, output_filename)
         # capture the log for all unsuccessful sequences
         for vdj in assigner.unassigned:
             unassigned_loghandle.write(vdj.format_log())
@@ -659,7 +684,7 @@ def run_abstar(seq_file, output_dir, log_dir, file_format, arg_dict):
         annotated_loghandle.close()
         failed_loghandle.close()
         # return the number of successful assignments
-        return (output_files, successful, annotated_logfile, failed_logfile, unassigned_logfile)
+        return (output_file_dict, successful, annotated_logfile, failed_logfile, unassigned_logfile)
     except:
         logging.debug(traceback.format_exc())
 
@@ -1031,22 +1056,23 @@ def main(args):
                 continue
             start_time = time.time()
             print_input_file_info(f, fmt)
-            subfiles, seq_count = split_file(f, fmt, temp_dir, args)
+            input_tempdir = os.path.join(temp_dir, 'input')
+            subfiles, seq_count = split_file(f, fmt, input_tempdir, args)
             run_info = run_jobs(subfiles, temp_dir, log_dir, fmt, args)
-            temp_output_files = [r[0] for r in run_info if r is not None]
+            temp_output_file_dicts = [r[0] for r in run_info if r is not None]
             processed_seq_counts = [r[1] for r in run_info if r is not None]
             annotated_log_files = [r[2] for r in run_info if r is not None]
             failed_log_files = [r[3] for r in run_info if r is not None]
             unassigned_log_files = [r[4] for r in run_info if r is not None]
             vdj_end_time = time.time()
-            _output_files = concat_outputs(f, temp_output_files, output_dir, args)
+            _output_files = concat_outputs(f, temp_output_file_dicts, output_dir, args)
             unassigned_file = concat_logs(f, unassigned_log_files, log_dir, 'unassigned')
             failed_file = concat_logs(f, failed_log_files, log_dir, 'failed')
             if args.debug:
                 annotated_file = concat_logs(f, annotated_log_files, log_dir, 'annotated')
-            output_files.extend(output_files)
+            output_files.extend(_output_files)
             if not args.debug:
-                flat_temp_files = [f for subl in temp_output_files for f in subl]
+                flat_temp_files = [f for subdict in temp_output_file_dicts for f in subdict.values()]
                 clear_temp_files(subfiles + flat_temp_files + annotated_log_files + failed_log_files + unassigned_log_files)
             print_job_stats(seq_count, processed_seq_counts, start_time, vdj_end_time)
         return output_files

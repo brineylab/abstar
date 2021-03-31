@@ -218,6 +218,9 @@ class Blastn(BaseAssigner):
         # to see if the Subject sequence was reverse-complemented by BLASTn
         if hsp.sbjct_start > hsp.sbjct_end:
             vdj.oriented = Sequence(vdj.sequence.reverse_complement, id=vdj.sequence.id)
+            vdj.v.strand = '-'
+        else:
+            vdj.v.strang = '+'
 
 
     @staticmethod
