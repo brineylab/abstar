@@ -16,24 +16,24 @@
 
 # config file for Celery Daemon
 
-# default RabbitMQ broker
-# BROKER_URL = 'amqp://'
+# RabbitMQ broker
+broker_url = 'pyamqp://abcloud:abcloud@master:5672/abcloud_host'
 
 # Redis broker
-BROKER_URL = 'redis://master:6379/0'
+# BROKER_URL = 'redis://master:6379/0'
 
-# default RabbitMQ backend
-# CELERY_RESULT_BACKEND = 'amqp://'
+# RabbitMQ backend
+result_backend = 'rpc://abcloud:abcloud@master:5672/abcloud_host'
 
 # Redis backend
-CELERY_RESULT_BACKEND = 'redis://master:6379/0'
+# CELERY_RESULT_BACKEND = 'redis://master:6379/0'
 
 # Additional Redis-specific configs
-BROKER_TRANSPORT_OPTIONS = {'fanout_prefix': True,
+broker_transport_options = {'fanout_prefix': True,
                             'fanout_patterns': True,
                             'visibility_timeout': 3600}
 
 # Other configs
-CELERYD_MAX_TASKS_PER_CHILD = 320
-CELERYD_PREFETCH_MULTIPLIER = 1
-CELERY_ACKS_LATE = True
+worker_max_tasks_per_child = 320
+worker_prefetch_multiplier = 1
+task_acks_late = True
