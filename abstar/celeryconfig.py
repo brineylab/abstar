@@ -16,17 +16,17 @@
 
 # config file for Celery Daemon
 
-# default RabbitMQ broker
-# BROKER_URL = 'amqp://'
+# RabbitMQ broker
+BROKER_URL = 'amqp://abcloud:abcloud@master:5672/abcloud_host'
 
 # Redis broker
-BROKER_URL = 'redis://master:6379/0'
+# BROKER_URL = 'redis://master:6379/0'
 
-# default RabbitMQ backend
-# CELERY_RESULT_BACKEND = 'amqp://'
+# RabbitMQ backend
+CELERY_RESULT_BACKEND = 'amqp://abcloud:abcloud@master:5672/abcloud_host'
 
 # Redis backend
-CELERY_RESULT_BACKEND = 'redis://master:6379/0'
+# CELERY_RESULT_BACKEND = 'redis://master:6379/0'
 
 # Additional Redis-specific configs
 BROKER_TRANSPORT_OPTIONS = {'fanout_prefix': True,
