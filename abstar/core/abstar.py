@@ -440,7 +440,7 @@ def concat_outputs(input_file, temp_output_file_dicts, output_dir, args):
             pfile = os.path.join(output_subdir, pname)
             dtypes = get_parquet_dtypes(output_type)
             df = dd.read_csv(ofile, sep=get_output_separator(output_type), dtype=dtypes)
-            df.to_parquet(pfile, engine='pyarrow', dtype=dtypes)
+            df.to_parquet(pfile, engine='pyarrow')
         ofiles.append(ofile)
     return ofiles
 
