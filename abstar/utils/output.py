@@ -478,6 +478,16 @@ def get_output_separator(output_format):
     return OUTPUT_SEPARATORS[output_format.lower()]
 
 
+def get_parquet_dtypes(output_format):
+    if output_format.lower() == 'tabular':
+        dtypes = {'var_ins': 'object', 'var_del': 'object',
+                  'var_muts_nt': 'object', 'var_muts_aa': 'object'}
+    else:
+        dtypes = {}
+    return dtypes
+    
+
+
 def get_header(output_type):
     if output_type == 'tabular':
         return ','.join(TABULAR_HEADER)
