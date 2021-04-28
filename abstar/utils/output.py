@@ -1018,6 +1018,7 @@ TABULAR_HEADER = ['seq_id',
                   'var_ins',
                   'var_del',
                   'isotype',
+                  'species',
                   'raw_input']
 
 AIRR_HEADER = ['sequence_id',
