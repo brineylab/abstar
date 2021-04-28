@@ -435,8 +435,8 @@ class AbstarResult(object):
             ('var_ins', '|'.join([i.abstar_formatted for i in self.antibody.v.insertions])),
             ('var_del', '|'.join([d.abstar_formatted for d in self.antibody.v.deletions])),
             ('isotype', isotype),
-            ('species', self.antibody.species)
-            ('raw_input', self.antibody.raw_input.sequence)
+            ('species', self.antibody.species),
+            ('raw_input', self.antibody.raw_input.sequence),
         ])
         return ','.join(output.values())
 
@@ -1018,6 +1018,7 @@ TABULAR_HEADER = ['seq_id',
                   'var_ins',
                   'var_del',
                   'isotype',
+                  'species',
                   'raw_input']
 
 AIRR_HEADER = ['sequence_id',
