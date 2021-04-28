@@ -68,11 +68,13 @@ class GermlineSegment(LoggingMixin):
         assigner_name (str): The assigner name. Will be converted to lowercase. Optional.
             If not provided, ``assigner_name`` will be set to ``'unknown'``.
     """
-    def __init__(self, full, species, score=None, strand=None, others=None, assigner_name=None, initialize_log=True):
+    def __init__(self, raw, species, db_name, score=None, strand=None, others=None, assigner_name=None, initialize_log=True):
         super(GermlineSegment, self).__init__()
         LoggingMixin.__init__(self)
-        self.full = full
-        self.species = species
+        self.raw_assignment = raw
+        self.full = raw.split('__')[0]
+        self.species = species.lower()
+        self.db_name = db_name
         self.assigner_score = score
         self.strand = strand
         self.others = others
@@ -243,6 +245,10 @@ class GermlineSegment(LoggingMixin):
         '''
         oriented_input = antibody.oriented_input
         germline_seq = self._get_germline_sequence_for_realignment()
+        if germline_seq is None:
+            antibody.log('GET GERMLINE SEQUENCE ERROR')
+            antibody.log('RAW ASSIGNMENT:', self.raw_assignment)
+            antibody.log('GERMLINE GENE:', self.full)
         aln_params = self._realignment_scoring_params(self.gene_type)
         # if the alignment start/end positions have been annotated by the assigner,
         # force re-alignment using those parameters
@@ -273,7 +279,7 @@ class GermlineSegment(LoggingMixin):
         IMGT-formatted position numberings so that identifying
         antibody regions is simplified.
         '''
-        self.imgt_germline = get_imgt_germlines(species=self.species,
+        self.imgt_germline = get_imgt_germlines(self.db_name,
                                                 gene_type=self.gene_type,
                                                 gene=self.full)
         query = self.germline_alignment.replace('-', '')
@@ -348,11 +354,11 @@ class GermlineSegment(LoggingMixin):
         '''
         # mod_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         # db_file = os.path.join(mod_dir, 'assigners/germline_dbs/{}_{}.fasta'.format(self.species.lower(), self.gene_type))
-        germ_dir = get_germline_database_directory(self.species)
+        germ_dir = get_germline_database_directory(self.db_name)
         db_file = os.path.join(germ_dir, 'ungapped/{}.fasta'.format(self.gene_type.lower()))
         try:
             for s in SeqIO.parse(open(db_file), 'fasta'):
-                if s.id == self.full:
+                if s.id == self.raw_assignment:
                     return str(s.seq)
             # TODO: log that the germline gene wasn't found in the database file
             return None
@@ -564,7 +570,7 @@ def get_germline_database_directory(species):
     return os.path.join(mod_dir, 'assigners/germline_dbs/{}'.format(species.lower()))
 
 
-def get_imgt_germlines(species, gene_type, gene=None):
+def get_imgt_germlines(db_name, gene_type, gene=None):
     '''
     Returns one or more IMGTGermlineGene objects that each contain a single IMGT-gapped germline gene.
 
@@ -589,7 +595,7 @@ def get_imgt_germlines(species, gene_type, gene=None):
     '''
     # mod_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     # db_file = os.path.join(mod_dir, 'assigners/germline_dbs/imgt_gapped/{}_{}_imgt-gapped.fasta'.format(species, gene_type))
-    germ_dir = get_germline_database_directory(species)
+    germ_dir = get_germline_database_directory(db_name)
     db_file = os.path.join(germ_dir, 'imgt_gapped/{}.fasta'.format(gene_type.lower()))
     try:
         germs = [IMGTGermlineGene(g) for g in SeqIO.parse(open(db_file, 'r'), 'fasta')]
@@ -615,7 +621,7 @@ def get_imgt_germlines(species, gene_type, gene=None):
         return None
 
 
-def get_germlines(species, gene_type, chain=None, gene=None):
+def get_germlines(db_name, gene_type, chain=None, gene=None):
     '''
     Returns one or more IMGTGermlineGene objects that each contain a single IMGT-gapped germline gene.
 
@@ -641,7 +647,7 @@ def get_germlines(species, gene_type, chain=None, gene=None):
                           ``IMGTGermlineGene`` objects. If no sequences match the criteria or if a germline
                           database for the requested species is not found, ``None`` is returned.
     '''
-    germs = get_imgt_germlines(species, gene_type, gene=gene)
+    germs = get_imgt_germlines(db_name, gene_type, gene=gene)
     if germs is None:
         return germs
     if chain is not None:

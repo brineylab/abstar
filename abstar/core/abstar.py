@@ -162,7 +162,7 @@ def parse_arguments(print_help=False):
                         so one sequence should fail the germline assignment process. \
                         Default is False. \
                         Providing temp and output directories (or a project directory) is required.")
-    parser.add_argument('-s', '--species', dest='species', default='human')
+    parser.add_argument('--germ_db', dest='germ_db', default='human')
     parser.add_argument('-z', '--gzip', dest='gzip', default=False, action='store_true',
                         help="Compress the output to a gzipped file")
     parser.add_argument('--raw', dest='raw', default=False, action='store_true',
@@ -194,7 +194,7 @@ class Args(object):
                  merge=False, pandaseq_algo='simple_bayesian', use_test_data=False,
                  parquet=False, nextseq=False, uid=0, isotype=False, pretty=False, num_cores=0,
                  basespace=False, cluster=False, padding=True, raw=False, json_keys=None,
-                 debug=False, species='human', gzip=False):
+                 debug=False, germ_db='human', gzip=False):
         super(Args, self).__init__()
         self.sequences = sequences
         self.project_dir = os.path.abspath(project_dir) if project_dir is not None else project_dir
@@ -221,7 +221,7 @@ class Args(object):
         self.raw = raw
         self.json_keys = json_keys
         self.padding = padding
-        self.species = species
+        self.germ_db = germ_db
 
 
 def validate_args(args):
@@ -262,7 +262,7 @@ def validate_args(args):
     builtin_germline_dbs_dir = os.path.join(mod_dir, 'assigners/germline_dbs/')
     if os.path.isdir(builtin_germline_dbs_dir):
         builtin_species_dbs += [os.path.basename(d) for d in list_files(builtin_germline_dbs_dir)]
-    if not any([args.species.lower() in addon_species_dbs, args.species.lower() in builtin_species_dbs]):
+    if not any([args.germ_db.lower() in addon_species_dbs, args.germ_db.lower() in builtin_species_dbs]):
         print('\nERROR: A germline database was not found for the requested species.')
         print('\nBuilt-in databases exist for the following species:')
         print(', '.join(builtin_species_dbs))
@@ -343,7 +343,7 @@ def log_options(input_dir, output_dir, temp_dir, args):
     logger.info('ABSTAR')
     logger.info('-' * 25)
     logger.info('')
-    logger.info('SPECIES: {}'.format(args.species))
+    logger.info('GERMLINE DB: {}'.format(args.germ_db))
     logger.info('CHUNKSIZE: {}'.format(args.chunksize))
     logger.info('OUTPUT TYPE: {}'.format(', '.join(args.output_type)))
     if args.merge or args.basespace:
@@ -640,12 +640,12 @@ def run_abstar(seq_file, output_dir, log_dir, file_format, arg_dict):
         unassigned_loghandle = open(unassigned_logfile, 'a')
         # start assignment
         assigner_class = ASSIGNERS[args.assigner]
-        assigner = assigner_class(args.species)  # initialize the assigner class with the species
+        assigner = assigner_class(args.germ_db)  # initialize the assigner class with the species
         assigner(seq_file, file_format)  # call the assigner
         # process all of the successfully assigned sequences
         # results = AbstarResults()
         outputs_dict = build_output_base(args.output_type)
-        assigned = [Antibody(vdj, args.species) for vdj in assigner.assigned]
+        assigned = [Antibody(vdj, args.germ_db) for vdj in assigner.assigned]
         successful = 0
         for ab in assigned:
             try:
@@ -697,11 +697,11 @@ def process_sequences(sequences, args):
     with open(seq_file.name, 'w') as f:
         f.write('\n'.join([s.fasta for s in sequences]))
     assigner_class = ASSIGNERS[args.assigner]
-    assigner = assigner_class(args.species)
+    assigner = assigner_class(args.germ_db)
     assigner(seq_file.name, 'fasta')
     # process all of the successfully assigned sequences
     outputs = []
-    assigned = [Antibody(vdj, args.species) for vdj in assigner.assigned]
+    assigned = [Antibody(vdj, args.germ_db) for vdj in assigner.assigned]
     for ab in assigned:
         try:
             ab.annotate(args.uid)
@@ -1046,7 +1046,7 @@ def main(args):
             if args.merge:
                 input_dir = merge_reads(input_dir, args)
             if args.isotype:
-                args.isotype = args.species
+                args.isotype = args.germ_db
             input_files = [f for f in list_files(input_dir, log=True) if os.stat(f).st_size > 0]
         output_files = []
         # assigned_files = []

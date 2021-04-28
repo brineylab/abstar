@@ -194,7 +194,7 @@ class BaseAssigner(object):
 
     ``GermlineSegment`` objects contain information about the assigned germline gene segment (V, D or J).
     Instantiation of a ``GermlineSegment`` object requires only the name of the germline gene segment (in
-    IMGT format, like 'IGHV3-23*01') and the species. Several other optional arguments can be included
+    IMGT format, like 'IGHV3-23*01') and the database name. Several other optional arguments can be included
     at instantiation. ``score`` is the assignment score, typically an ``int`` or ``float``. ``strand``
     indicates the strand orientation of the input sequence (``'+'`` or ``'-'``). ``others`` is a list
     of additional high scoring ``GermlineSegment`` objects. ``assigner_name`` is the name of the custom
@@ -233,8 +233,8 @@ class BaseAssigner(object):
 
         class MyAssigner(BaseAssigner):
 
-            def __init__(self, species):
-                super(MyAssigner, self).__init__(species)
+            def __init__(self, db_name):
+                super(MyAssigner, self).__init__(db_name)
                 self.binary = os.path.join(self.binary_directory, 'mybinary_{}'.format(platform.system()))
 
             def __call__(self, sequence_file, file_format):
@@ -270,7 +270,7 @@ class BaseAssigner(object):
                     return vdj
 
             def assign_germline(self, vdj, segment):
-                germ_db = os.path.join(self.germline_directory, '{}/ungapped/{}.fasta'.format(self.species,
+                germ_db = os.path.join(self.germline_directory, '{}/ungapped/{}.fasta'.format(self.db_name,
                                                                                               segment.lower()))
 
                 # do stuff to assign the germline gene, using the species-appropriate germline DB
@@ -283,17 +283,18 @@ class BaseAssigner(object):
                     vdj.log('{}-ASSIGNMENT ERROR:'.format(segment),
                             'Score ({}) is too low'.format(germs[0].score))
                     return None
-                others = [GermlineSegment(germ.name, self.species, score=germ.score) for germ in germs[1:6]]
-                return GermlineSegment(germs[0].name, self.species, score=germs[0].score, others=others)
+                others = [GermlineSegment(germ.name, self.db_name, score=germ.score) for germ in germs[1:6]]
+                return GermlineSegment(germs[0].name, self.db_name, score=germs[0].score, others=others)
 
     """
 
     __metaclass__ = abc.ABCMeta
 
-    def __init__(self, species):
+    def __init__(self, db_name):
         super(BaseAssigner, self).__init__()
         self.name = self.__class__.__name__.lower()
-        self.species = species
+        self.species = db_name
+        self.db_name = db_name
         self._assigned = None
         self._unassigned = None
         self._germline_directory = None
@@ -308,7 +309,7 @@ class BaseAssigner(object):
     @property
     def germline_directory(self):
         if self._germline_directory is None:
-            self._germline_directory = get_germline_database_directory(self.species)
+            self._germline_directory = get_germline_database_directory(self.db_name)
         return self._germline_directory
 
     @germline_directory.setter

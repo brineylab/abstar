@@ -39,7 +39,7 @@ class Antibody(LoggingMixin):
     """
     docstring for Antibody
     """
-    def __init__(self, vdj, species):
+    def __init__(self, vdj, germ_db):
         super(Antibody, self).__init__()
         LoggingMixin.__init__(self)
         self.id = vdj.sequence.id
@@ -49,7 +49,8 @@ class Antibody(LoggingMixin):
         self.j = vdj.j
         self.d = vdj.d
         self.chain = vdj.v.chain
-        self.species = species.lower()
+        self.germ_db = germ_db
+        self.species = self.v.species if self.v is not None else germ_db
         # initialize the log
         self.initialize_log()
         # property vars

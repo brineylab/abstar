@@ -357,6 +357,8 @@ class AbstarResult(object):
             ('germ_alignments_nt', germ_alignments_nt),
             ('exo_trimming', exo_trim),
             ('junc_nt_breakdown', junc),
+            ('germline_database', self.antibody.germ_db),
+            ('species', self.antibody.species),
             ('align_info', align_info),  # TODO!!  Add things like V/D/J start and end positions, etc.
         ])
 
@@ -433,6 +435,7 @@ class AbstarResult(object):
             ('var_ins', '|'.join([i.abstar_formatted for i in self.antibody.v.insertions])),
             ('var_del', '|'.join([d.abstar_formatted for d in self.antibody.v.deletions])),
             ('isotype', isotype),
+            ('species', self.antibody.species)
             ('raw_input', self.antibody.raw_input.sequence)
         ])
         return ','.join(output.values())
@@ -825,6 +828,8 @@ def _json_output(vdj, pretty, padding, raw=False):
         ('align_info', align_info),  # TODO!!  Add things like V/D/J start and end positions, etc.
         ('vdj_region_string', vdj.vdj_region_string),
         ('gapped_vdj_region_string', vdj.gapped_vdj_region_string),
+        ('germline_database', vdj.germ_db),
+        ('species', vdj.species),
     ])
 
     if padding:

@@ -22,11 +22,11 @@ include abstar/assigners/germline_dbs/mouse/blast/*
 include abstar/assigners/germline_dbs/mouse/ungapped/*
 include abstar/assigners/germline_dbs/mouse/imgt_gapped/*
 include abstar/assigners/germline_dbs/mouse/isotypes/*
-include abstar/assigners/germline_dbs/vrc01mouse/*
-include abstar/assigners/germline_dbs/vrc01mouse/blast/*
-include abstar/assigners/germline_dbs/vrc01mouse/ungapped/*
-include abstar/assigners/germline_dbs/vrc01mouse/imgt_gapped/*
-include abstar/assigners/germline_dbs/vrc01mouse/isotypes/*
+include abstar/assigners/germline_dbs/humouse/*
+include abstar/assigners/germline_dbs/humouse/blast/*
+include abstar/assigners/germline_dbs/humouse/ungapped/*
+include abstar/assigners/germline_dbs/humouse/imgt_gapped/*
+include abstar/assigners/germline_dbs/humouse/isotypes/*
 include abstar/test_data/*
 include abstar/utils/*
 include abstar/utils/queue/*

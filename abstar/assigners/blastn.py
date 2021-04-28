@@ -44,8 +44,8 @@ class Blastn(BaseAssigner):
     docstring for Blastn
     """
 
-    def __init__(self, species):
-        super(Blastn, self).__init__(species)
+    def __init__(self, db_name):
+        super(Blastn, self).__init__(db_name)
 
 
     def __call__(self, sequence_file, file_format):
@@ -59,7 +59,7 @@ class Blastn(BaseAssigner):
                 handle.write('\n'.join(s.fasta for s in seqs))
 
         # assign V-genes
-        vblast_records = self.blast(sequence_file, self.species, 'V')
+        vblast_records = self.blast(sequence_file, 'V')
         # if there aren't any vblast_records, that means that none of the
         # sequences in the input file contained sequences with a significant
         # match to any germline V-gene. These are likely all non-antibody sequences.
@@ -74,7 +74,7 @@ class Blastn(BaseAssigner):
         jquery_seqs = []
         for seq, vbr in zip(seqs, vblast_records):
             try:
-                germ = self.process_blast_record(vbr, self.species)
+                germ = self.process_blast_record(vbr)
                 vdj = VDJ(seq, v=germ)
                 self.orient_query(vdj, vbr)
                 jquery = self.get_jquery_sequence(vdj.oriented, vbr)
@@ -105,10 +105,10 @@ class Blastn(BaseAssigner):
         _vdjs = []
         dquery_seqs = []
         jblast_infile = self.build_jblast_input(jquery_seqs)
-        jblast_records = self.blast(jblast_infile, self.species, 'J')
+        jblast_records = self.blast(jblast_infile, 'J')
         for vdj, jquery, jbr in zip(vdjs, jquery_seqs, jblast_records):
             try:
-                germ = self.process_blast_record(jbr, self.species)
+                germ = self.process_blast_record(jbr)
                 vdj.j = germ
                 # sanity check to make sure there's not an obvious problem with the V/J
                 # assignments (likely due to poor germline matches to a non-antibody sequence)
@@ -131,7 +131,7 @@ class Blastn(BaseAssigner):
         for vdj, dquery in zip(vdjs, dquery_seqs):
             if all([vdj.v.chain == 'heavy', dquery]):
                 try:
-                    germ = self.assign_dgene(dquery, self.species)
+                    germ = self.assign_dgene(dquery)
                     vdj.d = germ
                 except:
                     vdj.exception('D-GENE ASSIGNMENT ERROR:', traceback.format_exc())
@@ -146,7 +146,7 @@ class Blastn(BaseAssigner):
     #     return 'blastn'
 
 
-    def blast(self, seq_file, species, segment):
+    def blast(self, seq_file, segment):
         '''
         Runs BLASTn against an antibody germline database.
 
@@ -154,9 +154,6 @@ class Blastn(BaseAssigner):
         -----
 
             seq_file (str): Path to a FASTA-formatted file of input sequences.
-
-            species (str): Species of origin of the antibody sequences in ``seq_file``.
-                Options are: ``human``, ``macaque``, ``mouse`` and ``rabbit``.
 
             segment (str): Germline segment to query. Options are ``V`` and ``J``.
         '''
@@ -182,7 +179,7 @@ class Blastn(BaseAssigner):
         return blast_records
 
 
-    def assign_dgene(self, seq, species):
+    def assign_dgene(self, seq):
         db_file = os.path.join(self.germline_directory, 'ungapped/d.fasta')
         with open(db_file, 'r') as db_handle:
             germs = [Sequence(s) for s in SeqIO.parse(db_handle, 'fasta')]
@@ -192,22 +189,32 @@ class Blastn(BaseAssigner):
                                      gap_open=-20, gap_extend=-2)
         alignments.sort(key=lambda x: x.score, reverse=True)
         all_gls = [a.target.id for a in alignments]
+        if '__' in all_gls[0]:
+            species = all_gls[0].split('__')[-1].replace('-', ' ')
+            # all_gls = [gl.split('__')[0] for gl in all_gls]
+        else:
+            species = self.db_name
         all_scores = [a.score for a in alignments]
         if not all([all_gls, all_scores]):
             return None
         top_gl = all_gls[0]
         top_score = all_scores[0]
-        others = [GermlineSegment(germ, species, score=score) for germ, score in zip(all_gls[1:6], all_scores[1:6])]
-        return GermlineSegment(top_gl, species, score=top_score, others=others, assigner_name=self.name)
+        others = [GermlineSegment(germ, species, self.db_name, score=score) for germ, score in zip(all_gls[1:6], all_scores[1:6])]
+        return GermlineSegment(top_gl, species, self.db_name, score=top_score, others=others, assigner_name=self.name)
 
 
-    def process_blast_record(self, blast_record, species):
+    def process_blast_record(self, blast_record):
         all_gls = [a.title.split()[0] for a in blast_record.alignments]
+        if '__' in all_gls[0]:
+            species = all_gls[0].split('__')[-1].replace('-', ' ')
+            # all_gls = [gl.split('__')[0] for gl in all_gls]
+        else:
+            species = self.db_name
         all_scores = [a.hsps[0].bits for a in blast_record.alignments]
         top_gl = all_gls[0]
         top_score = all_scores[0]
-        others = [GermlineSegment(germ, species, score=score) for germ, score in zip(all_gls[1:], all_scores[1:])]
-        return GermlineSegment(top_gl, species, score=top_score, others=others[:5], assigner_name=self.name)
+        others = [GermlineSegment(germ, species, self.db_name, score=score) for germ, score in zip(all_gls[1:], all_scores[1:])]
+        return GermlineSegment(top_gl, species, self.db_name, score=top_score, others=others[:5], assigner_name=self.name)
 
 
     @staticmethod
