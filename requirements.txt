@@ -2,6 +2,7 @@ abutils>=0.2.1
 biopython>=1.78
 celery
 dask[complete]
+numpy
 nwalign3
 pandas
 pyarrow
