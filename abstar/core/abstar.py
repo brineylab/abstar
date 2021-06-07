@@ -25,8 +25,10 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 from argparse import ArgumentParser
+import csv
 from glob import glob
 import gzip
+import json
 import logging
 from multiprocessing import Pool, cpu_count
 import os
@@ -231,9 +233,12 @@ def validate_args(args):
                 all([any([args.input, args.use_test_data]), args.output, args.temp])]):
         parse_arguments(print_help=True)
         sys.exit(1)
-    # alter output type if AbStar is being run interactively
-    if args.sequences:
-        args.output_type = ['json', ]
+    # alter output type if abstar is being run interactively
+    # if args.sequences:
+    #     if len(args.output_type) > 1:
+    #         print('\nWARNING: Multiple output formats are not supported when runing abstar in interactive mode.')
+    #         print('\nUsing {} format'.format(args.output_type[0]))
+    #         args.output_type = args.output_type[:1]
         args.raw = True
 
     # find the number of available cores if abstar is being run on all of them
@@ -245,8 +250,10 @@ def validate_args(args):
         args.temp = '/tmp'
 
     # set default output type if not provided
-    if not args.output_type:
+    if args.output_type is None:
         args.output_type = ['json', ]
+    if isinstance(args.output_type, str):
+        args.output_type = [args.output_type, ]
 
     # process JSON key string if provided
     if args.json_keys is not None:
@@ -408,6 +415,8 @@ def concat_outputs(input_file, temp_output_file_dicts, output_dir, args):
         osuffix = get_output_suffix(output_type)
         oname = oprefix + osuffix
         output_subdir = os.path.join(output_dir, output_type)
+        if not os.path.exists(output_subdir):
+            os.makedirs(output_subdir)
         ofile = os.path.join(output_subdir, oname)
         # temp_files = [tf for tf in temp_output_files if tf.endswith(osuffix)]
         logger.info('Concatenating {} {}-formatted job outputs into a single output file'.format(len(temp_files),
@@ -585,7 +594,7 @@ def print_input_file_info(f, fmt):
     logger.info('FORMAT: {}'.format(fmt.lower()))
 
 
-def print_job_stats(total_seqs, good_seq_counts, start_time, end_time):
+def log_job_stats(total_seqs, good_seq_counts, start_time, end_time):
     run_time = end_time - start_time
     zero_files = sum([c == 0 for c in good_seq_counts])
     if zero_files > 0:
@@ -594,6 +603,17 @@ def print_job_stats(total_seqs, good_seq_counts, start_time, end_time):
     logger.info('')
     logger.info('{} sequences contained an identifiable rearrangement'.format(good_seqs))
     logger.info('AbStar completed in {} seconds'.format(run_time))
+
+
+def print_job_stats(total_seqs, good_seq_counts, start_time, end_time):
+    run_time = end_time - start_time
+    zero_files = sum([c == 0 for c in good_seq_counts])
+    if zero_files > 0:
+        logger.info('{} files contained no successfully processed sequences'.format(zero_files))
+    good_seqs = sum(good_seq_counts)
+    print('{} sequences contained an identifiable rearrangement'.format(good_seqs))
+    print('abstar completed in {} seconds'.format(round(run_time, 2)))
+    print('')
 
 
 
@@ -692,34 +712,27 @@ def run_abstar(seq_file, output_dir, log_dir, file_format, arg_dict):
 
 
 def process_sequences(sequences, args):
-    seq_file = tempfile.NamedTemporaryFile(dir=args.temp, delete=False)
+    project_temp_dir = tempfile.TemporaryDirectory(dir=args.temp)
+    args.project_dir = project_temp_dir.name
+    project_temp_dir.cleanup()
+    os.makedirs(args.project_dir)
+
+    args.temp = os.path.join(args.project_dir, 'temp')
+    args.log = os.path.join(args.project_dir, 'log')
+    args.output = os.path.join(args.project_dir, 'output')
+
+    seq_file = tempfile.NamedTemporaryFile(dir=args.project_dir, delete=False)
     seq_file.close()
     with open(seq_file.name, 'w') as f:
         f.write('\n'.join([s.fasta for s in sequences]))
-    assigner_class = ASSIGNERS[args.assigner]
-    assigner = assigner_class(args.germ_db)
-    assigner(seq_file.name, 'fasta')
-    # process all of the successfully assigned sequences
-    outputs = []
-    assigned = [Antibody(vdj, args.germ_db) for vdj in assigner.assigned]
-    for ab in assigned:
-        try:
-            ab.annotate(args.uid)
-            result = get_abstar_result(ab,
-                               pretty=False,
-                               padding=False,
-                               raw=True)
-            output = get_output(result, 'json')
-            if output is not None:
-                outputs.append(get_output(result, 'json'))
-        except:
-            continue
-    os.unlink(seq_file.name)
-    return outputs
+    args.input = seq_file.name
 
 
 def run_jobs(files, output_dir, log_dir, file_format, args):
-    sys.stdout.write('\nRunning VDJ...\n')
+    if args.sequences is not None:
+        sys.stdout.write('\nRunning abstar...\n')
+    else:
+        sys.stdout.write('\nRunning VDJ...\n')
     if args.cluster:
         return _run_jobs_via_celery(files, output_dir, log_dir, file_format, args)
     elif args.debug or args.chunksize == 0:
@@ -830,7 +843,7 @@ def update_progress(finished, jobs, failed=None):
 
 def run(*args, **kwargs):
     '''
-    Runs AbStar.
+    Runs abstar.
 
     Input sequences can be provided in several different formats:
 
@@ -845,7 +858,14 @@ def run(*args, **kwargs):
         - a raw nucleotide sequence, as a string (a random sequence ID will be assigned)
         - a list/tuple of the format ``[sequence_id, sequence]``
         - a BioPython SeqRecord object
-        - an AbTools Sequence object
+        - an abtools Sequence object
+
+    .. Caution:: Supplying a single input sequence in list/tuple format is not supported, as abstar 
+                 assumes that each element of an iterable is a separate sequence if an iterable 
+                 is the only argument. Either convert the list/tuple to a ``Sequence`` object before 
+                 calling ``abstar.run()`` or supply a nested list containing the sequence information, 
+                 for example: ``[[sequence_id, sequence], ]``.
+                 
 
     Either sequences, ``project_dir``, or all of ``input``, ``output`` and ``temp`` are required.
 
@@ -858,12 +878,14 @@ def run(*args, **kwargs):
 
             result = abstar.run('ATGC')
 
-        or a list/tuple of the format ``[sequence_id, sequence]``::
+        or as a ``Sequence`` object::
 
-            result = abstar.run(['seq1', 'ATGC'])
+            sequence = Sequence('ATGC', id='seq1')
+
+            result = abstar.run(sequence)
 
         If you pass just the raw sequence, a random sequence ID will be generated with ``uuid.uuid4()``.
-        In either case, when given a single sequence, ``abstar.run()`` will return a single AbTools ``Sequence``
+        In either case, when given a single sequence, ``abstar.run()`` will return a single ``Sequence``
         object. If running multiple sequences, you can either pass each sequence as a positional argument::
 
             result_list = run(['seq1', 'ATGC'], ['seq2', 'CGTA'])
@@ -877,7 +899,7 @@ def run(*args, **kwargs):
             seqs = [s for s in SeqIO.parse(fasta, 'fasta')]
             result_list = abstar.run(seqs)
 
-        When given multiple sequences, ``abstar.run()`` will return a list of AbTools ``Sequence`` objects,
+        When given multiple sequences, ``abstar.run()`` will return a list of abtools ``Sequence`` objects,
         one per input sequence.
 
         If you'd prefer not to parse the FASTQ/A file into a list (for example, if the input file is
@@ -890,7 +912,7 @@ def run(*args, **kwargs):
 
         Given a file path, ``abstar.run()`` returns a list of output file paths. In the above case,
         ``result_files`` will be a list containing a single output file path:
-        ``/path/to/output/my_sequences.json``.
+        ``/path/to/output/json/my_sequences.json``.
 
         If you have a directory containing multiple FASTQ/A files, you can pass the directory path
         using ``input``::
@@ -902,28 +924,64 @@ def run(*args, **kwargs):
         As before, ``result_files`` will contain a list of output file paths.
 
         If your input directory contains paired FASTQ files (gzip compressed or uncompressed)
-        that need to be merged prior to processing with AbStar::
+        that need to be merged prior to processing with abstar::
 
             result_files = abstar.run(input='/path/to/input',
                                       temp='/path/to/temp',
                                       output='/path/to/output',
                                       merge=True)
 
-        The paired read files in ``input`` will be merged with PANDAseq prior to processing with AbStar.
+        The paired read files in ``input`` will be merged with PANDAseq prior to processing with abstar.
         By default, PANDAseq's 'simple bayesian' read merging algorithm is used, although alternate
         algorithms can be selected with ``pandaseq_algo``.
 
-        AbStar also provides an alternate CSV-formatted output type that mimics the `IMGT Summary file`_.
-        This option is provided to minimize the effort needed to convert existing
-        IMGT-based pipelines to AbStar. Alternate output is only available when passing an input file or
-        directory; passing individual sequences or a list of sequences will always return Sequence objects.
-        To produce IMGT-formatted output::
+        abstar provides several output format options. By default, abstar will produce JSON-formatted 
+        output file. abstar's output format options include:
+
+        json 
+            abstar's default format, in Javascript Object Notation (JSON) format. This format is the most comprehensive. 
+            JSON's nesting and inclusion of programmatic objects (such as lists) make this format extremely 
+            flexible and well-suited to adaptive immune receptor sequence data, particularly for cases in which
+            addtitional fields may be added in the future (such as clonality-related annotations). 
+
+        airr 
+            Tab-delimited format compatible with the Adaptive Immune Receptor Repertoires Community's (AIRR-C)
+            `schema guidelines`_. This format contains all required fields, several "optional" fields, and 
+            several fields that are not part of the schema but conform to the naming conventions of existing schema
+            fields (examples include ``v_mutations`` and ``v_mutations_aa``).
+
+        tabular 
+            Comma-delimited format containing a subset of the fields contained in the default JSON output format. 
+            This format was originally conceived for extremely large datasets, for which output size and compatibility
+            with tabular databases (such as MySQL and Apache Spark) were high priorities.
+            
+        imgt 
+            Comma-delimited format that mimics the `IMGT Summary file`_. This output option is provided 
+            to minimize the effort needed to convert existing IMGT-based pipelines to abstar. 
+            
+            
+        Multiple output formats can be produced in a single run of abstar, although this is only available when 
+        passing an input file or directory; passing individual sequences or a list of sequences (which returns 
+        ``Sequence`` objects) can only return a single output format. To produce AIRR output::
 
             result_files = abstar.run(input='/path/to/input',
                                       temp='/path/to/temp',
                                       output='/path/to/output',
-                                      output_type='imgt')
+                                      output_type='airr')
+        
+        To produce both JSON and AIRR-formatted outputs::
 
+            result_files = abstar.run(input='/path/to/input',
+                                      temp='/path/to/temp',
+                                      output='/path/to/output',
+                                      output_type=['json', 'airr'])
+
+        In interactive mode (providing ``Sequence`` objects rather than an input file or directory), returning
+        AIRR-formated data can be accomplished by::
+
+            results = abstar.run(sequences, output_type='airr')
+
+        .. _schema guidelines: https://docs.airr-community.org/en/latest/datarep/rearrangements.html
         .. _IMGT Summary file: http://www.imgt.org/IMGT_vquest/share/textes/imgtvquest.html#Esummary
 
 
@@ -943,8 +1001,11 @@ def run(*args, **kwargs):
             the log will be written to ``/path/to/project_dir/abstar.log``. If output is
             provided, log will be written to ``/path/to/output/abstar.log``.
 
-        species (str): Species of the antibody sequences. Choices are 'human', 'macaque',
-            'mouse' and 'rabbit'. Default is 'human'.
+        germ_db (str): Germline database to be used. Choices are 'human', 'macaque',
+            'mouse', 'humouse', and 'rabbit'. The 'humouse' database contains all germline genes 
+            from human and mouse databaes, and is designed to process data from humanized mouse 
+            models expressing one or more human germline genes as well as mouse germline genes. 
+            Default is 'human'.
 
         isotype (bool): If True, the isotype will infered by aligning the sequence region
             downstream of the J-gene. If False, the isotype will not be determined.
@@ -960,9 +1021,8 @@ def run(*args, **kwargs):
         pretty (bool): If True, formats JSON output files to be more human-readable. If False,
             JSON output files contain one record per line. Default is False.
 
-        output_type (str): Options are 'json' or 'imgt'. IMGT output mimics the Summary
-            table produced by IMGT High-V/Quest, to maintain a level of compatibility with
-            existing IMGT-based pipelines. JSON output is much more detailed. Default is 'json'.
+        output_type (str): Options are 'json' 'airr', 'tabular', or 'imgt'. JSON output is the most 
+            detailed. Default is 'json'.
 
         merge (bool): If True, input must be paired-read FASTA files (gzip compressed or uncompressed)
             which will be merged with PANDAseq prior to processing with AbStar. If ``basespace`` is True,
@@ -978,28 +1038,25 @@ def run(*args, **kwargs):
 
     Returns:
 
-        If the input is a single sequence, ``run`` returns a single AbTools ``Sequence`` object.
+        If the input is a single sequence, ``run()`` returns a single abtools ``Sequence`` object.
 
-        If the input is a list of sequences, ``run`` returns a list of AbTools ``Sequence`` objects.
+        If the input is a list of sequences, ``run()`` returns a list of abtools ``Sequence`` objects.
 
-        If the input is a file or a directory of files, ``run`` returns a list of output files.
+        If the input is a file or a directory of files, ``run()`` returns a list of output files.
     '''
 
     warnings.filterwarnings("ignore")
     if len(args) == 1:
-        # if there's a single arg, need to check if it's a single sequence...
         try:
-            sequences = [Sequence(args[0]), ]
-        except:
-            # ...or a list of sequences
-            try:
+            if isinstance(args[0], (list, tuple, set)):
                 sequences = [Sequence(s) for s in args[0]]
-            except:
-                print('ERROR: invalid format for sequence input:')
-                for a in args:
-                    print(a)
-                sys.exit(1)
-    # if multiple args, assume each is a sequence
+            else:
+                sequences = [Sequence(args[0]), ]
+        except:
+            print('ERROR: invalid format for sequence input:')
+            for a in args:
+                print(a)
+            sys.exit(1)
     elif len(args) > 1:
         try:
             sequences = [Sequence(s) for s in args]
@@ -1008,17 +1065,42 @@ def run(*args, **kwargs):
             for a in args:
                 print(a)
             sys.exit(1)
+
     kwargs['sequences'] = sequences
     args = Args(**kwargs)
     validate_args(args)
     global logger
     logger = log.get_logger('abstar')
-    output = main(args)
-    # if args.sequences is not None:
-    #     output = [Sequence(o) for o in output]
-    #     if len(output) == 1:
-    #         return output[0]
-    return output
+    logger.handles = []
+
+    if args.sequences is not None:
+        process_sequences(args.sequences, args)
+        if len(args.output_type) > 1:
+            args.output_type = args.output_type[:1]
+
+    output_files = main(args)
+
+    if args.sequences is not None:
+        ofmt = args.output_type[0]
+        ofile = output_files[0]
+        if ofmt == 'tabular':
+            with open(ofile) as f:
+                reader = csv.DictReader(f, delimiter=',')
+                output = [Sequence(r) for r in reader]
+        if ofmt == 'airr':
+            with open(ofile) as f:
+                reader = csv.DictReader(f, delimiter='\t')
+                output = [Sequence(r, id_key='sequence_id', seq_key='sequence')  for r in reader]
+        if ofmt == 'json':
+            with open(ofile) as f:
+                output = [Sequence(json.loads(line)) for line in f]
+        output = [Sequence(o) for o in output]
+        if len(output) == 1:
+            return output[0]
+        else:
+            return output
+    else:
+        return output_files
 
 
 def run_standalone(args):
@@ -1026,57 +1108,52 @@ def run_standalone(args):
 
 
 def main(args):
-    if args.sequences is not None:
-        # from utils import output, vdj
-        processed = process_sequences(args.sequences, args)
-        if len(processed) == 1:
-            return Sequence(dict(processed[0]))
-        return [Sequence(dict(p)) for p in processed]
-    else:
-        input_dir, output_dir, temp_dir, log_dir = make_directories(args)
+    input_dir, output_dir, temp_dir, log_dir = make_directories(args)
+    if args.sequences is None:
         setup_logging(log_dir, args.debug)
         log_options(input_dir, output_dir, temp_dir, args)
-        if args.use_test_data:
-            mod_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            input_files = [os.path.join(mod_dir, 'test_data/test_1k.fasta'), ]
-        else:
-            if args.basespace:
-                args.merge = True
-                download_files(input_dir)
-            if args.merge:
-                input_dir = merge_reads(input_dir, args)
-            if args.isotype:
-                args.isotype = args.germ_db
-            input_files = [f for f in list_files(input_dir, log=True) if os.stat(f).st_size > 0]
-        output_files = []
-        # assigned_files = []
-        # unassigned_files = []
-        for f, fmt in zip(input_files, format_check(input_files)):
-            # skip the non-FASTA/Q files
-            if fmt is None:
-                continue
-            start_time = time.time()
-            print_input_file_info(f, fmt)
-            input_tempdir = os.path.join(temp_dir, 'input')
-            subfiles, seq_count = split_file(f, fmt, input_tempdir, args)
-            run_info = run_jobs(subfiles, temp_dir, log_dir, fmt, args)
-            temp_output_file_dicts = [r[0] for r in run_info if r is not None]
-            processed_seq_counts = [r[1] for r in run_info if r is not None]
-            annotated_log_files = [r[2] for r in run_info if r is not None]
-            failed_log_files = [r[3] for r in run_info if r is not None]
-            unassigned_log_files = [r[4] for r in run_info if r is not None]
-            vdj_end_time = time.time()
-            _output_files = concat_outputs(f, temp_output_file_dicts, output_dir, args)
-            unassigned_file = concat_logs(f, unassigned_log_files, log_dir, 'unassigned')
-            failed_file = concat_logs(f, failed_log_files, log_dir, 'failed')
-            if args.debug:
-                annotated_file = concat_logs(f, annotated_log_files, log_dir, 'annotated')
-            output_files.extend(_output_files)
-            if not args.debug:
-                flat_temp_files = [f for subdict in temp_output_file_dicts for f in subdict.values()]
-                clear_temp_files(subfiles + flat_temp_files + annotated_log_files + failed_log_files + unassigned_log_files)
+    if args.use_test_data:
+        mod_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        input_files = [os.path.join(mod_dir, 'test_data/test_1k.fasta'), ]
+    else:
+        if args.basespace:
+            args.merge = True
+            download_files(input_dir)
+        if args.merge:
+            input_dir = merge_reads(input_dir, args)
+        if args.isotype:
+            args.isotype = args.germ_db
+        input_files = [f for f in list_files(input_dir, log=True) if os.stat(f).st_size > 0]
+    output_files = []
+    for f, fmt in zip(input_files, format_check(input_files)):
+        # skip the non-FASTA/Q files
+        if fmt is None:
+            continue
+        start_time = time.time()
+        print_input_file_info(f, fmt)
+        input_tempdir = os.path.join(temp_dir, 'input')
+        subfiles, seq_count = split_file(f, fmt, input_tempdir, args)
+        run_info = run_jobs(subfiles, temp_dir, log_dir, fmt, args)
+        temp_output_file_dicts = [r[0] for r in run_info if r is not None]
+        processed_seq_counts = [r[1] for r in run_info if r is not None]
+        annotated_log_files = [r[2] for r in run_info if r is not None]
+        failed_log_files = [r[3] for r in run_info if r is not None]
+        unassigned_log_files = [r[4] for r in run_info if r is not None]
+        vdj_end_time = time.time()
+        _output_files = concat_outputs(f, temp_output_file_dicts, output_dir, args)
+        unassigned_file = concat_logs(f, unassigned_log_files, log_dir, 'unassigned')
+        failed_file = concat_logs(f, failed_log_files, log_dir, 'failed')
+        if args.debug:
+            annotated_file = concat_logs(f, annotated_log_files, log_dir, 'annotated')
+        output_files.extend(_output_files)
+        if not args.debug:
+            flat_temp_files = [f for subdict in temp_output_file_dicts for f in subdict.values()]
+            clear_temp_files(subfiles + flat_temp_files + annotated_log_files + failed_log_files + unassigned_log_files)
+        if args.sequences is not None:
             print_job_stats(seq_count, processed_seq_counts, start_time, vdj_end_time)
-        return output_files
+        else:
+            log_job_stats(seq_count, processed_seq_counts, start_time, vdj_end_time)
+    return output_files
 
 
 if __name__ == '__main__':
