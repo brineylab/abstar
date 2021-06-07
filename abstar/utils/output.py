@@ -451,12 +451,12 @@ class AbstarResult(object):
             d_call = self.antibody.d.full
             d_gene = self.antibody.d.gene
             d_cigar = make_cigar(self.antibody.d)
-            d_identity = str(self.antibody.d.nt_identity / 100.)
+            # d_identity = str(self.antibody.d.nt_identity / 100.)
         else:
             d_call = 'null'
             d_gene = 'null'
             d_cigar = 'null'
-            d_identity = 'null'
+            # d_identity = 'null'
         output = collections.OrderedDict([
             ('sequence_id', self.antibody.id),
             ('sequence', self.antibody.raw_input.sequence),
@@ -464,13 +464,13 @@ class AbstarResult(object):
             ('rev_comp', 'True' if self.antibody.v.strand == '-' else 'False'),
             ('productive', 'True' if self.antibody.productivity.is_productive else 'False'),
             ('productivity_issues', '|'.join(self.antibody.productivity.productivity_issues)),
-            ('stop_codon', 'True' if '*' in antibody.vdj_aa else 'False'),
+            ('stop_codon', 'True' if '*' in self.antibody.vdj_aa else 'False'),
             ('v_call', self.antibody.v.full),
             ('v_gene', self.antibody.v.gene),
             ('v_identity', str(self.antibody.v.nt_identity / 100.)),
             ('d_call', d_call),
             ('d_gene', d_gene),
-            ('d_identity', d_identity),
+            # ('d_identity', d_identity),
             ('j_call', self.antibody.j.full),
             ('j_gene', self.antibody.j.gene),
             ('j_identity', str(self.antibody.j.nt_identity / 100.)),
@@ -1059,10 +1059,12 @@ AIRR_HEADER = ['sequence_id',
                'stop_codon',
                'v_call',
                'v_gene',
+               'v_identity',
                'd_call',
                'd_gene',
                'j_call',
                'j_gene',
+               'j_identity',
                'c_call',
                'cdr3_length',
                'fwr1_aa',
