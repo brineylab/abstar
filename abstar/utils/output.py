@@ -446,29 +446,58 @@ class AbstarResult(object):
         try:
             c_call = self.antibody.isotype.isotype
         except AttributeError:
-            isotype = 'null'
+            c_call = 'null'
         if self.antibody.d:
             d_call = self.antibody.d.full
+            d_gene = self.antibody.d.gene
             d_cigar = make_cigar(self.antibody.d)
+            # d_identity = str(self.antibody.d.nt_identity / 100.)
         else:
             d_call = 'null'
+            d_gene = 'null'
             d_cigar = 'null'
+            # d_identity = 'null'
         output = collections.OrderedDict([
             ('sequence_id', self.antibody.id),
             ('sequence', self.antibody.raw_input.sequence),
+            ('sequence_aa', self.antibody.vdj_aa),
             ('rev_comp', 'True' if self.antibody.v.strand == '-' else 'False'),
             ('productive', 'True' if self.antibody.productivity.is_productive else 'False'),
+            ('productivity_issues', '|'.join(self.antibody.productivity.productivity_issues)),
+            ('stop_codon', 'True' if '*' in self.antibody.vdj_aa else 'False'),
             ('v_call', self.antibody.v.full),
+            ('v_gene', self.antibody.v.gene),
+            ('v_identity', str(self.antibody.v.nt_identity / 100.)),
             ('d_call', d_call),
+            ('d_gene', d_gene),
+            # ('d_identity', d_identity),
             ('j_call', self.antibody.j.full),
+            ('j_gene', self.antibody.j.gene),
+            ('j_identity', str(self.antibody.j.nt_identity / 100.)),
             ('c_call', c_call),
+            ('cdr3_length', str(len(self.antibody.junction.cdr3_aa))),
+            ('fwr1_aa', self.antibody.v.regions.aa_seqs['FR1']),
+            ('fwr2_aa', self.antibody.v.regions.aa_seqs['FR2']),
+            ('fwr3_aa', self.antibody.v.regions.aa_seqs['FR3']),
+            ('fwr4_aa', self.antibody.j.regions.aa_seqs['FR4']),
+            ('cdr1_aa', self.antibody.v.regions.aa_seqs['CDR1']),
+            ('cdr2_aa', self.antibody.v.regions.aa_seqs['CDR2']),
+            ('cdr3_aa', self.antibody.junction.cdr3_aa),
             ('sequence_alignment', self.antibody.gapped_vdj_nt),
             ('germline_alignment', self.antibody.gapped_vdj_germ_nt),
+            ('v_mutations', '|'.join([m.abstar_formatted for m in self.antibody.v.nt_mutations])),
+            ('v_mutations_aa', '|'.join([m.abstar_formatted for m in self.antibody.v.aa_mutations])),
+            ('v_mutation_count', str(self.antibody.v.nt_mutations.count)),
+            ('v_mutation_count_aa', str(self.antibody.v.aa_mutations.count)),
+            ('v_insertions', '|'.join([i.abstar_formatted for i in self.antibody.v.insertions]) if self.antibody.v.insertions else 'null'),
+            ('v_deletions', '|'.join([i.abstar_formatted for i in self.antibody.v.deletions]) if self.antibody.v.deletions else 'null'),
             ('junction', self.antibody.junction.junction_nt),
             ('junction_aa', self.antibody.junction.junction_aa),
             ('v_cigar', make_cigar(self.antibody.v)),
             ('d_cigar', d_cigar),
             ('j_cigar', make_cigar(self.antibody.j)),
+            ('species', self.antibody.species),
+            ('raw_input', self.antibody.raw_input.sequence),
         ])
         return '\t'.join(output.values())
 
@@ -1023,16 +1052,40 @@ TABULAR_HEADER = ['seq_id',
 
 AIRR_HEADER = ['sequence_id',
                'sequence',
+               'sequence_aa',
                'rev_comp',
                'productive',
+               'productivity_issues',
+               'stop_codon',
                'v_call',
+               'v_gene',
+               'v_identity',
                'd_call',
+               'd_gene',
                'j_call',
+               'j_gene',
+               'j_identity',
                'c_call',
+               'cdr3_length',
+               'fwr1_aa',
+               'fwr2_aa',
+               'fwr3_aa',
+               'fwr4_aa',
+               'cdr1_aa',
+               'cdr2_aa',
+               'cdr3_aa',
                'sequence_alignment',
                'germline_alignment',
+               'v_mutations',
+               'v_mutations_aa',
+               'v_mutation_count',
+               'v_mutation_count_aa',
+               'v_insertions',
+               'v_deletions',
                'junction',
                'junction_aa',
                'v_cigar',
                'd_cigar',
-               'j_cigar']
+               'j_cigar',
+               'species',
+               'raw_input']
