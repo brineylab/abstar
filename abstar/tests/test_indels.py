@@ -28,7 +28,7 @@ def compare_v_ins_to_reference(antibodies):
     errors = []
     for antibody in antibodies:
         ref = antibody.v
-        v = GermlineSegment(ref.full, ref.species, initialize_log=False)
+        v = GermlineSegment(ref.full, ref.species, ref.db_name, initialize_log=False)
         v.query_alignment = ref.query_alignment
         v.germline_alignment = ref.germline_alignment
         v.alignment_midline = ref.alignment_midline
@@ -83,7 +83,7 @@ def compare_v_del_to_reference(antibodies):
     errors = []
     for antibody in antibodies:
         ref = antibody.v
-        v = GermlineSegment(ref.full, ref.species, initialize_log=False)
+        v = GermlineSegment(ref.full, ref.species, ref.db_name, initialize_log=False)
         v.query_alignment = ref.query_alignment
         v.germline_alignment = ref.germline_alignment
         v.alignment_midline = ref.alignment_midline

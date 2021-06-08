@@ -40,7 +40,7 @@ def compare_v_nt_mutations_to_reference(antibodies):
     for antibody in antibodies:
         ref = antibody.v.nt_mutations
         ab = MockAntibody()
-        v = GermlineSegment(antibody.v.full, antibody.v.species, initialize_log=False)
+        v = GermlineSegment(antibody.v.full, antibody.v.species, antibody.v.db_name, initialize_log=False)
         v.gene_type = antibody.v.gene_type
         v.query_alignment = antibody.v.query_alignment
         v.germline_alignment = antibody.v.germline_alignment
@@ -90,7 +90,7 @@ def compare_j_nt_mutations_to_reference(antibodies):
     for antibody in antibodies:
         ref = antibody.j.nt_mutations
         ab = MockAntibody()
-        j = GermlineSegment(antibody.j.full, antibody.j.species, initialize_log=False)
+        j = GermlineSegment(antibody.j.full, antibody.j.species, antibody.j.db_name, initialize_log=False)
         j.gene_type = antibody.j.gene_type
         j.query_alignment = antibody.j.query_alignment
         j.germline_alignment = antibody.j.germline_alignment
@@ -142,7 +142,7 @@ def compare_v_aa_mutations_to_reference(antibodies):
     for antibody in antibodies:
         ref = antibody.v.aa_mutations
         ab = MockAntibody()
-        v = GermlineSegment(antibody.v.full, antibody.v.species, initialize_log=False)
+        v = GermlineSegment(antibody.v.full, antibody.v.species, antibody.v.db_name, initialize_log=False)
         v.gene_type = antibody.v.gene_type
         v.query_alignment = antibody.v.query_alignment
         v.germline_alignment = antibody.v.germline_alignment
@@ -197,7 +197,7 @@ def compare_j_aa_mutations_to_reference(antibodies):
     for antibody in antibodies:
         ref = antibody.j.aa_mutations
         ab = MockAntibody()
-        j = GermlineSegment(antibody.j.full, antibody.j.species, initialize_log=False)
+        j = GermlineSegment(antibody.j.full, antibody.j.species, antibody.j.db_name, initialize_log=False)
         j.gene_type = antibody.j.gene_type
         j.query_alignment = antibody.j.query_alignment
         j.germline_alignment = antibody.j.germline_alignment
