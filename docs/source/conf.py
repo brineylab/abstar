@@ -31,7 +31,7 @@ if os.environ.get('READTHEDOCS', None) == 'True':
         def __getattr__(cls, name):
                 return Mock()
 
-    MOCK_MODULES = ['pygtk', 'gtk', 'gobject', 'argparse', 'numpy', 'nwalign', 'pandas', 'abutils',
+    MOCK_MODULES = ['pygtk', 'gtk', 'gobject', 'argparse', 'numpy', 'nwalign', 'pandas', 'abutils', 'dask', 'dask.dataframe',
                     'abutils.utils', 'abutils.core', 'abutils.core.sequence', 'abutils.utils.log', 'abutils.utils.alignment',
                     'abutils.utils.codons', 'abutils.utils.pipeline', 'abutils.utils.decorators', 'abutils.utils.progbar',
                     'biopython', 'celery', 'pymongo', 'scikit-bio', 'BaseSpacePy', 'BaseSpacePy.api',
