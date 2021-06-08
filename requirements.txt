@@ -1,5 +1,5 @@
 abutils>=0.2.1
-biopython>=1.78
+biopython==1.78
 celery
 dask[complete]
 numpy>=1.16.5
