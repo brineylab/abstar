@@ -22,6 +22,7 @@ def test_isotype_bcr():
     oriented_input = [s for s in test_seqs if s.id == 'oriented_input'][0].sequence
     antibody = MockAntibody()
     antibody.species = 'human'
+    antibody.germ_db = 'human'
     antibody.vdj_nt = vdj_nt
     antibody.oriented_input = oriented_input
     isotype = get_isotype(antibody)
