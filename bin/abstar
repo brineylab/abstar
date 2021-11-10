@@ -25,12 +25,12 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 import warnings
+warnings.simplefilter(action='ignore')
 
 import abstar
 
 
 if __name__ == '__main__':
-    warnings.filterwarnings("ignore")
     args = abstar.parse_arguments()
     abstar.validate_args(args)
     output_dir = abstar.run_standalone(args)
