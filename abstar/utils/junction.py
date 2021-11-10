@@ -209,6 +209,8 @@ class Junction(object):
             if res == end_res and end_res not in antibody.j.imgt_germline.ungapped_aa_sequence[i + 1:]:
                 fr4_nt_start_pos = (antibody.j.imgt_germline.coding_start - 1) + (i * 3)
                 break
+        if fr4_nt_start_pos is None:
+            antibody.log(f'WARNING: Junction end residue ({end_res}) was not found in the J gene sequence ({antibody.j.imgt_germline.ungapped_aa_sequence})')
         germ_fr4_sequence = antibody.j.imgt_germline.gapped_nt_sequence[fr4_nt_start_pos:]
 
         # find the end of the junction (end of the first codon of FR4)

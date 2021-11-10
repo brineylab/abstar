@@ -44,8 +44,8 @@ class Blastn(BaseAssigner):
     docstring for Blastn
     """
 
-    def __init__(self, db_name):
-        super(Blastn, self).__init__(db_name)
+    def __init__(self, db_name, receptor):
+        super(Blastn, self).__init__(db_name, receptor)
 
 
     def __call__(self, sequence_file, file_format):
@@ -68,7 +68,7 @@ class Blastn(BaseAssigner):
             for vdj in vdjs:
                 vdj.log('V-GENE ASSIGNMENT ERROR:',
                         'No variable gene was found.',
-                        'Query sequence does not appear to contain a rearranged antibody.')
+                        'Query sequence does not appear to contain a rearranged adaptive immune receptor.')
             self.unassigned = vdjs
             return
         jquery_seqs = []
@@ -129,7 +129,7 @@ class Blastn(BaseAssigner):
         # assign D-genes
         _vdjs = []
         for vdj, dquery in zip(vdjs, dquery_seqs):
-            if all([vdj.v.chain == 'heavy', dquery]):
+            if all([vdj.v.chain in ['heavy', 'beta', 'delta'], dquery]):
                 try:
                     germ = self.assign_dgene(dquery)
                     vdj.d = germ
@@ -199,8 +199,8 @@ class Blastn(BaseAssigner):
             return None
         top_gl = all_gls[0]
         top_score = all_scores[0]
-        others = [GermlineSegment(germ, species, self.db_name, score=score) for germ, score in zip(all_gls[1:6], all_scores[1:6])]
-        return GermlineSegment(top_gl, species, self.db_name, score=top_score, others=others, assigner_name=self.name)
+        others = [GermlineSegment(germ, species, self.db_name, self.receptor, score=score) for germ, score in zip(all_gls[1:6], all_scores[1:6])]
+        return GermlineSegment(top_gl, species, self.db_name, self.receptor, score=top_score, others=others, assigner_name=self.name)
 
 
     def process_blast_record(self, blast_record):
@@ -213,8 +213,8 @@ class Blastn(BaseAssigner):
         all_scores = [a.hsps[0].bits for a in blast_record.alignments]
         top_gl = all_gls[0]
         top_score = all_scores[0]
-        others = [GermlineSegment(germ, species, self.db_name, score=score) for germ, score in zip(all_gls[1:], all_scores[1:])]
-        return GermlineSegment(top_gl, species, self.db_name, score=top_score, others=others[:5], assigner_name=self.name)
+        others = [GermlineSegment(germ, species, self.db_name, self.receptor, score=score) for germ, score in zip(all_gls[1:], all_scores[1:])]
+        return GermlineSegment(top_gl, species, self.db_name, self.receptor, score=top_score, others=others[:5], assigner_name=self.name)
 
 
     @staticmethod

@@ -52,6 +52,9 @@ def parse_arguments():
                         help="Path to an IMGT-gapped, FASTA-formatted file containing Joining gene sequences. \
                         Sequences for both heavy and light chains should be included in a single file. \
                         Required.")
+    parser.add_argument('-r', '--receptor', dest='receptor', required=True, type=str.lower, choices=['bcr', 'tcr'],
+                        help="Receptor type for the germline database. Choices include 'bcr' and 'tcr'. \
+                        Required.")
     parser.add_argument('-i', '--isotypes', dest='isotypes', default=None,
                         help="Path to a FASTA-formatted file containing isotype sequences. \
                         The name of the isotype in the FASTA file is what will be reported by AbStar, \
@@ -100,7 +103,7 @@ def parse_arguments():
 # -------------------------
 
 
-def get_addon_directory(db_location):
+def get_addon_directory(db_location, receptor):
     if db_location is not None:
         print('\n')
         print('NOTE: You have selected a non-default location for the germline directory.')
@@ -111,6 +114,7 @@ def get_addon_directory(db_location):
         addon_dir = db_location
     else:
         addon_dir = os.path.expanduser('~/.abstar/germline_dbs')
+    addon_dir = os.path.join(addon_dir, receptor.lower())
     if not os.path.isdir(addon_dir):
         os.makedirs(addon_dir)
     return addon_dir
@@ -264,7 +268,7 @@ def print_manifest_info(manifest):
 
 def main():
     args = parse_arguments()
-    addon_dir = get_addon_directory(args.db_location)
+    addon_dir = get_addon_directory(args.db_location, args.receptor)
     check_for_existing_db(addon_dir, args.name)
     make_db_directories(addon_dir, args.name, args.isotypes)
     for segment, infile in [('Variable', args.v), ('Diversity', args.d), ('Joining', args.j)]:

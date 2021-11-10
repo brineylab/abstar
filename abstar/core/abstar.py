@@ -24,6 +24,9 @@
 
 from __future__ import absolute_import, division, print_function, unicode_literals
 
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
+
 from argparse import ArgumentParser
 import csv
 from glob import glob
@@ -162,7 +165,10 @@ def parse_arguments(print_help=False):
                         so one sequence should fail the germline assignment process. \
                         Default is False. \
                         Providing temp and output directories (or a project directory) is required.")
-    parser.add_argument('--germ_db', dest='germ_db', default='human')
+    parser.add_argument('--germ_db', dest='germ_db', default='human', help="Germline database to use. Built-in \
+                        options include 'human', 'mouse', 'macaaque' and 'humouse'. Custom databases can alsu \
+                        be built and used. Default is 'human'.")
+    parser.add_argument('-r', '--receptor', default='bcr', help="Receptor type. Options are 'bcr' and 'tcr'.")
     parser.add_argument('-z', '--gzip', dest='gzip', default=False, action='store_true',
                         help="Compress the output to a gzipped file")
     parser.add_argument('--raw', dest='raw', default=False, action='store_true',
@@ -194,7 +200,7 @@ class Args(object):
                  merge=False, pandaseq_algo='simple_bayesian', use_test_data=False,
                  parquet=False, nextseq=False, uid=0, isotype=False, pretty=False, num_cores=0,
                  basespace=False, cluster=False, padding=True, raw=False, json_keys=None,
-                 debug=False, germ_db='human', gzip=False):
+                 debug=False, germ_db='human', receptor='bcr', gzip=False):
         super(Args, self).__init__()
         self.sequences = sequences
         self.project_dir = os.path.abspath(project_dir) if project_dir is not None else project_dir
@@ -222,6 +228,7 @@ class Args(object):
         self.json_keys = json_keys
         self.padding = padding
         self.germ_db = germ_db
+        self.receptor = receptor.lower()
 
 
 def validate_args(args):
@@ -257,22 +264,27 @@ def validate_args(args):
     if args.json_keys is not None:
         args.json_keys = args.json_keys.split(',')
 
+    # check that the supplied receptor is appropriate:
+    if args.receptor not in ['bcr', 'tcr']:
+        print(f'\nERROR: Supplied receptor type {args.receptor} is not supported.')
+        print("Abstar supports the following receptor types: BCR and TCR.")
+
     # check to ensure a germline database exists for the requested species
     addon_species_dbs = []
     builtin_species_dbs = []
-    addon_germline_dbs_dir = os.path.expanduser('~/.abstar/germline_dbs')
+    addon_germline_dbs_dir = os.path.expanduser(f'~/.abstar/germline_dbs/{args.receptor}')
     if os.path.isdir(addon_germline_dbs_dir):
         addon_species_dbs += [os.path.basename(d[0]) for d in os.walk(addon_germline_dbs_dir)]
     mod_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    builtin_germline_dbs_dir = os.path.join(mod_dir, 'assigners/germline_dbs/')
+    builtin_germline_dbs_dir = os.path.join(mod_dir, f'assigners/germline_dbs/{args.receptor}')
     if os.path.isdir(builtin_germline_dbs_dir):
         builtin_species_dbs += [os.path.basename(d) for d in list_files(builtin_germline_dbs_dir)]
     if not any([args.germ_db.lower() in addon_species_dbs, args.germ_db.lower() in builtin_species_dbs]):
-        print('\nERROR: A germline database was not found for the requested species.')
-        print('\nBuilt-in databases exist for the following species:')
+        print(f'\nERROR: A germline database was not found for the requested species ({args.species}).')
+        print(f'\nBuilt-in {args.receptor.upper()} databases exist for the following species:')
         print(', '.join(builtin_species_dbs))
         if addon_species_dbs:
-            print('\nUser-generated databases exist for the following species:')
+            print(f'\nUser-generated {args.receptor.upper()} databases exist for the following species:')
             print(', '.join(addon_species_dbs))
         else:
             print('No user-generated databases exist on this computer.')
@@ -349,6 +361,7 @@ def log_options(input_dir, output_dir, temp_dir, args):
     logger.info('-' * 25)
     logger.info('')
     logger.info('GERMLINE DB: {}'.format(args.germ_db))
+    logger.info('RECEPTOR: {}'.format(args.receptor))
     logger.info('CHUNKSIZE: {}'.format(args.chunksize))
     logger.info('OUTPUT TYPE: {}'.format(', '.join(args.output_type)))
     if args.merge or args.basespace:
@@ -645,10 +658,6 @@ def run_abstar(seq_file, output_dir, log_dir, file_format, arg_dict):
         output_filename = os.path.basename(seq_file)
         output_suffixes = [get_output_suffix(output_type) for output_type in sorted(args.output_type)]
         output_files = [os.path.join(output_dir, output_filename + output_suffix) for output_suffix in output_suffixes]
-        # if args.output_type == 'json':
-        #     output_file = os.path.join(output_dir, output_filename + '.json')
-        # elif args.output_type in ['imgt', 'hadoop']:
-        #     output_file = os.path.join(output_dir, output_filename + '.txt')
         # setup log files
         annotated_logfile = os.path.join(log_dir, 'temp/{}.annotated'.format(output_filename))
         annotated_loghandle = open(annotated_logfile, 'a')
@@ -658,10 +667,9 @@ def run_abstar(seq_file, output_dir, log_dir, file_format, arg_dict):
         unassigned_loghandle = open(unassigned_logfile, 'a')
         # start assignment
         assigner_class = ASSIGNERS[args.assigner]
-        assigner = assigner_class(args.germ_db)  # initialize the assigner class with the species
+        assigner = assigner_class(args.germ_db, args.receptor) 
         assigner(seq_file, file_format)  # call the assigner
         # process all of the successfully assigned sequences
-        # results = AbstarResults()
         outputs_dict = build_output_base(args.output_type)
         assigned = [Antibody(vdj, args.germ_db) for vdj in assigner.assigned]
         successful = 0
@@ -706,6 +714,10 @@ def run_abstar(seq_file, output_dir, log_dir, file_format, arg_dict):
         return (output_file_dict, successful, annotated_logfile, failed_logfile, unassigned_logfile)
     except:
         logging.debug(traceback.format_exc())
+
+
+
+        print(traceback.format_exc())
 
 
 

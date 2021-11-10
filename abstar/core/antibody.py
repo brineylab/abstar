@@ -139,14 +139,14 @@ class Antibody(LoggingMixin):
         self.log('GERMLINE START:', self.v.germline_start)
         self.log('GERMLINE END:', self.v.germline_end)
         self.log('')
-        self.log('  QUERY: ', self.v.query_alignment)
+        self.log('   QUERY:', self.v.query_alignment)
         self.log('         ', self.v.alignment_midline)
         self.log('GERMLINE:', self.v.germline_alignment)
         self.log('')
         self.log('V-GENE GAPPED IMGT ALIGNMENT')
         self.log('----------------------------')
         self.v.gapped_imgt_realignment()
-        self.log('  QUERY: ', self.v.imgt_gapped_alignment.aligned_query)
+        self.log('   QUERY:', self.v.imgt_gapped_alignment.aligned_query)
         self.log('         ', self.v.imgt_gapped_alignment.alignment_midline)
         self.log('GERMLINE:', self.v.imgt_gapped_alignment.aligned_target)
         self.log('')
@@ -170,14 +170,14 @@ class Antibody(LoggingMixin):
         self.log('GERMLINE START:', self.j.germline_start)
         self.log('GERMLINE END:', self.j.germline_end)
         self.log('')
-        self.log('  QUERY: ', self.j.query_alignment)
+        self.log('   QUERY:', self.j.query_alignment)
         self.log('         ', self.j.alignment_midline)
         self.log('GERMLINE:', self.j.germline_alignment)
         self.log('')
         self.log('J-GENE GAPPED IMGT ALIGNMENT')
         self.log('----------------------------')
         self.j.gapped_imgt_realignment()
-        self.log('  QUERY: ', self.j.imgt_gapped_alignment.aligned_query)
+        self.log('   QUERY:', self.j.imgt_gapped_alignment.aligned_query)
         self.log('         ', self.j.imgt_gapped_alignment.alignment_midline)
         self.log('GERMLINE:', self.j.imgt_gapped_alignment.aligned_target)
         self.log('')
@@ -188,7 +188,9 @@ class Antibody(LoggingMixin):
         self.log('J-GENE AA SEQUENCE:', self.j.aa_sequence)
 
         # realign D (if needed)
-        if all([self.chain == 'heavy', self.d is not None]):
+        if all([self.chain in ['heavy', 'beta', 'delta'], self.d is not None]):
+        # if self.d is not None:
+        # if any([self.chain.lower() in ['heavy', 'beta', 'delta'], self.d is not None]):
             try:
                 dstart = self.v.query_end + 1
                 dend = self.j.query_start
@@ -208,6 +210,15 @@ class Antibody(LoggingMixin):
             except:
                 self.exception('D-GENE REALIGNMENT ERROR', traceback.format_exc())
                 self.d = None
+        else:
+            self.log('')
+            self.log('SKIPPING D-GENE REALIGHMENT')
+            if self.chain not in ['heavy', 'beta', 'delta']:
+                self.log(f'CHAIN ({self.chain}) DOES NOT RECOMBINE D GENES')
+            elif self.d is None:
+                self.log("D-GENE WAS NOT IDENTIFIED")
+            else:
+                self.log('UNKNOWN REASON FOR SKIPPING D-GENE REALIGNMENT')
 
 
 

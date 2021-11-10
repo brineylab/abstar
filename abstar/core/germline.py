@@ -68,13 +68,15 @@ class GermlineSegment(LoggingMixin):
         assigner_name (str): The assigner name. Will be converted to lowercase. Optional.
             If not provided, ``assigner_name`` will be set to ``'unknown'``.
     """
-    def __init__(self, raw, species, db_name, score=None, strand=None, others=None, assigner_name=None, initialize_log=True):
+    def __init__(self, raw, species, db_name, receptor, score=None, strand=None,
+                 others=None, assigner_name=None, initialize_log=True):
         super(GermlineSegment, self).__init__()
         LoggingMixin.__init__(self)
         self.raw_assignment = raw
         self.full = raw.split('__')[0]
         self.species = species.lower()
         self.db_name = db_name
+        self.receptor = receptor.lower()
         self.assigner_score = score
         self.strand = strand
         self.others = others
@@ -170,7 +172,11 @@ class GermlineSegment(LoggingMixin):
         if self._chain is None:
             c = {'H': 'heavy',
                  'K': 'kappa',
-                 'L': 'lambda'}
+                 'L': 'lambda',
+                 'A': 'alpha',
+                 'B': 'beta',
+                 'G': 'gamma',
+                 'D': 'delta'}
             self._chain = c.get(self.full[2], None)
         return self._chain
 
@@ -244,7 +250,7 @@ class GermlineSegment(LoggingMixin):
                 should be truncated prior to alignment with the germline sequence
         '''
         oriented_input = antibody.oriented_input
-        germline_seq = self._get_germline_sequence_for_realignment()
+        germline_seq = self._get_germline_sequence_for_realignment(antibody)
         if germline_seq is None:
             antibody.log('GET GERMLINE SEQUENCE ERROR')
             antibody.log('RAW ASSIGNMENT:', self.raw_assignment)
@@ -281,6 +287,7 @@ class GermlineSegment(LoggingMixin):
         '''
         self.imgt_germline = get_imgt_germlines(self.db_name,
                                                 gene_type=self.gene_type,
+                                                receptor=self.receptor,
                                                 gene=self.full)
         query = self.germline_alignment.replace('-', '')
         aln_params = self._realignment_scoring_params(self.gene_type)
@@ -342,7 +349,7 @@ class GermlineSegment(LoggingMixin):
         self._find_indels(antibody)
 
 
-    def _get_germline_sequence_for_realignment(self):
+    def _get_germline_sequence_for_realignment(self, antibody):
         '''
         Identifies the appropriate germline variable gene from a database of all
         germline variable genes.
@@ -354,8 +361,10 @@ class GermlineSegment(LoggingMixin):
         '''
         # mod_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         # db_file = os.path.join(mod_dir, 'assigners/germline_dbs/{}_{}.fasta'.format(self.species.lower(), self.gene_type))
-        germ_dir = get_germline_database_directory(self.db_name)
+        germ_dir = get_germline_database_directory(self.db_name, self.receptor)
+        antibody.log('GERMLINE DIRECTORY: {}'.format(germ_dir))
         db_file = os.path.join(germ_dir, 'ungapped/{}.fasta'.format(self.gene_type.lower()))
+        antibody.log('GERMLINE DB FILE: {}'.format(db_file))
         try:
             for s in SeqIO.parse(open(db_file), 'fasta'):
                 if s.id == self.raw_assignment:
@@ -561,16 +570,18 @@ class GermlineSegment(LoggingMixin):
         return scores[gene]
 
 
-def get_germline_database_directory(species):
-    addon_dir = os.path.expanduser('~/.abstar/germline_dbs')
+def get_germline_database_directory(species, receptor='bcr'):
+    species = species.lower()
+    receptor = receptor.lower()
+    addon_dir = os.path.expanduser(f'~/.abstar/germline_dbs/{receptor}')
     if os.path.isdir(addon_dir):
         if species.lower() in [os.path.basename(d[0]) for d in os.walk(addon_dir)]:
             return os.path.join(addon_dir, species.lower())
     mod_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    return os.path.join(mod_dir, 'assigners/germline_dbs/{}'.format(species.lower()))
+    return os.path.join(mod_dir, f'assigners/germline_dbs/{receptor}/{species}')
 
 
-def get_imgt_germlines(db_name, gene_type, gene=None):
+def get_imgt_germlines(db_name, gene_type, receptor='bcr', gene=None):
     '''
     Returns one or more IMGTGermlineGene objects that each contain a single IMGT-gapped germline gene.
 
@@ -580,6 +591,8 @@ def get_imgt_germlines(db_name, gene_type, gene=None):
         species (str): Species for which the germline genes should be obtained.
 
         gene_type (str): Options are 'V', 'D', and 'J'.
+
+        receptor (str): Options are ``'bcr'`` and ``'tcr'``.
 
         gene (str): Full name of a germline gene (using IMGT-style names, like IGHV1-2*02).
                     If provided, a single ``IMGTGermlineGene`` object will be returned, or None if the
@@ -595,7 +608,7 @@ def get_imgt_germlines(db_name, gene_type, gene=None):
     '''
     # mod_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     # db_file = os.path.join(mod_dir, 'assigners/germline_dbs/imgt_gapped/{}_{}_imgt-gapped.fasta'.format(species, gene_type))
-    germ_dir = get_germline_database_directory(db_name)
+    germ_dir = get_germline_database_directory(db_name, receptor.lower())
     db_file = os.path.join(germ_dir, 'imgt_gapped/{}.fasta'.format(gene_type.lower()))
     try:
         germs = [IMGTGermlineGene(g) for g in SeqIO.parse(open(db_file, 'r'), 'fasta')]
@@ -621,7 +634,7 @@ def get_imgt_germlines(db_name, gene_type, gene=None):
         return None
 
 
-def get_germlines(db_name, gene_type, chain=None, gene=None):
+def get_germlines(db_name, gene_type, receptor='bcr', chain=None, gene=None):
     '''
     Returns one or more IMGTGermlineGene objects that each contain a single IMGT-gapped germline gene.
 
@@ -630,15 +643,18 @@ def get_germlines(db_name, gene_type, chain=None, gene=None):
 
         species (str): Species for which the germline genes should be obtained.
 
-        gene_type (str): Options are 'V', 'D', and 'J'.
+        gene_type (str): Options are ``'V'``, ``'D'``, and ``'J'``.
 
-        chain (str): Options are 'heavy', 'kappa', and 'lambda'. If not provided, germline sequences
-                     from all chains are returned.
+        receptor (str): Options are ``'bcr'`` and ``'tcr'``.
 
-        gene (str): Full name of a germline gene (using IMGT-style names, like IGHV1-2*02).
-                    If provided, a single ``IMGTGermlineGene`` object will be returned, or None if the
-                    specified gene could not be found. If not provided, a list of ``IMGTGermlineGene``
-                    objects for all germline genes matching the ``species`` and ``gene_type`` will be returned.
+        chain (str): Options are ``'heavy'``, ``'kappa'``, and ``'lambda'`` for BCRs and ``'alpha'``, 
+        ``'beta'``, ``'gamma'``, and ``'delta'`` for TCRs. If not provided, germline sequences from 
+        all chains are returned.
+
+        gene (str): Full name of a germline gene (using IMGT-style names, like ``'IGHV1-2*02'``).
+        If provided, a single ``IMGTGermlineGene`` object will be returned, or ``None`` if the
+        specified gene could not be found. If not provided, a list of ``IMGTGermlineGene`` objects 
+        for all germline genes matching the ``species``, ``receptor`` and ``gene_type`` will be returned.
 
     Returns:
     --------
@@ -647,7 +663,7 @@ def get_germlines(db_name, gene_type, chain=None, gene=None):
                           ``IMGTGermlineGene`` objects. If no sequences match the criteria or if a germline
                           database for the requested species is not found, ``None`` is returned.
     '''
-    germs = get_imgt_germlines(db_name, gene_type, gene=gene)
+    germs = get_imgt_germlines(db_name, gene_type, receptor=receptor.lower(), gene=gene)
     if germs is None:
         return germs
     if chain is not None:

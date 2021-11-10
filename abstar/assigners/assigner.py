@@ -290,11 +290,12 @@ class BaseAssigner(object):
 
     __metaclass__ = abc.ABCMeta
 
-    def __init__(self, db_name):
+    def __init__(self, db_name, receptor):
         super(BaseAssigner, self).__init__()
         self.name = self.__class__.__name__.lower()
         self.species = db_name
         self.db_name = db_name
+        self.receptor = receptor.lower()
         self._assigned = None
         self._unassigned = None
         self._germline_directory = None
@@ -309,7 +310,8 @@ class BaseAssigner(object):
     @property
     def germline_directory(self):
         if self._germline_directory is None:
-            self._germline_directory = get_germline_database_directory(self.db_name)
+            self._germline_directory = get_germline_database_directory(self.db_name,
+                                                                       self.receptor)
         return self._germline_directory
 
     @germline_directory.setter
