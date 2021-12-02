@@ -358,6 +358,7 @@ class AbstarResult(object):
             ('exo_trimming', exo_trim),
             ('junc_nt_breakdown', junc),
             ('germline_database', self.antibody.germ_db),
+            ('vdj_assigner', self.antibody.v.assigner),
             ('species', self.antibody.species),
             ('align_info', align_info),  # TODO!!  Add things like V/D/J start and end positions, etc.
         ])
@@ -446,20 +447,21 @@ class AbstarResult(object):
         try:
             c_call = self.antibody.isotype.isotype
         except AttributeError:
-            c_call = 'null'
+            c_call = ''
         if self.antibody.d:
             d_call = self.antibody.d.full
             d_gene = self.antibody.d.gene
             d_cigar = make_cigar(self.antibody.d)
             # d_identity = str(self.antibody.d.nt_identity / 100.)
         else:
-            d_call = 'null'
-            d_gene = 'null'
-            d_cigar = 'null'
-            # d_identity = 'null'
+            d_call = ''
+            d_gene = ''
+            d_cigar = ''
+            # d_identity = ''
         output = collections.OrderedDict([
             ('sequence_id', self.antibody.id),
-            ('sequence', self.antibody.raw_input.sequence),
+            ('umi', self.antibody.uid),
+            ('sequence', self.antibody.vdj_nt),
             ('sequence_aa', self.antibody.vdj_aa),
             ('rev_comp', 'True' if self.antibody.v.strand == '-' else 'False'),
             ('productive', 'True' if self.antibody.productivity.is_productive else 'False'),
@@ -468,12 +470,14 @@ class AbstarResult(object):
             ('v_call', self.antibody.v.full),
             ('v_gene', self.antibody.v.gene),
             ('v_identity', str(self.antibody.v.nt_identity / 100.)),
+            ('v_identity_aa', str(self.antibody.v.aa_identity / 100.)),
             ('d_call', d_call),
             ('d_gene', d_gene),
             # ('d_identity', d_identity),
             ('j_call', self.antibody.j.full),
             ('j_gene', self.antibody.j.gene),
             ('j_identity', str(self.antibody.j.nt_identity / 100.)),
+            ('j_identity_aa', str(self.antibody.j.aa_identity / 100.)),
             ('c_call', c_call),
             ('cdr3_length', str(len(self.antibody.junction.cdr3_aa))),
             ('fwr1_aa', self.antibody.v.regions.aa_seqs['FR1']),
@@ -493,10 +497,14 @@ class AbstarResult(object):
             ('v_deletions', '|'.join([i.abstar_formatted for i in self.antibody.v.deletions]) if self.antibody.v.deletions else 'null'),
             ('junction', self.antibody.junction.junction_nt),
             ('junction_aa', self.antibody.junction.junction_aa),
+            ('junction_in_frame', 'True' if self.antibody.junction.in_frame else 'False'),
+            ('isotype', c_call),
+            ('locus', self.antibody.v.gene[:3].upper()),
             ('v_cigar', make_cigar(self.antibody.v)),
             ('d_cigar', d_cigar),
             ('j_cigar', make_cigar(self.antibody.j)),
             ('species', self.antibody.species),
+            ('germline_database', self.antibody.germ_db),
             ('raw_input', self.antibody.raw_input.sequence),
         ])
         return '\t'.join(output.values())
