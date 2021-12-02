@@ -452,11 +452,13 @@ class AbstarResult(object):
             d_call = self.antibody.d.full
             d_gene = self.antibody.d.gene
             d_cigar = make_cigar(self.antibody.d)
+            d_score = self.antibody.d.score
             # d_identity = str(self.antibody.d.nt_identity / 100.)
         else:
             d_call = ''
             d_gene = ''
             d_cigar = ''
+            d_score = ''
             # d_identity = ''
         output = collections.OrderedDict([
             ('sequence_id', self.antibody.id),
@@ -469,13 +471,16 @@ class AbstarResult(object):
             ('stop_codon', 'True' if '*' in self.antibody.vdj_aa else 'False'),
             ('v_call', self.antibody.v.full),
             ('v_gene', self.antibody.v.gene),
+            ('v_score', self.antibody.v.assigner_score),
             ('v_identity', str(self.antibody.v.nt_identity / 100.)),
             ('v_identity_aa', str(self.antibody.v.aa_identity / 100.)),
             ('d_call', d_call),
             ('d_gene', d_gene),
+            ('d_score', d_score),
             # ('d_identity', d_identity),
             ('j_call', self.antibody.j.full),
             ('j_gene', self.antibody.j.gene),
+            ('j_score', self.antibody.j.assigner_score),
             ('j_identity', str(self.antibody.j.nt_identity / 100.)),
             ('j_identity_aa', str(self.antibody.j.aa_identity / 100.)),
             ('c_call', c_call),
