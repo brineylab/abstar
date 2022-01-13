@@ -46,6 +46,8 @@ import warnings
 
 from Bio import SeqIO
 
+# import dask.dataframe as dd
+
 from abutils.core.sequence import Sequence
 from abutils.utils import log
 # from abutils.utils.pipeline import list_files
