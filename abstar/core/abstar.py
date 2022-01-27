@@ -1077,6 +1077,8 @@ def run(*args, **kwargs):
             for a in args:
                 print(a)
             sys.exit(1)
+    else:
+        sequences = None
 
     kwargs['sequences'] = sequences
     args = Args(**kwargs)
