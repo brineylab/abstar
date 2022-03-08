@@ -1064,6 +1064,7 @@ TABULAR_HEADER = ['seq_id',
                   'raw_input']
 
 AIRR_HEADER = ['sequence_id',
+               'umi',
                'sequence',
                'sequence_aa',
                'rev_comp',
