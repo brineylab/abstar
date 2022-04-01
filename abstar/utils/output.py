@@ -1074,11 +1074,13 @@ AIRR_HEADER = ['sequence_id',
                'v_call',
                'v_gene',
                'v_identity',
+               'v_identity_aa',
                'd_call',
                'd_gene',
                'j_call',
                'j_gene',
                'j_identity',
+               'j_identity_aa',
                'c_call',
                'cdr3_length',
                'fwr1_aa',
@@ -1098,8 +1100,19 @@ AIRR_HEADER = ['sequence_id',
                'v_deletions',
                'junction',
                'junction_aa',
+               'junction_in_frame',
+               'isotype',
+               'locus',
                'v_cigar',
                'd_cigar',
                'j_cigar',
                'species',
+               'germline_database',
                'raw_input']
+
+
+
+
+
+
+
