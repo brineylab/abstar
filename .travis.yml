@@ -2,9 +2,9 @@ language: python
 # pick the appropriate requirements file
 matrix:
   include:
-    - python: "3.7"
-      env: REQUIREMENTS=requirements.txt
     - python: "3.8"
+      env: REQUIREMENTS=requirements.txt
+    - python: "3.9"
       env: REQUIREMENTS=requirements.txt
 branches:
   only:
