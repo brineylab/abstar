@@ -32,7 +32,7 @@ def compare_v_regions_to_reference(antibodies):
         ab = MockAntibody()
         ab.oriented_input = antibody.oriented_input
         ab.v_rf_offset = antibody.v_rf_offset
-        v = GermlineSegment(antibody.v.full, antibody.v.species, antibody.v.db_name, initialize_log=False)
+        v = GermlineSegment(antibody.v.full, antibody.v.species, antibody.v.db_name, 'bcr', initialize_log=False)
         v.query_start = antibody.v.query_start
         v.gene_type = antibody.v.gene_type
         v._imgt_position_from_raw = antibody.v._imgt_position_from_raw
@@ -65,7 +65,7 @@ def compare_j_regions_to_reference(antibodies):
         ab = MockAntibody()
         ab.oriented_input = antibody.oriented_input
         ab.v_rf_offset = antibody.v_rf_offset
-        j = GermlineSegment(antibody.j.full, antibody.j.species, antibody.j.db_name, initialize_log=False)
+        j = GermlineSegment(antibody.j.full, antibody.j.species, antibody.j.db_name, 'bcr', initialize_log=False)
         j.query_start = antibody.j.query_start
         j.gene_type = antibody.j.gene_type
         j._imgt_position_from_raw = antibody.j._imgt_position_from_raw
