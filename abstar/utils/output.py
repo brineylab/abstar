@@ -39,7 +39,7 @@ PARQUET_INCOMPATIBLE = ['json', ]
 OUTPUT_SEPARATORS = {'airr': '\t',
                      'imgt': ',',
                      'tabular': ','}
-OUTPUT_EXTENSIONS = {'airr': '.txt',
+OUTPUT_EXTENSIONS = {'airr': '.tsv',
                      'json': '.json',
                      'imgt': '.csv',
                      'tabular': '.csv'}
