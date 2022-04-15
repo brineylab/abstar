@@ -201,7 +201,7 @@ class Args(object):
                  sequences=None, chunksize=500, output_type=['json', ], assigner='blastn',
                  merge=False, pandaseq_algo='simple_bayesian', use_test_data=False,
                  parquet=False, nextseq=False, uid=0, isotype=False, pretty=False, num_cores=0,
-                 basespace=False, cluster=False, padding=True, raw=False, json_keys=None,
+                 basespace=False, cluster=False, padding=False, raw=False, json_keys=None,
                  debug=False, germ_db='human', receptor='bcr', gzip=False):
         super(Args, self).__init__()
         self.sequences = sequences
