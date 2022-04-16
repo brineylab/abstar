@@ -524,7 +524,7 @@ class AbstarResult(object):
             ('species', self.antibody.species),
             ('germline_database', self.antibody.germ_db),
         ])
-        return '\t'.join(output.values())
+        return '\t'.join([v if v is not None else '' for v in output.values()])
 
 
 def get_output_suffix(output_format):
