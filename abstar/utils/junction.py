@@ -130,7 +130,7 @@ class Junction(object):
             n2 += self.j_nt[:j_really_n2] if j_really_n2 > 0 else ''
             self.n2_aa = translate(n2)
             self.j_aa = translate(self.j_nt[j_really_n2:])
-            self.n_nt = None
+            self.n_aa = None
         else:
             n_start = antibody.v.query_end + 1
             n_end = antibody.j.query_start
