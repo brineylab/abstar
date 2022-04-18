@@ -116,8 +116,9 @@ class Junction(object):
             v_really_n1 = len(self.v_nt) % 3
             d_really_n1 = 3 - (len(self.v_nt + self.n1_nt) % 3)
             n1 = self.v_nt[-v_really_n1:] if v_really_n1 > 0 else ''
+            d_really_n1 = d_really_n1 % 3 # this is to account for case where d_really_n1 == 3, which needs to be converted to 0
             n1 += self.n1_nt
-            n1 += self.d_nt[:d_really_n1] if d_really_n1 < 3 else ''
+            n1 += self.d_nt[:d_really_n1] if d_really_n1 < 0 else ''
             self.n1_aa = translate(n1)
             self.d_aa = translate(self.d_nt[d_really_n1:])
             # if the final codon of d_nt or the first codon of j_nt contain any n-addition, the whole codon
@@ -125,9 +126,10 @@ class Junction(object):
             # germline gene segment
             d_really_n2 = len(self.v_nt + self.n1_nt + self.d_nt) % 3
             j_really_n2 = 3 - (len(self.v_nt + self.n1_nt + self.d_nt + self.n2_nt) % 3)
+            j_really_n2 = j_really_n2 % 3 # this is to account for case where j_really_n2 == 3, which needs to be converted to 0
             n2 = self.d_nt[-d_really_n2:] if d_really_n2 > 0 else ''
             n2 += self.n2_nt
-            n2 += self.j_nt[:j_really_n2] if j_really_n2 < 3 else ''
+            n2 += self.j_nt[:j_really_n2] if j_really_n2 > 0 else ''
             self.n2_aa = translate(n2)
             self.j_aa = translate(self.j_nt[j_really_n2:])
             self.n_aa = None
