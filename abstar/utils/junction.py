@@ -154,7 +154,8 @@ class Junction(object):
             # is considered n-addition for translation purposes, since they're not entirely encoded by the 
             # germline gene segment
             v_really_n = len(self.v_nt) % 3
-            j_really_n = len(self.v_nt + self.n_nt) % 3
+            j_really_n = 3 - (len(self.v_nt + self.n_nt) % 3)
+            j_really_n = j_really_n % 3 # this is to account for case where j_really_n2 == 3, which needs to be converted to 0
             n = self.v_nt[-v_really_n:] if v_really_n > 0 else ''
             n += self.n_nt
             n += self.j_nt[:j_really_n] if j_really_n > 0 else ''
