@@ -118,7 +118,7 @@ class Junction(object):
             n1 = self.v_nt[-v_really_n1:] if v_really_n1 > 0 else ''
             d_really_n1 = d_really_n1 % 3 # this is to account for case where d_really_n1 == 3, which needs to be converted to 0
             n1 += self.n1_nt
-            n1 += self.d_nt[:d_really_n1] if d_really_n1 < 0 else ''
+            n1 += self.d_nt[:d_really_n1] if d_really_n1 > 0 else ''
             self.n1_aa = translate(n1)
             self.d_aa = translate(self.d_nt[d_really_n1:])
             # if the final codon of d_nt or the first codon of j_nt contain any n-addition, the whole codon
