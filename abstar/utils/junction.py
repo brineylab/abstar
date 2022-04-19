@@ -108,12 +108,15 @@ class Junction(object):
             antibody.log('D-GENE DISTANCE FROM CDR3 START:', self.d_dist_from_cdr3_start_nt)
             antibody.log('D-GENE DISTANCE FROM CDR3 END:', self.d_dist_from_cdr3_end_nt)
             # parse germline junction regions (just V, D and J)
-            v_germ_nt = antibody.v.raw_germline[:antibody.v.germline_end + 1]
-            self.v_germ_nt = v_germ_nt[-len(self.v_nt):]
-            d_germ_nt = antibody.d.raw_germline[:antibody.d.germline_end + 1]
-            self.d_germ_nt = d_germ_nt[-len(self.d_nt):]
-            j_germ_nt = antibody.j.raw_germline[antibody.j.germline_start:antibody.j.germline_end]
-            self.j_germ_nt = j_germ_nt[:len(self.j_nt)]
+            self.v_germ_nt = antibody.v.aligned_germline[-len(self.v_nt):]
+            self.d_germ_nt = antibody.d.aligned_germline
+            self.j_germ_nt = antibody.j.aligned_germline[:len(self.j_nt)]
+            # v_germ_nt = antibody.v.raw_germline[:antibody.v.germline_end + 1]
+            # self.v_germ_nt = v_germ_nt[-len(self.v_nt):]
+            # d_germ_nt = antibody.d.raw_germline[:antibody.d.germline_end + 1]
+            # self.d_germ_nt = d_germ_nt[-len(self.d_nt):]
+            # j_germ_nt = antibody.j.raw_germline[antibody.j.germline_start:antibody.j.germline_end]
+            # self.j_germ_nt = j_germ_nt[:len(self.j_nt)]
             antibody.log('V_GERM_NT:', self.v_germ_nt)
             antibody.log('D_GERM_NT:', self.d_germ_nt)
             antibody.log('J_GERM_NT:', self.j_germ_nt)
