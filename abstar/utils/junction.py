@@ -144,7 +144,7 @@ class Junction(object):
             n2 += self.j_nt[:j_really_n2] if j_really_n2 > 0 else ''
             self.n2_aa = translate(n2)
             self.j_aa = translate(self.j_nt[j_really_n2:])
-            self.j_germ_aa = translate(self.j_germ_nt)
+            self.j_germ_aa = translate(self.j_germ_nt[j_really_n2:])
             self.n_aa = None
             antibody.log('V_AA:', self.v_aa)
             antibody.log('N1_AA:', self.n1_aa)
