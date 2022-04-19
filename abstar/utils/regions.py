@@ -36,8 +36,10 @@ from abutils.utils import log
 
 
 # Both IMGT_REGION_END_POSITIONS_AA and IMGT_REGION_END_POSITIONS_NT use the actual
-# IMGT end positions, thus they're not suitable for slicing (because Python's slicing
-# end point is exclusive). To use these end points in a slice, you need to add 1.
+# IMGT end positions, thus they're not suitable for slicing (because Python's uses
+# zero-based numbering). To use these end points in a slice, you need to subtract 1 
+# from the start position (since Python's slicing is exclusive, the actual IMGT
+# numbering works fine for the end position of the slice).
 IMGT_REGION_END_POSITIONS_AA = {'FR1': 26, 'CDR1': 38, 'FR2': 55, 'CDR2': 65,
                                 'FR3': 104, 'CDR3': 117, 'FR4': 129}
 
