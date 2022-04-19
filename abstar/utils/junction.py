@@ -168,9 +168,9 @@ class Junction(object):
             antibody.log('V_NT:', self.v_nt)
             antibody.log('N_NT:', self.n_nt)
             antibody.log('J_NT:', self.j_nt)
-            v_germ_nt = antibody.v.raw_germline[:antibody.v.germline_end]
+            v_germ_nt = antibody.v.raw_germline[:antibody.v.germline_end + 1]
             self.v_germ_nt = v_germ_nt[-len(self.v_nt):]
-            j_germ_nt = antibody.j.raw_germline[antibody.j.germline_start:antibody.j.germline_end]
+            j_germ_nt = antibody.j.raw_germline[antibody.j.germline_start:antibody.j.germline_end + 1]
             self.j_germ_nt = j_germ_nt[:len(self.j_nt)]
             self.d_germ_nt = None
             antibody.log('V_GERM_NT:', self.v_germ_nt)
