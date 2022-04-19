@@ -193,7 +193,7 @@ class Junction(object):
             n += self.j_nt[:j_really_n] if j_really_n > 0 else ''
             self.n_aa = translate(n)
             self.j_aa = translate(self.j_nt[j_really_n:])
-            self.j_germ_aa = translate(self.j_germ_nt)
+            self.j_germ_aa = translate(self.j_germ_nt[j_really_n:])
             self.n1_aa = None
             self.d_aa = None
             self.n2_aa = None
