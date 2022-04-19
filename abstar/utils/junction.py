@@ -108,9 +108,10 @@ class Junction(object):
             antibody.log('D-GENE DISTANCE FROM CDR3 START:', self.d_dist_from_cdr3_start_nt)
             antibody.log('D-GENE DISTANCE FROM CDR3 END:', self.d_dist_from_cdr3_end_nt)
             # parse germline junction regions (just V, D and J)
-            v_germ_nt = antibody.v.raw_germline[:antibody.v.germline_end]
+            v_germ_nt = antibody.v.raw_germline[:antibody.v.germline_end + 1]
             self.v_germ_nt = v_germ_nt[-len(self.v_nt):]
-            self.d_germ_nt = antibody.d.raw_germline[antibody.d.germline_start:antibody.d.germline_end]
+            d_germ_nt = antibody.d.raw_germline[:antibody.d.germline_end + 1]
+            self.d_germ_nt = d_germ_nt[-len(self.d_nt):]
             j_germ_nt = antibody.j.raw_germline[antibody.j.germline_start:antibody.j.germline_end]
             self.j_germ_nt = j_germ_nt[:len(self.j_nt)]
             antibody.log('V_GERM_NT:', self.v_germ_nt)
@@ -131,6 +132,7 @@ class Junction(object):
             n1 += self.d_nt[:d_really_n1] if d_really_n1 > 0 else ''
             self.n1_aa = translate(n1)
             self.d_aa = translate(self.d_nt[d_really_n1:])
+            self.d_germ_aa = translate(self.d_germ_nt[d_really_n1:])
             # if the final codon of d_nt or the first codon of j_nt contain any n-addition, the whole codon
             # is considered n-addition for translation purposes, since they're not entirely encoded by the 
             # germline gene segment
