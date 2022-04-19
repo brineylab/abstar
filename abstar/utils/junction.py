@@ -194,6 +194,7 @@ class Junction(object):
             self.n1_aa = None
             self.d_aa = None
             self.n2_aa = None
+            self.d_germ_aa = None
             antibody.log('V_AA:', self.v_aa)
             antibody.log('N_AA:', self.n_aa)
             antibody.log('J_AA:', self.j_aa)
