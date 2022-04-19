@@ -200,7 +200,7 @@ class AbstarResult(object):
                     'n1_nt': self.antibody.junction.n1_nt,
                     'd_nt': self.antibody.junction.d_nt,
                     'n2_nt': self.antibody.junction.n2_nt,
-                    'j_nt': self.antibody.junction.j_nt, #Change from 'self.antibody.junction.v_nt' to 'self.antibody.junction.j_nt'
+                    'j_nt': self.antibody.junction.j_nt,
 #                     'd_cdr3_pos': {'start': self.antibody.junction.d_start_position_nt,
 #                                    'end': self.antibody.junction.d_end_position_nt},
                     'd_dist_from_cdr3_start': self.antibody.junction.d_dist_from_cdr3_start_nt,
@@ -218,7 +218,7 @@ class AbstarResult(object):
         else:
             junc = {'v_nt': self.antibody.junction.v_nt,
                     'n_nt': self.antibody.junction.n_nt,
-                    'j_nt': self.antibody.junction.j_nt} #Change from 'self.antibody.junction.v_nt' to 'self.antibody.junction.j_nt'
+                    'j_nt': self.antibody.junction.j_nt}
 
         output = collections.OrderedDict([
             ('seq_id', self.antibody.id),
@@ -516,6 +516,12 @@ class AbstarResult(object):
             ('junction_n_aa', self.antibody.junction.n_aa),
             ('junction_n1_aa', self.antibody.junction.n1_aa),
             ('junction_n2_aa', self.antibody.junction.n2_aa),
+            ('junction_germ_v', self.antibody.junction.v_germ_nt),
+            ('junction_germ_d', self.antibody.junction.d_germ_nt),
+            ('junction_germ_j', self.antibody.junction.j_germ_nt),
+            ('junction_germ_v_aa', self.antibody.junction.v_germ_aa),
+            ('junction_germ_d_aa', self.antibody.junction.d_germ_aa),
+            ('junction_germ_j_aa', self.antibody.junction.j_germ_aa),
             ('isotype', c_call),
             ('locus', self.antibody.v.gene[:3].upper()),
             ('v_cigar', make_cigar(self.antibody.v)),
@@ -1129,6 +1135,12 @@ AIRR_HEADER = ['sequence_id',
                'junction_n_aa',
                'junction_n1_aa',
                'junction_n2_aa',
+               'junction_germ_v',
+               'junction_germ_d',
+               'junction_germ_j',
+               'junction_germ_v_aa',
+               'junction_germ_d_aa',
+               'junction_germ_j_aa',
                'isotype',
                'locus',
                'v_cigar',
