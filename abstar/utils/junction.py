@@ -26,10 +26,12 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 import math
 import os
+from termios import NL1
 import traceback
 
 from Bio.Seq import Seq
 
+from abutils.core.sequence import translate
 from abutils.utils import log
 from abutils.utils.alignment import global_alignment, local_alignment
 from abutils.utils.codons import codon_lookup as codons
@@ -105,6 +107,56 @@ class Junction(object):
             antibody.log('J_NT:', self.j_nt)
             antibody.log('D-GENE DISTANCE FROM CDR3 START:', self.d_dist_from_cdr3_start_nt)
             antibody.log('D-GENE DISTANCE FROM CDR3 END:', self.d_dist_from_cdr3_end_nt)
+            # parse germline junction regions (just V, D and J)
+            self.v_germ_nt = antibody.v.germline_alignment[-len(self.v_nt):]
+            self.d_germ_nt = antibody.d.germline_alignment
+            self.j_germ_nt = antibody.j.germline_alignment[:len(self.j_nt)]
+            # v_germ_nt = antibody.v.raw_germline[:antibody.v.germline_end + 1]
+            # self.v_germ_nt = v_germ_nt[-len(self.v_nt):]
+            # d_germ_nt = antibody.d.raw_germline[:antibody.d.germline_end + 1]
+            # self.d_germ_nt = d_germ_nt[-len(self.d_nt):]
+            # j_germ_nt = antibody.j.raw_germline[antibody.j.germline_start:antibody.j.germline_end]
+            # self.j_germ_nt = j_germ_nt[:len(self.j_nt)]
+            antibody.log('V_GERM_NT:', self.v_germ_nt)
+            antibody.log('D_GERM_NT:', self.d_germ_nt)
+            antibody.log('J_GERM_NT:', self.j_germ_nt)
+            
+            # translate the junction regions
+            self.v_aa = translate(self.v_nt)
+            self.v_germ_aa = translate(self.v_germ_nt)
+            # if the final codon of v_nt or the first codon of d_nt contain any n-addition, the whole codon
+            # is considered n-addition for translation purposes, since they're not entirely encoded by the 
+            # germline gene segment
+            v_really_n1 = len(self.v_nt) % 3
+            d_really_n1 = 3 - (len(self.v_nt + self.n1_nt) % 3)
+            n1 = self.v_nt[-v_really_n1:] if v_really_n1 > 0 else ''
+            d_really_n1 = d_really_n1 % 3 # this is to account for case where d_really_n1 == 3, which needs to be converted to 0
+            n1 += self.n1_nt
+            n1 += self.d_nt[:d_really_n1] if d_really_n1 > 0 else ''
+            self.n1_aa = translate(n1)
+            self.d_aa = translate(self.d_nt[d_really_n1:])
+            self.d_germ_aa = translate(self.d_germ_nt[d_really_n1:])
+            # if the final codon of d_nt or the first codon of j_nt contain any n-addition, the whole codon
+            # is considered n-addition for translation purposes, since they're not entirely encoded by the 
+            # germline gene segment
+            d_really_n2 = len(self.v_nt + self.n1_nt + self.d_nt) % 3
+            j_really_n2 = 3 - (len(self.v_nt + self.n1_nt + self.d_nt + self.n2_nt) % 3)
+            j_really_n2 = j_really_n2 % 3 # this is to account for case where j_really_n2 == 3, which needs to be converted to 0
+            n2 = self.d_nt[-d_really_n2:] if d_really_n2 > 0 else ''
+            n2 += self.n2_nt
+            n2 += self.j_nt[:j_really_n2] if j_really_n2 > 0 else ''
+            self.n2_aa = translate(n2)
+            self.j_aa = translate(self.j_nt[j_really_n2:])
+            self.j_germ_aa = translate(self.j_germ_nt[j_really_n2:])
+            self.n_aa = None
+            antibody.log('V_AA:', self.v_aa)
+            antibody.log('N1_AA:', self.n1_aa)
+            antibody.log('D_AA:', self.d_aa)
+            antibody.log('N2_AA:', self.n2_aa)
+            antibody.log('J_AA:', self.j_aa)
+            antibody.log('V_GERM_AA:', self.v_germ_aa)
+            antibody.log('D_GERM_AA:', self.d_germ_aa)
+            antibody.log('J_GERM_AA:', self.j_germ_aa)
         else:
             n_start = antibody.v.query_end + 1
             n_end = antibody.j.query_start
@@ -113,12 +165,44 @@ class Junction(object):
             self.j_nt = antibody.oriented_input[n_end:self.junction_nt_end]
             self.n1_nt = None
             self.d_nt = None
-            self.n1_nt = None
+            self.n2_nt = None
             self.d_dist_from_cdr3_start_nt = None
             self.d_dist_from_cdr3_end_nt = None
             antibody.log('V_NT:', self.v_nt)
             antibody.log('N_NT:', self.n_nt)
             antibody.log('J_NT:', self.j_nt)
+            v_germ_nt = antibody.v.raw_germline[:antibody.v.germline_end + 1]
+            self.v_germ_nt = v_germ_nt[-len(self.v_nt):]
+            j_germ_nt = antibody.j.raw_germline[antibody.j.germline_start:antibody.j.germline_end + 1]
+            self.j_germ_nt = j_germ_nt[:len(self.j_nt)]
+            self.d_germ_nt = None
+            antibody.log('V_GERM_NT:', self.v_germ_nt)
+            antibody.log('J_GERM_NT:', self.j_germ_nt)
+            
+            # translate the junction regions
+            self.v_aa = translate(self.v_nt)
+            self.v_germ_aa = translate(self.v_germ_nt)
+            # if the final codon of v_nt or the first codon of j_nt contain any n-addition, the whole codon
+            # is considered n-addition for translation purposes, since they're not entirely encoded by the 
+            # germline gene segment
+            v_really_n = len(self.v_nt) % 3
+            j_really_n = 3 - (len(self.v_nt + self.n_nt) % 3)
+            j_really_n = j_really_n % 3 # this is to account for case where j_really_n2 == 3, which needs to be converted to 0
+            n = self.v_nt[-v_really_n:] if v_really_n > 0 else ''
+            n += self.n_nt
+            n += self.j_nt[:j_really_n] if j_really_n > 0 else ''
+            self.n_aa = translate(n)
+            self.j_aa = translate(self.j_nt[j_really_n:])
+            self.j_germ_aa = translate(self.j_germ_nt[j_really_n:])
+            self.n1_aa = None
+            self.d_aa = None
+            self.n2_aa = None
+            self.d_germ_aa = None
+            antibody.log('V_AA:', self.v_aa)
+            antibody.log('N_AA:', self.n_aa)
+            antibody.log('J_AA:', self.j_aa)
+            antibody.log('V_GERM_AA:', self.v_germ_aa)
+            antibody.log('J_GERM_AA:', self.j_germ_aa)
 
         # calculate IMGT numbering for the junction and CDR3
         self.cdr3_imgt_nt_numbering = self._calculate_cdr3_imgt_nt_numbering()

@@ -270,6 +270,18 @@ class GermlineSegment(LoggingMixin):
         else:
             query = oriented_input.sequence[query_start:query_end]
             alignment = local_alignment(query, germline_seq, **aln_params)
+            # fix for a fairly rare edge case where coincidental matching to 2-3 residues at the extreme
+            # 3' end of K/L germline V genes can result in incorrect identification of the
+            # end of the V gene region (making the called V region far too long and, in some cases, 
+            # extending beyond the junction and into FR4). What we do here is drop the last 2 nucleotides
+            # of the aligned germline and re-align to see whether that substantialy truncates the resulting
+            # alignment (by at least 2 additional nucleotides). If so, we use the new alignment instead.
+            if self.gene_type == 'V' and self.chain in ['kappa', 'lambda']:
+                germline_trunc = germline_seq[:alignment.target_end - 2]
+                alignment2 = local_alignment(query, germline_trunc, **aln_params)
+                if alignment.query_end - alignment2.query_end >= 4:
+                    alignment2.raw_target = alignment.raw_target  # swap the truncated germline with the full one
+                    alignment = alignment2
         if alignment:
             self._process_realignment(antibody, alignment, query_start)
         else:

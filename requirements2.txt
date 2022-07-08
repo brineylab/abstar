@@ -1,8 +1,0 @@
-abutils
-biopython
-celery
-mock
-nwalign
-pymongo
-pytest
-scikit-bio<=0.4.2

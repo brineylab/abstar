@@ -48,7 +48,7 @@ from Bio import SeqIO
 
 # import dask.dataframe as dd
 
-from abutils.core.sequence import Sequence
+from abutils.core.sequence import Sequence, read_json, read_csv
 from abutils.utils import log
 # from abutils.utils.pipeline import list_files
 
@@ -201,7 +201,7 @@ class Args(object):
                  sequences=None, chunksize=500, output_type=['json', ], assigner='blastn',
                  merge=False, pandaseq_algo='simple_bayesian', use_test_data=False,
                  parquet=False, nextseq=False, uid=0, isotype=False, pretty=False, num_cores=0,
-                 basespace=False, cluster=False, padding=True, raw=False, json_keys=None,
+                 basespace=False, cluster=False, padding=False, raw=False, json_keys=None,
                  debug=False, germ_db='human', receptor='bcr', gzip=False):
         super(Args, self).__init__()
         self.sequences = sequences
@@ -1098,17 +1098,20 @@ def run(*args, **kwargs):
         ofmt = args.output_type[0]
         ofile = output_files[0]
         if ofmt == 'tabular':
-            with open(ofile) as f:
-                reader = csv.DictReader(f, delimiter=',')
-                output = [Sequence(r) for r in reader]
+            output = read_csv(ofile, delimiter=',', id_key='seq_id', sequence_key='vdj_nt')
+            # with open(ofile) as f:
+                # reader = csv.DictReader(f, delimiter=',')
+                # output = [Sequence(r) for r in reader]
         if ofmt == 'airr':
-            with open(ofile) as f:
-                reader = csv.DictReader(f, delimiter='\t')
-                output = [Sequence(r, id_key='sequence_id', seq_key='sequence')  for r in reader]
+            output = read_csv(ofile, delimiter='\t', id_key='sequence_id', sequence_key='sequence')
+            # with open(ofile) as f:
+            #     reader = csv.DictReader(f, delimiter='\t')
+            #     output = [Sequence(r, id_key='sequence_id', seq_key='sequence')  for r in reader]
         if ofmt == 'json':
-            with open(ofile) as f:
-                output = [Sequence(json.loads(line)) for line in f]
-        output = [Sequence(o) for o in output]
+            output = read_json(ofile, id_key='seq_id', sequence_key='vdj_nt')
+            # with open(ofile) as f:
+            #     output = [Sequence(json.loads(line)) for line in f]
+        # output = [Sequence(o) for o in output]
         if len(output) == 1:
             return output[0]
         else:
