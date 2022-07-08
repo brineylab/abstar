@@ -1098,17 +1098,17 @@ def run(*args, **kwargs):
         ofmt = args.output_type[0]
         ofile = output_files[0]
         if ofmt == 'tabular':
-            output = read_csv(ofile, delimiter=',', id_key='seq_id', seq_key='vdj_nt')
+            output = read_csv(ofile, delimiter=',', id_key='seq_id', sequence_key='vdj_nt')
             # with open(ofile) as f:
                 # reader = csv.DictReader(f, delimiter=',')
                 # output = [Sequence(r) for r in reader]
         if ofmt == 'airr':
-            output = read_csv(ofile, delimiter='\t', id_key='sequence_id', seq_key='sequence')
+            output = read_csv(ofile, delimiter='\t', id_key='sequence_id', sequence_key='sequence')
             # with open(ofile) as f:
             #     reader = csv.DictReader(f, delimiter='\t')
             #     output = [Sequence(r, id_key='sequence_id', seq_key='sequence')  for r in reader]
         if ofmt == 'json':
-            output = read_json(ofile, id_key='seq_id', seq_key='vdj_nt')
+            output = read_json(ofile, id_key='seq_id', sequence_key='vdj_nt')
             # with open(ofile) as f:
             #     output = [Sequence(json.loads(line)) for line in f]
         # output = [Sequence(o) for o in output]
