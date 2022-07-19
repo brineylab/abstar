@@ -745,9 +745,11 @@ def process_sequences(sequences, args):
 
 def run_jobs(files, output_dir, log_dir, file_format, args):
     if args.sequences is not None:
-        sys.stdout.write('\nRunning abstar...\n')
+        if args.verbose:
+            sys.stdout.write('\nRunning abstar...\n')
     else:
-        sys.stdout.write('\nRunning VDJ...\n')
+        if args.verbose:
+            sys.stdout.write('\nRunning VDJ...\n')
     if args.cluster:
         return _run_jobs_via_celery(files, output_dir, log_dir, file_format, args)
     elif args.debug or args.chunksize == 0:
@@ -773,7 +775,8 @@ def _run_jobs_singlethreaded(files, output_dir, log_dir, file_format, args):
 def _run_jobs_via_multiprocessing(files, output_dir, log_dir, file_format, args):
     p = Pool(processes=args.num_cores, maxtasksperchild=50)
     async_results = []
-    update_progress(0, len(files))
+    if args.verbose:
+        update_progress(0, len(files))
     for f in files:
         async_results.append((f, p.apply_async(run_abstar, (f,
                                                          output_dir,
@@ -796,15 +799,17 @@ def _run_jobs_via_multiprocessing(files, output_dir, log_dir, file_format, args)
     return results
 
 
-def monitor_mp_jobs(results):
+def monitor_mp_jobs(results, print_progress=True):
     finished = 0
     jobs = len(results)
     while finished < jobs:
         time.sleep(1)
         ready = [ar for ar in results if ar.ready()]
         finished = len(ready)
-        update_progress(finished, jobs)
-    sys.stdout.write('\n\n')
+        if print_progress:
+            update_progress(finished, jobs)
+    if print_progress:
+        sys.stdout.write('\n\n')
 
 
 def _run_jobs_via_celery(files, output_dir, log_dir, file_format, args):
@@ -822,7 +827,7 @@ def _run_jobs_via_celery(files, output_dir, log_dir, file_format, args):
     return [s.get() for s in succeeded]
 
 
-def monitor_celery_jobs(results):
+def monitor_celery_jobs(results, print_progress=True):
     finished = 0
     jobs = len(results)
     while finished < jobs:
@@ -830,8 +835,10 @@ def monitor_celery_jobs(results):
         succeeded = [ar for ar in results if ar.successful()]
         failed = [ar for ar in results if ar.failed()]
         finished = len(succeeded) + len(failed)
-        update_progress(finished, jobs, failed=len(failed))
-    sys.stdout.write('\n\n')
+        if print_progress:
+            update_progress(finished, jobs, failed=len(failed))
+    if print_progress:
+        sys.stdout.write('\n\n')
     return succeeded, failed
 
 
