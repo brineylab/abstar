@@ -1183,7 +1183,8 @@ def main(args):
             flat_temp_files = [f for subdict in temp_output_file_dicts for f in subdict.values()]
             clear_temp_files(subfiles + flat_temp_files + annotated_log_files + failed_log_files + unassigned_log_files)
         if args.sequences is not None:
-            print_job_stats(seq_count, processed_seq_counts, start_time, vdj_end_time)
+            if args.verbose:
+                print_job_stats(seq_count, processed_seq_counts, start_time, vdj_end_time)
         else:
             log_job_stats(seq_count, processed_seq_counts, start_time, vdj_end_time)
     return output_files
