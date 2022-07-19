@@ -189,6 +189,8 @@ def parse_arguments(print_help=False):
     parser.add_argument('--add-padding', dest='padding', default=False, action='store_true',
                         help="If passed, will add padding to the json output file. \
                         Really only useful if you're using an old version of MongoDB.")
+    parser.add_argument('--quiet', dest='verbose', default=True, action='store_false',
+                        help='If set, suppresses logging and printing progress to screen')
     if print_help:
         parser.print_help()
     else:
@@ -202,7 +204,7 @@ class Args(object):
                  merge=False, pandaseq_algo='simple_bayesian', use_test_data=False,
                  parquet=False, nextseq=False, uid=0, isotype=False, pretty=False, num_cores=0,
                  basespace=False, cluster=False, padding=False, raw=False, json_keys=None,
-                 debug=False, germ_db='human', receptor='bcr', gzip=False):
+                 debug=False, germ_db='human', receptor='bcr', gzip=False, verbose=True):
         super(Args, self).__init__()
         self.sequences = sequences
         self.project_dir = os.path.abspath(project_dir) if project_dir is not None else project_dir
@@ -231,6 +233,7 @@ class Args(object):
         self.padding = padding
         self.germ_db = germ_db
         self.receptor = receptor.lower()
+        self.verbose = verbose
 
 
 def validate_args(args):
@@ -777,7 +780,7 @@ def _run_jobs_via_multiprocessing(files, output_dir, log_dir, file_format, args)
                                                          log_dir,
                                                          file_format,
                                                          vars(args)))))
-    monitor_mp_jobs([ar[1] for ar in async_results])
+    monitor_mp_jobs([ar[1] for ar in async_results], print_progress=args.verbose)
     results = []
     for a in async_results:
         try:
@@ -1047,6 +1050,9 @@ def run(*args, **kwargs):
         debug (bool): If ``True``, ``abstar.run()`` runs in single-threaded mode, the log is much more verbose,
             and temporary files are not removed. Default is ``False``.
 
+        verbose (bool): If ``True``, progress is logged and printed to screen. If ``False``, logging and 
+            progress printing are suppressed. Default is ``True``.
+
 
     Returns:
 
@@ -1084,8 +1090,11 @@ def run(*args, **kwargs):
     args = Args(**kwargs)
     validate_args(args)
     global logger
-    logger = log.get_logger('abstar')
-    logger.handles = []
+    if args.verbose:
+        logger = log.get_logger('abstar')
+        logger.handles = []
+    else:
+        logger = logging.getLogger('abstar')
 
     if args.sequences is not None:
         process_sequences(args.sequences, args)
