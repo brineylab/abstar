@@ -189,6 +189,8 @@ def parse_arguments(print_help=False):
     parser.add_argument('--add-padding', dest='padding', default=False, action='store_true',
                         help="If passed, will add padding to the json output file. \
                         Really only useful if you're using an old version of MongoDB.")
+    parser.add_argument('--quiet', dest='verbose', default=True, action='store_false',
+                        help='If set, suppresses logging and printing progress to screen')
     if print_help:
         parser.print_help()
     else:
@@ -202,7 +204,7 @@ class Args(object):
                  merge=False, pandaseq_algo='simple_bayesian', use_test_data=False,
                  parquet=False, nextseq=False, uid=0, isotype=False, pretty=False, num_cores=0,
                  basespace=False, cluster=False, padding=False, raw=False, json_keys=None,
-                 debug=False, germ_db='human', receptor='bcr', gzip=False):
+                 debug=False, germ_db='human', receptor='bcr', gzip=False, verbose=True):
         super(Args, self).__init__()
         self.sequences = sequences
         self.project_dir = os.path.abspath(project_dir) if project_dir is not None else project_dir
@@ -231,6 +233,7 @@ class Args(object):
         self.padding = padding
         self.germ_db = germ_db
         self.receptor = receptor.lower()
+        self.verbose = verbose
 
 
 def validate_args(args):
@@ -742,9 +745,11 @@ def process_sequences(sequences, args):
 
 def run_jobs(files, output_dir, log_dir, file_format, args):
     if args.sequences is not None:
-        sys.stdout.write('\nRunning abstar...\n')
+        if args.verbose:
+            sys.stdout.write('\nRunning abstar...\n')
     else:
-        sys.stdout.write('\nRunning VDJ...\n')
+        if args.verbose:
+            sys.stdout.write('\nRunning VDJ...\n')
     if args.cluster:
         return _run_jobs_via_celery(files, output_dir, log_dir, file_format, args)
     elif args.debug or args.chunksize == 0:
@@ -770,14 +775,15 @@ def _run_jobs_singlethreaded(files, output_dir, log_dir, file_format, args):
 def _run_jobs_via_multiprocessing(files, output_dir, log_dir, file_format, args):
     p = Pool(processes=args.num_cores, maxtasksperchild=50)
     async_results = []
-    update_progress(0, len(files))
+    if args.verbose:
+        update_progress(0, len(files))
     for f in files:
         async_results.append((f, p.apply_async(run_abstar, (f,
                                                          output_dir,
                                                          log_dir,
                                                          file_format,
                                                          vars(args)))))
-    monitor_mp_jobs([ar[1] for ar in async_results])
+    monitor_mp_jobs([ar[1] for ar in async_results], print_progress=args.verbose)
     results = []
     for a in async_results:
         try:
@@ -793,15 +799,17 @@ def _run_jobs_via_multiprocessing(files, output_dir, log_dir, file_format, args)
     return results
 
 
-def monitor_mp_jobs(results):
+def monitor_mp_jobs(results, print_progress=True):
     finished = 0
     jobs = len(results)
     while finished < jobs:
         time.sleep(1)
         ready = [ar for ar in results if ar.ready()]
         finished = len(ready)
-        update_progress(finished, jobs)
-    sys.stdout.write('\n\n')
+        if print_progress:
+            update_progress(finished, jobs)
+    if print_progress:
+        sys.stdout.write('\n\n')
 
 
 def _run_jobs_via_celery(files, output_dir, log_dir, file_format, args):
@@ -819,7 +827,7 @@ def _run_jobs_via_celery(files, output_dir, log_dir, file_format, args):
     return [s.get() for s in succeeded]
 
 
-def monitor_celery_jobs(results):
+def monitor_celery_jobs(results, print_progress=True):
     finished = 0
     jobs = len(results)
     while finished < jobs:
@@ -827,8 +835,10 @@ def monitor_celery_jobs(results):
         succeeded = [ar for ar in results if ar.successful()]
         failed = [ar for ar in results if ar.failed()]
         finished = len(succeeded) + len(failed)
-        update_progress(finished, jobs, failed=len(failed))
-    sys.stdout.write('\n\n')
+        if print_progress:
+            update_progress(finished, jobs, failed=len(failed))
+    if print_progress:
+        sys.stdout.write('\n\n')
     return succeeded, failed
 
 
@@ -1047,6 +1057,9 @@ def run(*args, **kwargs):
         debug (bool): If ``True``, ``abstar.run()`` runs in single-threaded mode, the log is much more verbose,
             and temporary files are not removed. Default is ``False``.
 
+        verbose (bool): If ``True``, progress is logged and printed to screen. If ``False``, logging and 
+            progress printing are suppressed. Default is ``True``.
+
 
     Returns:
 
@@ -1084,8 +1097,11 @@ def run(*args, **kwargs):
     args = Args(**kwargs)
     validate_args(args)
     global logger
-    logger = log.get_logger('abstar')
-    logger.handles = []
+    if args.verbose:
+        logger = log.get_logger('abstar')
+        logger.handles = []
+    else:
+        logger = logging.getLogger('abstar')
 
     if args.sequences is not None:
         process_sequences(args.sequences, args)
@@ -1167,7 +1183,8 @@ def main(args):
             flat_temp_files = [f for subdict in temp_output_file_dicts for f in subdict.values()]
             clear_temp_files(subfiles + flat_temp_files + annotated_log_files + failed_log_files + unassigned_log_files)
         if args.sequences is not None:
-            print_job_stats(seq_count, processed_seq_counts, start_time, vdj_end_time)
+            if args.verbose:
+                print_job_stats(seq_count, processed_seq_counts, start_time, vdj_end_time)
         else:
             log_job_stats(seq_count, processed_seq_counts, start_time, vdj_end_time)
     return output_files
