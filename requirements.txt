@@ -1,11 +1,11 @@
-abutils>=0.2.9
-biopython==1.78
+abutils >= 0.2.9
+biopython == 1.78
 celery
 dask[complete]
-numpy>=1.16.5
+numpy >= 1.16.5
 nwalign3
 pandas
 pyarrow
 pymongo
 pytest
-scikit-bio==0.5.6
+scikit-bio == 0.5.6

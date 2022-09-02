@@ -26,10 +26,10 @@ else:
 
 
 if os.environ.get('READTHEDOCS', None) == 'True':
-    class Mock(MagicMock):
-        @classmethod
-        def __getattr__(cls, name):
-                return Mock()
+    # class Mock(MagicMock):
+    #     @classmethod
+    #     def __getattr__(cls, name):
+    #             return Mock()
 
     MOCK_MODULES = ['pygtk', 'gtk', 'gobject', 'argparse', 'numpy', 'nwalign', 'pandas', 'abutils', 'dask', 'dask.dataframe',
                     'abutils.utils', 'abutils.core', 'abutils.core.sequence', 'abutils.utils.log', 'abutils.utils.alignment',
@@ -38,12 +38,12 @@ if os.environ.get('READTHEDOCS', None) == 'True':
                     'BaseSpacePy.model', 'BaseSpacePy.api.BaseSpaceAPI', 'BaseSpacePy.model.QueryParameters',
                     'Bio', 'Bio.Align', 'Bio.Alphabet', 'Bio.SeqIO', 'Bio.Seq', 'Bio.SeqRecord',
                     'Bio.Blast', 'Bio.Blast.Applications']
-    sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
+    sys.modules.update((mod_name, MagicMock()) for mod_name in MOCK_MODULES)
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
-#sys.path.insert(0, os.path.abspath('.'))
+# sys.path.insert(0, os.path.abspath('.'))
 
 # -- General configuration ------------------------------------------------
 
