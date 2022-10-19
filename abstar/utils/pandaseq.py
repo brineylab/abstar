@@ -41,6 +41,10 @@ def list_files(d):
     return sorted([f for f in glob.glob(d + '/*') if os.path.isfile(f)])
 
 
+def pair_files(files):
+    return group_files(files)
+
+
 def group_files(files, delim_count=3):
     groups = {}
     for f in files:
