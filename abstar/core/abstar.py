@@ -516,7 +516,8 @@ def merge_reads(input_dir, args):
     pandaseq.run(input_dir,
                  merge_dir,
                  args.pandaseq_algo,
-                 args.nextseq)
+                 args.nextseq,
+                 args.debug)
     return merge_dir
 
 

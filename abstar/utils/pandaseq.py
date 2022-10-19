@@ -65,12 +65,13 @@ def concat_lanes(lane_files, merged_file):
     return merged_file
 
 
-def pandaseq(f, r, o, algo):
+def pandaseq(f, r, o, algo, debug=False):
     cmd = 'pandaseq -f {0} -r {1} -A {2} -d rbfkms -T {3} -w {4}'.format(f, r, algo, cpu_count(), o)
-    sp.Popen(cmd, shell=True, stderr=sp.STDOUT, stdout=sp.PIPE).communicate()
+    p = sp.Popen(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+    stdout, stderr = p.communicate()
 
 
-def merge_reads(sample_name, sample_files, output, algo, i):
+def merge_reads(sample_name, sample_files, output, algo, i, debug):
     if len(sample_files) > 2:
         subgroups = group_files(sample_files, delim_count=2)
         subgroups = {n: f for n, f in subgroups.items() if len(f) == 2}
@@ -86,7 +87,7 @@ def merge_reads(sample_name, sample_files, output, algo, i):
         r = files[1]
         print_sample_info(i, name)
         o = os.path.join(output, f'{name}.fasta')
-        pandaseq(f, r, o, algo)
+        pandaseq(f, r, o, algo, debug)
         output_files.append(o)
     if len(output_files) > 1:
         merged_file = os.path.join(output, f'{sample_name}.fasta')
@@ -117,7 +118,7 @@ def print_sample_end():
     logger.info('Done.')
 
 
-def run(input, output, algorithm='simple_bayesian', nextseq=False):
+def run(input, output, algorithm='simple_bayesian', nextseq=False, debug=False):
     '''
     Merge paired-end FASTQ files with PANDAseq. File name format must match that produced 
     by ``bcl2fastq``:
@@ -201,6 +202,6 @@ def run(input, output, algorithm='simple_bayesian', nextseq=False):
     print_input_info(files)
     merged_files = []
     for i, (sample_name, sample_files) in enumerate(natsorted(groups.items())):
-        mf = merge_reads(sample_name, sample_files, output, algorithm, i)
+        mf = merge_reads(sample_name, sample_files, output, algorithm, i, debug)
         merged_files.append(mf)
     return merged_files
