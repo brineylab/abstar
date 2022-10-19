@@ -66,7 +66,7 @@ def concat_lanes(lane_files, merged_file):
 
 
 def pandaseq(f, r, o, algo, debug=False):
-    cmd = 'pandaseq -f "{0}" -r "{1}" -A {2} -d rbfkms -T {3} -w {4}'.format(f, r, algo, cpu_count(), o)
+    cmd = 'pandaseq -f "{0}" -r "{1}" -A {2} -d rbfkms -T {3} -w "{4}"'.format(f, r, algo, cpu_count(), o)
     if debug:
         logger.info(cmd)
     p = sp.Popen(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
