@@ -200,7 +200,7 @@ def run(input, output, algorithm='simple_bayesian', nextseq=False):
         raise RuntimeError(err)
     print_input_info(files)
     merged_files = []
-    for i, sample_name, sample_files in enumerate(natsorted(groups.keys())):
+    for i, sample_name, sample_files in enumerate(natsorted(groups.items())):
         mf = merge_reads(sample_name, sample_files, output, algorithm, i)
         merged_files.append(mf)
     return merged_files
