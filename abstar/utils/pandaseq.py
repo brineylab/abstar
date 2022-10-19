@@ -69,6 +69,9 @@ def pandaseq(f, r, o, algo, debug=False):
     cmd = 'pandaseq -f {0} -r {1} -A {2} -d rbfkms -T {3} -w {4}'.format(f, r, algo, cpu_count(), o)
     p = sp.Popen(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
     stdout, stderr = p.communicate()
+    if debug:
+        logger.info(stdout)
+        logger.info(stderr)
 
 
 def merge_reads(sample_name, sample_files, output, algo, i, debug):
