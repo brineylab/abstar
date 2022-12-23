@@ -447,7 +447,7 @@ def concat_outputs(input_file, temp_output_file_dicts, output_dir, args):
             if output_type == 'json':
                 for temp_file in temp_files:
                     with open(temp_file, "rb") as f:
-                        shutil.copyfileobj(f, out_file, length=1024**3)  # Increasing buffer size to 1GB for faster transfer
+                        shutil.copyfileobj(f, out_file, length=16 * 1024**2)  # Increasing buffer size to 16MB for faster transfer
             # For file formats with headers, only keep headers from the first file
             if output_type in ['imgt', 'tabular', 'airr']:
                 for i, temp_file in enumerate(temp_files):
