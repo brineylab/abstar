@@ -43,6 +43,7 @@ import tempfile
 import time
 import traceback
 import warnings
+import shutil
 
 from Bio import SeqIO
 
@@ -440,15 +441,13 @@ def concat_outputs(input_file, temp_output_file_dicts, output_dir, args):
         if args.gzip:
             ohandle = gzip.open(ofile + ".gz", 'wb')
         else:
-            ohandle = open(ofile, 'w')
+            ohandle = open(ofile, 'wb')
         with ohandle as out_file:
             # JSON-formatted files don't have headers, so we don't worry about it
             if output_type == 'json':
                 for temp_file in temp_files:
-                    with open(temp_file) as f:
-                        for line in f:
-                            out_file.write(line)
-                    out_file.write('\n')
+                    with open(temp_file, "rb") as f:
+                        shutil.copyfileobj(f, out_file, length=1024**3)  # Increasing buffer size to 1GB for faster transfer
             # For file formats with headers, only keep headers from the first file
             if output_type in ['imgt', 'tabular', 'airr']:
                 for i, temp_file in enumerate(temp_files):
