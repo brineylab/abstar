@@ -587,6 +587,7 @@ def write_output(output_dict, output_dir, output_prefix):
         output_file = os.path.join(subdir, output_name)
         with open(output_file, 'w') as f:
             f.write('\n'.join(output_dict[fmt]))
+            f.write("\n")
         output_file_dict[fmt] = output_file
     return output_file_dict
 
