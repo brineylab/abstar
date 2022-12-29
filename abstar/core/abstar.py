@@ -457,7 +457,6 @@ def concat_outputs(input_file, temp_output_file_dicts, output_dir, args):
                                 out_file.write(line)
                             elif j >= 1:
                                 out_file.write(line)
-                        out_file.write('\n')
         if args.parquet and output_type not in PARQUET_INCOMPATIBLE:
             logger.info('Converting concatenated output to parquet format')
             pname = oprefix + '.parquet'
