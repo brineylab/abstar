@@ -47,10 +47,13 @@ import shutil
 
 from Bio import SeqIO
 
-# import dask.dataframe as dd
+import dask.dataframe as dd
+import dask.bag as db
+import pandas as pd
 
 from abutils.core.sequence import Sequence, read_json, read_csv
 from abutils.utils import log
+from abstar.utils.parquet_schema import schema
 # from abutils.utils.pipeline import list_files
 
 from .antibody import Antibody
@@ -58,7 +61,6 @@ from ..assigners.assigner import BaseAssigner
 from ..assigners.registry import ASSIGNERS
 # from ..utils import output
 from ..utils.output import get_abstar_result, get_abstar_results, get_output, write_output, get_header, get_output_suffix, get_output_separator, get_parquet_dtypes
-from ..utils.output import PARQUET_INCOMPATIBLE
 from ..utils.queue.celery import celery
 
 
@@ -451,19 +453,36 @@ def concat_outputs(input_file, temp_output_file_dicts, output_dir, args):
             # For file formats with headers, only keep headers from the first file
             if output_type in ['imgt', 'tabular', 'airr']:
                 for i, temp_file in enumerate(temp_files):
-                    with open(temp_file) as f:
+                    with open(temp_file, "rb") as f:
                         for j, line in enumerate(f):
                             if i == 0:
                                 out_file.write(line)
                             elif j >= 1:
                                 out_file.write(line)
-        if args.parquet and output_type not in PARQUET_INCOMPATIBLE:
-            logger.info('Converting concatenated output to parquet format')
-            pname = oprefix + '.parquet'
+        if args.parquet:
+            logger.info("Converting concatenated output to parquet format")
+            pname = f"{oprefix}_from_{output_type}"  # Specify from which output format the parquet file will be written with
             pfile = os.path.join(output_subdir, pname)
             dtypes = get_parquet_dtypes(output_type)
-            df = dd.read_csv(ofile, sep=get_output_separator(output_type), dtype=dtypes)
-            df.to_parquet(pfile, engine='pyarrow')
+
+            if output_type == "json":
+                meta = pd.DataFrame(columns=dtypes).astype(dtypes)
+                df = (
+                    db.read_text(ofile, blocksize=2**28)
+                    .map(json.loads)
+                    .to_dataframe(meta=meta)
+                )
+                df.to_parquet(
+                    pfile,
+                    engine="pyarrow",
+                    compression="snappy",
+                    write_index=False,
+                    schema=schema,
+                )
+            else:
+                df = dd.read_csv(ofile, sep=get_output_separator(output_type), dtype=dtypes)
+                df.to_parquet(pfile, engine="pyarrow", compression="snappy", write_index=False)
+
         ofiles.append(ofile)
     return ofiles
 

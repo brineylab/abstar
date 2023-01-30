@@ -35,7 +35,6 @@ from abutils.utils import log
 from .cigar import make_cigar
 
 
-PARQUET_INCOMPATIBLE = ['json', ]
 OUTPUT_SEPARATORS = {'airr': '\t',
                      'imgt': ',',
                      'tabular': ','}
@@ -240,7 +239,7 @@ class AbstarResult(object):
                         'score': self.antibody.j.score,
                         'assigner_score': self.antibody.j.assigner_score,
                         'others': [{'full': o.full,
-                                    'score': o.assigner_score}
+                                    'assigner_score': o.assigner_score}
                                    for o in self.antibody.j.others]
 #                                    for germ, score in zip(self.antibody.j.all_germlines[1:], self.antibody.j.all_scores[1:])]
                         }),
@@ -545,6 +544,70 @@ def get_parquet_dtypes(output_format):
     if output_format.lower() == 'tabular':
         dtypes = {'var_ins': 'object', 'var_del': 'object',
                   'var_muts_nt': 'object', 'var_muts_aa': 'object'}
+    elif output_format == "json":
+        dtypes = {
+            "seq_id": str,
+            "chain": str,
+            "v_gene": str,
+            "d_gene": str,
+            "j_gene": str,
+            "assigner_scores": str,
+            "vdj_assigner": str,
+            "isotype": str,
+            "isotype_score": int,
+            "isotype_alignment": str,
+            "nt_identity": str,
+            "aa_identity": str,
+            "junc_len": int,
+            "cdr3_len": int,
+            "vdj_nt": str,
+            "gapped_vdj_nt": str,
+            "fr1_nt": str,
+            "cdr1_nt": str,
+            "fr2_nt": str,
+            "cdr2_nt": str,
+            "fr3_nt": str,
+            "cdr3_nt": str,
+            "fr4_nt": str,
+            "vdj_germ_nt": str,
+            "gapped_vdj_germ_nt": str,
+            "junc_nt": str,
+            "region_len_nt": str,
+            "var_muts_nt": str,
+            "join_muts_nt": str,
+            "mut_count_nt": int,
+            "vdj_aa": str,
+            "fr1_aa": str,
+            "cdr1_aa": str,
+            "fr2_aa": str,
+            "cdr2_aa": str,
+            "fr3_aa": str,
+            "cdr3_aa": str,
+            "fr4_aa": str,
+            "vdj_germ_aa": str,
+            "junc_aa": str,
+            "region_len_aa": str,
+            "var_muts_aa": str,
+            "join_muts_aa": str,
+            "region_muts_nt": str,
+            "region_muts_aa": str,
+            "prod": str,
+            "productivity_issues": str,
+            "junction_in_frame": str,
+            "raw_input": str,
+            "oriented_input": str,
+            "strand": str,
+            "germ_alignments_nt": str,
+            "exo_trimming": str,
+            "junc_nt_breakdown": str,
+            "germline_database": str,
+            "species": str,
+            "align_info": str,
+            "j_del": str,
+            "v_del": str,
+            "j_ins": str,
+            "v_ins": str,
+        }
     else:
         dtypes = {}
     return dtypes

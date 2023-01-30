@@ -96,8 +96,8 @@ class Insertion(Indel):
         j = {'in_frame': 'yes' if self.in_frame else 'no',
              'length': self.length,
              'sequence': self.sequence,
-             'position': self.imgt_position,
-             'codon': self.imgt_codon}
+             'position': str(self.imgt_position),
+             'codon': str(self.imgt_codon)}
         return j
 
 
@@ -142,8 +142,8 @@ class Deletion(Indel):
         j = {'in_frame': 'yes' if self.in_frame else 'no',
              'length': self.length,
              'sequence': self.sequence,
-             'position': self.imgt_position,
-             'codon': self.imgt_codon}
+             'position': str(self.imgt_position),
+             'codon': str(self.imgt_codon)}
         return j
 
 
