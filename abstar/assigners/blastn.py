@@ -128,6 +128,13 @@ class Blastn(BaseAssigner):
                             vdj.v.chain, vdj.j.chain
                         ),
                     )
+                    vdj.log(
+                        "TOP J-GENE ASSIGNMENTS:",
+                        "\n  - "
+                        + "\n  - ".join(
+                            [f"{j.full} ({j.assigner_score})" for j in vdj.j.others]
+                        ),
+                    )
                     self.unassigned.append(vdj)
                     continue
                 dquery = self.get_dquery_sequence(jquery, jbr)
@@ -253,7 +260,14 @@ class Blastn(BaseAssigner):
         """
         all_gls = [a.title.split()[0] for a in blast_record.alignments]
         if match_locus is not None:
-            all_gls = [gl for gl in all_gls if gl[:3] == match_locus]
+            matching_gls = [gl for gl in all_gls if gl[:3] == match_locus]
+            if matching_gls:
+                all_gls = matching_gls
+            #     n_others = min(5, len(all_gls))
+            # else:
+            #     n_others = len(all_gls)
+        else:
+            n_others = min(5, len(all_gls))
         if "__" in all_gls[0]:
             species = all_gls[0].split("__")[-1].replace("-", " ")
             # all_gls = [gl.split('__')[0] for gl in all_gls]
@@ -266,13 +280,14 @@ class Blastn(BaseAssigner):
             GermlineSegment(germ, species, self.db_name, self.receptor, score=score)
             for germ, score in zip(all_gls[1:], all_scores[1:])
         ]
+        n_others = min(5, len(others))
         return GermlineSegment(
             top_gl,
             species,
             self.db_name,
             self.receptor,
             score=top_score,
-            others=others[:5],
+            others=others[:n_others],
             assigner_name=self.name,
         )
 
