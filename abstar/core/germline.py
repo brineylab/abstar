@@ -336,36 +336,48 @@ class GermlineSegment(LoggingMixin):
                     if alignment.query_begin >= alignment.target_begin:
                         antibody.log("\nFORCING FULL-LENGTH V-GENE REALIGNMENT")
                         antibody.log("ORIGINAL RAW QUERY:", alignment.raw_query)
+                        antibody.log("ORIGINAL RAW GERMLINE:", alignment.raw_target)
                         antibody.log(
                             "ORIGINAL ALIGNED QUERY: ", alignment.aligned_query
                         )
-                        antibody.log("ORIGINAL QUERY START: ", alignment.query_begin)
-                        antibody.log("ORIGINAL QUERY END: ", alignment.query_end)
-                        antibody.log("ORIGINAL RAW GERMLINE:", alignment.raw_target)
                         antibody.log(
                             "ORIGINAL ALIGNED GERMLINE:", alignment.aligned_target
                         )
+                        antibody.log("ORIGINAL QUERY START: ", alignment.query_begin)
+                        antibody.log("ORIGINAL QUERY END: ", alignment.query_end)
                         antibody.log("ORIGINAL GERMLINE START:", alignment.target_begin)
                         antibody.log("ORIGINAL GERMLINE END: ", alignment.target_end)
-                        q_begin = alignment.query_begin - alignment.target_begin
-                        q_end = alignment.query_end
-                        t_begin = 0
-                        t_end = alignment.target_end
-                        query = alignment.raw_query[q_begin : q_end + 1]
-                        germ = alignment.raw_target[t_begin : t_end + 1]
-                        alignment = global_alignment(query, germ, **aln_params)
-                        antibody.log("NEW RAW QUERY:", query)
-                        antibody.log("NEW ALIGNED QUERY: ", alignment.aligned_query)
-                        antibody.log("NEW RAW GERMLINE:", germ)
-                        antibody.log("NEW ALIGNED GERMLINE:", alignment.aligned_target)
+                        antibody.log(
+                            "NUMBER OF TRUNCATED RESIDUES:", alignment.target_begin
+                        )
+
+                        trunc_length = alignment.target_begin
+                        # get the truncated portion of the query sequence
+                        # and prepend to the aligned query sequence
+                        query_truncation = alignment.raw_query[
+                            alignment.query_begin - trunc_length : alignment.query_begin
+                        ]
+                        new_aligned_query = query_truncation + alignment.aligned_query
+                        alignment.aligned_query = new_aligned_query
+                        # update the query start position
+                        q_begin = alignment.query_begin - trunc_length
                         alignment.query_begin = q_begin
-                        alignment.query_end = q_end
+                        # get the truncated portion of the target (germline) sequence
+                        # and prepend to the aligned target sequence
+                        target_truncation = alignment.raw_target[
+                            alignment.target_begin
+                            - trunc_length : alignment.target_begin
+                        ]
+                        new_aligned_target = (
+                            target_truncation + alignment.aligned_target
+                        )
+                        alignment.aligned_target = new_aligned_target
+                        # update the target (germline) start position
+                        t_begin = 0
                         alignment.target_begin = t_begin
-                        alignment.target_end = t_end
-                        antibody.log("NEW QUERY START: ", alignment.query_begin)
-                        antibody.log("NEW QUERY END: ", alignment.query_end)
-                        antibody.log("NEW GERMLINE START:", alignment.target_begin)
-                        antibody.log("NEW GERMLINE END:", alignment.target_end)
+
+                        antibody.log("NEW ALIGNED QUERY: ", alignment.aligned_query)
+                        antibody.log("NEW ALIGNED GERMLINE:", alignment.aligned_target)
 
             if self.gene_type == "J":
                 if alignment.target_end + 1 < len(alignment.raw_target):
@@ -378,43 +390,54 @@ class GermlineSegment(LoggingMixin):
                         alignment.target_end + 1
                     )
                     if query_truncation_length >= target_truncation_length:
-                        antibody.log("\nFORCING FULL-LENGTH J-GENE REALIGNMENT")
+                        antibody.log("\nFORCING FULL-LENGTH V-GENE REALIGNMENT")
                         antibody.log("ORIGINAL RAW QUERY:", alignment.raw_query)
+                        antibody.log("ORIGINAL RAW GERMLINE:", alignment.raw_target)
                         antibody.log(
                             "ORIGINAL ALIGNED QUERY: ", alignment.aligned_query
                         )
-                        antibody.log("ORIGINAL QUERY START: ", alignment.query_begin)
-                        antibody.log("ORIGINAL QUERY END: ", alignment.query_end)
-                        antibody.log("ORIGINAL RAW GERMLINE:", alignment.raw_target)
                         antibody.log(
                             "ORIGINAL ALIGNED GERMLINE:", alignment.aligned_target
                         )
+                        antibody.log("ORIGINAL QUERY START: ", alignment.query_begin)
+                        antibody.log("ORIGINAL QUERY END: ", alignment.query_end)
                         antibody.log("ORIGINAL GERMLINE START:", alignment.target_begin)
-                        antibody.log("ORIGINAL GERMLINE END:", alignment.target_end)
+                        antibody.log("ORIGINAL GERMLINE END: ", alignment.target_end)
                         antibody.log(
                             "NUMBER OF TRUNCATED RESIDUES:", target_truncation_length
                         )
-                        q_begin = alignment.query_begin
+
+                        # get the truncated portion of the query sequence
+                        # and append to the aligned query sequence
+                        query_truncation = alignment.raw_query[
+                            alignment.query_end
+                            + 1 : alignment.query_end
+                            + target_truncation_length
+                            + 1
+                        ]
+                        new_aligned_query = alignment.aligned_query + query_truncation
+                        alignment.aligned_query = new_aligned_query
+                        # update the query end position
                         q_end = alignment.query_end + target_truncation_length
-                        t_begin = alignment.target_begin
-                        t_end = len(alignment.raw_target) - 1
-                        query = alignment.raw_query[q_begin : q_end + 1]
-                        germ = alignment.raw_target[t_begin : t_end + 1]
-                        antibody.log("NEW RAW QUERY:", query)
-                        antibody.log("NEW RAW GERMLINE:", germ)
-                        alignment = global_alignment(query, germ, **aln_params)
-                        antibody.log("NEW RAW QUERY:", query)
-                        antibody.log("NEW ALIGNED QUERY: ", alignment.aligned_query)
-                        antibody.log("NEW RAW GERMLINE:", germ)
-                        antibody.log("NEW ALIGNED GERMLINE:", alignment.aligned_target)
-                        alignment.query_begin = q_begin
                         alignment.query_end = q_end
-                        alignment.target_begin = t_begin
+                        # get the truncated portion of the target (germline) sequence
+                        # and append to the aligned target sequence
+                        target_truncation = alignment.raw_target[
+                            alignment.target_end
+                            + 1 : alignment.target_end
+                            + target_truncation_length
+                            + 1
+                        ]
+                        new_aligned_target = (
+                            alignment.aligned_target + target_truncation
+                        )
+                        alignment.aligned_target = new_aligned_target
+                        # update the target (germline) end position
+                        t_end = alignment.target_end + target_truncation_length
                         alignment.target_end = t_end
-                        antibody.log("NEW QUERY START: ", alignment.query_begin)
-                        antibody.log("NEW QUERY END: ", alignment.query_end)
-                        antibody.log("NEW GERMLINE START:", alignment.target_begin)
-                        antibody.log("NEW GERMLINE END:", alignment.target_end)
+
+                        antibody.log("NEW ALIGNED QUERY: ", alignment.aligned_query)
+                        antibody.log("NEW ALIGNED GERMLINE:", alignment.aligned_target)
         if alignment:
             self._process_realignment(antibody, alignment, query_start)
         else:
