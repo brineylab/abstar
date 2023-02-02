@@ -1,17 +1,20 @@
 Homo sapiens germline gene database
 
-A single change was made to the germline sequences downloaded from IMGT/GENE-DB. The germline sequence for IGHV1-2*03 contains a single ambiguous nucleotide (N). All other alleles of this gene contain a G at the position, so the ambiguous nucleotide was changed from N to G. Hopefully IMGT will update this sequence in the near future.
 
-SOURCE: www.imgt.org/genedb
-DOWNLOAD DATE: September 24, 2018
+SOURCE: https://www.imgt.org/vquest/refseqh.html
+DOWNLOAD DATE: February 2, 2023
 
-DOWNLOAD OPTIONS
-----------------
-SPECIES: Homo sapiens
-FUNCTIONALITY: functional
-MOLECULAR COMPONENT: IG
-LOCUS: any
-MAIN LOCUS: any
-OR CHROMOSOMAL ORPHON SET: any
 
-DISPLAY: F+ORF+in-frame P nucleotide sequences with IMGT gaps
+V-GENES: F+ORF+in-frame P nucleotide sequences with IMGT gaps
+D-GENES: F+ORF+in-frame P nucleotide sequences
+J-GENES: F+ORF+in-frame P nucleotide sequences
+
+
+A few changes were made to the germline sequences downloaded from IMGT. 
+  - IGHV1-2*03 contains an ambiguous nucleotide. All other alleles of this gene encode a G at the position, so the ambiguous nucleotide was changed to G.
+  - IGHV1-45*01 contains an ambiguous nucleotide. All other alleles of this gene encode a T at this position, so the ambiguous nucleotide was changed to T.
+  - IGHV4-30-4*05 contains an ambiguous nucleotide. All other alleles of this gene encode a C at this position, so the ambiguous nucleotide was changed to C.
+  - IGHV4-59*09 contains several ambiguous nucleotides and was removed.
+  - IGHV1-NL1*01 contained an ambiguous nucleotide and was removed.
+
+
