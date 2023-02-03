@@ -48,8 +48,6 @@ import shutil
 from Bio import SeqIO
 
 import dask.dataframe as dd
-import dask.bag as db
-import pandas as pd
 
 from abutils.core.sequence import Sequence, read_json, read_csv
 from abutils.utils import log
@@ -444,14 +442,15 @@ def concat_outputs(input_file, temp_output_file_dicts, output_dir, args):
             ohandle = gzip.open(ofile + ".gz", 'wb')
         else:
             ohandle = open(ofile, 'wb')
+
         with ohandle as out_file:
             # JSON-formatted files don't have headers, so we don't worry about it
-            if output_type == 'json':
+            if output_type == 'json' and not args.parquet:
                 for temp_file in temp_files:
                     with open(temp_file, "rb") as f:
                         shutil.copyfileobj(f, out_file, length=16 * 1024**2)  # Increasing buffer size to 16MB for faster transfer
             # For file formats with headers, only keep headers from the first file
-            if output_type in ['imgt', 'tabular', 'airr']:
+            elif output_type in ['imgt', 'tabular', 'airr']:
                 for i, temp_file in enumerate(temp_files):
                     with open(temp_file, "rb") as f:
                         for j, line in enumerate(f):
@@ -459,6 +458,7 @@ def concat_outputs(input_file, temp_output_file_dicts, output_dir, args):
                                 out_file.write(line)
                             elif j >= 1:
                                 out_file.write(line)
+
         if args.parquet:
             logger.info("Converting concatenated output to parquet format")
             pname = f"{oprefix}_from_{output_type}"  # Specify from which output format the parquet file will be written with
@@ -466,13 +466,8 @@ def concat_outputs(input_file, temp_output_file_dicts, output_dir, args):
             dtypes = get_parquet_dtypes(output_type)
 
             if output_type == "json":
-                meta = pd.DataFrame(columns=dtypes).astype(dtypes)
-                df = (
-                    db.read_text(ofile, blocksize=2**28)
-                    .map(json.loads)
-                    .to_dataframe(meta=meta)
-                )
-                df.to_parquet(
+                df = dd.read_parquet(os.path.dirname(temp_files[0]))  # Read in all parquet files in temp dir
+                df.repartition(partition_size="100MB").to_parquet(
                     pfile,
                     engine="pyarrow",
                     compression="snappy",
@@ -724,7 +719,7 @@ def run_abstar(seq_file, output_dir, log_dir, file_format, arg_dict):
                 failed_loghandle.write(ab.format_log())
         # outputs = [outputs_dict[ot] for ot in sorted(args.output_type)]
         # write_output(outputs, output_files)
-        output_file_dict = write_output(outputs_dict, output_dir, output_filename)
+        output_file_dict = write_output(outputs_dict, output_dir, output_filename, args.parquet)
         # capture the log for all unsuccessful sequences
         for vdj in assigner.unassigned:
             unassigned_loghandle.write(vdj.format_log())

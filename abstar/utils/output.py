@@ -29,8 +29,10 @@ import json
 import os
 import traceback
 import uuid
+import pandas as pd
 
 from abutils.utils import log
+from abstar.utils.parquet_schema import schema
 
 from .cigar import make_cigar
 
@@ -546,67 +548,67 @@ def get_parquet_dtypes(output_format):
                   'var_muts_nt': 'object', 'var_muts_aa': 'object'}
     elif output_format == "json":
         dtypes = {
-            "seq_id": str,
-            "chain": str,
-            "v_gene": str,
-            "d_gene": str,
-            "j_gene": str,
-            "assigner_scores": str,
-            "vdj_assigner": str,
-            "isotype": str,
+            "seq_id": object,
+            "chain": object,
+            "v_gene": object,
+            "d_gene": object,
+            "j_gene": object,
+            "assigner_scores": object,
+            "vdj_assigner": object,
+            "isotype": object,
             "isotype_score": int,
-            "isotype_alignment": str,
-            "nt_identity": str,
-            "aa_identity": str,
+            "isotype_alignment": object,
+            "nt_identity": object,
+            "aa_identity": object,
             "junc_len": int,
             "cdr3_len": int,
-            "vdj_nt": str,
-            "gapped_vdj_nt": str,
-            "fr1_nt": str,
-            "cdr1_nt": str,
-            "fr2_nt": str,
-            "cdr2_nt": str,
-            "fr3_nt": str,
-            "cdr3_nt": str,
-            "fr4_nt": str,
-            "vdj_germ_nt": str,
-            "gapped_vdj_germ_nt": str,
-            "junc_nt": str,
-            "region_len_nt": str,
-            "var_muts_nt": str,
-            "join_muts_nt": str,
+            "vdj_nt": object,
+            "gapped_vdj_nt": object,
+            "fr1_nt": object,
+            "cdr1_nt": object,
+            "fr2_nt": object,
+            "cdr2_nt": object,
+            "fr3_nt": object,
+            "cdr3_nt": object,
+            "fr4_nt": object,
+            "vdj_germ_nt": object,
+            "gapped_vdj_germ_nt": object,
+            "junc_nt": object,
+            "region_len_nt": object,
+            "var_muts_nt": object,
+            "join_muts_nt": object,
             "mut_count_nt": int,
-            "vdj_aa": str,
-            "fr1_aa": str,
-            "cdr1_aa": str,
-            "fr2_aa": str,
-            "cdr2_aa": str,
-            "fr3_aa": str,
-            "cdr3_aa": str,
-            "fr4_aa": str,
-            "vdj_germ_aa": str,
-            "junc_aa": str,
-            "region_len_aa": str,
-            "var_muts_aa": str,
-            "join_muts_aa": str,
-            "region_muts_nt": str,
-            "region_muts_aa": str,
-            "prod": str,
-            "productivity_issues": str,
-            "junction_in_frame": str,
-            "raw_input": str,
-            "oriented_input": str,
-            "strand": str,
-            "germ_alignments_nt": str,
-            "exo_trimming": str,
-            "junc_nt_breakdown": str,
-            "germline_database": str,
-            "species": str,
-            "align_info": str,
-            "j_del": str,
-            "v_del": str,
-            "j_ins": str,
-            "v_ins": str,
+            "vdj_aa": object,
+            "fr1_aa": object,
+            "cdr1_aa": object,
+            "fr2_aa": object,
+            "cdr2_aa": object,
+            "fr3_aa": object,
+            "cdr3_aa": object,
+            "fr4_aa": object,
+            "vdj_germ_aa": object,
+            "junc_aa": object,
+            "region_len_aa": object,
+            "var_muts_aa": object,
+            "join_muts_aa": object,
+            "region_muts_nt": object,
+            "region_muts_aa": object,
+            "prod": object,
+            "productivity_issues": object,
+            "junction_in_frame": object,
+            "raw_input": object,
+            "oriented_input": object,
+            "strand": object,
+            "germ_alignments_nt": object,
+            "exo_trimming": object,
+            "junc_nt_breakdown": object,
+            "germline_database": object,
+            "species": object,
+            "align_info": object,
+            "j_del": object,
+            "v_del": object,
+            "j_ins": object,
+            "v_ins": object,
         }
     else:
         dtypes = {}
@@ -642,15 +644,25 @@ def get_output(result, output_type):
 #         with open(outfile, 'w') as f:
 #             f.write('\n'.join(_outputs))
 
-def write_output(output_dict, output_dir, output_prefix):
+def write_output(output_dict, output_dir, output_prefix, write_parquet: bool):
     output_file_dict = {}
     for fmt in output_dict.keys():
         subdir = os.path.join(output_dir, fmt)
-        output_name = output_prefix + get_output_suffix(fmt)
-        output_file = os.path.join(subdir, output_name)
-        with open(output_file, 'w') as f:
-            f.write('\n'.join(output_dict[fmt]))
-            f.write("\n")
+        
+        if fmt == "json" and write_parquet:
+            output_name = output_prefix + ".snappy.parquet"
+            output_file = os.path.join(subdir, output_name)
+            dtypes = get_parquet_dtypes(fmt)
+            df = pd.DataFrame.from_records([json.loads(line) for line in output_dict[fmt]])
+            df = df.reindex(columns=dtypes).astype(dtypes)
+            df.to_parquet(output_file, engine="pyarrow", compression="snappy", schema=schema)
+        else:
+            output_name = output_prefix + get_output_suffix(fmt)
+            output_file = os.path.join(subdir, output_name)
+            with open(output_file, 'w') as f:
+                f.write('\n'.join(output_dict[fmt]))
+                f.write("\n")
+
         output_file_dict[fmt] = output_file
     return output_file_dict
 
