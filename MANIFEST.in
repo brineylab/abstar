@@ -32,6 +32,7 @@ include abstar/assigners/germline_dbs/tcr/human/*
 include abstar/assigners/germline_dbs/tcr/human/blast/*
 include abstar/assigners/germline_dbs/tcr/human/ungapped/*
 include abstar/assigners/germline_dbs/tcr/human/imgt_gapped/*
+include abstar/preprocess/*
 include abstar/test_data/*
 include abstar/utils/*
 include abstar/utils/queue/*
