@@ -118,8 +118,7 @@ class UMI:
         length_for_aln = (
             len(self.pattern.replace("[UMI]", "")) + self.extra_length_for_alignment
         )
-        if self.length is not None:
-            length_for_aln += self.length
+        length_for_aln += self.length if self.length is not None else 16
         if self.length < 0 and not self.ignore_strand:
             return s.reverse_complement[:length_for_aln]
         else:
@@ -188,7 +187,7 @@ def parse_umis(
     fmt: str = "fasta",
     sequence_key: str = "raw_input",
     id_key: str = "sequence_id",
-):
+) -> str:
     """
     Parses unique molecular identifiers (UMIs) from bulk NGS sequencing data.
 
@@ -202,26 +201,30 @@ def parse_umis(
             4. a list of lists/tuples, of the format ``[sequence_id, sequence]``
 
     output_file : str, default=None
-        Path to an output file. Required if `sequences` is not a 
-        file. If `sequences` is a file and `output` is not provided, UMI parsing is 
-        done in-place and the `sequences` file is updated.
+        Path to an output file. If `sequences` is not a file, and `output_file` is not 
+        provided `sequences` are converted to ``abutils.Sequence`` objects and the UMI 
+        is added to the ``"umi"`` field of ``sequence.annotations``. If `sequences` is 
+        a file and `output` is not provided, UMI parsing is done in-place and the 
+        `sequences` file is updated. UMIs are added to the end of each sequence ID with 
+        an underscore (``"_"``) separating the name and UMI. Sequences for which at least 
+        one UMI was not found are not included in the output. 
 
     pattern : str or iterable, default=None
         Pattern (or iterable of patterns) for identifying the location of the UMI, 
         or the name of a built-in pattern. Built-in options include ``"smartseq-human-bcr"``. 
         Patterns may optionally contain leading and/or trailing conserved regions, with 
         the UMI position within the pattern represented by ``"[UMI]"``. As an example, 
-        the built-in pattern for SmartSeq-BCR UMIs is::  
+        one of the built-in patterns for SmartSeq-BCR UMIs is::  
 
             "[UMI]TCAGCGGGAAGACATT"  
         
         which would be a UMI sequence followed immediately by ``"TCAGCGGGAAGACATT"``. 
-        By default, the pattern is matched on the 5' -> 3' strand. This allows 
+        By default, the pattern is matched to the 5' -> 3' strand. This allows 
         users to more easily construct patterns from their amplification primers without 
         needing to worry about reverse-complementing patterns for UMIs at the 3' end of the 
         input sequence. To override this, set `ignore_strand` to ``True``. If `pattern` 
         is not provided, UMIs will be parsed using only `length`, starting at the start 
-        or end of the sequence.  
+        (if `length` is positive) or end (if `length` is negative) of the sequence.  
 
         .. note::
 
@@ -238,23 +241,63 @@ def parse_umis(
                 at opposite ends of the sequence or on the same end of the sequence 
                 but in different locations and with different conserved flanking regions.
 
+        If multiple UMIs are parsed from a single sequence, they will be concatenated with 
+        ``"+"`` separating the UMIs.
+
     length : int or iterable, default=None
         Length of the UMI sequence, or iterable of UMI lengths. If multiple lengths are 
-        provided, there must be an equal number of `patterns`, and they must be in the 
+        provided, there must be an equal number of `patterns`, and they should be in the 
         same order (the first `pattern` should correspond to the first UMI `length`). If 
         `length` is positive, the UMI will be parsed from the start of the sequence. If 
         `length` is negative, the UMI will be parsed from the end of the sequence. If multiple 
         `patterns` are provided with a single `length`, that `length` will be used for all 
         `patterns`. Required if `pattern` does not have a conserved trailing region. 
-        If `length` is not provided and a trailing conserved region is present in `pattern`, 
-        the entire portion of `sequence` preceeding the trailing region will be parsed as the 
-        UMI. Ignored if both leading and trailing sequences are present in `pattern`, 
-        as the entire region between the conserved flanking regions will be parsed as 
-        the UMI regardless of what `length` is provided.
+        If `length` is not provided and `pattern` has a trailing conserved region but not a 
+        leading conserved region, the entire portion of `sequence` preceeding the trailing 
+        region will be parsed as the UMI. Ignored if both leading and trailing sequences 
+        are present in `pattern`, as the entire region between the conserved flanking regions 
+        will be parsed as the UMI regardless of what `length` is provided.
+
+    allowed_mismatches : int, default=None
+        Total number of mismatches allowed when aligning the conserved flanking regions 
+        of `pattern`. Mismatches are calculated by subtracting the number of identically 
+        matching alignment positions from the total length of the conserved flanking region. 
+        If not provided, the default is to allow ``1`` mismatch.  
+
+    extra_length_for_alignment : int, default=25
+        To speed alignment and avoid coincidental matches in regions of the sequence that are 
+        not logical locations for UMIs, only a fragment of each input sequences (sliced from 
+        the start or end of the seqeunce, depending on `length`) is aligned against conserved 
+        `pattern` regions. The size of this fragment is computed by summing the total length of
+        conserved flanking regions, the UMI `length`, and `extra_length_for_alignment`. The default 
+        is ``25``, which should be sufficient for most cases, however, `extra_length_for_alignment` 
+        may need to be increased if the UMI is not located close to the start or end of the 
+        input seqeunce.
+
+    ignore_strand : bool, default=False
+        If ``True``, patterns matching to the end of the input sequence (those with a negative
+        `length`) will be aligned to the unmodified input sequence rather than the reverse 
+        complement. This means that the supplied `pattern` must be in the 3' -> 5' orientation.  
+
+    fmt : str, default="fasta"
+        Format of the input data. Only used if `sequences` is a file. Options are ``"fasta"`` 
+        and ``"fastq"``.
+
+    sequence_key : str, default="raw_input"
+        Field in `sequences` from which the UMI should be parsed. Only used if `sequences` 
+        are ``abutils.Sequence`` objects. Default is ``"raw_input"``.  If `sequence_key` is 
+        not found, or is ``None`` ``sequence.sequence`` will be used.
+
+    id_key : str, default="sequence_id"
+        Field in `sequences` containing the sequence ID. Only used if `sequences` are 
+        ``abutils.Sequence`` objects. Default is ``"sequence_id"``. If `id_key` is not found 
+        or is ``None`` ``sequence.id`` will be used.
 
 
-
-
+    Returns
+    -------
+    output_file : str
+        Path to the output file, with a format (``"fasta"`` or ``"fastq"``) matching `fmt`.
 
     """
     # lengths and patterns
@@ -303,11 +346,11 @@ def parse_umis(
             fmt=fmt,
         )
     else:
-        if output_file is None:
-            err = "\nERROR: if input is not a FASTA- or FASTQ-formatted file, "
-            err += f"output_file must be provided.\n"
-            print(err)
-            sys.exit()
+        # if output_file is None:
+        #     err = "\nERROR: if input is not a FASTA- or FASTQ-formatted file, "
+        #     err += f"output_file must be provided.\n"
+        #     print(err)
+        #     sys.exit()
         output_file = _parse_umis_from_sequences(
             sequences=sequences,
             patterns=patterns,
@@ -320,6 +363,7 @@ def parse_umis(
             sequence_key=sequence_key,
             id_key=id_key,
         )
+    return output_file
 
 
 def _parse_umis_from_file(
@@ -340,6 +384,8 @@ def _parse_umis_from_file(
     if output_file is None:
         output_file = tempfile.NamedTemporaryFile(delete=False).name
         inplace = True
+    else:
+        abutils.io.make_dir(os.path.dirname(output_file))
     with open(output_file, "w") as ofile:
         with open(input_file, "r") as ifile:
             for s in SeqIO.parse(ifile, fmt.lower()):
@@ -386,37 +432,48 @@ def _parse_umis_from_sequences(
     """
     Parses UMIs from a list of sequences.
     """
-    with open(output_file, "w") as ofile:
-        for s in sequences:
-            if isinstance(s, abutils.Sequence):
-                if sequence_key in s:
-                    s.sequence = s[sequence_key]
-                if id_key in s:
-                    s.id = s[id_key]
-            s = abutils.Sequence(s)
-            umi_list = []
-            for p, l in zip(patterns, lengths):
-                u = UMI(
-                    sequence=s,
-                    pattern=p,
-                    length=l,
-                    extra_length_for_alignment=extra_length_for_alignment,
-                    ignore_strand=ignore_strand,
-                )
-                if u.num_mismatches <= allowed_mismatches:
-                    umi_list.append(u.umi)
-            # if we couldn't find a UMI, skip the sequence
-            umi_list = [u for u in umi_list if u is not None]
-            if not umi_list:
-                continue
-            umi = "+".join(umi_list)
+    inplace = True if output_file is None else False
+    # output is a list of either abutils.Sequence objects (if inplace == True)
+    # or a list of FAST[AQ]-formatted strings (if inplace == False)
+    output = []
+    for s in sequences:
+        if isinstance(s, abutils.Sequence):
+            if sequence_key in s:
+                s.sequence = s[sequence_key]
+            if id_key in s:
+                s.id = s[id_key]
+        s = abutils.Sequence(s)
+        umi_list = []
+        for p, l in zip(patterns, lengths):
+            u = UMI(
+                sequence=s,
+                pattern=p,
+                length=l,
+                extra_length_for_alignment=extra_length_for_alignment,
+                ignore_strand=ignore_strand,
+            )
+            if u.num_mismatches <= allowed_mismatches:
+                umi_list.append(u.umi)
+        # if we couldn't find a UMI, skip the sequence
+        umi_list = [u for u in umi_list if u is not None]
+        if not umi_list:
+            continue
+        umi = "+".join(umi_list)
+        if inplace:
+            s["umi"] = umi
+            output.append(s)
+        else:
             s.id = f"{s.id}_{umi}"
             if fmt.lower() == "fastq":
-                fstring = s.fastq + "\n"
+                output.append(s.fastq)
             else:
-                fstring = s.fasta + "\n"
-            ofile.write(fstring)
-    return output_file
+                output.append(s.fasta)
+    if inplace:
+        return output
+    else:
+        with open(output_file, "w") as ofile:
+            ofile.write("\n".join(output))
+        return output_file
 
 
 def _get_patterns(name):
