@@ -42,6 +42,7 @@ import sys
 import tempfile
 import time
 import traceback
+from typing import Optional
 import warnings
 import shutil
 
@@ -81,7 +82,7 @@ from ..version import __version__
 #####################################################################
 
 
-def parse_arguments(print_help=False):
+def create_parser() -> ArgumentParser:
     parser = ArgumentParser(prog='abstar', description="VDJ assignment and antibody sequence annotation. Scalable from a single sequence to billions of sequences.")
     parser.add_argument('-p', '--project', dest='project_dir', default=None,
                         help="The data directory, where files will be downloaded (or have previously \
@@ -192,11 +193,8 @@ def parse_arguments(print_help=False):
                         Really only useful if you're using an old version of MongoDB.")
     parser.add_argument('--quiet', dest='verbose', default=True, action='store_false',
                         help='If set, suppresses logging and printing progress to screen')
-    if print_help:
-        parser.print_help()
-    else:
-        args = parser.parse_args()
-        return args
+    
+    return parser
 
 
 class Args(object):
@@ -242,7 +240,7 @@ def validate_args(args):
     if not any([args.project_dir,
                 args.sequences,
                 all([any([args.input, args.use_test_data]), args.output, args.temp])]):
-        parse_arguments(print_help=True)
+        create_parser().print_help()
         sys.exit(1)
     # alter output type if abstar is being run interactively
     # if args.sequences:
@@ -597,10 +595,10 @@ def split_file(f, fmt, temp_dir, args):
     # unless the input file is an exact multiple of args.chunksize,
     # need to write the last few sequences to a split file.
     if seq_counter:
-        file_counter += 1
         out_file = os.path.join(temp_dir, '{}_{}'.format(out_prefix, file_counter))
-        open(out_file, 'w').write('\n' + '\n'.join(sequences))
+        open(out_file, 'w').write('\n'.join(sequences))
         subfiles.append(out_file)
+        file_counter += 1
     logger.info('SEQUENCES: {}'.format(total_seq_counter))
     logger.info('JOBS: {}'.format(file_counter))
     return subfiles, total_seq_counter
@@ -1201,9 +1199,13 @@ def main(args):
             log_job_stats(seq_count, processed_seq_counts, start_time, vdj_end_time)
     return output_files
 
-
-if __name__ == '__main__':
+def run_main(arg_list: Optional[list[str]] = None):
     warnings.filterwarnings("ignore")
-    args = parse_arguments()
+    args = create_parser().parse_args(args=arg_list)
+    validate_args(args)
     output_dir = main(args)
     sys.stdout.write('\n\n')
+    return output_dir
+
+if __name__ == '__main__':
+    run_main()

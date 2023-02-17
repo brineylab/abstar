@@ -31,6 +31,6 @@ import abstar
 
 
 if __name__ == '__main__':
-    args = abstar.parse_arguments()
+    args = abstar.create_parser().parse_args()
     abstar.validate_args(args)
     output_dir = abstar.run_standalone(args)
