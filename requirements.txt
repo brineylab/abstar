@@ -2,6 +2,7 @@ abutils >= 0.2.9
 biopython == 1.78
 celery
 dask[complete]
+matplotlib<3.7 # scanpy does not support matplotlib 3.7 - track https://github.com/scverse/scanpy/issues/2411 to resolve.
 numpy >= 1.16.5
 nwalign3
 pandas
