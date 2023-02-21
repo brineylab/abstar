@@ -445,12 +445,12 @@ def concat_outputs(input_file, temp_output_file_dicts, output_dir, args):
             # JSON-formatted files don't have headers, so we don't worry about it
             if output_type == 'json' and not args.parquet:
                 for temp_file in temp_files:
-                    with open(temp_file, "rb") as f:
+                    with open(temp_file, 'rb') as f:
                         shutil.copyfileobj(f, out_file, length=16 * 1024**2)  # Increasing buffer size to 16MB for faster transfer
             # For file formats with headers, only keep headers from the first file
             elif output_type in ['imgt', 'tabular', 'airr']:
                 for i, temp_file in enumerate(temp_files):
-                    with open(temp_file, "rb") as f:
+                    with open(temp_file, 'rb') as f:
                         for j, line in enumerate(f):
                             if i == 0:
                                 out_file.write(line)
@@ -458,23 +458,25 @@ def concat_outputs(input_file, temp_output_file_dicts, output_dir, args):
                                 out_file.write(line)
 
         if args.parquet:
-            logger.info("Converting concatenated output to parquet format")
-            pname = f"{oprefix}_from_{output_type}"  # Specify from which output format the parquet file will be written with
+            logger.info('Converting concatenated output to parquet format')
+            # Make clear the output format from which the parquet file is generated.
+            # If the parquet files are generated from json for example, the filename would be f"{oprefix}_from_json".
+            pname = f"{oprefix}_from_{output_type}"
             pfile = os.path.join(output_subdir, pname)
             dtypes = get_parquet_dtypes(output_type)
 
-            if output_type == "json":
+            if output_type == 'json':
                 df = dd.read_parquet(os.path.dirname(temp_files[0]))  # Read in all parquet files in temp dir
-                df.repartition(partition_size="100MB").to_parquet(
+                df.repartition(partition_size='100MB').to_parquet(
                     pfile,
-                    engine="pyarrow",
-                    compression="snappy",
+                    engine='pyarrow',
+                    compression='snappy',
                     write_index=False,
                     schema=schema,
                 )
             else:
                 df = dd.read_csv(ofile, sep=get_output_separator(output_type), dtype=dtypes)
-                df.to_parquet(pfile, engine="pyarrow", compression="snappy", write_index=False)
+                df.to_parquet(pfile, engine='pyarrow', compression='snappy', write_index=False)
 
         ofiles.append(ofile)
     return ofiles

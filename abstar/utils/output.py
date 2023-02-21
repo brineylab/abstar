@@ -548,67 +548,67 @@ def get_parquet_dtypes(output_format):
                   'var_muts_nt': 'object', 'var_muts_aa': 'object'}
     elif output_format == "json":
         dtypes = {
-            "seq_id": object,
-            "chain": object,
-            "v_gene": object,
-            "d_gene": object,
-            "j_gene": object,
-            "assigner_scores": object,
-            "vdj_assigner": object,
-            "isotype": object,
-            "isotype_score": int,
-            "isotype_alignment": object,
-            "nt_identity": object,
-            "aa_identity": object,
-            "junc_len": int,
-            "cdr3_len": int,
-            "vdj_nt": object,
-            "gapped_vdj_nt": object,
-            "fr1_nt": object,
-            "cdr1_nt": object,
-            "fr2_nt": object,
-            "cdr2_nt": object,
-            "fr3_nt": object,
-            "cdr3_nt": object,
-            "fr4_nt": object,
-            "vdj_germ_nt": object,
-            "gapped_vdj_germ_nt": object,
-            "junc_nt": object,
-            "region_len_nt": object,
-            "var_muts_nt": object,
-            "join_muts_nt": object,
-            "mut_count_nt": int,
-            "vdj_aa": object,
-            "fr1_aa": object,
-            "cdr1_aa": object,
-            "fr2_aa": object,
-            "cdr2_aa": object,
-            "fr3_aa": object,
-            "cdr3_aa": object,
-            "fr4_aa": object,
-            "vdj_germ_aa": object,
-            "junc_aa": object,
-            "region_len_aa": object,
-            "var_muts_aa": object,
-            "join_muts_aa": object,
-            "region_muts_nt": object,
-            "region_muts_aa": object,
-            "prod": object,
-            "productivity_issues": object,
-            "junction_in_frame": object,
-            "raw_input": object,
-            "oriented_input": object,
-            "strand": object,
-            "germ_alignments_nt": object,
-            "exo_trimming": object,
-            "junc_nt_breakdown": object,
-            "germline_database": object,
-            "species": object,
-            "align_info": object,
-            "j_del": object,
-            "v_del": object,
-            "j_ins": object,
-            "v_ins": object,
+            'seq_id': object,
+            'chain': object,
+            'v_gene': object,
+            'd_gene': object,
+            'j_gene': object,
+            'assigner_scores': object,
+            'vdj_assigner': object,
+            'isotype': object,
+            'isotype_score': int,
+            'isotype_alignment': object,
+            'nt_identity': object,
+            'aa_identity': object,
+            'junc_len': int,
+            'cdr3_len': int,
+            'vdj_nt': object,
+            'gapped_vdj_nt': object,
+            'fr1_nt': object,
+            'cdr1_nt': object,
+            'fr2_nt': object,
+            'cdr2_nt': object,
+            'fr3_nt': object,
+            'cdr3_nt': object,
+            'fr4_nt': object,
+            'vdj_germ_nt': object,
+            'gapped_vdj_germ_nt': object,
+            'junc_nt': object,
+            'region_len_nt': object,
+            'var_muts_nt': object,
+            'join_muts_nt': object,
+            'mut_count_nt': int,
+            'vdj_aa': object,
+            'fr1_aa': object,
+            'cdr1_aa': object,
+            'fr2_aa': object,
+            'cdr2_aa': object,
+            'fr3_aa': object,
+            'cdr3_aa': object,
+            'fr4_aa': object,
+            'vdj_germ_aa': object,
+            'junc_aa': object,
+            'region_len_aa': object,
+            'var_muts_aa': object,
+            'join_muts_aa': object,
+            'region_muts_nt': object,
+            'region_muts_aa': object,
+            'prod': object,
+            'productivity_issues': object,
+            'junction_in_frame': object,
+            'raw_input': object,
+            'oriented_input': object,
+            'strand': object,
+            'germ_alignments_nt': object,
+            'exo_trimming': object,
+            'junc_nt_breakdown': object,
+            'germline_database': object,
+            'species': object,
+            'align_info': object,
+            'j_del': object,
+            'v_del': object,
+            'j_ins': object,
+            'v_ins': object,
         }
     else:
         dtypes = {}
@@ -649,19 +649,19 @@ def write_output(output_dict, output_dir, output_prefix, write_parquet: bool):
     for fmt in output_dict.keys():
         subdir = os.path.join(output_dir, fmt)
         
-        if fmt == "json" and write_parquet:
-            output_name = output_prefix + ".snappy.parquet"
+        if fmt == 'json' and write_parquet:
+            output_name = output_prefix + '.snappy.parquet'
             output_file = os.path.join(subdir, output_name)
             dtypes = get_parquet_dtypes(fmt)
             df = pd.DataFrame.from_records([json.loads(line) for line in output_dict[fmt]])
             df = df.reindex(columns=dtypes).astype(dtypes)
-            df.to_parquet(output_file, index=False, engine="pyarrow", compression="snappy", schema=schema)
+            df.to_parquet(output_file, index=False, engine='pyarrow', compression='snappy', schema=schema)
         else:
             output_name = output_prefix + get_output_suffix(fmt)
             output_file = os.path.join(subdir, output_name)
             with open(output_file, 'w') as f:
                 f.write('\n'.join(output_dict[fmt]))
-                f.write("\n")
+                f.write('\n')
 
         output_file_dict[fmt] = output_file
     return output_file_dict

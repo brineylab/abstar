@@ -1,6 +1,8 @@
 import pyarrow as pa
 
 
+# Add pyarrow schema to use when writing JSON-formatted abstar output to parquet files.
+# Adding this explicitly defined schema attributes allows for nested data structures to be queried more efficiently.
 schema = pa.schema(
     [
         pa.field("seq_id", pa.string()),
