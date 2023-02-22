@@ -785,7 +785,7 @@ def _run_jobs_singlethreaded(files, output_dir, log_dir, file_format, args):
 
 
 def _run_jobs_via_multiprocessing(files, output_dir, log_dir, file_format, args):
-    p = Pool(processes=args.num_cores, maxtasksperchild=50)
+    p = Pool(processes=args.num_cores)
     async_results = []
     if args.verbose:
         update_progress(0, len(files))
