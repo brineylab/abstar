@@ -461,11 +461,11 @@ class GermlineSegment(LoggingMixin):
         query = self.germline_alignment.replace("-", "")
         aln_params = self._realignment_scoring_params(self.gene_type)
         aln_params["gap_open"] = -11
-        aln_matrix = self._get_gapped_imgt_substitution_matrix()
+        # aln_matrix = self._get_gapped_imgt_substitution_matrix()
         self.imgt_gapped_alignment = local_alignment(
             query,
             self.imgt_germline.gapped_nt_sequence,
-            matrix=aln_matrix,
+            # matrix=aln_matrix,
             **aln_params,
         )
         self.alignment_reading_frame = (
