@@ -30,6 +30,8 @@ import glob
 import subprocess as sp
 from multiprocessing import cpu_count
 
+from natsort import natsorted
+
 from abutils.utils import log
 
 logger = log.get_logger('basespace')
@@ -39,38 +41,64 @@ def list_files(d):
     return sorted([f for f in glob.glob(d + '/*') if os.path.isfile(f)])
 
 
-def pair_files(files, nextseq):
-    pairs = {}
+def pair_files(files):
+    return group_files(files)
+
+
+def group_files(files, delim_count=3):
+    groups = {}
     for f in files:
-        if nextseq:
-            f_prefix = '_'.join(os.path.basename(f).split('_')[:-2])
-        else:
-            f_prefix = '_'.join(os.path.basename(f).split('_')[:-3])
-        if f_prefix in pairs:
-            pairs[f_prefix].append(f)
-        else:
-            pairs[f_prefix] = [f, ]
-    return pairs
+        f_prefix = '_'.join(os.path.basename(f).split('_')[:-delim_count])
+        if f_prefix not in groups:
+            groups[f_prefix] = []
+        groups[f_prefix].append(f)
+    return groups
 
 
-def batch_pandaseq(f, r, o, algo):
-    cmd = 'pandaseq -f {0} -r {1} -A {2} -d rbfkms -T {3} -w {4}'.format(f, r, algo, cpu_count(), o)
-    sp.Popen(cmd, shell=True, stderr=sp.STDOUT, stdout=sp.PIPE).communicate()
+def concat_lanes(lane_files, merged_file):
+    with open(merged_file, 'w') as outfile:
+        for fname in lane_files:
+            with open(fname) as infile:
+                for line in infile:
+                    outfile.write(line)
+            outfile.write('\n')
+    return merged_file
 
 
-def merge_reads(files, output, algo, nextseq, i):
-    files.sort()
-    f = files[0]
-    r = files[1]
-    if nextseq:
-        lane = os.path.basename(f).split('_')[-3]
-        sample_id = '_'.join(os.path.basename(f).split('_')[:-4])
-        sample = sample_id + '_' + lane
+def pandaseq(f, r, o, algo, debug=False):
+    cmd = 'pandaseq -f "{0}" -r "{1}" -A {2} -d rbfkms -T {3} -w "{4}"'.format(f, r, algo, cpu_count(), o)
+    if debug:
+        logger.info(cmd)
+    p = sp.Popen(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+    stdout, stderr = p.communicate()
+    if debug:
+        logger.info(stdout)
+        logger.info(stderr)
+
+
+def merge_reads(sample_name, sample_files, output, algo, i, debug):
+    if len(sample_files) > 2:
+        subgroups = group_files(sample_files, delim_count=2)
+        subgroups = {n: f for n, f in subgroups.items() if len(f) == 2}
+        names = natsorted(subgroups.keys())
+        file_pairs = [subgroups[n] for n in names]
     else:
-        sample = '_'.join(os.path.basename(f).split('_')[:-4])
-    print_sample_info(i, sample)
-    o = os.path.join(output, '{}.fasta'.format(sample))
-    batch_pandaseq(f, r, o, algo)
+        names = [sample_name, ]
+        file_pairs = [sample_files, ]
+    output_files = []
+    for name, files in zip(names, file_pairs):
+        files.sort()
+        f = files[0]
+        r = files[1]
+        print_sample_info(i, name)
+        o = os.path.join(output, f'{name}.fasta')
+        pandaseq(f, r, o, algo, debug)
+        output_files.append(o)
+    if len(output_files) > 1:
+        merged_file = os.path.join(output, f'{sample_name}.fasta')
+        o = concat_lanes(output_files, merged_file)
+        for of in output_files:
+            os.unlink(of)
     return o
 
 
@@ -95,9 +123,12 @@ def print_sample_end():
     logger.info('Done.')
 
 
-def run(input, output, algorithm='simple_bayesian', nextseq=False):
+def run(input, output, algorithm='simple_bayesian', nextseq=False, debug=False):
     '''
-    Merge paired-end FASTQ files with PANDAseq.
+    Merge paired-end FASTQ files with PANDAseq. File name format must match that produced 
+    by ``bcl2fastq``:
+
+        ``<sample_name>_<sample_num>_<lane>_<read>_001.fastq.gz``
 
     Examples:
 
@@ -125,8 +156,8 @@ def run(input, output, algorithm='simple_bayesian', nextseq=False):
 
                 1. path to a directory of paired FASTQ files
                 2. a list of paired FASTQ files
-                3. a list of read pairs, with each read pair being a list/tuple
-                   containing paths to two paired read files
+                3. a dict with sample names as keys and a list/tuple
+                   containing paths to two paired read files as values
 
             Regardless of what input type is provided, paired FASTQ files can be either
             gzip compressed or uncompressed.
@@ -145,9 +176,6 @@ def run(input, output, algorithm='simple_bayesian', nextseq=False):
             'ea_util', 'flash', 'pear', 'rdp_mle', 'stitch', or 'uparse'. Default is 'simple_bayesian',
             which is the default PANDAseq algorithm.
 
-        nextseq (bool): Set to ``True`` if the sequencing data was generated on a NextSeq. Needed
-            because the naming conventions for NextSeq output files differs from MiSeq output.
-
 
     Returns:
 
@@ -156,14 +184,14 @@ def run(input, output, algorithm='simple_bayesian', nextseq=False):
     print_start_info()
     if os.path.isdir(input):
         files = list_files(input)
-        pairs = pair_files(files, nextseq)
-    elif type(input) in [list, tuple]:
+        groups = group_files(files)
+    elif type(input) in [dict, ]:
         if all([type(i) in [list, tuple] for i in input]) and all([len(i) == 2 for i in input]):
             files = [f for sublist in input for f in sublist]
-            pairs = {n: i for n, i in zip(range(len(input)), input)}
-        elif all([os.path.isfile(i) for i in input]):
+            groups = {n: {'0': i} for n, i in zip(range(len(input)), input)}
+        elif type(input) in [list, tuple] and all([os.path.isfile(i) for i in input]):
             files = input
-            pairs = pair_files(files, nextseq)
+            groups = group_files(files)
         else:
             err = 'ERROR: Invalid input. Input may be one of three things:\n'
             err += '  1. a directory path\n'
@@ -178,9 +206,7 @@ def run(input, output, algorithm='simple_bayesian', nextseq=False):
         raise RuntimeError(err)
     print_input_info(files)
     merged_files = []
-    for i, pair in enumerate(sorted(pairs.keys())):
-        if len(pairs[pair]) == 2:
-            # logger.info('Merging {} and {}'.format(pairs[pair][0], pairs[pair][1]))
-            mf = merge_reads(pairs[pair], output, algorithm, nextseq, i)
-            merged_files.append(mf)
+    for i, (sample_name, sample_files) in enumerate(natsorted(groups.items())):
+        mf = merge_reads(sample_name, sample_files, output, algorithm, i, debug)
+        merged_files.append(mf)
     return merged_files
