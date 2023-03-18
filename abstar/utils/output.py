@@ -29,13 +29,14 @@ import json
 import os
 import traceback
 import uuid
+import pandas as pd
 
 from abutils.utils import log
+from abstar.utils.parquet_schema import schema
 
 from .cigar import make_cigar
 
 
-PARQUET_INCOMPATIBLE = ['json', ]
 OUTPUT_SEPARATORS = {'airr': '\t',
                      'imgt': ',',
                      'tabular': ','}
@@ -240,7 +241,7 @@ class AbstarResult(object):
                         'score': self.antibody.j.score,
                         'assigner_score': self.antibody.j.assigner_score,
                         'others': [{'full': o.full,
-                                    'score': o.assigner_score}
+                                    'assigner_score': o.assigner_score}
                                    for o in self.antibody.j.others]
 #                                    for germ, score in zip(self.antibody.j.all_germlines[1:], self.antibody.j.all_scores[1:])]
                         }),
@@ -545,6 +546,70 @@ def get_parquet_dtypes(output_format):
     if output_format.lower() == 'tabular':
         dtypes = {'var_ins': 'object', 'var_del': 'object',
                   'var_muts_nt': 'object', 'var_muts_aa': 'object'}
+    elif output_format == "json":
+        dtypes = {
+            'seq_id': object,
+            'chain': object,
+            'v_gene': object,
+            'd_gene': object,
+            'j_gene': object,
+            'assigner_scores': object,
+            'vdj_assigner': object,
+            'isotype': object,
+            'isotype_score': int,
+            'isotype_alignment': object,
+            'nt_identity': object,
+            'aa_identity': object,
+            'junc_len': int,
+            'cdr3_len': int,
+            'vdj_nt': object,
+            'gapped_vdj_nt': object,
+            'fr1_nt': object,
+            'cdr1_nt': object,
+            'fr2_nt': object,
+            'cdr2_nt': object,
+            'fr3_nt': object,
+            'cdr3_nt': object,
+            'fr4_nt': object,
+            'vdj_germ_nt': object,
+            'gapped_vdj_germ_nt': object,
+            'junc_nt': object,
+            'region_len_nt': object,
+            'var_muts_nt': object,
+            'join_muts_nt': object,
+            'mut_count_nt': int,
+            'vdj_aa': object,
+            'fr1_aa': object,
+            'cdr1_aa': object,
+            'fr2_aa': object,
+            'cdr2_aa': object,
+            'fr3_aa': object,
+            'cdr3_aa': object,
+            'fr4_aa': object,
+            'vdj_germ_aa': object,
+            'junc_aa': object,
+            'region_len_aa': object,
+            'var_muts_aa': object,
+            'join_muts_aa': object,
+            'region_muts_nt': object,
+            'region_muts_aa': object,
+            'prod': object,
+            'productivity_issues': object,
+            'junction_in_frame': object,
+            'raw_input': object,
+            'oriented_input': object,
+            'strand': object,
+            'germ_alignments_nt': object,
+            'exo_trimming': object,
+            'junc_nt_breakdown': object,
+            'germline_database': object,
+            'species': object,
+            'align_info': object,
+            'j_del': object,
+            'v_del': object,
+            'j_ins': object,
+            'v_ins': object,
+        }
     else:
         dtypes = {}
     return dtypes
@@ -579,14 +644,25 @@ def get_output(result, output_type):
 #         with open(outfile, 'w') as f:
 #             f.write('\n'.join(_outputs))
 
-def write_output(output_dict, output_dir, output_prefix):
+def write_output(output_dict, output_dir, output_prefix, write_parquet: bool):
     output_file_dict = {}
     for fmt in output_dict.keys():
         subdir = os.path.join(output_dir, fmt)
-        output_name = output_prefix + get_output_suffix(fmt)
-        output_file = os.path.join(subdir, output_name)
-        with open(output_file, 'w') as f:
-            f.write('\n'.join(output_dict[fmt]))
+        
+        if fmt == 'json' and write_parquet:
+            output_name = output_prefix + '.snappy.parquet'
+            output_file = os.path.join(subdir, output_name)
+            dtypes = get_parquet_dtypes(fmt)
+            df = pd.DataFrame.from_records([json.loads(line) for line in output_dict[fmt]])
+            df = df.reindex(columns=dtypes).astype(dtypes)
+            df.to_parquet(output_file, index=False, engine='pyarrow', compression='snappy', schema=schema)
+        else:
+            output_name = output_prefix + get_output_suffix(fmt)
+            output_file = os.path.join(subdir, output_name)
+            with open(output_file, 'w') as f:
+                f.write('\n'.join(output_dict[fmt]))
+                f.write('\n')
+
         output_file_dict[fmt] = output_file
     return output_file_dict
 

@@ -68,7 +68,7 @@ def run_abstar(sequence_file, output_directory, args):
             if args.debug:
                 assigned_log += ab.format_log()
         results = get_abstar_results(assigned, pretty=args.pretty, padding=args.padding, raw=args.raw)
-        write_output(results, output_file, args.output_type)
+        write_output(results, output_file, args.output_type, args.parquet)
         # capture the log for all unsuccessful sequences
         for vdj in unassigned:
             unassigned_log += vdj.format_log()

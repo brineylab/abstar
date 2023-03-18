@@ -2,7 +2,8 @@ abutils>=0.2.9
 biopython == 1.78
 celery
 dask[complete]
-numpy>=1.16.5
+matplotlib == 3.6.3
+numpy == 1.23.4
 nwalign3
 pandas
 pyarrow
