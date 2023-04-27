@@ -306,6 +306,12 @@ class GermlineSegment(LoggingMixin):
         # they haven't already been determined by the assigner
         else:
             query = oriented_input.sequence[query_start:query_end]
+            if len(query) == 0:
+                antibody.log("GERMLINE REALIGNMENT ERROR: query sequence is empty")
+                antibody.log("REALIGNMENT QUERY SEQUENCE:", query)
+                antibody.log("QUERY START:", query_start)
+                antibody.log("QUERY END:", query_end)
+                return
             alignment = local_alignment(query, germline_seq, **aln_params)
             # fix for a fairly rare edge case where coincidental matching to 2-3 residues at the extreme
             # 3' end of K/L germline V genes can result in incorrect identification of the
