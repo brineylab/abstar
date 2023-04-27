@@ -43,7 +43,7 @@ import sys
 import tempfile
 import time
 import traceback
-from typing import Optional
+from typing import Iterable, Optional
 import warnings
 import shutil
 
@@ -1518,7 +1518,7 @@ def main(args):
     return output_files
 
 
-def run_main(arg_list: Optional[list[str]] = None):
+def run_main(arg_list: Optional[Iterable[str]] = None):
     warnings.filterwarnings("ignore")
     args = create_parser().parse_args(args=arg_list)
     validate_args(args)
