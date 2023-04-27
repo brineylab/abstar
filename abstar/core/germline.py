@@ -29,6 +29,8 @@ import os
 import traceback
 from typing import Optional, Union, Iterable
 
+import parasail
+
 from Bio import SeqIO
 from Bio.Seq import Seq
 
@@ -487,19 +489,24 @@ class GermlineSegment(LoggingMixin):
             self.exception("IMGT NUMBERING", traceback.format_exc(), sep="\n")
 
     def _get_gapped_imgt_substitution_matrix(self):
-        matrix = {}
-        residues = ["A", "C", "G", "T", "N", "."]
-        for r1 in residues:
-            matrix[r1] = {}
-            for r2 in residues:
-                if r1 == r2:
-                    score = 3
-                elif any([r1 == ".", r2 == "."]):
-                    score = -3
-                else:
-                    score = -2
-                matrix[r1][r2] = score
+        matrix = parasail.matrix_create("ACGTN.", 3, -2)
+        matrix[5, :] = -3
+        matrix[:, 5] = -3
         return matrix
+
+        # matrix = {}
+        # residues = ["A", "C", "G", "T", "N", "."]
+        # for r1 in residues:
+        #     matrix[r1] = {}
+        #     for r2 in residues:
+        #         if r1 == r2:
+        #             score = 3
+        #         elif any([r1 == ".", r2 == "."]):
+        #             score = -3
+        #         else:
+        #             score = -2
+        #         matrix[r1][r2] = score
+        # return matrix
 
     def get_imgt_position_from_raw(self, raw):
         return self._imgt_position_from_raw.get(raw, None)
