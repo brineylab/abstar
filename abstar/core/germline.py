@@ -489,10 +489,12 @@ class GermlineSegment(LoggingMixin):
             self.exception("IMGT NUMBERING", traceback.format_exc(), sep="\n")
 
     def _get_gapped_imgt_substitution_matrix(self):
-        matrix = parasail.matrix_create("ACGTN.", 3, -2)
-        matrix[5, :] = -3
-        matrix[:, 5] = -3
-        return matrix
+        residues = "ACGTN."
+        m = parasail.matrix_create(residues, 3, -2)
+        for i in range(len(residues)):
+            m[5, i] = -3
+            m[i, 5] = -3
+        return m
 
         # matrix = {}
         # residues = ["A", "C", "G", "T", "N", "."]
