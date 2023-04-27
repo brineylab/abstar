@@ -28,10 +28,10 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 class LoggingMixin(object):
     """docstring for LoggingMixin"""
+
     def __init__(self):
         self._log = None
         self._exceptions = None
-
 
     @property
     def logs(self):
@@ -39,40 +39,40 @@ class LoggingMixin(object):
             return self._log
         return []
 
-
     @property
     def exceptions(self):
         if self._exceptions is not None:
             return self._exceptions
         return []
 
-
     def log(self, *args, **kwargs):
-        '''
+        """
         Records a log message
-        '''
-        sep = kwargs.get('sep', ' ')
+        """
+        sep = kwargs.get("sep", " ")
         lstring = sep.join([str(a) for a in args])
         if self._log is None:
-            self._log = [lstring, ]
+            self._log = [
+                lstring,
+            ]
         else:
             self._log.append(lstring)
 
-
     def exception(self, *args, **kwargs):
-        '''
+        """
         Records an exception.
-        '''
-        sep = kwargs.get('sep', '\n')
+        """
+        sep = kwargs.get("sep", "\n")
         estring = sep.join([str(a) for a in args])
         if self._exceptions is None:
-            self._exceptions = [estring, ]
+            self._exceptions = [
+                estring,
+            ]
         else:
             self._exceptions.append(estring)
 
-
     def format_log(self):
-        '''
+        """
         Formats the log, including exceptions.
 
         Log formatting will only be performed on sequences that had an
@@ -83,15 +83,14 @@ class LoggingMixin(object):
         --------
 
             str: Formatted log string.
-        '''
-        output = ''
-        output += '\n'.join(self.logs)
+        """
+        output = ""
+        output += "\n".join(self.logs)
         if self._check_for_exceptions():
-            output += '\n\n'
+            output += "\n\n"
             output += self._format_exceptions()
-        output += '\n\n'
+        output += "\n\n"
         return output
-
 
     def _check_for_exceptions(self):
         if self.exceptions:
@@ -107,17 +106,16 @@ class LoggingMixin(object):
                 return True
         return False
 
-
     def _format_exceptions(self):
         exceptions = []
         exceptions += self.exceptions
-        estring = '\n\nEXCEPTIONS\n'
-        estring += '----------\n\n'
+        estring = "\n\nEXCEPTIONS\n"
+        estring += "----------\n\n"
         if self.v is not None:
             exceptions += self.v.exceptions
         if self.d is not None:
             exceptions += self.d.exceptions
         if self.j is not None:
             exceptions += self.j.exceptions
-        estring += '\n\n'.join([e for e in exceptions])
+        estring += "\n\n".join([e for e in exceptions])
         return estring

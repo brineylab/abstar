@@ -301,29 +301,27 @@ class BaseAssigner(object):
         self._germline_directory = None
         self._binary_directory = None
 
-
     @abc.abstractmethod
     def __call__(self, sequence_file, file_format):
         pass
 
-
     @property
     def germline_directory(self):
         if self._germline_directory is None:
-            self._germline_directory = get_germline_database_directory(self.db_name,
-                                                                       self.receptor)
+            self._germline_directory = get_germline_database_directory(
+                self.db_name, self.receptor
+            )
         return self._germline_directory
 
     @germline_directory.setter
     def germline_directory(self, directory):
         self._germline_directory = directory
 
-
     @property
     def binary_directory(self):
         if self._binary_directory is None:
             mod_dir = os.path.dirname(os.path.abspath(__file__))
-            self._binary_directory = os.path.join(mod_dir, 'bin')
+            self._binary_directory = os.path.join(mod_dir, "bin")
         return self._binary_directory
 
     @property

@@ -23,28 +23,30 @@
 
 
 def make_cigar(germline_segment):
-    cigar = ''
+    cigar = ""
     if germline_segment.query_start > 0:
-        cigar += '{}S'.format(germline_segment.query_start)
+        cigar += "{}S".format(germline_segment.query_start)
     if germline_segment.germline_start > 0:
-        cigar += '{}N'.format(germline_segment.germline_start)
-    cigar += make_alignment_cigar(germline_segment.realignment.aligned_query,
-                                  germline_segment.realignment.aligned_target)
+        cigar += "{}N".format(germline_segment.germline_start)
+    cigar += make_alignment_cigar(
+        germline_segment.realignment.aligned_query,
+        germline_segment.realignment.aligned_target,
+    )
     return cigar
 
 
 def get_cigar_code(q, t):
-    if q == '-':
-        return 'D'
-    if t == '-':
-        return 'I'
-    return 'M'
+    if q == "-":
+        return "D"
+    if t == "-":
+        return "I"
+    return "M"
 
 
 def make_alignment_cigar(query, target):
     prev = get_cigar_code(query[0], target[0])
     count = 1
-    cigar = ''
+    cigar = ""
     for q, t in zip(query[1:], target[1:]):
         curr = get_cigar_code(q, t)
         if prev is None:
@@ -53,8 +55,8 @@ def make_alignment_cigar(query, target):
             count += 1
         else:
             count += 1
-            cigar += '{}{}'.format(count, prev)
+            cigar += "{}{}".format(count, prev)
             prev = curr
             count = 0
-    cigar += '{}{}'.format(count + 1, prev)
+    cigar += "{}{}".format(count + 1, prev)
     return cigar
