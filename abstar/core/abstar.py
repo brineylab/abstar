@@ -72,6 +72,8 @@ from ..utils.output import (
     get_output_separator,
     get_parquet_dtypes,
 )
+
+from ..utils.output import PARQUET_INCOMPATIBLE
 from ..utils.queue.celery import celery
 
 
@@ -95,6 +97,7 @@ from ..version import __version__
 #                             ARGUMENTS
 #
 #####################################################################
+
 
 
 def create_parser() -> ArgumentParser:
@@ -374,7 +377,6 @@ def create_parser() -> ArgumentParser:
         action="store_false",
         help="If set, suppresses logging and printing progress to screen",
     )
-
     return parser
 
 
@@ -611,6 +613,23 @@ def setup_logging(log_dir, debug):
 
 
 def log_options(input_dir, output_dir, temp_dir, args):
+    """
+    Log the options used to run abstar
+
+    Parameters
+    ----------
+    input_dir : str
+        Path to the input directory
+
+    output_dir : str
+        Path to the output directory
+
+    temp_dir : str
+        Path to the temp directory
+
+    args : argparse.Namespace
+        The arguments passed to abstar
+    """
     logger.info("")
     logger.info("")
     logger.info("-" * 25)
@@ -718,7 +737,7 @@ def concat_outputs(input_file, temp_output_file_dicts, output_dir, args):
                                 out_file.write(line)
                             elif j >= 1:
                                 out_file.write(line)
-
+                                
         if args.parquet:
             logger.info("Converting concatenated output to parquet format")
             # Make clear the output format from which the parquet file is generated.
@@ -745,7 +764,7 @@ def concat_outputs(input_file, temp_output_file_dicts, output_dir, args):
                 df.to_parquet(
                     pfile, engine="pyarrow", compression="snappy", write_index=False
                 )
-
+                
         ofiles.append(ofile)
     return ofiles
 
@@ -1190,12 +1209,12 @@ def run(*args, **kwargs):
         - a BioPython SeqRecord object
         - an abtools Sequence object
 
-    .. Caution:: Supplying a single input sequence in list/tuple format is not supported, as abstar 
-                 assumes that each element of an iterable is a separate sequence if an iterable 
-                 is the only argument. Either convert the list/tuple to a ``Sequence`` object before 
-                 calling ``abstar.run()`` or supply a nested list containing the sequence information, 
+    .. Caution:: Supplying a single input sequence in list/tuple format is not supported, as abstar
+                 assumes that each element of an iterable is a separate sequence if an iterable
+                 is the only argument. Either convert the list/tuple to a ``Sequence`` object before
+                 calling ``abstar.run()`` or supply a nested list containing the sequence information,
                  for example: ``[[sequence_id, sequence], ]``.
-                 
+
 
     Either sequences, ``project_dir``, or all of ``input``, ``output`` and ``temp`` are required.
 
@@ -1265,40 +1284,40 @@ def run(*args, **kwargs):
         By default, PANDAseq's 'simple bayesian' read merging algorithm is used, although alternate
         algorithms can be selected with ``pandaseq_algo``.
 
-        abstar provides several output format options. By default, abstar will produce JSON-formatted 
+        abstar provides several output format options. By default, abstar will produce JSON-formatted
         output file. abstar's output format options include:
 
-        json 
-            abstar's default format, in Javascript Object Notation (JSON) format. This format is the most comprehensive. 
-            JSON's nesting and inclusion of programmatic objects (such as lists) make this format extremely 
+        json
+            abstar's default format, in Javascript Object Notation (JSON) format. This format is the most comprehensive.
+            JSON's nesting and inclusion of programmatic objects (such as lists) make this format extremely
             flexible and well-suited to adaptive immune receptor sequence data, particularly for cases in which
-            addtitional fields may be added in the future (such as clonality-related annotations). 
+            addtitional fields may be added in the future (such as clonality-related annotations).
 
-        airr 
+        airr
             Tab-delimited format compatible with the Adaptive Immune Receptor Repertoires Community's (AIRR-C)
-            `schema guidelines`_. This format contains all required fields, several "optional" fields, and 
+            `schema guidelines`_. This format contains all required fields, several "optional" fields, and
             several fields that are not part of the schema but conform to the naming conventions of existing schema
             fields (examples include ``v_mutations`` and ``v_mutations_aa``).
 
-        tabular 
-            Comma-delimited format containing a subset of the fields contained in the default JSON output format. 
+        tabular
+            Comma-delimited format containing a subset of the fields contained in the default JSON output format.
             This format was originally conceived for extremely large datasets, for which output size and compatibility
             with tabular databases (such as MySQL and Apache Spark) were high priorities.
-            
-        imgt 
-            Comma-delimited format that mimics the `IMGT Summary file`_. This output option is provided 
-            to minimize the effort needed to convert existing IMGT-based pipelines to abstar. 
-            
-            
-        Multiple output formats can be produced in a single run of abstar, although this is only available when 
-        passing an input file or directory; passing individual sequences or a list of sequences (which returns 
+
+        imgt
+            Comma-delimited format that mimics the `IMGT Summary file`_. This output option is provided
+            to minimize the effort needed to convert existing IMGT-based pipelines to abstar.
+
+
+        Multiple output formats can be produced in a single run of abstar, although this is only available when
+        passing an input file or directory; passing individual sequences or a list of sequences (which returns
         ``Sequence`` objects) can only return a single output format. To produce AIRR output::
 
             result_files = abstar.run(input='/path/to/input',
                                       temp='/path/to/temp',
                                       output='/path/to/output',
                                       output_type='airr')
-        
+
         To produce both JSON and AIRR-formatted outputs::
 
             result_files = abstar.run(input='/path/to/input',
@@ -1332,9 +1351,9 @@ def run(*args, **kwargs):
             provided, log will be written to ``/path/to/output/abstar.log``.
 
         germ_db (str): Germline database to be used. Choices are 'human', 'macaque',
-            'mouse', 'humouse', and 'rabbit'. The 'humouse' database contains all germline genes 
-            from human and mouse databaes, and is designed to process data from humanized mouse 
-            models expressing one or more human germline genes as well as mouse germline genes. 
+            'mouse', 'humouse', and 'rabbit'. The 'humouse' database contains all germline genes
+            from human and mouse databaes, and is designed to process data from humanized mouse
+            models expressing one or more human germline genes as well as mouse germline genes.
             Default is 'human'.
 
         isotype (bool): If True, the isotype will infered by aligning the sequence region
@@ -1351,7 +1370,7 @@ def run(*args, **kwargs):
         pretty (bool): If True, formats JSON output files to be more human-readable. If False,
             JSON output files contain one record per line. Default is False.
 
-        output_type (str): Options are 'json' 'airr', 'tabular', or 'imgt'. JSON output is the most 
+        output_type (str): Options are 'json' 'airr', 'tabular', or 'imgt'. JSON output is the most
             detailed. Default is 'json'.
 
         merge (bool): If True, input must be paired-read FASTA files (gzip compressed or uncompressed)
@@ -1365,7 +1384,7 @@ def run(*args, **kwargs):
         debug (bool): If ``True``, ``abstar.run()`` runs in single-threaded mode, the log is much more verbose,
             and temporary files are not removed. Default is ``False``.
 
-        verbose (bool): If ``True``, progress is logged and printed to screen. If ``False``, logging and 
+        verbose (bool): If ``True``, progress is logged and printed to screen. If ``False``, logging and
             progress printing are suppressed. Default is ``True``.
 
 
@@ -1524,8 +1543,6 @@ def run_main(arg_list: Optional[Iterable[str]] = None):
     validate_args(args)
     output_dir = main(args)
     sys.stdout.write("\n\n")
-    return output_dir
-
 
 if __name__ == "__main__":
     run_main()

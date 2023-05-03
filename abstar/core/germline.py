@@ -74,11 +74,11 @@ class GermlineSegment(LoggingMixin):
         the germline gene).
 
     others : list(GermlineSegment), default=None
-        A list of additional high scoring germline genes. Each element of the list 
+        A list of additional high scoring germline genes. Each element of the list
         should be a ``GermlineSegment``.
 
     assigner_name : str, default=None
-        The assigner name. Will be converted to lowercase. If not provided, 
+        The assigner name. Will be converted to lowercase. If not provided,
         `assigner_name` will be set to ``'unknown'``.
 
     initialize_log : bool, default=True
@@ -270,7 +270,7 @@ class GermlineSegment(LoggingMixin):
         Parameters
         ----------
         antibody : Antibody
-            The ``Antibody`` object to which this ``GermlineSegment`` object is attached. 
+            The ``Antibody`` object to which this ``GermlineSegment`` object is attached.
 
         query_start: int, default=None
             Position in the input sequence at which the re-alignment should start. If not provided,
@@ -469,11 +469,11 @@ class GermlineSegment(LoggingMixin):
         query = self.germline_alignment.replace("-", "")
         aln_params = self._realignment_scoring_params(self.gene_type)
         aln_params["gap_open"] = -11
-        aln_matrix = self._get_gapped_imgt_substitution_matrix()
+        # aln_matrix = self._get_gapped_imgt_substitution_matrix()
         self.imgt_gapped_alignment = local_alignment(
             query,
             self.imgt_germline.gapped_nt_sequence,
-            matrix=aln_matrix,
+            # matrix=aln_matrix,
             **aln_params,
         )
         self.alignment_reading_frame = (
@@ -599,7 +599,6 @@ class GermlineSegment(LoggingMixin):
         query_del_adjustment = 0
 
         for gl in self.imgt_germline.gapped_nt_sequence[imgt_start:]:
-
             # only compute IMGT AA position numbers for V-genes. J-gene numbering is dependent on the CDR3 length
             # (due to IMGT's CDR3 naming conventions), so the junction must be annotated before J-gene AA position
             # numbers can be assigned.
@@ -829,7 +828,6 @@ def get_imgt_germlines(db_name, gene_type, receptor="bcr", gene=None):
     try:
         return [g for g in germs if g.name == gene][0]
     except IndexError:
-
         # print('Could not locate the IMGT germline gene ({}).'.format(gene))
         # print(traceback.format_exc())
 
@@ -849,13 +847,13 @@ def get_germlines(db_name, gene_type, receptor="bcr", chain=None, gene=None):
 
         receptor (str): Options are ``'bcr'`` and ``'tcr'``.
 
-        chain (str): Options are ``'heavy'``, ``'kappa'``, and ``'lambda'`` for BCRs and ``'alpha'``, 
-        ``'beta'``, ``'gamma'``, and ``'delta'`` for TCRs. If not provided, germline sequences from 
+        chain (str): Options are ``'heavy'``, ``'kappa'``, and ``'lambda'`` for BCRs and ``'alpha'``,
+        ``'beta'``, ``'gamma'``, and ``'delta'`` for TCRs. If not provided, germline sequences from
         all chains are returned.
 
         gene (str): Full name of a germline gene (using IMGT-style names, like ``'IGHV1-2*02'``).
         If provided, a single ``IMGTGermlineGene`` object will be returned, or ``None`` if the
-        specified gene could not be found. If not provided, a list of ``IMGTGermlineGene`` objects 
+        specified gene could not be found. If not provided, a list of ``IMGTGermlineGene`` objects
         for all germline genes matching the ``species``, ``receptor`` and ``gene_type`` will be returned.
 
     Returns:
@@ -966,4 +964,3 @@ class IMGTGermlineGene(object):
     @lazy_property
     def ungapped_aa_sequence(self):
         return self.gapped_aa_sequence.replace(".", "")
-

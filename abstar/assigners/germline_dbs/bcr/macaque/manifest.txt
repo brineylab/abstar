@@ -1,0 +1,14 @@
+Macaca mulatta germline gene database
+
+
+SOURCE: IMGT and KIMDB
+DOWNLOAD DATE: February 14, 2023
+
+
+V-GENES: KIMDB: http://kimdb.gkhlab.se./datasets/
+D-GENES: IMGT: F+ORF+in-frame P nucleotide sequences
+J-GENES: IMGT: F+ORF+in-frame P nucleotide sequences
+
+
+
+

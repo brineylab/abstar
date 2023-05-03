@@ -9,3 +9,4 @@ parasail
 pyarrow
 pymongo
 pytest
+
