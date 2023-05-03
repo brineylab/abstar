@@ -43,14 +43,17 @@ import sys
 import tempfile
 import time
 import traceback
+from typing import Iterable, Optional
 import warnings
+import shutil
 
 from Bio import SeqIO
 
-# import dask.dataframe as dd
+import dask.dataframe as dd
 
 from abutils.core.sequence import Sequence, read_json, read_csv
 from abutils.utils import log
+from abstar.utils.parquet_schema import schema
 
 # from abutils.utils.pipeline import list_files
 
@@ -69,6 +72,7 @@ from ..utils.output import (
     get_output_separator,
     get_parquet_dtypes,
 )
+
 from ..utils.output import PARQUET_INCOMPATIBLE
 from ..utils.queue.celery import celery
 
@@ -95,7 +99,8 @@ from ..version import __version__
 #####################################################################
 
 
-def parse_arguments(print_help=False):
+
+def create_parser() -> ArgumentParser:
     parser = ArgumentParser(
         prog="abstar",
         description="VDJ assignment and antibody sequence annotation. Scalable from a single sequence to billions of sequences.",
@@ -372,11 +377,7 @@ def parse_arguments(print_help=False):
         action="store_false",
         help="If set, suppresses logging and printing progress to screen",
     )
-    if print_help:
-        parser.print_help()
-    else:
-        args = parser.parse_args()
-        return args
+    return parser
 
 
 class Args(object):
@@ -389,9 +390,7 @@ class Args(object):
         temp=None,
         sequences=None,
         chunksize=500,
-        output_type=[
-            "json",
-        ],
+        output_type=["json",],
         assigner="blastn",
         merge=False,
         pandaseq_algo="simple_bayesian",
@@ -424,13 +423,7 @@ class Args(object):
         self.log = os.path.abspath(log) if log is not None else log
         self.temp = os.path.abspath(temp) if temp is not None else temp
         self.chunksize = int(chunksize)
-        self.output_type = (
-            [
-                output_type,
-            ]
-            if output_type in STR_TYPES
-            else output_type
-        )
+        self.output_type = [output_type,] if output_type in STR_TYPES else output_type
         self.parquet = parquet
         self.assigner = assigner
         self.merge = True if basespace else merge
@@ -461,7 +454,7 @@ def validate_args(args):
             all([any([args.input, args.use_test_data]), args.output, args.temp]),
         ]
     ):
-        parse_arguments(print_help=True)
+        create_parser().print_help()
         sys.exit(1)
         # alter output type if abstar is being run interactively
         # if args.sequences:
@@ -725,32 +718,53 @@ def concat_outputs(input_file, temp_output_file_dicts, output_dir, args):
         if args.gzip:
             ohandle = gzip.open(ofile + ".gz", "wb")
         else:
-            ohandle = open(ofile, "w")
+            ohandle = open(ofile, "wb")
+
         with ohandle as out_file:
             # JSON-formatted files don't have headers, so we don't worry about it
-            if output_type == "json":
+            if output_type == "json" and not args.parquet:
                 for temp_file in temp_files:
-                    with open(temp_file) as f:
-                        for line in f:
-                            out_file.write(line)
-                    out_file.write("\n")
+                    with open(temp_file, "rb") as f:
+                        shutil.copyfileobj(
+                            f, out_file, length=16 * 1024 ** 2
+                        )  # Increasing buffer size to 16MB for faster transfer
             # For file formats with headers, only keep headers from the first file
-            if output_type in ["imgt", "tabular", "airr"]:
+            elif output_type in ["imgt", "tabular", "airr"]:
                 for i, temp_file in enumerate(temp_files):
-                    with open(temp_file) as f:
+                    with open(temp_file, "rb") as f:
                         for j, line in enumerate(f):
                             if i == 0:
                                 out_file.write(line)
                             elif j >= 1:
                                 out_file.write(line)
-                        out_file.write("\n")
-        if args.parquet and output_type not in PARQUET_INCOMPATIBLE:
+                                
+        if args.parquet:
             logger.info("Converting concatenated output to parquet format")
-            pname = oprefix + ".parquet"
+            # Make clear the output format from which the parquet file is generated.
+            # If the parquet files are generated from json for example, the filename would be f"{oprefix}_from_json".
+            pname = f"{oprefix}_from_{output_type}"
             pfile = os.path.join(output_subdir, pname)
             dtypes = get_parquet_dtypes(output_type)
-            df = dd.read_csv(ofile, sep=get_output_separator(output_type), dtype=dtypes)
-            df.to_parquet(pfile, engine="pyarrow")
+
+            if output_type == "json":
+                df = dd.read_parquet(
+                    os.path.dirname(temp_files[0])
+                )  # Read in all parquet files in temp dir
+                df.repartition(partition_size="100MB").to_parquet(
+                    pfile,
+                    engine="pyarrow",
+                    compression="snappy",
+                    write_index=False,
+                    schema=schema,
+                )
+            else:
+                df = dd.read_csv(
+                    ofile, sep=get_output_separator(output_type), dtype=dtypes
+                )
+                df.to_parquet(
+                    pfile, engine="pyarrow", compression="snappy", write_index=False
+                )
+                
         ofiles.append(ofile)
     return ofiles
 
@@ -871,10 +885,10 @@ def split_file(f, fmt, temp_dir, args):
     # unless the input file is an exact multiple of args.chunksize,
     # need to write the last few sequences to a split file.
     if seq_counter:
-        file_counter += 1
         out_file = os.path.join(temp_dir, "{}_{}".format(out_prefix, file_counter))
-        open(out_file, "w").write("\n" + "\n".join(sequences))
+        open(out_file, "w").write("\n".join(sequences))
         subfiles.append(out_file)
+        file_counter += 1
     logger.info("SEQUENCES: {}".format(total_seq_counter))
     logger.info("JOBS: {}".format(file_counter))
     return subfiles, total_seq_counter
@@ -1010,7 +1024,9 @@ def run_abstar(seq_file, output_dir, log_dir, file_format, arg_dict):
                 failed_loghandle.write(ab.format_log())
         # outputs = [outputs_dict[ot] for ot in sorted(args.output_type)]
         # write_output(outputs, output_files)
-        output_file_dict = write_output(outputs_dict, output_dir, output_filename)
+        output_file_dict = write_output(
+            outputs_dict, output_dir, output_filename, args.parquet
+        )
         # capture the log for all unsuccessful sequences
         for vdj in assigner.unassigned:
             unassigned_loghandle.write(vdj.format_log())
@@ -1081,7 +1097,7 @@ def _run_jobs_singlethreaded(files, output_dir, log_dir, file_format, args):
 
 
 def _run_jobs_via_multiprocessing(files, output_dir, log_dir, file_format, args):
-    p = Pool(processes=args.num_cores, maxtasksperchild=50)
+    p = Pool(processes=args.num_cores)
     async_results = []
     if args.verbose:
         update_progress(0, len(files))
@@ -1521,8 +1537,12 @@ def main(args):
     return output_files
 
 
-if __name__ == "__main__":
+def run_main(arg_list: Optional[Iterable[str]] = None):
     warnings.filterwarnings("ignore")
-    args = parse_arguments()
+    args = create_parser().parse_args(args=arg_list)
+    validate_args(args)
     output_dir = main(args)
     sys.stdout.write("\n\n")
+
+if __name__ == "__main__":
+    run_main()

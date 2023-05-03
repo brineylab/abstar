@@ -38,57 +38,146 @@ from abutils.utils.pipeline import make_dir
 
 def parse_arguments():
     import argparse
-    parser = argparse.ArgumentParser("Performs the mongoimport operation on all files in the input directory. \
-                                      Determines the appropriate collection by parsing the filename.")
-    parser.add_argument('-i', '--ip', dest='ip', default='localhost',
-                        help="The IP address of the MongoDB server. Defaults to 'localhost'.")
-    parser.add_argument('-P', '--port', dest='port', type=int, default=27017,
-                        help="The MongoDB port. Defaults to 27017.")
-    parser.add_argument('-u', '--user', dest='user', default=None,
-                        help="Username for the MongoDB server. Not used if not provided.")
-    parser.add_argument('-p', '--password', dest='password', default=None,
-                        help="Password for the MongoDB server. Not used if not provided.")
-    parser.add_argument('-f', '--input', dest='input', required=True,
-                        help="A directory containing multiple JSON files for import to MongoDB, \
-                        or a list of JSON file paths.")
-    parser.add_argument('-d', '--db', dest='db', required=True,
-                        help="The MongoDB database for import.")
-    parser.add_argument('-l', '--log', dest='log', default='sys.stdout',
-                        help="Log file for the mongoimport stdout.")
-    parser.add_argument('-t', '--temp', dest='temp', default=None,
-                        help="Temp directory if splitting JSON files prior to mongoimport. \
-                        if not provided, a temp directory will be created in the --in directory.")
-    parser.add_argument('-e', '--delim1', dest='delim1', default=None,
-                        help="The first character delimiter used to split the filename to get the collection name. \
-                        If splitting with a single delimiter, use this option to provide the delimiter. Required.")
-    parser.add_argument('--delim2', dest='delim2', default=None,
-                        help="If splitting with two different delimiters, use this option to provide the second delimiter. \
-                        Required if splitting with two delimiters.")
-    parser.add_argument('-s', '--split1', dest='split1_pos', default=1, type=int,
-                        help="Builds the collection name by truncating at the <split> occurance of the <delim> character. \
+
+    parser = argparse.ArgumentParser(
+        "Performs the mongoimport operation on all files in the input directory. \
+                                      Determines the appropriate collection by parsing the filename."
+    )
+    parser.add_argument(
+        "-i",
+        "--ip",
+        dest="ip",
+        default="localhost",
+        help="The IP address of the MongoDB server. Defaults to 'localhost'.",
+    )
+    parser.add_argument(
+        "-P",
+        "--port",
+        dest="port",
+        type=int,
+        default=27017,
+        help="The MongoDB port. Defaults to 27017.",
+    )
+    parser.add_argument(
+        "-u",
+        "--user",
+        dest="user",
+        default=None,
+        help="Username for the MongoDB server. Not used if not provided.",
+    )
+    parser.add_argument(
+        "-p",
+        "--password",
+        dest="password",
+        default=None,
+        help="Password for the MongoDB server. Not used if not provided.",
+    )
+    parser.add_argument(
+        "-f",
+        "--input",
+        dest="input",
+        required=True,
+        help="A directory containing multiple JSON files for import to MongoDB, \
+                        or a list of JSON file paths.",
+    )
+    parser.add_argument(
+        "-d", "--db", dest="db", required=True, help="The MongoDB database for import."
+    )
+    parser.add_argument(
+        "-l",
+        "--log",
+        dest="log",
+        default="sys.stdout",
+        help="Log file for the mongoimport stdout.",
+    )
+    parser.add_argument(
+        "-t",
+        "--temp",
+        dest="temp",
+        default=None,
+        help="Temp directory if splitting JSON files prior to mongoimport. \
+                        if not provided, a temp directory will be created in the --in directory.",
+    )
+    parser.add_argument(
+        "-e",
+        "--delim1",
+        dest="delim1",
+        default=None,
+        help="The first character delimiter used to split the filename to get the collection name. \
+                        If splitting with a single delimiter, use this option to provide the delimiter. Required.",
+    )
+    parser.add_argument(
+        "--delim2",
+        dest="delim2",
+        default=None,
+        help="If splitting with two different delimiters, use this option to provide the second delimiter. \
+                        Required if splitting with two delimiters.",
+    )
+    parser.add_argument(
+        "-s",
+        "--split1",
+        dest="split1_pos",
+        default=1,
+        type=int,
+        help="Builds the collection name by truncating at the <split> occurance of the <delim> character. \
                         If splitting with multiple delimiters, this option is used to specifiy the occurance of the first delimiter. \
-                        Default is 1.")
-    parser.add_argument('--split2', dest='split2_pos', default=1, type=int,
-                        help="If splitting with multiple delimiters, this option is used to specify the occurance of the \
+                        Default is 1.",
+    )
+    parser.add_argument(
+        "--split2",
+        dest="split2_pos",
+        default=1,
+        type=int,
+        help="If splitting with multiple delimiters, this option is used to specify the occurance of the \
                         second delimiter at which to split. \
-                        Required if splitting with two different delimiters.")
-    parser.add_argument('--split-file', dest='split_file', action='store_true', default=False,
-                        help="Splits each input file into subfiles containing --split_file_lines lines. \
+                        Required if splitting with two different delimiters.",
+    )
+    parser.add_argument(
+        "--split-file",
+        dest="split_file",
+        action="store_true",
+        default=False,
+        help="Splits each input file into subfiles containing --split_file_lines lines. \
                         Useful when performing mongoimport via an SSH tunnel, where for some reason MongoDB \
-                        errors when importing files greater than 16MB (even if no individual documents are >16MB).")
-    parser.add_argument('--split=file-lines', dest='split_file_lines', type=int, default=500,
-                        help="Number of lines in each mongoimport subfile (each line should be a complete JSON document).")
-    parser.add_argument('-x', '--split-only', dest='split_only', default=False, action='store_true',
-                        help="Instead of truncating the filename to get the collection name, takes only the split for the collection. \
-                        Default is False.")
+                        errors when importing files greater than 16MB (even if no individual documents are >16MB).",
+    )
+    parser.add_argument(
+        "--split=file-lines",
+        dest="split_file_lines",
+        type=int,
+        default=500,
+        help="Number of lines in each mongoimport subfile (each line should be a complete JSON document).",
+    )
+    parser.add_argument(
+        "-x",
+        "--split-only",
+        dest="split_only",
+        default=False,
+        action="store_true",
+        help="Instead of truncating the filename to get the collection name, takes only the split for the collection. \
+                        Default is False.",
+    )
     return parser.parse_args()
 
 
 class Args(object):
-    def __init__(self, ip='localhost', port=27017, user=None, password=None, db=None,
-                 input=None, log=None, split_file=False, split_file_lines=500,
-                 delim1=None, delim2=None,
-                 split1_pos=1, split2_pos=1, split_only=False):
+    def __init__(
+        self,
+        ip="localhost",
+        port=27017,
+        user=None,
+        password=None,
+        db=None,
+        input=None,
+        log=None,
+        split_file=False,
+        split_file_lines=500,
+        delim1=None,
+        delim2=None,
+        split1_pos=1,
+        split2_pos=1,
+        split_only=False,
+    ):
         super(Args, self).__init__()
         self.ip = ip
         self.port = int(port)
@@ -134,10 +223,15 @@ def multiprocess_mongoimport(jsons, db, coll, args):
     async_results = []
     p = mp.Pool()
     for j in jsons:
-        async_results.append(p.apply_async(do_mongoimport, args=(j, args.ip, args.port, db, coll, args.user, args.password)))
+        async_results.append(
+            p.apply_async(
+                do_mongoimport,
+                args=(j, args.ip, args.port, db, coll, args.user, args.password),
+            )
+        )
     monitor_results(async_results)
     remove_temp_files(args)
-    print('')
+    print("")
 
 
 def monitor_results(results):
@@ -155,52 +249,71 @@ def do_mongoimport(json, ip, port, db, coll, user, password):
     username = " -u {}".format(user) if user else ""
     password = " -p {}".format(password) if password else ""
     mongo_cmd = "mongoimport --host {}:{}{}{} --db {} --collection {} --file {} --numInsertionWorkers 12 --batchSize 100".format(
-        ip, port, username, password, db, coll, json)
-    mongo = subprocess.Popen(mongo_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        ip, port, username, password, db, coll, json
+    )
+    mongo = subprocess.Popen(
+        mongo_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+    )
     mongo.communicate()
-
 
 
 def listdir_fullpath(d):
     if os.path.isdir(d):
-        files = [os.path.join(d, f) for f in os.listdir(d) if f.split('.')[-1].lower() == 'json']
+        files = [
+            os.path.join(d, f)
+            for f in os.listdir(d)
+            if f.split(".")[-1].lower() == "json"
+        ]
         if files:
             return sorted(files)
     else:
-        if d.split('.')[-1].lower() == 'json':
-            return [d, ]
-    print("ERROR: no importable JSON files were found. Double-check your input file/directory")
+        if d.split(".")[-1].lower() == "json":
+            return [
+                d,
+            ]
+    print(
+        "ERROR: no importable JSON files were found. Double-check your input file/directory"
+    )
     sys.exit(1)
 
 
 def split_file(json, args):
     split_files = []
-    temp_dir = args.temp if args.temp is not None else os.path.join(args.mongo_input_dir, 'temp')
+    temp_dir = (
+        args.temp
+        if args.temp is not None
+        else os.path.join(args.mongo_input_dir, "temp")
+    )
     make_dir(temp_dir)
     with open(json) as f:
         for chunk in itertools.izip_longest(*[f] * args.split_file_lines):
             chunk = [c for c in chunk if c is not None]
-            fname = os.path.join(temp_dir, str(uuid.uuid4()) + '.json')
-            open(fname, 'w').write(''.join(chunk))
+            fname = os.path.join(temp_dir, str(uuid.uuid4()) + ".json")
+            open(fname, "w").write("".join(chunk))
             split_files.append(fname)
     return split_files
 
 
 def remove_temp_files(args):
-    temp_dir = args.temp if args.temp is not None else os.path.join(args.mongo_input_dir, 'temp')
+    temp_dir = (
+        args.temp
+        if args.temp is not None
+        else os.path.join(args.mongo_input_dir, "temp")
+    )
     files = listdir_fullpath(temp_dir)
     for f in files:
         os.unlink(f)
-
 
 
 def get_collection(i, args):
     # split with two different delimiters
     if args.delim1 and args.delim2:
         bname = os.path.basename(i)
-        split1 = args.delim1.join(bname.split(args.delim1)[args.split1_pos:])
+        split1 = args.delim1.join(bname.split(args.delim1)[args.split1_pos :])
         removed_delim2s = bname.count(args.delim2) - split1.count(args.delim2)
-        return args.delim2.join(split1.split(args.delim2)[:args.split2_pos - removed_delim2s])
+        return args.delim2.join(
+            split1.split(args.delim2)[: args.split2_pos - removed_delim2s]
+        )
     # split with a single delimiter
     elif args.delim1:
         delim = str(args.delim1)
@@ -230,7 +343,7 @@ def preflight_checks(args):
 
 
 def run(**kwargs):
-    '''
+    """
     Imports one or more JSON files into a MongoDB database.
 
     Examples:
@@ -344,7 +457,7 @@ def run(**kwargs):
 
         split2_pos (int): Occurance of ``delim2`` on which to split the input file name.
             Default is 1.
-    '''
+    """
     args = Args(**kwargs)
     main(args)
 
@@ -354,33 +467,39 @@ def main(args):
     if type(args.input) in [list, tuple]:
         in_files = args.input
     elif os.path.isfile(args.input):
-        in_files = [args.input, ]
+        in_files = [
+            args.input,
+        ]
     elif os.path.isdir(args.input):
         in_files = listdir_fullpath(args.input)
     else:
-        err = 'ERROR: Input not recognized. Valid input can be one of three things:\n'
-        err += '  1. a list of JSON file paths\n'
-        err += '  2. the path to a single JSON file\n'
-        err += '  3. the path to a directory of JSON files\n\n'
-        err += 'You supplied: {}\n'.format(input)
+        err = "ERROR: Input not recognized. Valid input can be one of three things:\n"
+        err += "  1. a list of JSON file paths\n"
+        err += "  2. the path to a single JSON file\n"
+        err += "  3. the path to a directory of JSON files\n\n"
+        err += "You supplied: {}\n".format(input)
         raise RuntimeError(err)
     try:
-        log_handle = open(args.log, 'a')
-        open(args.log, 'w').write('')
+        log_handle = open(args.log, "a")
+        open(args.log, "w").write("")
     except TypeError:
         # log is being written to stdout, not a file
         log_handle = args.log
-    log_handle.write('\nImporting {} files.\n'.format(len(in_files)))
+    log_handle.write("\nImporting {} files.\n".format(len(in_files)))
     for i, f in enumerate(in_files):
         coll = get_collection(f, args)
-        print("\n[ {} ] Importing {} into collection {}.".format(i + 1, os.path.basename(f), coll))
-        log_handle.write('\n\n----------------------------------------')
-        log_handle.write('File: {0}\nCollection: {1}'.format(f, coll))
-        log_handle.write('----------------------------------------\n')
+        print(
+            "\n[ {} ] Importing {} into collection {}.".format(
+                i + 1, os.path.basename(f), coll
+            )
+        )
+        log_handle.write("\n\n----------------------------------------")
+        log_handle.write("File: {0}\nCollection: {1}".format(f, coll))
+        log_handle.write("----------------------------------------\n")
         mongo_import(f, args.db, coll, log_handle, args)
     print("\nDone. {0} files were imported into MongoDB.\n\n".format(len(in_files)))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     args = parse_arguments()
     main(args)

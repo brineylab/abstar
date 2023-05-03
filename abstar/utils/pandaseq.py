@@ -34,11 +34,11 @@ from natsort import natsorted
 
 from abutils.utils import log
 
-logger = log.get_logger('basespace')
+logger = log.get_logger("basespace")
 
 
 def list_files(d):
-    return sorted([f for f in glob.glob(d + '/*') if os.path.isfile(f)])
+    return sorted([f for f in glob.glob(d + "/*") if os.path.isfile(f)])
 
 
 def pair_files(files):
@@ -48,7 +48,7 @@ def pair_files(files):
 def group_files(files, delim_count=3):
     groups = {}
     for f in files:
-        f_prefix = '_'.join(os.path.basename(f).split('_')[:-delim_count])
+        f_prefix = "_".join(os.path.basename(f).split("_")[:-delim_count])
         if f_prefix not in groups:
             groups[f_prefix] = []
         groups[f_prefix].append(f)
@@ -56,17 +56,19 @@ def group_files(files, delim_count=3):
 
 
 def concat_lanes(lane_files, merged_file):
-    with open(merged_file, 'w') as outfile:
+    with open(merged_file, "w") as outfile:
         for fname in lane_files:
             with open(fname) as infile:
                 for line in infile:
                     outfile.write(line)
-            outfile.write('\n')
+            outfile.write("\n")
     return merged_file
 
 
 def pandaseq(f, r, o, algo, debug=False):
-    cmd = 'pandaseq -f "{0}" -r "{1}" -A {2} -d rbfkms -T {3} -w "{4}"'.format(f, r, algo, cpu_count(), o)
+    cmd = 'pandaseq -f "{0}" -r "{1}" -A {2} -d rbfkms -T {3} -w "{4}"'.format(
+        f, r, algo, cpu_count(), o
+    )
     if debug:
         logger.info(cmd)
     p = sp.Popen(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
@@ -83,19 +85,23 @@ def merge_reads(sample_name, sample_files, output, algo, i, debug):
         names = natsorted(subgroups.keys())
         file_pairs = [subgroups[n] for n in names]
     else:
-        names = [sample_name, ]
-        file_pairs = [sample_files, ]
+        names = [
+            sample_name,
+        ]
+        file_pairs = [
+            sample_files,
+        ]
     output_files = []
     for name, files in zip(names, file_pairs):
         files.sort()
         f = files[0]
         r = files[1]
         print_sample_info(i, name)
-        o = os.path.join(output, f'{name}.fasta')
+        o = os.path.join(output, f"{name}.fasta")
         pandaseq(f, r, o, algo, debug)
         output_files.append(o)
     if len(output_files) > 1:
-        merged_file = os.path.join(output, f'{sample_name}.fasta')
+        merged_file = os.path.join(output, f"{sample_name}.fasta")
         o = concat_lanes(output_files, merged_file)
         for of in output_files:
             os.unlink(of)
@@ -103,28 +109,32 @@ def merge_reads(sample_name, sample_files, output, algo, i, debug):
 
 
 def print_start_info():
-    logger.info('')
-    logger.info('')
-    logger.info('========================================')
-    logger.info('Merging reads with PANDAseq')
-    logger.info('========================================')
-    logger.info('')
+    logger.info("")
+    logger.info("")
+    logger.info("========================================")
+    logger.info("Merging reads with PANDAseq")
+    logger.info("========================================")
+    logger.info("")
 
 
 def print_input_info(files):
-    logger.info('The input directory contains {} pair(s) of files to be merged.\n'.format(len(files) / 2))
+    logger.info(
+        "The input directory contains {} pair(s) of files to be merged.\n".format(
+            len(files) / 2
+        )
+    )
 
 
 def print_sample_info(i, sample):
-    logger.info('[ {} ]  Merging sample {}'.format(str(i + 1), sample))
+    logger.info("[ {} ]  Merging sample {}".format(str(i + 1), sample))
 
 
 def print_sample_end():
-    logger.info('Done.')
+    logger.info("Done.")
 
 
-def run(input, output, algorithm='simple_bayesian', nextseq=False, debug=False):
-    '''
+def run(input, output, algorithm="simple_bayesian", nextseq=False, debug=False):
+    """
     Merge paired-end FASTQ files with PANDAseq. File name format must match that produced 
     by ``bcl2fastq``:
 
@@ -180,29 +190,35 @@ def run(input, output, algorithm='simple_bayesian', nextseq=False, debug=False):
     Returns:
 
         list: a list of merged file paths
-    '''
+    """
     print_start_info()
     if os.path.isdir(input):
         files = list_files(input)
         groups = group_files(files)
-    elif type(input) in [dict, ]:
-        if all([type(i) in [list, tuple] for i in input]) and all([len(i) == 2 for i in input]):
+    elif type(input) in [
+        dict,
+    ]:
+        if all([type(i) in [list, tuple] for i in input]) and all(
+            [len(i) == 2 for i in input]
+        ):
             files = [f for sublist in input for f in sublist]
-            groups = {n: {'0': i} for n, i in zip(range(len(input)), input)}
+            groups = {n: {"0": i} for n, i in zip(range(len(input)), input)}
         elif type(input) in [list, tuple] and all([os.path.isfile(i) for i in input]):
             files = input
             groups = group_files(files)
         else:
-            err = 'ERROR: Invalid input. Input may be one of three things:\n'
-            err += '  1. a directory path\n'
-            err += '  2. a list of file paths\n'
-            err += '  3. a list of file pairs (lists/tuples containing exactly 2 file paths)'
+            err = "ERROR: Invalid input. Input may be one of three things:\n"
+            err += "  1. a directory path\n"
+            err += "  2. a list of file paths\n"
+            err += "  3. a list of file pairs (lists/tuples containing exactly 2 file paths)"
             raise RuntimeError(err)
     else:
-        err = 'ERROR: Invalid input. Input may be one of three things:\n'
-        err += '  1. a directory path\n'
-        err += '  2. a list of file paths\n'
-        err += '  3. a list of file pairs (lists/tuples containing exactly 2 file paths)'
+        err = "ERROR: Invalid input. Input may be one of three things:\n"
+        err += "  1. a directory path\n"
+        err += "  2. a list of file paths\n"
+        err += (
+            "  3. a list of file pairs (lists/tuples containing exactly 2 file paths)"
+        )
         raise RuntimeError(err)
     print_input_info(files)
     merged_files = []

@@ -29,6 +29,8 @@ import os
 import traceback
 from typing import Optional, Union, Iterable
 
+import parasail
+
 from Bio import SeqIO
 from Bio.Seq import Seq
 
@@ -306,6 +308,12 @@ class GermlineSegment(LoggingMixin):
         # they haven't already been determined by the assigner
         else:
             query = oriented_input.sequence[query_start:query_end]
+            if len(query) == 0:
+                antibody.log("GERMLINE REALIGNMENT ERROR: query sequence is empty")
+                antibody.log("REALIGNMENT QUERY SEQUENCE:", query)
+                antibody.log("QUERY START:", query_start)
+                antibody.log("QUERY END:", query_end)
+                return
             alignment = local_alignment(query, germline_seq, **aln_params)
             # fix for a fairly rare edge case where coincidental matching to 2-3 residues at the extreme
             # 3' end of K/L germline V genes can result in incorrect identification of the
@@ -480,20 +488,27 @@ class GermlineSegment(LoggingMixin):
         except:
             self.exception("IMGT NUMBERING", traceback.format_exc(), sep="\n")
 
-    # def _get_gapped_imgt_substitution_matrix(self):
-    #     matrix = {}
-    #     residues = ["A", "C", "G", "T", "N", "."]
-    #     for r1 in residues:
-    #         matrix[r1] = {}
-    #         for r2 in residues:
-    #             if r1 == r2:
-    #                 score = 3
-    #             elif any([r1 == ".", r2 == "."]):
-    #                 score = -3
-    #             else:
-    #                 score = -2
-    #             matrix[r1][r2] = score
-    #     return matrix
+    def _get_gapped_imgt_substitution_matrix(self):
+        residues = "ACGTN."
+        m = parasail.matrix_create(residues, 3, -2)
+        for i in range(len(residues)):
+            m[5, i] = -3
+            m[i, 5] = -3
+        return m
+
+        # matrix = {}
+        # residues = ["A", "C", "G", "T", "N", "."]
+        # for r1 in residues:
+        #     matrix[r1] = {}
+        #     for r2 in residues:
+        #         if r1 == r2:
+        #             score = 3
+        #         elif any([r1 == ".", r2 == "."]):
+        #             score = -3
+        #         else:
+        #             score = -2
+        #         matrix[r1][r2] = score
+        # return matrix
 
     def get_imgt_position_from_raw(self, raw):
         return self._imgt_position_from_raw.get(raw, None)

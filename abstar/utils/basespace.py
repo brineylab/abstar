@@ -43,7 +43,7 @@ from abutils.utils.progbar import progress_bar
 if sys.version_info[0] > 2:
     raw_input = input
 
-logger = log.get_logger('basespace')
+logger = log.get_logger("basespace")
 
 
 class BaseSpace(object):
@@ -51,13 +51,19 @@ class BaseSpace(object):
         super(BaseSpace, self).__init__()
         # BaseSpace credentials
         creds = self._get_credentials()
-        self.client_key = creds['client_id']
-        self.client_secret = creds['client_secret']
-        self.access_token = creds['access_token']
-        self.version = creds['version']
-        self.api_server = creds['api_server']
-        self.api = BaseSpaceAPI(self.client_key, self.client_secret, self.api_server, self.version, AccessToken=self.access_token)
-        self.params = qp(pars={'Limit': 1024, 'SortDir': 'Desc'})
+        self.client_key = creds["client_id"]
+        self.client_secret = creds["client_secret"]
+        self.access_token = creds["access_token"]
+        self.version = creds["version"]
+        self.api_server = creds["api_server"]
+        self.api = BaseSpaceAPI(
+            self.client_key,
+            self.client_secret,
+            self.api_server,
+            self.version,
+            AccessToken=self.access_token,
+        )
+        self.params = qp(pars={"Limit": 1024, "SortDir": "Desc"})
         if project_id is not None:
             self.project_id = project_id
             self.project_name = None
@@ -70,79 +76,77 @@ class BaseSpace(object):
             # self.project_id, self.project_name = self._user_selected_project_id()
         self._runs = None
 
-
     @property
     def runs(self):
         if self._runs is None:
             self._runs = self.api.getAccessibleRunsByUser(queryPars=self.params)
         return self._runs
 
-
     def _get_credentials(self):
         # BaseSpace credentials file should be in JSON format
-        cred_file = os.path.expanduser('~/.abstar/basespace_credentials')
-        cred_handle = open(cred_file, 'r')
+        cred_file = os.path.expanduser("~/.abstar/basespace_credentials")
+        cred_handle = open(cred_file, "r")
         return json.load(cred_handle)
-
 
     def _get_project_id_from_name(self):
         projects = self.api.getProjectByUser(queryPars=self.params)
         for project in projects:
-            name = project.Name.encode('ascii', 'ignore')
+            name = project.Name.encode("ascii", "ignore")
             if sys.version_info[0] > 2:
-                    name = name.decode('utf-8')
+                name = name.decode("utf-8")
             if name == self.project_name:
                 return project.Id
-        print('No projects matched the given project name ({})'.format(name))
+        print("No projects matched the given project name ({})".format(name))
         sys.exit(1)
-
 
     def _user_selected_project_id(self):
         projects = self.api.getProjectByUser(queryPars=self.params)
         self.print_basespace_project()
         offset = 0
         while True:
-            for i, project in enumerate(projects[offset * 25:(offset * 25) + 25]):
-                project_name = project.Name.encode('ascii', 'ignore')
+            for i, project in enumerate(projects[offset * 25 : (offset * 25) + 25]):
+                project_name = project.Name.encode("ascii", "ignore")
                 if sys.version_info[0] > 2:
-                    project_name = project_name.decode('utf-8')
-                print('[ {} ] {}'.format(i + (offset * 25), project_name))
-            print('')
-            project_index = raw_input("Select the project number (or 'next' to see more projects): ")
+                    project_name = project_name.decode("utf-8")
+                print("[ {} ] {}".format(i + (offset * 25), project_name))
+            print("")
+            project_index = raw_input(
+                "Select the project number (or 'next' to see more projects): "
+            )
             try:
                 project_index = int(project_index)
                 selected_id = projects[project_index].Id
-                selected_name = projects[project_index].Name.encode('ascii', 'ignore')
+                selected_name = projects[project_index].Name.encode("ascii", "ignore")
                 if sys.version_info[0] > 2:
-                    selected_name = selected_name.decode('utf-8')
+                    selected_name = selected_name.decode("utf-8")
                 return selected_id, selected_name
             except:
                 offset += 1
         selected_id = projects[project_index].Id
-        selected_name = projects[project_index].Name.encode('ascii', 'ignore')
+        selected_name = projects[project_index].Name.encode("ascii", "ignore")
         if sys.version_info[0] > 2:
-            selected_name = selected_name.decode('utf-8')
+            selected_name = selected_name.decode("utf-8")
         return selected_id, selected_name
         # return projects[project_index].Id, projects[project_index].Name.encode('ascii', 'ignore')
-
 
     def _get_projects(self, start=0):
         projects = self.api.getProjectByUser(queryPars=self.params)
         self.print_basespace_project()
         for i, project in enumerate(projects[:25]):
-            project_name = project.Name.encode('ascii', 'ignore')
+            project_name = project.Name.encode("ascii", "ignore")
             if sys.version_info[0] > 2:
-                project_name = project_name.decode('utf-8')
-            print('[ {} ] {}'.format(i, project_name))
-        print('')
+                project_name = project_name.decode("utf-8")
+            print("[ {} ] {}".format(i, project_name))
+        print("")
         return projects
-
 
     def _get_samples(self, project_id):
         samples = []
         offset = 0
         while True:
-            query_params = qp(pars={'Limit': 1024, 'SortDir': 'Asc', 'Offset': offset * 1024})
+            query_params = qp(
+                pars={"Limit": 1024, "SortDir": "Asc", "Offset": offset * 1024}
+            )
             s = self.api.getSamplesByProject(project_id, queryPars=query_params)
             if not s:
                 break
@@ -150,14 +154,12 @@ class BaseSpace(object):
             offset += 1
         return samples
 
-
     def _get_files(self):
         files = []
         samples = self._get_samples(self.project_id)
         for sample in samples:
             files.extend(self.api.getFilesBySample(sample.Id, queryPars=self.params))
         return files
-
 
     def download(self, direc):
         if all([self.project_id is None, self.project_name is None]):
@@ -167,56 +169,62 @@ class BaseSpace(object):
         start = time.time()
         for i, f in enumerate(files):
             # self.log.write('[ {} ] {}\n'.format(i, str(f)))
-            logger.info('[ {} ] {}'.format(i, str(f)))
+            logger.info("[ {} ] {}".format(i, str(f)))
             f.downloadFile(self.api, direc)
         end = time.time()
         self.print_completed_download_info(start, end)
         return len(files)
 
-
     def print_basespace_project(self):
-        print('')
-        print('')
-        print('========================================')
-        print('BaseSpace Project Selection')
-        print('========================================')
-        print('')
-
+        print("")
+        print("")
+        print("========================================")
+        print("BaseSpace Project Selection")
+        print("========================================")
+        print("")
 
     def print_download_info(self, files):
-        logger.info('')
-        logger.info('')
-        logger.info('========================================')
-        logger.info('Downloading files from BaseSpace')
-        logger.info('========================================')
-        logger.info('')
-        logger.info('Identified {0} files for download.'.format(len(files)))
-        logger.info('')
-
+        logger.info("")
+        logger.info("")
+        logger.info("========================================")
+        logger.info("Downloading files from BaseSpace")
+        logger.info("========================================")
+        logger.info("")
+        logger.info("Identified {0} files for download.".format(len(files)))
+        logger.info("")
 
     def print_completed_download_info(self, start, end):
-        logger.info('')
-        logger.info('Download completed in {0} seconds'.format(end - start))
+        logger.info("")
+        logger.info("Download completed in {0} seconds".format(end - start))
 
 
 def parse_args():
-    parser = argparse.ArgumentParser("Downloads sequencing data from BaseSpace, Illumina's cloud storage platform.")
-    parser.add_argument('-d', '--download-directory',
-                        dest='download_directory',
-                        required=True,
-                        help="Directory into which BaseSpace data will be downloaded.")
-    parser.add_argument('--project-id',
-                        default=None,
-                        help='ID of the project to be downloaded. Optional.')
-    parser.add_argument('--project-name',
-                        default=None,
-                        help='Name of the project to be downloaded. Optional.')
+    parser = argparse.ArgumentParser(
+        "Downloads sequencing data from BaseSpace, Illumina's cloud storage platform."
+    )
+    parser.add_argument(
+        "-d",
+        "--download-directory",
+        dest="download_directory",
+        required=True,
+        help="Directory into which BaseSpace data will be downloaded.",
+    )
+    parser.add_argument(
+        "--project-id",
+        default=None,
+        help="ID of the project to be downloaded. Optional.",
+    )
+    parser.add_argument(
+        "--project-name",
+        default=None,
+        help="Name of the project to be downloaded. Optional.",
+    )
     args = parser.parse_args()
     return args
 
 
 def download(download_directory, project_id=None, project_name=None):
-    '''
+    """
     Downloads sequencing data from BaseSpace (Illumina's cloud storage platform).
 
     Before accessing BaseSpace through the AbStar API, you need to set up a
@@ -262,7 +270,7 @@ def download(download_directory, project_id=None, project_name=None):
     Returns:
 
         int: The number of sequence files downloaded.
-    '''
+    """
     make_dir(download_directory)
     bs = BaseSpace(project_id, project_name)
     return bs.download(download_directory)
@@ -273,28 +281,31 @@ def copy_from_basemount(basemount_directory, destination_directory):
     fastqs = []
     for (path, dirs, files) in os.walk(basemount_directory):
         for f in files:
-            if f.endswith('.fastq.gz'):
+            if f.endswith(".fastq.gz"):
                 fastqs.append(os.path.join(path, f))
-    logger.info('')
-    logger.info('')
-    logger.info('========================================')
-    logger.info('Copying files from BaseMount')
-    logger.info('========================================')
-    logger.info('')
-    logger.info('Found {0} FASTQ files.'.format(len(fastqs)))
-    logger.info('')
-    logger.info('Copying:')
+    logger.info("")
+    logger.info("")
+    logger.info("========================================")
+    logger.info("Copying files from BaseMount")
+    logger.info("========================================")
+    logger.info("")
+    logger.info("Found {0} FASTQ files.".format(len(fastqs)))
+    logger.info("")
+    logger.info("Copying:")
     start = datetime.now()
     progress_bar(0, len(fastqs), start_time=start)
     for i, fastq in enumerate(fastqs):
         dest = os.path.join(destination_directory, os.path.basename(fastq))
         copyfile(fastq, dest)
         progress_bar(i + 1, len(fastqs), start_time=start)
-    print('\n')
+    print("\n")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     args = parse_args()
-    download(args.download_directory,
-             project_id=args.project_id,
-             project_name=args.project_name)
+    download(
+        args.download_directory,
+        project_id=args.project_id,
+        project_name=args.project_name,
+    )
+
