@@ -3,7 +3,7 @@ biopython == 1.78
 celery
 dask[complete]
 numpy>=1.16.5
-nwalign3
+# nwalign3
 pandas
 pyarrow
 pymongo
