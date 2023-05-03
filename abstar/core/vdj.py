@@ -52,6 +52,7 @@ class VDJ(LoggingMixin):
         j (Germline): an AbStar Germline object representing the assigned Joining gene
 
     """
+
     def __init__(self, sequence, v=None, d=None, j=None):
         super(VDJ, self).__init__()
         LoggingMixin.__init__(self)
@@ -63,19 +64,18 @@ class VDJ(LoggingMixin):
         self.j = j
         self.initialize_log()
 
-
     def initialize_log(self):
         log = []
-        log.append('=' * len(self.id))
+        log.append("=" * len(self.id))
         log.append(self.id)
-        log.append('=' * len(self.id))
-        log.append('')
+        log.append("=" * len(self.id))
+        log.append("")
         log.append(self.sequence.fasta)
-        log.append('')
+        log.append("")
         if self.v is not None:
-            log.append('V-GENE: {}'.format(self.v.full))
+            log.append("V-GENE: {}".format(self.v.full))
         if self.d is not None:
-            log.append('D-GENE: {}'.format(self.d.full))
+            log.append("D-GENE: {}".format(self.d.full))
         if self.j is not None:
-            log.append('J-GENE: {}'.format(self.j.full))
+            log.append("J-GENE: {}".format(self.j.full))
         self._log = log

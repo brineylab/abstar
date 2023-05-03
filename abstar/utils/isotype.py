@@ -42,11 +42,13 @@ from ..core.germline import get_germline_database_directory
 def get_isotype(antibody):
     try:
         germ_dir = get_germline_database_directory(antibody.germ_db)
-        isotype_file = os.path.join(germ_dir, 'isotypes/isotypes.fasta')
-        isotype_seqs = [Sequence(s) for s in SeqIO.parse(open(isotype_file, 'r'), 'fasta')]
+        isotype_file = os.path.join(germ_dir, "isotypes/isotypes.fasta")
+        isotype_seqs = [
+            Sequence(s) for s in SeqIO.parse(open(isotype_file, "r"), "fasta")
+        ]
         return Isotype(antibody, isotype_seqs)
     except:
-        antibody.exception('ISOTYPING ERROR', traceback.format_exc())
+        antibody.exception("ISOTYPING ERROR", traceback.format_exc())
 
 
 # def get_isotype(vdj):
@@ -62,19 +64,18 @@ def get_isotype(antibody):
 #         logger.debug(traceback.format_exc())
 
 
-
 class Isotype(object):
     """docstring for Isotype"""
+
     def __init__(self, antibody, isotype_seqs):
         super(Isotype, self).__init__()
         self._alignments = self._get_alignments(antibody, isotype_seqs)
         self.alignment = self._alignments[0]
 
-
     @lazy_property
     def isotype(self):
         if self.normalized_score < 2:
-            return 'unknown'
+            return "unknown"
         return self.alignment.target.id
 
     @lazy_property
@@ -85,14 +86,18 @@ class Isotype(object):
     def normalized_score(self):
         return float(self.alignment.score) / len(self.alignment)
 
-
     def _get_alignments(self, antibody, isotype_seqs):
         query_region = self._get_isotype_query_region(antibody)
-        alignments = local_alignment(query_region, targets=isotype_seqs,
-            gap_open_penalty=22, gap_extend_penalty=1)
+        if len(query_region) == 0:
+            return []
+        alignments = local_alignment(
+            query_region,
+            targets=isotype_seqs,
+            gap_open_penalty=22,
+            gap_extend_penalty=1,
+        )
         return sorted(alignments, key=lambda x: x.score, reverse=True)
-
 
     def _get_isotype_query_region(self, antibody):
         aln = local_alignment(antibody.vdj_nt, antibody.oriented_input)
-        return antibody.oriented_input[aln.target_end:]
+        return antibody.oriented_input[aln.target_end :]
