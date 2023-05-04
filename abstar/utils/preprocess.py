@@ -31,21 +31,30 @@ import sys
 
 from Bio import SeqIO
 
-from .utils.pandaseq import pair_files
+from .pandaseq import pair_files
 
 from abutils.utils.log import get_logger
 from abutils.utils.pipeline import list_files, make_dir
 
 
-logger = get_logger('preprocess')
+logger = get_logger("preprocess")
 
 
-def quality_trim(input_directory=None, output_directory=None,
-        quality_cutoff=20, length_cutoff=50,
-        quality_type='sanger', compress_output=True, file_pairs=None,
-        singles_directory=None, nextseq=False, paired_reads=True,
-        allow_5prime_trimming=False, print_debug=False):
-    '''
+def quality_trim(
+    input_directory=None,
+    output_directory=None,
+    quality_cutoff=20,
+    length_cutoff=50,
+    quality_type="sanger",
+    compress_output=True,
+    file_pairs=None,
+    singles_directory=None,
+    nextseq=False,
+    paired_reads=True,
+    allow_5prime_trimming=False,
+    print_debug=False,
+):
+    """
     Performs quality trimming with sickle.
 
     Args:
@@ -101,10 +110,10 @@ def quality_trim(input_directory=None, output_directory=None,
     Returns:
 
         str: Path to the output directory
-    '''
+    """
     if input_directory is None and any([file_pairs is None, output_directory is None]):
-        err = '\nERROR: Either an input_directory must be provided or '
-        err += 'both file_pairs and an output_directory must be provided.\n'
+        err = "\nERROR: Either an input_directory must be provided or "
+        err += "both file_pairs and an output_directory must be provided.\n"
         print(err)
         sys.exit(1)
     if file_pairs:
@@ -113,7 +122,7 @@ def quality_trim(input_directory=None, output_directory=None,
         input_directory = os.path.normpath(input_directory)
         if output_directory is None:
             oparent = os.path.dirname(input_directory)
-            output_directory = os.path.join(oparent, 'quality_trimmed')
+            output_directory = os.path.join(oparent, "quality_trimmed")
         make_dir(output_directory)
         if paired_reads:
             files = list_files(input_directory)
@@ -128,48 +137,52 @@ def quality_trim(input_directory=None, output_directory=None,
         elif len(f) == 1:
             paired_end = False
         else:
-            err = 'ERROR: Each batch of files must contain either 1 (single-end reads) or '
-            err += '2 (paired-end reads) files. This batch contains {} files:\n{}'.format(
-                len(f), '\n'.join(f))
-            err2 += 'If you have paired-end reads that do not follow the Illumina naming scheme, '
-            err2 += 'you can pass pairs of filenames (a list of lists/tuples) with the <file_pairs> option. '
-            err2 += 'If using <file_pairs>, the output directory must also be provided.'
+            err = "ERROR: Each batch of files must contain either 1 (single-end reads) or "
+            err += (
+                "2 (paired-end reads) files. This batch contains {} files:\n{}".format(
+                    len(f), "\n".join(f)
+                )
+            )
+            err2 += "If you have paired-end reads that do not follow the Illumina naming scheme, "
+            err2 += "you can pass pairs of filenames (a list of lists/tuples) with the <file_pairs> option. "
+            err2 += "If using <file_pairs>, the output directory must also be provided."
             logger.info(err)
             logger.info(err2)
             continue
         f.sort()
         # set basic sickle cmd options
-        sickle = 'sickle pe' if paired_end else 'sickle se'
-        sickle += ' -t {}'.format(quality_type)
-        sickle += ' -l {}'.format(length_cutoff)
-        sickle += ' -q {}'.format(quality_cutoff)
+        sickle = "sickle pe" if paired_end else "sickle se"
+        sickle += " -t {}".format(quality_type)
+        sickle += " -l {}".format(length_cutoff)
+        sickle += " -q {}".format(quality_cutoff)
         if compress_output:
-            sickle += ' -g'
+            sickle += " -g"
         if not allow_5prime_trimming:
-            sickle += ' -x'
+            sickle += " -x"
         # compute input/output filenames, add to sickle cmd
-        sickle += ' -f {}'.format(f[0])
-        o1_basename = os.path.basename(f[0]).rstrip('.gz')
+        sickle += " -f {}".format(f[0])
+        o1_basename = os.path.basename(f[0]).rstrip(".gz")
         if compress_output:
-            o1_basename += '.gz'
-        sickle += ' -o {}'.format(os.path.join(output_directory, o1_basename))
+            o1_basename += ".gz"
+        sickle += " -o {}".format(os.path.join(output_directory, o1_basename))
         if paired_end:
-            sickle += ' -r {}'.format(f[1])
-            o2_basename = os.path.basename(f[1]).rstrip('.gz')
+            sickle += " -r {}".format(f[1])
+            o2_basename = os.path.basename(f[1]).rstrip(".gz")
             if compress_output:
-                o2_basename += '.gz'
-            sickle += ' -p {}'.format(os.path.join(output_directory, o2_basename))
+                o2_basename += ".gz"
+            sickle += " -p {}".format(os.path.join(output_directory, o2_basename))
         # compute singles output filename, add to sickle cmd
         if paired_end:
             if singles_directory is not None:
-                sfilename = '{}_{}_singles.fastq'.format(
-                    o1_basename.rstrip('.gz').rstrip('.fastq').rstrip('.fq'),
-                    o2_basename.rstrip('.gz').rstrip('.fastq').rstrip('.fq'))
+                sfilename = "{}_{}_singles.fastq".format(
+                    o1_basename.rstrip(".gz").rstrip(".fastq").rstrip(".fq"),
+                    o2_basename.rstrip(".gz").rstrip(".fastq").rstrip(".fq"),
+                )
                 if compress_output:
-                    sfilename += '.gz'
-                sickle += ' -s {}'.format(os.path.join(singles_directory, sfilename))
+                    sfilename += ".gz"
+                sickle += " -s {}".format(os.path.join(singles_directory, sfilename))
             else:
-                sickle += ' -s /dev/null'
+                sickle += " -s /dev/null"
         if print_debug:
             print(sickle)
         # run sickle
@@ -179,17 +192,23 @@ def quality_trim(input_directory=None, output_directory=None,
         logger.debug(stderr)
         if print_debug:
             print(stdout)
-            print('')
+            print("")
             print(stderr)
-            print('')
+            print("")
     return output_directory
 
 
-def adapter_trim(input_directory, output_directory=None,
-        adapter_5prime=None, adapter_3prime=None,
-        adapter_5prime_anchored=None, adapter_3prime_anchored=None,
-        adapter_both=None, compress_output=True):
-    '''
+def adapter_trim(
+    input_directory,
+    output_directory=None,
+    adapter_5prime=None,
+    adapter_3prime=None,
+    adapter_5prime_anchored=None,
+    adapter_3prime_anchored=None,
+    adapter_both=None,
+    compress_output=True,
+):
+    """
     Trims adapters with cutadapt.
 
     Args:
@@ -226,37 +245,43 @@ def adapter_trim(input_directory, output_directory=None,
     Returns:
 
         str: Path to the output directory
-    '''
+    """
     input_directory = os.path.normpath(input_directory)
     if output_directory is None:
         oparent = os.path.dirname(input_directory)
-        output_directory = os.path.join(oparent, 'adapter_trimmed')
+        output_directory = os.path.join(oparent, "adapter_trimmed")
     make_dir(output_directory)
     files = list_files(input_directory)
     # parse adapter FASTA files, compile adapter option list
     adapters = []
-    opts = ['-g', '-a', '-b']
+    opts = ["-g", "-a", "-b"]
     adapt_files = [adapter_5prime, adapter_3prime, adapter_both]
     for o, a in zip(opts, adapt_files):
         if a is None:
             continue
-        adapts = [str(s.seq) for s in SeqIO.parse(open(a, 'r'), 'fasta')]
-        adapters += [' '.join(z) for z in zip([o] * len(adapts), adapts)]
+        adapts = [str(s.seq) for s in SeqIO.parse(open(a, "r"), "fasta")]
+        adapters += [" ".join(z) for z in zip([o] * len(adapts), adapts)]
     if adapter_5prime_anchored is not None:
-        adapts = ['^{}'.format(str(s.seq)) for s in SeqIO.parse(open(adapter_5prime_anchored, 'r'), 'fasta')]
-        adapters += ['-g {}'.format(a) for a in adapts]
+        adapts = [
+            "^{}".format(str(s.seq))
+            for s in SeqIO.parse(open(adapter_5prime_anchored, "r"), "fasta")
+        ]
+        adapters += ["-g {}".format(a) for a in adapts]
     if adapter_3prime_anchored is not None:
-        adapts = ['{}$'.format(str(s.seq)) for s in SeqIO.parse(open(adapter_3prime_anchored, 'r'), 'fasta')]
-        adapters += ['-a {}'.format(a) for a in adapts]
+        adapts = [
+            "{}$".format(str(s.seq))
+            for s in SeqIO.parse(open(adapter_3prime_anchored, "r"), "fasta")
+        ]
+        adapters += ["-a {}".format(a) for a in adapts]
     # process input files
     for ifile in files:
-        oname = os.path.basename(ifile).rstrip('.gz')
+        oname = os.path.basename(ifile).rstrip(".gz")
         if compress_output:
-            oname += '.gz'
+            oname += ".gz"
         ofile = os.path.join(output_directory, oname)
         # set up cutadapt command
-        adapter_string = ' '.join(adapters)
-        cutadapt = 'cutadapt -o {} {} {}'.format(ofile, adapter_string, ifile)
+        adapter_string = " ".join(adapters)
+        cutadapt = "cutadapt -o {} {} {}".format(ofile, adapter_string, ifile)
         # run cutadapt
         p = Popen(cutadapt, stdout=PIPE, stderr=PIPE, shell=True)
         stdout, stderr = p.communicate()
@@ -266,7 +291,7 @@ def adapter_trim(input_directory, output_directory=None,
 
 
 def fastqc(input_directory, output_directory=None, threads=-1):
-    '''
+    """
     Performs FASTQC analysis on raw NGS data.
 
 
@@ -287,17 +312,18 @@ def fastqc(input_directory, output_directory=None, threads=-1):
     Returns:
 
         str: path to the output directory
-    '''
+    """
     input_directory = os.path.normpath(input_directory)
     if output_directory is None:
         oparent = os.path.dirname(input_directory)
-        output_directory = os.path.join(oparent, 'fastqc_reports')
+        output_directory = os.path.join(oparent, "fastqc_reports")
     make_dir(output_directory)
     files = list_files(input_directory)
     if threads < 0:
         threads = cpu_count()
-    fastqc_cmd = 'fastqc --noextract -o={} -t={} {}'.format(output_directory,
-        threads, ' '.join(files))
+    fastqc_cmd = "fastqc --noextract -o={} -t={} {}".format(
+        output_directory, threads, " ".join(files)
+    )
     p = Popen(fastqc_cmd, stdout=PIPE, stderr=PIPE, shell=True)
     stdout, stderr = p.communicate()
     logger.debug(stdout)
