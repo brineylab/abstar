@@ -35,9 +35,7 @@ import abutils
 
 
 class UMI:
-    """
-    
-    """
+    """ """
 
     def __init__(
         self,
@@ -47,9 +45,7 @@ class UMI:
         ignore_strand: bool = False,
         extra_length_for_alignment: int = 25,
     ):
-        """
-        
-        """
+        """ """
         self.length = length
         self.pattern = pattern.strip().upper()
         self.ignore_strand = ignore_strand
@@ -138,7 +134,7 @@ class UMI:
 
     def get_mismatches(self) -> Optional[int]:
         """
-        Returns the total number of mismatches between the pattern(s) 
+        Returns the total number of mismatches between the pattern(s)
         and the input sequence.
         """
         total = len(self.pattern.replace("[UMI]", ""))
@@ -202,54 +198,54 @@ def parse_umis(
             4. a list of lists/tuples, of the format ``[sequence_id, sequence]``
 
     output_file : str, default=None
-        Path to an output file. Required if `sequences` is not a 
-        file. If `sequences` is a file and `output` is not provided, UMI parsing is 
+        Path to an output file. Required if `sequences` is not a
+        file. If `sequences` is a file and `output` is not provided, UMI parsing is
         done in-place and the `sequences` file is updated.
 
     pattern : str or iterable, default=None
-        Pattern (or iterable of patterns) for identifying the location of the UMI, 
-        or the name of a built-in pattern. Built-in options include ``"smartseq-human-bcr"``. 
-        Patterns may optionally contain leading and/or trailing conserved regions, with 
-        the UMI position within the pattern represented by ``"[UMI]"``. As an example, 
-        the built-in pattern for SmartSeq-BCR UMIs is::  
+        Pattern (or iterable of patterns) for identifying the location of the UMI,
+        or the name of a built-in pattern. Built-in options include ``"smartseq-human-bcr"``.
+        Patterns may optionally contain leading and/or trailing conserved regions, with
+        the UMI position within the pattern represented by ``"[UMI]"``. As an example,
+        the built-in pattern for SmartSeq-BCR UMIs is::
 
-            "[UMI]TCAGCGGGAAGACATT"  
-        
-        which would be a UMI sequence followed immediately by ``"TCAGCGGGAAGACATT"``. 
-        By default, the pattern is matched on the 5' -> 3' strand. This allows 
-        users to more easily construct patterns from their amplification primers without 
-        needing to worry about reverse-complementing patterns for UMIs at the 3' end of the 
-        input sequence. To override this, set `ignore_strand` to ``True``. If `pattern` 
-        is not provided, UMIs will be parsed using only `length`, starting at the start 
-        or end of the sequence.  
+            "[UMI]TCAGCGGGAAGACATT"
+
+        which would be a UMI sequence followed immediately by ``"TCAGCGGGAAGACATT"``.
+        By default, the pattern is matched on the 5' -> 3' strand. This allows
+        users to more easily construct patterns from their amplification primers without
+        needing to worry about reverse-complementing patterns for UMIs at the 3' end of the
+        input sequence. To override this, set `ignore_strand` to ``True``. If `pattern`
+        is not provided, UMIs will be parsed using only `length`, starting at the start
+        or end of the sequence.
 
         .. note::
 
-            The UMIs for all `patterns` that meet the `allowed_mismatches` criteria in 
-            the conserved leading/trailing portions will be concatenated into the final 
+            The UMIs for all `patterns` that meet the `allowed_mismatches` criteria in
+            the conserved leading/trailing portions will be concatenated into the final
             UMI. This allows the use of multiple `patterns` for either:
               * different patterns designed to match one of several different types of
-                sequences in a heterogeneous sample. For example, if heavy, kappa and 
-                lambda primers each have different conserved regions flanking the UMI 
-                and the input file contains a mix of heavy, kappa and lambda chains, 
+                sequences in a heterogeneous sample. For example, if heavy, kappa and
+                lambda primers each have different conserved regions flanking the UMI
+                and the input file contains a mix of heavy, kappa and lambda chains,
                 supplying all patterns (assuming they're sufficiently different from
                 each other) will allow parsing of UMIs from all chains.
-              * different patterns for sequences that contain multiple UMIs, either 
-                at opposite ends of the sequence or on the same end of the sequence 
+              * different patterns for sequences that contain multiple UMIs, either
+                at opposite ends of the sequence or on the same end of the sequence
                 but in different locations and with different conserved flanking regions.
 
     length : int or iterable, default=None
-        Length of the UMI sequence, or iterable of UMI lengths. If multiple lengths are 
-        provided, there must be an equal number of `patterns`, and they must be in the 
-        same order (the first `pattern` should correspond to the first UMI `length`). If 
-        `length` is positive, the UMI will be parsed from the start of the sequence. If 
-        `length` is negative, the UMI will be parsed from the end of the sequence. If multiple 
-        `patterns` are provided with a single `length`, that `length` will be used for all 
-        `patterns`. Required if `pattern` does not have a conserved trailing region. 
-        If `length` is not provided and a trailing conserved region is present in `pattern`, 
-        the entire portion of `sequence` preceeding the trailing region will be parsed as the 
-        UMI. Ignored if both leading and trailing sequences are present in `pattern`, 
-        as the entire region between the conserved flanking regions will be parsed as 
+        Length of the UMI sequence, or iterable of UMI lengths. If multiple lengths are
+        provided, there must be an equal number of `patterns`, and they must be in the
+        same order (the first `pattern` should correspond to the first UMI `length`). If
+        `length` is positive, the UMI will be parsed from the start of the sequence. If
+        `length` is negative, the UMI will be parsed from the end of the sequence. If multiple
+        `patterns` are provided with a single `length`, that `length` will be used for all
+        `patterns`. Required if `pattern` does not have a conserved trailing region.
+        If `length` is not provided and a trailing conserved region is present in `pattern`,
+        the entire portion of `sequence` preceeding the trailing region will be parsed as the
+        UMI. Ignored if both leading and trailing sequences are present in `pattern`,
+        as the entire region between the conserved flanking regions will be parsed as
         the UMI regardless of what `length` is provided.
 
 
@@ -460,4 +456,3 @@ BUILTIN_PATTERNS = {
         "allowed_mismatches": SMARTSEQ_HUMAN_BCR_MISMATCH,
     },
 }
-

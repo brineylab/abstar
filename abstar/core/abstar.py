@@ -73,7 +73,7 @@ from ..utils.output import (
     get_parquet_dtypes,
 )
 
-from ..utils.output import PARQUET_INCOMPATIBLE
+# from ..utils.output import PARQUET_INCOMPATIBLE
 from ..utils.queue.celery import celery
 
 
@@ -97,7 +97,6 @@ from ..version import __version__
 #                             ARGUMENTS
 #
 #####################################################################
-
 
 
 def create_parser() -> ArgumentParser:
@@ -390,7 +389,9 @@ class Args(object):
         temp=None,
         sequences=None,
         chunksize=500,
-        output_type=["json",],
+        output_type=[
+            "json",
+        ],
         assigner="blastn",
         merge=False,
         pandaseq_algo="simple_bayesian",
@@ -423,7 +424,13 @@ class Args(object):
         self.log = os.path.abspath(log) if log is not None else log
         self.temp = os.path.abspath(temp) if temp is not None else temp
         self.chunksize = int(chunksize)
-        self.output_type = [output_type,] if output_type in STR_TYPES else output_type
+        self.output_type = (
+            [
+                output_type,
+            ]
+            if output_type in STR_TYPES
+            else output_type
+        )
         self.parquet = parquet
         self.assigner = assigner
         self.merge = True if basespace else merge
@@ -726,7 +733,7 @@ def concat_outputs(input_file, temp_output_file_dicts, output_dir, args):
                 for temp_file in temp_files:
                     with open(temp_file, "rb") as f:
                         shutil.copyfileobj(
-                            f, out_file, length=16 * 1024 ** 2
+                            f, out_file, length=16 * 1024**2
                         )  # Increasing buffer size to 16MB for faster transfer
             # For file formats with headers, only keep headers from the first file
             elif output_type in ["imgt", "tabular", "airr"]:
@@ -737,7 +744,7 @@ def concat_outputs(input_file, temp_output_file_dicts, output_dir, args):
                                 out_file.write(line)
                             elif j >= 1:
                                 out_file.write(line)
-                                
+
         if args.parquet:
             logger.info("Converting concatenated output to parquet format")
             # Make clear the output format from which the parquet file is generated.
@@ -764,7 +771,7 @@ def concat_outputs(input_file, temp_output_file_dicts, output_dir, args):
                 df.to_parquet(
                     pfile, engine="pyarrow", compression="snappy", write_index=False
                 )
-                
+
         ofiles.append(ofile)
     return ofiles
 
@@ -1543,6 +1550,7 @@ def run_main(arg_list: Optional[Iterable[str]] = None):
     validate_args(args)
     output_dir = main(args)
     sys.stdout.write("\n\n")
+
 
 if __name__ == "__main__":
     run_main()
