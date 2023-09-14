@@ -1,134 +1,625 @@
-#!usr/env/python
-# filename: test_indels.py
-
-import sys
-
-from . import REFERENCE_BNAB_HC_ANTIBODIES, REFERENCE_BNAB_LC_ANTIBODIES
-from .mock_classes import MockAntibody
-from ..core.germline import GermlineSegment
-
-
-def test_var_ins_bnab_hcs():
-    compare_v_ins_to_reference(REFERENCE_BNAB_HC_ANTIBODIES)
-
-
-def test_var_del_bnab_hcs():
-    compare_v_del_to_reference(REFERENCE_BNAB_HC_ANTIBODIES)
+from ..utils.indels import (
+    Indel,
+    Insertion,
+    Deletion,
+    find_insertions,
+    _annotate_insertion,
+    _fix_frameshift_insertion,
+    find_deletions,
+    _annotate_deletion,
+    _fix_frameshift_deletion,
+)
 
 
-def test_var_ins_bnab_lcs():
-    compare_v_ins_to_reference(REFERENCE_BNAB_LC_ANTIBODIES)
+class GermlineSegment:
+    def __init__(
+        self,
+        realignment,
+        germline_start,
+        germline_end,
+        query_start,
+        query_end,
+        query_sequence,
+        germline_sequence,
+    ):
+        self.realignment = realignment
+        self.germline_start = germline_start
+        self.germline_end = germline_end
+        self.query_start = query_start
+        self.query_end = query_end
+        self.query_sequence = query_sequence
+        self.germline_sequence = germline_sequence
 
 
-def test_var_del_bnab_lcs():
-    compare_v_del_to_reference(REFERENCE_BNAB_LC_ANTIBODIES)
+class Sequence:
+    def __init__(self, sequence):
+        self.sequence = sequence
 
 
-def compare_v_ins_to_reference(antibodies):
-    errors = []
-    for antibody in antibodies:
-        ref = antibody.v
-        v = GermlineSegment(ref.full, ref.species, ref.db_name, 'bcr', initialize_log=False)
-        v.query_alignment = ref.query_alignment
-        v.germline_alignment = ref.germline_alignment
-        v.alignment_midline = ref.alignment_midline
-        v._imgt_position_from_raw = ref._imgt_position_from_raw
-        v.query_start = ref.query_start
-        ab = MockAntibody()
-        ab.oriented_input = antibody.oriented_input
-        v._find_indels(ab)
-        v._calculate_imgt_indel_positions()
-        if ref._indel_check() != v._indel_check():
-            e = '{} {}: '.format(antibody.id, antibody.chain)
-            e += 'reference _indel_check ({}) '.format(ref._indel_check())
-            e += 'did not match calculated _indel_check ({})'.format(v._indel_check())
-            errors.append(e)
-        if len(ref.insertions) != len(v.insertions):
-            e = '{} {}: '.format(antibody.id, antibody.chain)
-            e += 'reference number of insertions ({}) '.format(len(ref.insertions))
-            e += 'did not match calculated number of insertions ({})'.format(len(v.insertions))
-            errors.append(e)
-        for ins in v.insertions:
-            try:
-                ref_ins = [i for i in ref.insertions if i.raw_position == ins.raw_position][0]
-            except IndexError:
-                e = '{} {}: '.format(antibody.id, antibody.chain)
-                e += 'no reference matches were found for insertion {}'.format(ins.abstar_formatted)
-                errors.append(e)
-                continue
-            if ref_ins.length != ins.length:
-                e = '{} {} {}: '.format(antibody.id, antibody.chain, ins.abstar_formatted)
-                e += 'reference insertion length ({}) '.format(ref_ins.length)
-                e += 'did not match calculated insertion length ({})'.format(ins.length)
-                errors.append(e)
-            if ref_ins.sequence != ins.sequence:
-                e = '{} {} {}: '.format(antibody.id, antibody.chain, ins.abstar_formatted)
-                e += 'reference insertion sequence ({}) '.format(ref_ins.sequence)
-                e += 'did not match calculated insertion sequence ({})'.format(ins.sequence)
-                errors.append(e)
-            if ref_ins.imgt_position != ins.imgt_position:
-                e = '{} {} {}: '.format(antibody.id, antibody.chain, ins.abstar_formatted)
-                e += 'reference insertion imgt_position ({}) '.format(ref_ins.imgt_position)
-                e += 'did not match calculated insertion imgt_position ({})'.format(ins.imgt_position)
-                errors.append(e)
-            if ref_ins.imgt_codon != ins.imgt_codon:
-                e = '{} {} {}: '.format(antibody.id, antibody.chain, ins.abstar_formatted)
-                e += 'reference insertion imgt_codon ({}) '.format(ref_ins.imgt_codon)
-                e += 'did not match calculated insertion imgt_codon ({})'.format(ins.imgt_codon)
-                errors.append(e)
-    assert len(errors) == 0, '\n'.join(errors)
+class Antibody:
+    def __init__(self, oriented_input_sequence):
+        self.oriented_input = Sequence(oriented_input_sequence)
 
 
-def compare_v_del_to_reference(antibodies):
-    errors = []
-    for antibody in antibodies:
-        ref = antibody.v
-        v = GermlineSegment(ref.full, ref.species, ref.db_name, 'bcr', initialize_log=False)
-        v.query_alignment = ref.query_alignment
-        v.germline_alignment = ref.germline_alignment
-        v.alignment_midline = ref.alignment_midline
-        v._imgt_position_from_raw = ref._imgt_position_from_raw
-        v.query_start = ref.query_start
-        ab = MockAntibody()
-        ab.oriented_input = antibody.oriented_input
-        v._find_indels(ab)
-        v._calculate_imgt_indel_positions()
-        if ref._indel_check() != v._indel_check():
-            e = '{} {}: '.format(antibody.id, antibody.chain)
-            e += 'reference _indel_check ({}) '.format(ref._indel_check())
-            e += 'did not match calculated _indel_check ({})'.format(v._indel_check())
-            errors.append(e)
-        if len(ref.deletions) != len(v.deletions):
-            e = '{} {}: '.format(antibody.id, antibody.chain)
-            e += 'reference number of deletions ({}) '.format(len(ref.deletions))
-            e += 'did not match calculated number of deletions ({})'.format(len(v.deletions))
-            errors.append(e)
-        for ins in v.deletions:
-            try:
-                ref_ins = [i for i in ref.deletions if i.raw_position == ins.raw_position][0]
-            except IndexError:
-                e = '{} {}: '.format(antibody.id, antibody.chain)
-                e += 'no reference matches were found for insertion {}'.format(ins.abstar_formatted)
-                errors.append(e)
-                continue
-            if ref_ins.length != ins.length:
-                e = '{} {} {}: '.format(antibody.id, antibody.chain, ins.abstar_formatted)
-                e += 'reference insertion length ({}) '.format(ref_ins.length)
-                e += 'did not match calculated insertion length ({})'.format(ins.length)
-                errors.append(e)
-            if ref_ins.sequence != ins.sequence:
-                e = '{} {} {}: '.format(antibody.id, antibody.chain, ins.abstar_formatted)
-                e += 'reference insertion sequence ({}) '.format(ref_ins.sequence)
-                e += 'did not match calculated insertion sequence ({})'.format(ins.sequence)
-                errors.append(e)
-            if ref_ins.imgt_position != ins.imgt_position:
-                e = '{} {} {}: '.format(antibody.id, antibody.chain, ins.abstar_formatted)
-                e += 'reference insertion imgt_position ({}) '.format(ref_ins.imgt_position)
-                e += 'did not match calculated insertion imgt_position ({})'.format(ins.imgt_position)
-                errors.append(e)
-            if ref_ins.imgt_codon != ins.imgt_codon:
-                e = '{} {} {}: '.format(antibody.id, antibody.chain, ins.abstar_formatted)
-                e += 'reference insertion imgt_codon ({}) '.format(ref_ins.imgt_codon)
-                e += 'did not match calculated insertion imgt_codon ({})'.format(ins.imgt_codon)
-                errors.append(e)
-    assert len(errors) == 0, '\n'.join(errors)
+# ----------------------------
+#        Indel class
+# ----------------------------
+
+
+def test_init():
+    # test initialization with all fields
+    indel = Indel(
+        {
+            "len": 3,
+            "pos": 10,
+            "seq": "ATC",
+            "fixed": True,
+            "in frame": "yes",
+        }
+    )
+    assert indel.length == 3
+    assert indel.raw_position == 10
+    assert indel.sequence == "ATC"
+    assert indel.fixed is True
+    assert indel.in_frame == "yes"
+    assert indel.imgt_position is None
+    assert indel.imgt_codon is None
+
+    # test initialization with some fields missing
+    indel = Indel(
+        {
+            "len": 3,
+            "seq": "ATC",
+        }
+    )
+    assert indel.length == 3
+    assert indel.raw_position is None
+    assert indel.sequence == "ATC"
+    assert indel.fixed is None
+    assert indel.in_frame is None
+    assert indel.imgt_position is None
+    assert indel.imgt_codon is None
+
+
+def test_contains():
+    indel = Indel(
+        {
+            "len": 3,
+            "pos": 10,
+            "seq": "ATC",
+            "fixed": True,
+            "in frame": "yes",
+        }
+    )
+    assert "len" in indel
+    assert "pos" in indel
+    assert "seq" in indel
+    assert "fixed" in indel
+    assert "in frame" in indel
+    assert "imgt_position" not in indel
+    assert "imgt_codon" not in indel
+
+
+def test_getitem():
+    indel = Indel(
+        {
+            "len": 3,
+            "pos": 10,
+            "seq": "ATC",
+            "fixed": True,
+            "in frame": "yes",
+        }
+    )
+    assert indel["len"] == 3
+    assert indel["pos"] == 10
+    assert indel["seq"] == "ATC"
+    assert indel["fixed"] is True
+    assert indel["in frame"] == "yes"
+    assert indel["imgt_position"] is None
+    assert indel["imgt_codon"] is None
+
+    # test getting a non-existent key
+    assert indel["foo"] is None
+
+
+def test_get_frame():
+    # test getting in-frame status with "in frame" field
+    indel = Indel(
+        {
+            "len": 3,
+            "pos": 10,
+            "seq": "ATC",
+            "fixed": True,
+            "in frame": "yes",
+        }
+    )
+    assert indel._get_frame() == "yes"
+
+    # test getting in-frame status with boolean "in frame" field
+    indel = Indel(
+        {
+            "len": 3,
+            "pos": 10,
+            "seq": "ATC",
+            "fixed": True,
+            "in frame": True,
+        }
+    )
+    assert indel._get_frame() == "yes"
+
+    # test getting in-frame status with boolean "in frame" field
+    indel = Indel(
+        {
+            "len": 3,
+            "pos": 10,
+            "seq": "ATC",
+            "fixed": True,
+            "in frame": False,
+        }
+    )
+    assert indel._get_frame() == "no"
+
+    # test getting in-frame status with missing "in frame" field
+    indel = Indel(
+        {
+            "len": 3,
+            "pos": 10,
+            "seq": "ATC",
+            "fixed": True,
+        }
+    )
+    assert indel._get_frame() is None
+
+
+# ----------------------------
+#      Insertion class
+# ----------------------------
+
+
+def test_init():
+    # test initialization with all fields
+    indel = Insertion(
+        {
+            "len": 3,
+            "pos": 10,
+            "seq": "ATC",
+            "fixed": True,
+            "in frame": "yes",
+        }
+    )
+    assert indel.length == 3
+    assert indel.raw_position == 10
+    assert indel.sequence == "ATC"
+    assert indel.fixed is True
+    assert indel.in_frame == "yes"
+    assert indel.imgt_position is None
+    assert indel.imgt_codon is None
+    assert indel.type == "insertion"
+
+    # test initialization with some fields missing
+    indel = Insertion(
+        {
+            "len": 3,
+            "seq": "ATC",
+        }
+    )
+    assert indel.length == 3
+    assert indel.raw_position is None
+    assert indel.sequence == "ATC"
+    assert indel.fixed is None
+    assert indel.in_frame is None
+    assert indel.imgt_position is None
+    assert indel.imgt_codon is None
+    assert indel.type == "insertion"
+
+
+def test_imgt_formatted():
+    # test imgt_formatted property with in-frame insertion
+    indel = Insertion(
+        {
+            "len": 3,
+            "pos": 10,
+            "seq": "ATC",
+            "fixed": True,
+            "in frame": True,
+        }
+    )
+    assert indel.imgt_formatted == "11^12>ins^atc"
+
+    # test imgt_formatted property with out-of-frame insertion
+    indel = Insertion(
+        {
+            "len": 3,
+            "pos": 10,
+            "seq": "ATC",
+            "fixed": True,
+            "in frame": False,
+        }
+    )
+    assert indel.imgt_formatted == "11^12>ins^atc#"
+
+
+def test_abstar_formatted():
+    # test abstar_formatted property with in-frame insertion
+    indel = Insertion(
+        {
+            "len": 3,
+            "pos": 10,
+            "seq": "ATC",
+            "fixed": True,
+            "in frame": True,
+        }
+    )
+    assert indel.abstar_formatted == "11:3>ATC"
+
+    # test abstar_formatted property with out-of-frame insertion
+    indel = Insertion(
+        {
+            "len": 3,
+            "pos": 10,
+            "seq": "ATC",
+            "fixed": True,
+            "in frame": False,
+        }
+    )
+    assert indel.abstar_formatted == "11:3!>ATC"
+
+
+def test_json_formatted():
+    # test json_formatted property with in-frame insertion
+    indel = Insertion(
+        {
+            "len": 3,
+            "pos": 10,
+            "seq": "ATC",
+            "fixed": True,
+            "in frame": True,
+        }
+    )
+    assert indel.json_formatted == {
+        "in_frame": "yes",
+        "length": 3,
+        "sequence": "ATC",
+        "position": "11",
+        "codon": None,
+    }
+
+    # test json_formatted property with out-of-frame insertion
+    indel = Insertion(
+        {
+            "len": 3,
+            "pos": 10,
+            "seq": "ATC",
+            "fixed": True,
+            "in frame": False,
+        }
+    )
+    assert indel.json_formatted == {
+        "in_frame": "no",
+        "length": 3,
+        "sequence": "ATC",
+        "position": "11",
+        "codon": None,
+    }
+
+
+# ----------------------------
+#      Deletion class
+# ----------------------------
+
+
+def test_init():
+    # test initialization with all fields
+    indel = Deletion(
+        {
+            "len": 3,
+            "pos": 10,
+            "seq": "ATC",
+            "fixed": True,
+            "in frame": "yes",
+        }
+    )
+    assert indel.length == 3
+    assert indel.raw_position == 10
+    assert indel.sequence == "ATC"
+    assert indel.fixed is True
+    assert indel.in_frame == "yes"
+    assert indel.imgt_position is None
+    assert indel.imgt_codon is None
+    assert indel.type == "deletion"
+
+    # test initialization with some fields missing
+    indel = Deletion(
+        {
+            "len": 3,
+            "seq": "ATC",
+        }
+    )
+    assert indel.length == 3
+    assert indel.raw_position is None
+    assert indel.sequence == "ATC"
+    assert indel.fixed is None
+    assert indel.in_frame is None
+    assert indel.imgt_position is None
+    assert indel.imgt_codon is None
+    assert indel.type == "deletion"
+
+
+def test_imgt_formatted():
+    # test imgt_formatted property with single nucleotide deletion
+    indel = Deletion(
+        {
+            "len": 1,
+            "pos": 10,
+            "seq": "A",
+            "fixed": True,
+            "in frame": True,
+        }
+    )
+    assert indel.imgt_formatted == "a10del#"
+
+    # test imgt_formatted property with multi-nucleotide deletion
+    indel = Deletion(
+        {
+            "len": 3,
+            "pos": 10,
+            "seq": "ATC",
+            "fixed": True,
+            "in frame": False,
+        }
+    )
+    assert indel.imgt_formatted == "a10-t12del(3nt)#"
+
+
+def test_abstar_formatted():
+    # test abstar_formatted property with single nucleotide deletion
+    indel = Deletion(
+        {
+            "len": 1,
+            "pos": 10,
+            "seq": "A",
+            "fixed": True,
+            "in frame": False,
+        }
+    )
+    assert indel.abstar_formatted == "10:1>!A"
+
+    # test abstar_formatted property with multi-nucleotide deletion
+    indel = Deletion(
+        {
+            "len": 3,
+            "pos": 10,
+            "seq": "ATC",
+            "fixed": True,
+            "in frame": True,
+        }
+    )
+    assert indel.abstar_formatted == "10-12:3>ATC"
+
+
+def test_json_formatted():
+    # test json_formatted property with single nucleotide deletion
+    indel = Deletion(
+        {
+            "len": 1,
+            "pos": 10,
+            "seq": "A",
+            "fixed": True,
+            "in frame": True,
+        }
+    )
+    assert indel.json_formatted == {
+        "in_frame": "yes",
+        "length": 1,
+        "sequence": "A",
+        "position": "10",
+        "codon": None,
+    }
+
+    # test json_formatted property with multi-nucleotide deletion
+    indel = Deletion(
+        {
+            "len": 3,
+            "pos": 10,
+            "seq": "ATC",
+            "fixed": True,
+            "in frame": False,
+        }
+    )
+    assert indel.json_formatted == {
+        "in_frame": "no",
+        "length": 3,
+        "sequence": "ATC",
+        "position": "10-12",
+        "codon": None,
+    }
+
+
+# ----------------------------
+#     find_insertions
+# ----------------------------
+
+
+def test_find_insertions():
+    # test with no insertions
+    segment = GermlineSegment(
+        realignment=None,
+        germline_start=0,
+        germline_end=4,
+        query_start=0,
+        query_end=4,
+        query_sequence="ATCG",
+        germline_sequence="ATCG",
+    )
+    antibody = Antibody(segment.query_sequence)
+    insertions = find_insertions(antibody, segment)
+    assert insertions is None
+
+    # test with a single codon-length insertion
+    segment = GermlineSegment(
+        realignment=None,
+        germline_start=0,
+        germline_end=4,
+        query_start=0,
+        query_end=7,
+        query_sequence="ATCGTCTA",
+        germline_sequence="ATCGA",
+    )
+    antibody = Antibody(segment.query_sequence)
+    insertions = find_insertions(antibody, segment)
+    assert len(insertions) == 1
+    assert insertions[0].raw_position == 4
+    assert insertions[0].length == 3
+    assert insertions[0].sequence == "TCT"
+    assert insertions[0].fixed is False
+    assert insertions[0].in_frame == "yes"
+
+    # test with a single frameshift insertion
+    segment = GermlineSegment(
+        realignment=None,
+        germline_start=0,
+        germline_end=4,
+        query_start=0,
+        query_end=8,
+        query_sequence="ATCGTCTGA",
+        germline_sequence="ATCGTTGA",
+    )
+    antibody = Antibody(segment.query_sequence)
+    insertions = find_insertions(antibody, segment)
+    assert len(insertions) == 1
+    assert insertions[0].raw_position == 4
+    assert insertions[0].length == 3
+    assert insertions[0].sequence == "TCT"
+    assert insertions[0].fixed is True
+    assert insertions[0].in_frame == "no"
+
+
+def test_annotate_insertion():
+    # test with a codon-length insertion
+    insertion = _annotate_insertion(None, 4, 3, "TCT")
+    assert insertion.raw_position == 4
+    assert insertion.length == 3
+    assert insertion.sequence == "TCT"
+    assert insertion.fixed is False
+    assert insertion.in_frame == "yes"
+
+    # test with a non-codon-length insertion
+    insertion = _annotate_insertion(None, 4, 2, "TC")
+    assert insertion.raw_position == 4
+    assert insertion.length == 2
+    assert insertion.sequence == "TC"
+    assert insertion.fixed is False
+    assert insertion.in_frame == "no"
+
+
+def test_fix_frameshift_insertion():
+    # test with a frameshift deletion
+    segment = GermlineSegment(
+        realignment=None,
+        germline_start=0,
+        germline_end=4,
+        query_start=0,
+        query_end=2,
+        query_sequence="ATACG",
+        germline_sequence="ATCG",
+    )
+    antibody = Antibody(segment.query_sequence)
+    _fix_frameshift_insertion(antibody, segment, 2, 3)
+    assert segment.query_alignment == "ATCG"
+    assert segment.alignment_midline == "||||"
+    assert antibody.oriented_input.sequence == "ATCG"
+
+
+# ----------------------------
+#    find_deletions
+# ----------------------------
+
+
+def test_find_deletions():
+    # test with no deletions
+    segment = GermlineSegment(
+        realignment=None,
+        germline_start=0,
+        germline_end=4,
+        query_start=0,
+        query_end=4,
+        query_sequence="ATCG",
+        germline_sequence="ATCG",
+    )
+    antibody = Antibody(segment.query_sequence)
+    deletions = find_deletions(antibody, segment)
+    assert deletions is None
+
+    # test with a single codon-length deletion
+    segment = GermlineSegment(
+        realignment=None,
+        germline_start=0,
+        germline_end=4,
+        query_start=0,
+        query_end=3,
+        query_sequence="ATC",
+        germline_sequence="ATCG",
+    )
+    antibody = Antibody(segment.query_sequence)
+    deletions = find_deletions(antibody, segment)
+    assert len(deletions) == 1
+    assert deletions[0].raw_position == 3
+    assert deletions[0].length == 1
+    assert deletions[0].sequence == "G"
+    assert deletions[0].fixed is False
+    assert deletions[0].in_frame == "yes"
+
+    # test with a single frameshift deletion
+    segment = GermlineSegment(
+        realignment=None,
+        germline_start=0,
+        germline_end=4,
+        query_start=0,
+        query_end=2,
+        query_sequence="AT",
+        germline_sequence="ATCG",
+    )
+    antibody = Antibody(segment.query_sequence)
+    deletions = find_deletions(antibody, segment)
+    assert len(deletions) == 1
+    assert deletions[0].raw_position == 2
+    assert deletions[0].length == 2
+    assert deletions[0].sequence == "CG"
+    assert deletions[0].fixed is True
+    assert deletions[0].in_frame == "no"
+
+
+def test_annotate_deletion():
+    # test with a codon-length deletion
+    deletion = _annotate_deletion(None, 3, 1, "G")
+    assert deletion.raw_position == 3
+    assert deletion.length == 1
+    assert deletion.sequence == "G"
+    assert deletion.fixed is False
+    assert deletion.in_frame == "yes"
+
+    # test with a frameshift deletion
+    deletion = _annotate_deletion(None, 2, 2, "CG", fixed=True)
+    assert deletion.raw_position == 2
+    assert deletion.length == 2
+    assert deletion.sequence == "CG"
+    assert deletion.fixed is True
+    assert deletion.in_frame == "no"
+
+
+def test_fix_frameshift_deletion():
+    # test with a frameshift deletion
+    segment = GermlineSegment(
+        realignment=None,
+        germline_start=0,
+        germline_end=4,
+        query_start=0,
+        query_end=2,
+        query_sequence="ATG",
+        germline_sequence="ATCG",
+    )
+    antibody = Antibody(segment.query_sequence)
+    _fix_frameshift_deletion(antibody, segment, 2, 3)
+    assert segment.query_alignment == "ATCG"
+    assert segment.alignment_midline == "||||"
+    assert antibody.oriented_input.sequence == "ATCG"
