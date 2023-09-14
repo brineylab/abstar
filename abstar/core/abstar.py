@@ -833,16 +833,20 @@ def format_check(input_list):
 
 
 def _get_format(in_file):
-    with open(in_file) as f:
+    fmt = None
+    if in_file.endswith(".gz"):
+        f = gzip.open(in_file, "rt")
+    else:
+        f = open(in_file, "r")
+    line = f.readline()
+    while line.strip() == "":
         line = f.readline()
-        while line.strip() == "":
-            line = f.readline()
-        if line.lstrip().startswith(">"):
-            return "fasta"
-        elif line.lstrip().startswith("@"):
-            return "fastq"
-        else:
-            return None
+    if line.lstrip().startswith(">"):
+        fmt = "fasta"
+    elif line.lstrip().startswith("@"):
+        fmt = "fastq"
+    f.close()
+    return fmt
 
 
 def split_file(f, fmt, temp_dir, args):
