@@ -110,11 +110,11 @@ def create_parser() -> ArgumentParser:
         dest="project_dir",
         default=None,
         help="The data directory, where files will be downloaded (or have previously \
-                        been download), temp files will be stored, and output files will be \
-                        written. During StarCluster configuration, all ephemeral drives on the master \
-                        node will be combined into a single RAID volume and mounted at the data directory. \
-                        Not necessary if '-o', '-t' and '-i' are provided. \
-                        Default is '/data'.",
+            been download), temp files will be stored, and output files will be \
+            written. During StarCluster configuration, all ephemeral drives on the master \
+            node will be combined into a single RAID volume and mounted at the data directory. \
+            Not necessary if '-o', '-t' and '-i' are provided. \
+            Default is '/data'.",
     )
     parser.add_argument(
         "-i",
@@ -122,8 +122,8 @@ def create_parser() -> ArgumentParser:
         dest="input",
         default=None,
         help="The input file or directory, to be split and processed in parallel. \
-                        If a directory is given, all files in the directory will be iteratively processed. \
-                        Required, unless <project> is provided.",
+            If a directory is given, all files in the directory will be iteratively processed. \
+            Required, unless <project> is provided.",
     )
     parser.add_argument(
         "-o",
@@ -131,8 +131,8 @@ def create_parser() -> ArgumentParser:
         dest="output",
         default=None,
         help="The output directory, into which the JSON-formatted output files will be deposited. \
-                        If the directory does not exist, it will be created. \
-                        Required, unless <project> is provided.",
+            If the directory does not exist, it will be created. \
+            Required, unless <project> is provided.",
     )
     parser.add_argument(
         "-l",
@@ -140,8 +140,8 @@ def create_parser() -> ArgumentParser:
         dest="log",
         default=None,
         help="The log directory, into which log files will be deposited. \
-                        Default is <project_directory>/log if <project> is supplied, otherwise \
-                        the parent directory of <output> will be used.",
+            Default is <project_directory>/log if <project> is supplied, otherwise \
+            the parent directory of <output> will be used.",
     )
     parser.add_argument(
         "-t",
@@ -149,7 +149,7 @@ def create_parser() -> ArgumentParser:
         dest="temp",
         default=None,
         help="The directory in which temp files will be stored. If the directory doesn't exist, \
-                        it will be created. Required, unless <project> is provided.",
+            it will be created. Required, unless <project> is provided.",
     )
     parser.add_argument(
         "--sequences",
@@ -163,7 +163,7 @@ def create_parser() -> ArgumentParser:
         dest="assigner",
         default="blastn",
         help="VDJ germline assignment method to use. \
-                        Options are: {}. Default is blastn".format(
+            Options are: {}. Default is blastn".format(
             ", ".join(ASSIGNERS.keys())
         ),
     )
@@ -174,9 +174,9 @@ def create_parser() -> ArgumentParser:
         default=500,
         type=int,
         help="Approximate number of sequences in each distributed job. \
-                        Defaults to 500. \
-                        Set to 0 if you want file splitting to be turned off \
-                        Don't change unless you know what you're doing.",
+            Defaults to 500. \
+            Set to 0 if you want file splitting to be turned off \
+            Don't change unless you know what you're doing.",
     )
     parser.add_argument(
         "-O",
@@ -185,12 +185,12 @@ def create_parser() -> ArgumentParser:
         action="append",
         choices=["json", "imgt", "tabular", "airr"],
         help="Select the output type. Options are 'json', 'imgt', 'csv' and 'airr'. \
-                        IMGT output mimics the Summary table produced by IMGT High-V/Quest, \
-                        to maintain some level of compatibility with existing IMGT-based pipelines. \
-                        JSON output is much more detailed, and is suitable for direct import into MongoDB. \
-                        Tabular output contains a subset of the JSON output format in CSV format. \
-                        AIRR output is tab-delimited and conforms to AIRR data standards. \
-                        Defaults to JSON output.",
+            IMGT output mimics the Summary table produced by IMGT High-V/Quest, \
+            to maintain some level of compatibility with existing IMGT-based pipelines. \
+            JSON output is much more detailed, and is suitable for direct import into MongoDB. \
+            Tabular output contains a subset of the JSON output format in CSV format. \
+            AIRR output is tab-delimited and conforms to AIRR data standards. \
+            Defaults to AIRR output.",
     )
     parser.add_argument(
         "--parquet",
@@ -198,7 +198,7 @@ def create_parser() -> ArgumentParser:
         action="store_true",
         default=False,
         help="For tabular output formats, create parquet formatted output in addition to \
-                        the tabular delimited output. Default is False.",
+            the tabular delimited output. Default is False.",
     )
     parser.add_argument(
         "-m",
@@ -207,9 +207,9 @@ def create_parser() -> ArgumentParser:
         action="store_true",
         default=False,
         help="Use if the input files are paired-end FASTQs \
-                        (either gzip compressed or uncompressed) from Illumina platforms. \
-                        Prior to running the germline assignment pipeline, \
-                        paired reads will be merged with PANDAseq.",
+            (either gzip compressed or uncompressed) from Illumina platforms. \
+            Prior to running the germline assignment pipeline, \
+            paired reads will be merged with PANDAseq.",
     )
     parser.add_argument(
         "-P",
@@ -226,8 +226,8 @@ def create_parser() -> ArgumentParser:
             "uparse",
         ],
         help="Define merging algorithm to be used by PANDAseq.\
-                        Options are 'simple_bayesian', 'ea_util', 'flash', 'pear', 'rdp_mle', 'stitch', or 'uparse'.\
-                        Default is 'simple_bayesian', which is the default PANDAseq algorithm.",
+            Options are 'simple_bayesian', 'ea_util', 'flash', 'pear', 'rdp_mle', 'stitch', or 'uparse'.\
+            Default is 'simple_bayesian', which is the default PANDAseq algorithm.",
     )
     parser.add_argument(
         "-n",
@@ -244,7 +244,7 @@ def create_parser() -> ArgumentParser:
         type=int,
         default=0,
         help="Length of the unique identifier (UID, or molecular barcode) if used. \
-                        Default is unbarcoded (UID length of 0).",
+            Default is unbarcoded (UID length of 0).",
     )
     parser.add_argument(
         "-I",
@@ -253,7 +253,7 @@ def create_parser() -> ArgumentParser:
         action="store_false",
         default=True,
         help="If set, the isotype will not be determined for heavy chains.\
-                        If not set, isotyping sequences for the appropriate species will be used.",
+            If not set, isotyping sequences for the appropriate species will be used.",
     )
     parser.add_argument(
         "-b",
@@ -262,7 +262,7 @@ def create_parser() -> ArgumentParser:
         default=False,
         action="store_true",
         help="Use if files should be downloaded directly from BaseSpace. \
-                        Files will be downloaded into the input directory.",
+            Files will be downloaded into the input directory.",
     )
     parser.add_argument(
         "-c",
@@ -271,9 +271,9 @@ def create_parser() -> ArgumentParser:
         default=False,
         action="store_true",
         help="Use if performing computation on a Celery cluster. \
-                        If set, input files will be split into many subfiles and passed \
-                        to a Celery queue. If not set, input files will still be split, but \
-                        will be distributed to local processors using multiprocessing.",
+            If set, input files will be split into many subfiles and passed \
+            to a Celery queue. If not set, input files will still be split, but \
+            will be distributed to local processors using multiprocessing.",
     )
     parser.add_argument(
         "-N",
@@ -282,7 +282,7 @@ def create_parser() -> ArgumentParser:
         default=0,
         type=int,
         help="Number of cores used by abstar. Default is `0`, which uses \
-                        all available cores.",
+            all available cores.",
     )
     parser.add_argument(
         "-D",
@@ -291,9 +291,9 @@ def create_parser() -> ArgumentParser:
         action="store_true",
         default=False,
         help="If set, logs information about successfully assigned sequences as well \
-                        as unsuccessful sequences. Useful for debugging small test datasets, \
-                        as the logging is fairly detailed. \
-                        Default is to only log unsuccessful sequences.",
+            as unsuccessful sequences. Useful for debugging small test datasets, \
+            as the logging is fairly detailed. \
+            Default is to only log unsuccessful sequences.",
     )
     parser.add_argument(
         "-T",
@@ -301,20 +301,20 @@ def create_parser() -> ArgumentParser:
         dest="use_test_data",
         action="store_true",
         default=False,
-        help="If set, AbStar will run on a small sample of test data (1000 sequences). \
-                        These samples are of human origin, but AbStar doesn't force the use of the human \
-                        germline database. Of the 1000 sequences, only 999 contain an antibody rearrangement, \
-                        so one sequence should fail the germline assignment process. \
-                        Default is False. \
-                        Providing temp and output directories (or a project directory) is required.",
+        help="If set, abstar will run on a small sample of test data (1000 sequences). \
+            These samples are of human origin, but abstar doesn't force the use of the human \
+            germline database. Of the 1000 sequences, only 999 contain an antibody rearrangement, \
+            so one sequence should fail the germline assignment process. \
+            Default is False. \
+            Providing temp and output directories (or a project directory) is required.",
     )
     parser.add_argument(
         "--germ_db",
         dest="germ_db",
         default="human",
         help="Germline database to use. Built-in \
-                        options include 'human', 'mouse', 'macaaque' and 'humouse'. Custom databases can alsu \
-                        be built and used. Default is 'human'.",
+            options include 'human', 'mouse', 'macaaque' and 'humouse'. Custom databases can alsu \
+            be built and used. Default is 'human'.",
     )
     parser.add_argument(
         "-r",
@@ -342,11 +342,11 @@ def create_parser() -> ArgumentParser:
         dest="json_keys",
         default=None,
         help='If supplied, allows selection of a subset of the normal JSON output. \
-                        Should be provided as a list of JSON key names, separated by commas: \
-                        "--json-keys seq_id,v_gene,d_gene,j_gene,cdr3_aa". \
-                        Only top-level keys are supported (that is, cannot select a single nested element). \
-                        Note that if --add-padding is set, padding will be included whether or not the \
-                        padding key name is included in --json-keys.',
+            Should be provided as a list of JSON key names, separated by commas: \
+            "--json-keys seq_id,v_gene,d_gene,j_gene,cdr3_aa". \
+            Only top-level keys are supported (that is, cannot select a single nested element). \
+            Note that if --add-padding is set, padding will be included whether or not the \
+            padding key name is included in --json-keys.',
     )
     parser.add_argument(
         "--pretty",
@@ -367,7 +367,7 @@ def create_parser() -> ArgumentParser:
         default=False,
         action="store_true",
         help="If passed, will add padding to the json output file. \
-                        Really only useful if you're using an old version of MongoDB.",
+            Really only useful if you're using an old version of MongoDB.",
     )
     parser.add_argument(
         "--quiet",
@@ -390,7 +390,7 @@ class Args(object):
         sequences=None,
         chunksize=500,
         output_type=[
-            "json",
+            "airr",
         ],
         assigner="blastn",
         merge=False,
@@ -482,7 +482,7 @@ def validate_args(args):
     # set default output type if not provided
     if args.output_type is None:
         args.output_type = [
-            "json",
+            "airr",
         ]
     if isinstance(args.output_type, str):
         args.output_type = [
@@ -857,22 +857,26 @@ def split_file(f, fmt, temp_dir, args):
         out_prefix = os.path.basename(f)
     if args.chunksize != 0:
         try:
-            with open(f, "r") as f_handle:
-                for seq in SeqIO.parse(f_handle, fmt.lower()):
-                    sequences.append(seq.format(fmt.lower()))
-                    seq_counter += 1
-                    total_seq_counter += 1
-                    if seq_counter == args.chunksize:
-                        out_file = os.path.join(
-                            temp_dir, "{}_{}".format(out_prefix, file_counter)
-                        )
-                        ohandle = open(out_file, "w")
-                        ohandle.write("\n".join(sequences))
-                        ohandle.close()
-                        sequences = []
-                        seq_counter = 0
-                        file_counter += 1
-                        subfiles.append(out_file)
+            if f.endswith(".gz"):
+                f_handle = gzip.open(f, "rt")
+            else:
+                f_handle = open(f, "r")
+            for seq in SeqIO.parse(f_handle, fmt.lower()):
+                sequences.append(seq.format(fmt.lower()))
+                seq_counter += 1
+                total_seq_counter += 1
+                if seq_counter == args.chunksize:
+                    out_file = os.path.join(
+                        temp_dir, "{}_{}".format(out_prefix, file_counter)
+                    )
+                    ohandle = open(out_file, "w")
+                    ohandle.write("\n".join(sequences))
+                    ohandle.close()
+                    sequences = []
+                    seq_counter = 0
+                    file_counter += 1
+                    subfiles.append(out_file)
+            f_handle.close()
         except ValueError:
             print("")
             print("ERROR: invalid file.")
