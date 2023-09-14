@@ -674,7 +674,11 @@ def list_files(d, log=False):
         fnames = [os.path.basename(f) for f in files]
         logger.info("")
         logger.info("FILE COUNT: {}".format(len(fnames)))
-        logger.info("FILES: {}".format(", ".join(fnames)))
+        if len(fnames) < 20:
+            logger.info("FILES: {}".format("\n  - ".join(fnames)))
+        else:
+            logger.info("FILES: {}".format("\n  - ".join(fnames[:20])))
+            logger.info("    ...\n    and {} more input files".format(len(fnames) - 20))
     return files
 
 
