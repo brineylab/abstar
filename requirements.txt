@@ -3,7 +3,7 @@ biopython == 1.78
 celery
 dask[complete]
 matplotlib == 3.6.3
-numpy == 1.23.4
+numpy ~=1.24
 pandas
 parasail
 pyarrow
