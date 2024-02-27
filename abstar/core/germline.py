@@ -27,21 +27,20 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import math
 import os
 import traceback
-from typing import Optional, Union, Iterable
+from typing import Iterable, Optional, Union
 
 import parasail
-
-from Bio import SeqIO
-from Bio.Seq import Seq
-
 from abutils.core.sequence import Sequence
 from abutils.utils.alignment import global_alignment, local_alignment
 from abutils.utils.codons import codon_lookup
 from abutils.utils.decorators import lazy_property
+from Bio import SeqIO
+from Bio.Seq import Seq
 
-# from .antibody import Antibody
 from ..utils import indels
 from ..utils.mixins import LoggingMixin
+
+# from .antibody import Antibody
 
 
 class GermlineSegment(LoggingMixin):
@@ -173,25 +172,25 @@ class GermlineSegment(LoggingMixin):
         self.regions = None
 
     @property
-    def family(self):
+    def family(self) -> Optional[str]:
         if self._family is None:
             if "-" in self.full:
                 self._family = self.full.split("-")[0]
         return self._family
 
     @family.setter
-    def family(self, family):
+    def family(self, family: str):
         self._family = family
 
     @property
-    def gene(self):
+    def gene(self) -> Optional[str]:
         if self._gene is None:
             if "*" in self.full:
                 self._gene = self.full.split("*")[0]
         return self._gene
 
     @gene.setter
-    def gene(self, gene):
+    def gene(self, gene: str):
         self._gene = gene
 
     @property
@@ -210,26 +209,26 @@ class GermlineSegment(LoggingMixin):
         return self._chain
 
     @property
-    def insertions(self):
+    def insertions(self) -> Optional[Iterable]:
         if self._insertions is None:
             return []
         return self._insertions
 
     @insertions.setter
-    def insertions(self, insertions):
+    def insertions(self, insertions: Iterable):
         self._insertions = insertions
 
     @property
-    def deletions(self):
+    def deletions(self) -> Optional[Iterable]:
         if self._deletions is None:
             return []
         return self._deletions
 
     @deletions.setter
-    def deletions(self, deletions):
+    def deletions(self, deletions: Iterable):
         self._deletions = deletions
 
-    def correct_imgt_nt_position_from_imgt(self, position):
+    def correct_imgt_nt_position_from_imgt(self, position: int) -> Optional[int]:
         if self._correct_imgt_nt_position_from_imgt is not None:
             p = self._correct_imgt_nt_position_from_imgt.get(position, None)
             if p is not None:
@@ -240,7 +239,7 @@ class GermlineSegment(LoggingMixin):
                 return p
         return None
 
-    def correct_imgt_aa_position_from_imgt(self, position):
+    def correct_imgt_aa_position_from_imgt(self, position: int) -> Optional[int]:
         if self._correct_imgt_aa_position_from_imgt is not None:
             p = self._correct_imgt_aa_position_from_imgt.get(position, None)
             if p is not None:
@@ -280,6 +279,11 @@ class GermlineSegment(LoggingMixin):
             Position in the input sequence at which the re-alignment should end. If not provided,
             the end of the input sequence is used.
 
+        Returns
+        -------
+        None
+            The realigned germline segment is stored in the ``realignment`` attribute of the
+            ``GermlineSegment`` object.
         """
         oriented_input = antibody.oriented_input
         germline_seq = self._get_germline_sequence_for_realignment(antibody)
@@ -317,7 +321,7 @@ class GermlineSegment(LoggingMixin):
             alignment = local_alignment(query, germline_seq, **aln_params)
             # fix for a fairly rare edge case where coincidental matching to 2-3 residues at the extreme
             # 3' end of K/L germline V genes can result in incorrect identification of the
-            # end of the V gene region (making the called V region far too long and, in some cases,
+            # end of the V gene region (making the called V region too long and, in some cases,
             # extending beyond the junction and into FR4). What we do here is drop the last 2 nucleotides
             # of the aligned germline and re-align to see whether that substantialy truncates the resulting
             # alignment (by at least 2 additional nucleotides). If so, we use the new alignment instead.
@@ -418,8 +422,7 @@ class GermlineSegment(LoggingMixin):
                         # get the truncated portion of the query sequence
                         # and append to the aligned query sequence
                         query_truncation = alignment.raw_query[
-                            alignment.query_end
-                            + 1 : alignment.query_end
+                            alignment.query_end + 1 : alignment.query_end
                             + target_truncation_length
                             + 1
                         ]
@@ -431,8 +434,7 @@ class GermlineSegment(LoggingMixin):
                         # get the truncated portion of the target (germline) sequence
                         # and append to the aligned target sequence
                         target_truncation = alignment.raw_target[
-                            alignment.target_end
-                            + 1 : alignment.target_end
+                            alignment.target_end + 1 : alignment.target_end
                             + target_truncation_length
                             + 1
                         ]
@@ -478,9 +480,7 @@ class GermlineSegment(LoggingMixin):
         )
         self.alignment_reading_frame = (
             (2 * (self.imgt_gapped_alignment.target_begin % 3)) % 3
-        ) + (
-            self.imgt_germline.coding_start - 1
-        )  # IMGT coding start is 1-based
+        ) + (self.imgt_germline.coding_start - 1)  # IMGT coding start is 1-based
         self.coding_region = self._get_coding_region()
         self.aa_sequence = self._get_aa_sequence()
         try:
