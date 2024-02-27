@@ -29,13 +29,13 @@ import json
 import os
 import traceback
 import uuid
-import pandas as pd
 
+import pandas as pd
 from abutils.utils import log
+
 from abstar.utils.parquet_schema import schema
 
 from .cigar import make_cigar
-
 
 OUTPUT_SEPARATORS = {"airr": "\t", "imgt": ",", "tabular": ","}
 OUTPUT_EXTENSIONS = {"airr": ".tsv", "json": ".json", "imgt": ".csv", "tabular": ".csv"}
@@ -275,7 +275,7 @@ class AbstarResult(object):
                         "others": [
                             {"full": o.full, "assigner_score": o.assigner_score}
                             for o in self.antibody.j.others
-                        ]
+                        ],
                         #                                    for germ, score in zip(self.antibody.j.all_germlines[1:], self.antibody.j.all_scores[1:])]
                     },
                 ),
@@ -622,7 +622,12 @@ class AbstarResult(object):
         if self.antibody.d:
             d_call = self.antibody.d.full
             d_gene = self.antibody.d.gene
-            d_cigar = make_cigar(self.antibody.d)
+            d_cigar = make_cigar(
+                query_start=self.antibody.d.germline_start,
+                germline_start=self.antibody.d.germline_start,
+                query_alignment=self.antibody.d.realignment.aligned_query,
+                germline_alignment=self.antibody.d.realignment.aligned_target,
+            )
             d_score = str(self.antibody.d.score)
             # d_identity = str(self.antibody.d.nt_identity / 100.)
         else:
@@ -725,9 +730,25 @@ class AbstarResult(object):
                 ("junction_germ_j_aa", self.antibody.junction.j_germ_aa),
                 ("isotype", c_call),
                 ("locus", self.antibody.v.gene[:3].upper()),
-                ("v_cigar", make_cigar(self.antibody.v)),
+                (
+                    "v_cigar",
+                    make_cigar(
+                        query_start=self.antibody.v.germline_start,
+                        germline_start=self.antibody.v.germline_start,
+                        query_alignment=self.antibody.v.realignment.aligned_query,
+                        germline_alignment=self.antibody.v.realignment.aligned_target,
+                    ),
+                ),
                 ("d_cigar", d_cigar),
-                ("j_cigar", make_cigar(self.antibody.j)),
+                (
+                    "j_cigar",
+                    make_cigar(
+                        query_start=self.antibody.j.germline_start,
+                        germline_start=self.antibody.j.germline_start,
+                        query_alignment=self.antibody.j.realignment.aligned_query,
+                        germline_alignment=self.antibody.j.realignment.aligned_target,
+                    ),
+                ),
                 ("species", self.antibody.species),
                 ("germline_database", self.antibody.germ_db),
             ]
@@ -1664,4 +1685,3 @@ AIRR_HEADER = [
     "species",
     "germline_database",
 ]
-
