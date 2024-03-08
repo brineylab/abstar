@@ -625,8 +625,8 @@ class AbstarResult(object):
             d_cigar = make_cigar(
                 query_start=self.antibody.d.germline_start,
                 germline_start=self.antibody.d.germline_start,
-                query_alignment=self.antibody.d.realignment.aligned_query,
-                germline_alignment=self.antibody.d.realignment.aligned_target,
+                aligned_query=self.antibody.d.realignment.aligned_query,
+                aligned_germline=self.antibody.d.realignment.aligned_target,
             )
             d_score = str(self.antibody.d.score)
             # d_identity = str(self.antibody.d.nt_identity / 100.)
@@ -735,8 +735,8 @@ class AbstarResult(object):
                     make_cigar(
                         query_start=self.antibody.v.germline_start,
                         germline_start=self.antibody.v.germline_start,
-                        query_alignment=self.antibody.v.realignment.aligned_query,
-                        germline_alignment=self.antibody.v.realignment.aligned_target,
+                        aligned_query=self.antibody.v.realignment.aligned_query,
+                        aligned_germline=self.antibody.v.realignment.aligned_target,
                     ),
                 ),
                 ("d_cigar", d_cigar),
@@ -745,8 +745,8 @@ class AbstarResult(object):
                     make_cigar(
                         query_start=self.antibody.j.germline_start,
                         germline_start=self.antibody.j.germline_start,
-                        query_alignment=self.antibody.j.realignment.aligned_query,
-                        germline_alignment=self.antibody.j.realignment.aligned_target,
+                        aligned_query=self.antibody.j.realignment.aligned_query,
+                        aligned_germline=self.antibody.j.realignment.aligned_target,
                     ),
                 ),
                 ("species", self.antibody.species),
