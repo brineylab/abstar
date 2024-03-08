@@ -139,9 +139,9 @@ class GermlineSegment(LoggingMixin):
         if initialize_log:
             self.initialize_log()
 
-        # These properties are populated by AbStar.
+        # These properties are populated by abstar.
         # Assigners don't need to populate these (and they'll be overwritten
-        # by AbStar if an assigner does populate them).
+        # by abstar if an assigner does populate them).
         self.score = None
         self.realignment = None
         self.raw_query = None
@@ -194,7 +194,7 @@ class GermlineSegment(LoggingMixin):
         self._gene = gene
 
     @property
-    def chain(self):
+    def chain(self) -> Optional[str]:
         if self._chain is None:
             c = {
                 "H": "heavy",
@@ -571,19 +571,21 @@ class GermlineSegment(LoggingMixin):
             for s in SeqIO.parse(open(db_file), "fasta"):
                 if s.id == self.raw_assignment:
                     return str(s.seq)
-            # TODO: log that the germline gene wasn't found in the database file
+            antibody.log(f"GERMLINE SEQUENCE NOT FOUND: {self.raw_assignment}")
             return None
-        except:
-            # TODO: log that the germline database file couldn't be found
+        except Exception:
+            antibody.log(f"GERMLINE DB FILE NOT FOUND: {db_file}")
             return None
 
     def _imgt_numbering(self):
         aln_start = self.query_start
         aln_pos = 0
-        imgt_start = self.imgt_gapped_alignment.target_begin + 1
+        imgt_start = self.imgt_gapped_alignment.target_begin + 1  # 1-based
         imgt_pos = imgt_start
-        raw_position_from_imgt = {}
-        imgt_position_from_raw = {}
+        imgt2raw = {}
+        raw2imgt = {}
+        # raw_position_from_imgt = {}
+        # imgt_position_from_raw = {}
 
         # imgt_start_offset is for J-genes only. Since the first position of the gapped IMGT
         # V-gene is the first position of the antibody seqeunce, IMGT numbering of the
@@ -620,14 +622,14 @@ class GermlineSegment(LoggingMixin):
             # If the gapped IMGT germline is '.' (indicating a gap introduced by IMGT for numbering purposes),
             # we only need to increment the IMGT position and indicate the lack of sequence at the IMGT position.
             if gl == ".":
-                raw_position_from_imgt[imgt_pos + imgt_start_offset] = None
+                imgt2raw[imgt_pos + imgt_start_offset] = None
                 imgt_pos += 1
                 continue
 
             # If there's a gap in the query alignment (deletion in the query sequence)
             # there's no equivalent IMGT position in the query.
             if self.query_alignment[aln_pos] == "-":
-                raw_position_from_imgt[imgt_pos + imgt_start_offset] = None
+                imgt2raw[imgt_pos + imgt_start_offset] = None
                 aln_pos += 1
                 imgt_pos += 1
                 query_del_adjustment += 1
@@ -641,19 +643,17 @@ class GermlineSegment(LoggingMixin):
             if self.germline_alignment[aln_pos] == "-":
                 self.log("INFO: Found an insertion in the query sequence!")
                 while self.germline_alignment[aln_pos] == "-":
-                    imgt_position_from_raw[
-                        aln_pos + self.query_start - query_del_adjustment
-                    ] = None
+                    raw2imgt[aln_pos + self.query_start - query_del_adjustment] = None
                     self.imgt_nt_positions.append(None)
                     aln_pos += 1
 
             # if the gapped IMGT germline isn't '.' and there's not an insertion in the query
             # sequence (or we've already iterated past it), we record both the IMGT position
             # and the raw (oriented_input) position and increment both the aligned and IMGt positions.
-            raw_position_from_imgt[imgt_pos + imgt_start_offset] = (
+            imgt2raw[imgt_pos + imgt_start_offset] = (
                 aln_pos + aln_start - query_del_adjustment
             )
-            imgt_position_from_raw[aln_pos + aln_start - query_del_adjustment] = (
+            raw2imgt[aln_pos + aln_start - query_del_adjustment] = (
                 imgt_pos + imgt_start_offset
             )
             self.imgt_nt_positions.append(imgt_pos + imgt_start_offset)
@@ -661,8 +661,8 @@ class GermlineSegment(LoggingMixin):
             imgt_pos += 1
             if aln_pos >= len(self.germline_alignment):
                 break
-        self._raw_position_from_imgt = raw_position_from_imgt
-        self._imgt_position_from_raw = imgt_position_from_raw
+        self._raw_position_from_imgt = imgt2raw
+        self._imgt_position_from_raw = raw2imgt
         if self.insertions or self.deletions:
             self._calculate_imgt_indel_positions()
 
