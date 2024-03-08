@@ -36,11 +36,13 @@ from abutils.utils.decorators import lazy_property
 from Bio import SeqIO
 from Bio.Seq import Seq
 
-from ..core.germline import get_germline_database_directory
+# from ..core.germline import get_germline_database_directory
 
 
 def get_isotype(antibody):
     try:
+        from ..core.germline import get_germline_database_directory
+
         germ_dir = get_germline_database_directory(antibody.germ_db)
         isotype_file = os.path.join(germ_dir, "isotypes/isotypes.fasta")
         isotype_seqs = abutils.io.read_fasta(isotype_file)
