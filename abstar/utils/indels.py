@@ -28,12 +28,11 @@ import re
 import traceback
 from typing import Iterable, Optional
 
-from abutils import Sequence
-from abutils.utils import log
-from abutils.utils.decorators import lazy_property
-
-from ..core.antibody import Antibody
-from ..core.germline import Germline
+# from abutils import Sequence
+# from abutils.utils import log
+# from abutils.utils.decorators import lazy_property
+# from ..core.antibody import Antibody
+# from ..core.germline import Germline
 
 
 class Indel(object):
@@ -259,7 +258,7 @@ class Deletion(Indel):
 
 
 def find_insertions(
-    antibody: Antibody, segment: Germline
+    antibody: "Antibody", segment: "Germline"
 ) -> Optional[Iterable[Insertion]]:
     """
     Identifies and annotates/fixes insertions. Any insertions shorter than a full codon
@@ -352,7 +351,7 @@ def _annotate_insertion(
 
 
 def _fix_frameshift_insertion(
-    antibody: Antibody, segment: Germline, s: int, e: int
+    antibody: "Antibody", segment: "Germline", s: int, e: int
 ) -> None:
     """
     Fixes (removes) frameshift insertions.
@@ -406,7 +405,7 @@ def _fix_frameshift_insertion(
 
 
 def find_deletions(
-    antibody: Antibody, segment: Germline
+    antibody: "Antibody", segment: "Germline"
 ) -> Optional[Iterable[Deletion]]:
     """
     Identifies and annotates/fixes deletions. Deletions shorter than a full codon will be
@@ -497,7 +496,7 @@ def _annotate_deletion(start, length, sequence, fixed=False):
 
 
 def _fix_frameshift_deletion(
-    antibody: Antibody, segment: Germline, s: int, e: int
+    antibody: "Antibody", segment: "Germline", s: int, e: int
 ) -> None:
     """
     Fixes (removes) frameshift deletions.
