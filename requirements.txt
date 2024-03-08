@@ -1,4 +1,4 @@
-abutils>=0.2.9
+abutils>=0.4.14
 biopython == 1.78
 celery
 dask[complete]
