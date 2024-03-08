@@ -22,42 +22,35 @@
 #
 
 
-from __future__ import absolute_import, division, print_function, unicode_literals
+# from __future__ import absolute_import, division, print_function, unicode_literals
 
-import warnings
-
-warnings.simplefilter(action="ignore", category=FutureWarning)
-
-from argparse import ArgumentParser
+# warnings.simplefilter(action="ignore", category=FutureWarning)
 import csv
-from glob import glob
 import gzip
 import json
 import logging
-from multiprocessing import Pool, cpu_count
 import os
-import pkg_resources
 import re
-from subprocess import Popen, PIPE
+import shutil
 import sys
 import tempfile
 import time
 import traceback
-from typing import Iterable, Optional
 import warnings
-import shutil
-
-from Bio import SeqIO
+from argparse import ArgumentParser
+from glob import glob
+from multiprocessing import Pool, cpu_count
+from subprocess import PIPE, Popen
+from typing import Iterable, Optional
 
 import dask.dataframe as dd
-
-from abutils.core.sequence import Sequence, read_json, read_csv
+import pkg_resources
+from abutils.core.sequence import Sequence, read_csv, read_json
 from abutils.utils import log
+from Bio import SeqIO
+
 from abstar.utils.parquet_schema import schema
 
-# from abutils.utils.pipeline import list_files
-
-from .antibody import Antibody
 from ..assigners.assigner import BaseAssigner
 from ..assigners.registry import ASSIGNERS
 
@@ -65,27 +58,29 @@ from ..assigners.registry import ASSIGNERS
 from ..utils.output import (
     get_abstar_result,
     get_abstar_results,
-    get_output,
-    write_output,
     get_header,
-    get_output_suffix,
+    get_output,
     get_output_separator,
+    get_output_suffix,
     get_parquet_dtypes,
+    write_output,
 )
 
 # from ..utils.output import PARQUET_INCOMPATIBLE
 from ..utils.queue.celery import celery
-
-
-if sys.version_info[0] > 2:
-    STR_TYPES = [
-        str,
-    ]
-else:
-    STR_TYPES = [str, unicode]
-
-
 from ..version import __version__
+
+# from abutils.utils.pipeline import list_files
+from .antibody import Antibody
+
+STR_TYPES = [str]
+# if sys.version_info[0] > 2:
+#     STR_TYPES = [
+#         str,
+#     ]
+# else:
+#     STR_TYPES = [str, unicode]
+
 
 # __version__ = pkg_resources.require("abstar")[0].version
 
@@ -163,9 +158,7 @@ def create_parser() -> ArgumentParser:
         dest="assigner",
         default="blastn",
         help="VDJ germline assignment method to use. \
-            Options are: {}. Default is blastn".format(
-            ", ".join(ASSIGNERS.keys())
-        ),
+            Options are: {}. Default is blastn".format(", ".join(ASSIGNERS.keys())),
     )
     parser.add_argument(
         "-k",
@@ -790,8 +783,8 @@ def concat_logs(input_file, logs, log_dir, log_type):
     lfile = os.path.join(log_dir, "{}.{}".format(lprefix, log_type))
     lhandle = open(lfile, "w")
     with lhandle as logfile:
-        for log in logs:
-            with open(log) as f:
+        for _log in logs:
+            with open(_log) as f:
                 for line in f:
                     logfile.write(line)
     return lfile
@@ -1024,7 +1017,7 @@ def run_abstar(seq_file, output_dir, log_dir, file_format, arg_dict):
                 for i, output_type in enumerate(args.output_type):
                     try:
                         output = get_output(result, output_type)
-                    except:
+                    except Exception:
                         ab.exception("OUTPUT CREATION ERROR", traceback.format_exc())
                     if output is not None:
                         outputs_dict[output_type].append(
@@ -1038,7 +1031,7 @@ def run_abstar(seq_file, output_dir, log_dir, file_format, arg_dict):
                     # only write failed log data once
                     elif i == 0:
                         failed_loghandle.write(ab.format_log())
-            except:
+            except Exception:
                 ab.exception("ANNOTATION ERROR", traceback.format_exc())
                 failed_loghandle.write(ab.format_log())
         # outputs = [outputs_dict[ot] for ot in sorted(args.output_type)]
@@ -1061,7 +1054,7 @@ def run_abstar(seq_file, output_dir, log_dir, file_format, arg_dict):
             failed_logfile,
             unassigned_logfile,
         )
-    except:
+    except Exception:
         logging.debug(traceback.format_exc())
 
         print(traceback.format_exc())
@@ -1108,7 +1101,7 @@ def _run_jobs_singlethreaded(files, output_dir, log_dir, file_format, args):
         try:
             results.append(run_abstar(f, output_dir, log_dir, file_format, vars(args)))
             update_progress(i + 1, len(files))
-        except:
+        except Exception:
             logger.debug("FILE-LEVEL EXCEPTION: {}".format(f))
             logging.debug(traceback.format_exc())
     logger.info("")
@@ -1134,7 +1127,7 @@ def _run_jobs_via_multiprocessing(files, output_dir, log_dir, file_format, args)
     for a in async_results:
         try:
             results.append(a[1].get())
-        except:
+        except Exception:
             logger.debug("FILE-LEVEL EXCEPTION: {}".format(a[0]))
             # if args.debug:
             #     traceback.print_exc()
@@ -1425,7 +1418,7 @@ def run(*args, **kwargs):
                 sequences = [
                     Sequence(args[0]),
                 ]
-        except:
+        except Exception:
             print("ERROR: invalid format for sequence input:")
             for a in args:
                 print(a)
@@ -1433,7 +1426,7 @@ def run(*args, **kwargs):
     elif len(args) > 1:
         try:
             sequences = [Sequence(s) for s in args]
-        except:
+        except Exception:
             print("ERROR: invalid format for sequence input:")
             for a in args:
                 print(a)
