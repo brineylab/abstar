@@ -22,13 +22,17 @@
 #
 
 
-from __future__ import absolute_import, division, print_function, unicode_literals
+# from __future__ import absolute_import, division, print_function, unicode_literals
 
 import re
 import traceback
+from typing import Iterable, Optional
 
-from abutils.utils import log
-from abutils.utils.decorators import lazy_property
+# from abutils import Sequence
+# from abutils.utils import log
+# from abutils.utils.decorators import lazy_property
+# from ..core.antibody import Antibody
+# from ..core.germline import Germline
 
 
 class Indel(object):
@@ -65,7 +69,9 @@ class Indel(object):
 
 
 class Insertion(Indel):
-    """docstring for Insertion"""
+    """
+    Class for storing and formatting insertions.
+    """
 
     def __init__(self, indel):
         super(Insertion, self).__init__(indel)
@@ -73,6 +79,20 @@ class Insertion(Indel):
 
     @property
     def imgt_formatted(self):
+        """
+        Returns the insertion in IMGT format.
+
+        IMGT format for insertions is:
+            ``123^124insGGG`` (if in frame)
+            ``123^124insG#`` (if out of frame)
+        Where ``123`` and ``124`` are the germline positions flanking the insertion,
+        and ``GGG`` (or ``G``) is the inserted sequence.
+
+        Returns:
+        --------
+            str: IMGT formatted insertion.
+
+        """
         return "{}^{}>ins^{}{}".format(
             self.imgt_position,
             self.imgt_position + 1,
@@ -82,6 +102,19 @@ class Insertion(Indel):
 
     @property
     def abstar_formatted(self):
+        """
+        Returns the insertion in abstar format.
+
+        AbStar format for insertions is:
+            ``123:3>GGG`` (if in frame)
+            ``123:1!>G`` (if out of frame)
+        Where ``123`` is the IMGT position immediately preceding the insertion, ``3`` is
+        the length of the insertion, and ``GGG`` is the inserted sequence.
+
+        Returns:
+        --------
+            str: AbStar formatted insertion.
+        """
         return "{}:{}{}>{}".format(
             self.imgt_position,
             self.length,
@@ -91,6 +124,27 @@ class Insertion(Indel):
 
     @property
     def json_formatted(self):
+        """
+        Returns the insertion in JSON format.
+
+        JSON format for insertions is:
+            ``{
+                "in_frame": "yes",
+                "length": 3,
+                "sequence": "GGG",
+                "position": "123",
+                "codon": "41"
+            }``
+        Where ``in_frame`` is either "yes" or "no", ``length`` is the length of the insertion,
+        ``sequence`` is the inserted sequence, ``position`` is the IMGT position immediately
+        preceding the insertion, and ``codon`` is the IMGT codon number immediately preceding
+        the insertion.
+
+        Returns:
+        --------
+            dict: JSON formatted insertion.
+
+        """
         j = {
             "in_frame": "yes" if self.in_frame else "no",
             "length": self.length,
@@ -102,7 +156,9 @@ class Insertion(Indel):
 
 
 class Deletion(Indel):
-    """docstring for Deletion"""
+    """
+    Class for storing and formatting deletions.
+    """
 
     def __init__(self, indel):
         super(Deletion, self).__init__(indel)
@@ -110,6 +166,18 @@ class Deletion(Indel):
 
     @property
     def imgt_formatted(self):
+        """
+        Returns the deletion in IMGT format.
+
+        IMGT format for deletions is:
+            ``G123>del#`` (if a single nucleotide)
+            ``G123-G124>del(2nt)#`` (if multi-nucleotide and out of frame)
+            ``G123-G125>del(3nt)`` (if in frame)
+
+        Returns:
+        --------
+            str: IMGT formatted deletion.
+        """
         if self.length == 1:
             return "{}{}>del#".format(self.sequence.lower(), self.imgt_position)
         else:
@@ -124,6 +192,19 @@ class Deletion(Indel):
 
     @property
     def abstar_formatted(self):
+        """
+        Returns the deletion in abstar format.
+
+        abstar format for deletions is:
+            ``123:1!>G`` (if a single nucleotide)
+            ``123-124:2!>GG`` (if multi-nucleotide and out of frame)
+            ``123-125:3>GGG`` (if in frame)
+
+        Returns:
+        --------
+            str: abstar formatted deletion.
+
+        """
         if self.length == 1:
             return "{}:{}{}>{}".format(
                 self.imgt_position,
@@ -142,6 +223,25 @@ class Deletion(Indel):
 
     @property
     def json_formatted(self):
+        """
+        Returns the deletion in JSON format.
+
+        JSON format for deletions is:
+            ``{
+                "in_frame": "yes",
+                "length": 3,
+                "sequence": "GGG",
+                "position": "123",
+                "codon": "41"
+            }``
+        Where ``in_frame`` is either "yes" or "no", ``length`` is the length of the deletion,
+        ``sequence`` is the deleted sequence, ``position`` is the IMGT position immediately
+
+        Returns:
+        --------
+            dict: JSON formatted deletion.
+
+        """
         j = {
             "in_frame": "yes" if self.in_frame else "no",
             "length": self.length,
@@ -157,15 +257,31 @@ class Deletion(Indel):
 # ------------
 
 
-def find_insertions(antibody, segment):
+def find_insertions(
+    antibody: "Antibody", segment: "Germline"
+) -> Optional[Iterable[Insertion]]:
     """
-    Identifies and annotates/fixes insertions. Frameshift insertions (those with a length
-    not evenly divisible by 3) will be removed. Codon-length insertions will be annotated.
+    Identifies and annotates/fixes insertions. Any insertions shorter than a full codon
+    will be reverted to germline. All others will be annotated.
 
-    Input is a BlastResult object.
+    .. note::
+        If an Exception is raised during insertion annotation, the exception will be
+        recorded in the segment's exception log but will not be raised.
 
-    Output is a list of insertion annotations, or None if there were no codon-length
-    insertions.
+    Parameters
+    ----------
+    antibody : Antibody
+        The Antibody object being annotated.
+
+    segment : Germline
+        The Germline object to be annotated.
+
+    Returns
+    -------
+    list[Insertion]
+        A list of ``Insertion`` objects (one for each insertion), or ``None`` if there were
+        no annotated insertions.
+
     """
     try:
         insertions = []
@@ -173,36 +289,54 @@ def find_insertions(antibody, segment):
         for i in re.finditer("-+", segment.germline_alignment):
             s = i.start() - o
             e = i.end() - o
-            l = e - s
+            ins_len = e - s
             ins_sequence = segment.query_alignment[s:e]
-            if l % 3 == 0 or l > 3:
+            if ins_len % 3 == 0 or ins_len > 3:
                 insertions.append(
-                    _annotate_insertion(
-                        segment, s + segment.query_start, l, ins_sequence
-                    )
+                    _annotate_insertion(s + segment.query_start, ins_len, ins_sequence)
                 )
             else:
                 insertions.append(
                     _annotate_insertion(
-                        segment, s + segment.query_start, l, ins_sequence, fixed=True
+                        s + segment.query_start,
+                        ins_len,
+                        ins_sequence,
+                        fixed=True,
                     )
                 )
                 _fix_frameshift_insertion(antibody, segment, s, e)
-                o += l
+                o += ins_len
         return insertions
-    except:
-        segment.exception("FIND INSERTIONS ERROR", traceback.format_exc(), sep="\n")
+    except Exception:
+        segment.exception("FIND INSERTIONS ERROR", traceback.format_exc())
 
 
-def _annotate_insertion(segment, start, length, sequence, fixed=False):
+def _annotate_insertion(
+    start: int, length: int, sequence: str, fixed: bool = False
+) -> Insertion:
     """
     Annotates codon-length (non-frameshift) insertions.
 
-    Input is a BlastResult object, the starting postion of the insertion (s) and the
-    ending position of the insertion (e).
+    Parameters
+    ----------
+    start : int
+        The starting postion of the insertion.
 
-    Output is a dict containing insertion start position, the insertion length, and
-    the inserted sequence.
+    length : int
+        The length of the insertion.
+
+    sequence : str
+        The inserted sequence.
+
+    fixed : bool
+        Whether the insertion was fixed (reverted to germline).
+
+    Returns
+    -------
+    Insertion
+        An ``Insertion`` object containing the insertion start position, the insertion length,
+        and the inserted sequence.
+
     """
     in_frame = "yes" if length % 3 == 0 else "no"
     return Insertion(
@@ -216,12 +350,36 @@ def _annotate_insertion(segment, start, length, sequence, fixed=False):
     )
 
 
-def _fix_frameshift_insertion(antibody, segment, s, e):
+def _fix_frameshift_insertion(
+    antibody: "Antibody", segment: "Germline", s: int, e: int
+) -> None:
     """
     Fixes (removes) frameshift insertions.
 
-    Input is a Germline object (segment), the starting postion of the insertion (s) and the
-    ending position of the insertion (e).
+    Insertion fixing entails several steps:
+        1. Remove the frameshift indel from the alignment (query, germline, and midline).
+        2. Remove the frameshift indel from the oriented input.
+        3. Adjust the alignment end position to account for the removed indel.
+
+    Parameters
+    ----------
+    antibody : Antibody
+        The Antibody object being annotated.
+
+    segment : Germline
+        The Germline object to be annotated.
+
+    s : int
+        The starting postion of the insertion.
+
+    e : int
+        The ending position of the insertion.
+
+    Returns
+    -------
+    None
+        The input ``Germline`` and ``Antibody`` objects are modified in place.
+
     """
     # remove the frameshift indel from the alignment
     segment.query_alignment = segment.query_alignment[:s] + segment.query_alignment[e:]
@@ -246,15 +404,31 @@ def _fix_frameshift_insertion(antibody, segment, s, e):
 # ------------
 
 
-def find_deletions(antibody, segment):
+def find_deletions(
+    antibody: "Antibody", segment: "Germline"
+) -> Optional[Iterable[Deletion]]:
     """
-    Identifies and annotates/fixes deletions. Frameshift deletions (those with a length
-    not evenly divisible by 3) will be removed. Codon-length deletions will be annotated.
+    Identifies and annotates/fixes deletions. Deletions shorter than a full codon will be
+    reverted to germline. All others will be annotated.
 
-    Input is a BlastResult object.
+    .. note::
+        If an Exception is raised during deletion annotation, the exception will be
+        recorded in the segment's exception log but will not be raised.
 
-    Output is a list of deletion annotations, or None if there were no codon-length
-    deletions.
+    Parameters
+    ----------
+    antibody : Antibody
+        The Antibody object being annotated.
+
+    segment : Germline
+        The Germline object to be annotated.
+
+    Returns
+    -------
+    list[Deletion]
+        A list of ``Deletion`` objects (one for each deletion), or ``None`` if there were
+        no annotated deletions.
+
     """
     try:
         deletions = []
@@ -262,36 +436,52 @@ def find_deletions(antibody, segment):
         for i in re.finditer("-+", segment.query_alignment):
             s = i.start() - o
             e = i.end() - o
-            l = e - s
+            del_len = e - s
             del_sequence = segment.germline_alignment[s:e]
-            if l % 3 == 0 or l > 3:
+            if del_len % 3 == 0 or del_len > 3:
                 deletions.append(
-                    _annotate_deletion(
-                        segment, s + segment.query_start, l, del_sequence
-                    )
+                    _annotate_deletion(s + segment.query_start, del_len, del_sequence)
                 )
             else:
                 deletions.append(
                     _annotate_deletion(
-                        segment, s + segment.query_start, l, del_sequence, fixed=True
+                        s + segment.query_start,
+                        del_len,
+                        del_sequence,
+                        fixed=True,
                     )
                 )
                 _fix_frameshift_deletion(antibody, segment, s, e)
-                o += l
+                o += del_len
         return deletions if deletions else []
-    except:
-        segment.exception("FIND DELETIONS ERROR", traceback.format_exc(), sep="\n")
+    except Exception:
+        segment.exception("FIND DELETIONS ERROR", traceback.format_exc())
 
 
-def _annotate_deletion(segment, start, length, sequence, fixed=False):
+def _annotate_deletion(start, length, sequence, fixed=False):
     """
     Annotates codon-length (non-frameshift) deletions.
 
-    Input is a BlastResult object, the starting postion of the deletion (s) and the
-    ending position of the deletion (e).
+    Parameters
+    ----------
+    start : int
+        The starting postion of the deletion.
 
-    Output is a dict containing deletion start position, the deletion length, and
-    the deleted sequence.
+    length : int
+        The length of the deletion.
+
+    sequence : str
+        The deleted sequence.
+
+    fixed : bool
+        Whether the deletion was fixed (reverted to germline).
+
+    Returns
+    -------
+    Deletion
+        A ``Deletion`` object containing the deletion start position, the deletion length,
+        and the deleted sequence.
+
     """
     in_frame = "yes" if length % 3 == 0 else "no"
     return Deletion(
@@ -305,14 +495,36 @@ def _annotate_deletion(segment, start, length, sequence, fixed=False):
     )
 
 
-def _fix_frameshift_deletion(antibody, segment, s, e):
+def _fix_frameshift_deletion(
+    antibody: "Antibody", segment: "Germline", s: int, e: int
+) -> None:
     """
     Fixes (removes) frameshift deletions.
 
-    Input is a BlastResult object, the starting postion of the deletion (s) and the
-    ending position of the deletion (e).
+    Deletion fixing entails several steps:
+        1. Remove the frameshift indel from the alignment (query, germline, and midline).
+        2. Remove the frameshift indel from the oriented input.
+        3. Adjust the alignment end position to account for the reverted indel.
 
-    Output is a modified BlastResult object.
+    Parameters
+    ----------
+    antibody : Antibody
+        The Antibody object being annotated.
+
+    segment : Germline
+        The Germline object to be annotated.
+
+    s : int
+        The starting postion of the deletion.
+
+    e : int
+        The ending position of the deletion.
+
+    Returns
+    -------
+    None
+        The input ``Germline`` and ``Antibody`` objects are modified in place.
+
     """
     # remove the frameshift indel from the alignment
     segment.query_alignment = (
@@ -334,4 +546,3 @@ def _fix_frameshift_deletion(antibody, segment, s, e):
 
     # adjust the alignment end position
     segment.query_end += e - s
-

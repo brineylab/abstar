@@ -27,21 +27,20 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import math
 import os
 import traceback
-from typing import Optional, Union, Iterable
+from typing import Iterable, Optional, Union
 
 import parasail
-
-from Bio import SeqIO
-from Bio.Seq import Seq
-
 from abutils.core.sequence import Sequence
 from abutils.utils.alignment import global_alignment, local_alignment
 from abutils.utils.codons import codon_lookup
 from abutils.utils.decorators import lazy_property
+from Bio import SeqIO
+from Bio.Seq import Seq
 
-# from .antibody import Antibody
 from ..utils import indels
 from ..utils.mixins import LoggingMixin
+
+# from .antibody import Antibody
 
 
 class GermlineSegment(LoggingMixin):
@@ -140,9 +139,9 @@ class GermlineSegment(LoggingMixin):
         if initialize_log:
             self.initialize_log()
 
-        # These properties are populated by AbStar.
+        # These properties are populated by abstar.
         # Assigners don't need to populate these (and they'll be overwritten
-        # by AbStar if an assigner does populate them).
+        # by abstar if an assigner does populate them).
         self.score = None
         self.realignment = None
         self.raw_query = None
@@ -173,29 +172,29 @@ class GermlineSegment(LoggingMixin):
         self.regions = None
 
     @property
-    def family(self):
+    def family(self) -> Optional[str]:
         if self._family is None:
             if "-" in self.full:
                 self._family = self.full.split("-")[0]
         return self._family
 
     @family.setter
-    def family(self, family):
+    def family(self, family: str):
         self._family = family
 
     @property
-    def gene(self):
+    def gene(self) -> Optional[str]:
         if self._gene is None:
             if "*" in self.full:
                 self._gene = self.full.split("*")[0]
         return self._gene
 
     @gene.setter
-    def gene(self, gene):
+    def gene(self, gene: str):
         self._gene = gene
 
     @property
-    def chain(self):
+    def chain(self) -> Optional[str]:
         if self._chain is None:
             c = {
                 "H": "heavy",
@@ -210,26 +209,26 @@ class GermlineSegment(LoggingMixin):
         return self._chain
 
     @property
-    def insertions(self):
+    def insertions(self) -> Optional[Iterable]:
         if self._insertions is None:
             return []
         return self._insertions
 
     @insertions.setter
-    def insertions(self, insertions):
+    def insertions(self, insertions: Iterable):
         self._insertions = insertions
 
     @property
-    def deletions(self):
+    def deletions(self) -> Optional[Iterable]:
         if self._deletions is None:
             return []
         return self._deletions
 
     @deletions.setter
-    def deletions(self, deletions):
+    def deletions(self, deletions: Iterable):
         self._deletions = deletions
 
-    def correct_imgt_nt_position_from_imgt(self, position):
+    def correct_imgt_nt_position_from_imgt(self, position: int) -> Optional[int]:
         if self._correct_imgt_nt_position_from_imgt is not None:
             p = self._correct_imgt_nt_position_from_imgt.get(position, None)
             if p is not None:
@@ -240,7 +239,7 @@ class GermlineSegment(LoggingMixin):
                 return p
         return None
 
-    def correct_imgt_aa_position_from_imgt(self, position):
+    def correct_imgt_aa_position_from_imgt(self, position: int) -> Optional[int]:
         if self._correct_imgt_aa_position_from_imgt is not None:
             p = self._correct_imgt_aa_position_from_imgt.get(position, None)
             if p is not None:
@@ -280,6 +279,11 @@ class GermlineSegment(LoggingMixin):
             Position in the input sequence at which the re-alignment should end. If not provided,
             the end of the input sequence is used.
 
+        Returns
+        -------
+        None
+            The realigned germline segment is stored in the ``realignment`` attribute of the
+            ``GermlineSegment`` object.
         """
         oriented_input = antibody.oriented_input
         germline_seq = self._get_germline_sequence_for_realignment(antibody)
@@ -317,7 +321,7 @@ class GermlineSegment(LoggingMixin):
             alignment = local_alignment(query, germline_seq, **aln_params)
             # fix for a fairly rare edge case where coincidental matching to 2-3 residues at the extreme
             # 3' end of K/L germline V genes can result in incorrect identification of the
-            # end of the V gene region (making the called V region far too long and, in some cases,
+            # end of the V gene region (making the called V region too long and, in some cases,
             # extending beyond the junction and into FR4). What we do here is drop the last 2 nucleotides
             # of the aligned germline and re-align to see whether that substantialy truncates the resulting
             # alignment (by at least 2 additional nucleotides). If so, we use the new alignment instead.
@@ -418,8 +422,7 @@ class GermlineSegment(LoggingMixin):
                         # get the truncated portion of the query sequence
                         # and append to the aligned query sequence
                         query_truncation = alignment.raw_query[
-                            alignment.query_end
-                            + 1 : alignment.query_end
+                            alignment.query_end + 1 : alignment.query_end
                             + target_truncation_length
                             + 1
                         ]
@@ -431,8 +434,7 @@ class GermlineSegment(LoggingMixin):
                         # get the truncated portion of the target (germline) sequence
                         # and append to the aligned target sequence
                         target_truncation = alignment.raw_target[
-                            alignment.target_end
-                            + 1 : alignment.target_end
+                            alignment.target_end + 1 : alignment.target_end
                             + target_truncation_length
                             + 1
                         ]
@@ -478,9 +480,7 @@ class GermlineSegment(LoggingMixin):
         )
         self.alignment_reading_frame = (
             (2 * (self.imgt_gapped_alignment.target_begin % 3)) % 3
-        ) + (
-            self.imgt_germline.coding_start - 1
-        )  # IMGT coding start is 1-based
+        ) + (self.imgt_germline.coding_start - 1)  # IMGT coding start is 1-based
         self.coding_region = self._get_coding_region()
         self.aa_sequence = self._get_aa_sequence()
         try:
@@ -571,19 +571,21 @@ class GermlineSegment(LoggingMixin):
             for s in SeqIO.parse(open(db_file), "fasta"):
                 if s.id == self.raw_assignment:
                     return str(s.seq)
-            # TODO: log that the germline gene wasn't found in the database file
+            antibody.log(f"GERMLINE SEQUENCE NOT FOUND: {self.raw_assignment}")
             return None
-        except:
-            # TODO: log that the germline database file couldn't be found
+        except Exception:
+            antibody.log(f"GERMLINE DB FILE NOT FOUND: {db_file}")
             return None
 
     def _imgt_numbering(self):
         aln_start = self.query_start
         aln_pos = 0
-        imgt_start = self.imgt_gapped_alignment.target_begin + 1
+        imgt_start = self.imgt_gapped_alignment.target_begin + 1  # 1-based
         imgt_pos = imgt_start
-        raw_position_from_imgt = {}
-        imgt_position_from_raw = {}
+        imgt2raw = {}
+        raw2imgt = {}
+        # raw_position_from_imgt = {}
+        # imgt_position_from_raw = {}
 
         # imgt_start_offset is for J-genes only. Since the first position of the gapped IMGT
         # V-gene is the first position of the antibody seqeunce, IMGT numbering of the
@@ -620,14 +622,14 @@ class GermlineSegment(LoggingMixin):
             # If the gapped IMGT germline is '.' (indicating a gap introduced by IMGT for numbering purposes),
             # we only need to increment the IMGT position and indicate the lack of sequence at the IMGT position.
             if gl == ".":
-                raw_position_from_imgt[imgt_pos + imgt_start_offset] = None
+                imgt2raw[imgt_pos + imgt_start_offset] = None
                 imgt_pos += 1
                 continue
 
             # If there's a gap in the query alignment (deletion in the query sequence)
             # there's no equivalent IMGT position in the query.
             if self.query_alignment[aln_pos] == "-":
-                raw_position_from_imgt[imgt_pos + imgt_start_offset] = None
+                imgt2raw[imgt_pos + imgt_start_offset] = None
                 aln_pos += 1
                 imgt_pos += 1
                 query_del_adjustment += 1
@@ -641,19 +643,17 @@ class GermlineSegment(LoggingMixin):
             if self.germline_alignment[aln_pos] == "-":
                 self.log("INFO: Found an insertion in the query sequence!")
                 while self.germline_alignment[aln_pos] == "-":
-                    imgt_position_from_raw[
-                        aln_pos + self.query_start - query_del_adjustment
-                    ] = None
+                    raw2imgt[aln_pos + self.query_start - query_del_adjustment] = None
                     self.imgt_nt_positions.append(None)
                     aln_pos += 1
 
             # if the gapped IMGT germline isn't '.' and there's not an insertion in the query
             # sequence (or we've already iterated past it), we record both the IMGT position
             # and the raw (oriented_input) position and increment both the aligned and IMGt positions.
-            raw_position_from_imgt[imgt_pos + imgt_start_offset] = (
+            imgt2raw[imgt_pos + imgt_start_offset] = (
                 aln_pos + aln_start - query_del_adjustment
             )
-            imgt_position_from_raw[aln_pos + aln_start - query_del_adjustment] = (
+            raw2imgt[aln_pos + aln_start - query_del_adjustment] = (
                 imgt_pos + imgt_start_offset
             )
             self.imgt_nt_positions.append(imgt_pos + imgt_start_offset)
@@ -661,8 +661,8 @@ class GermlineSegment(LoggingMixin):
             imgt_pos += 1
             if aln_pos >= len(self.germline_alignment):
                 break
-        self._raw_position_from_imgt = raw_position_from_imgt
-        self._imgt_position_from_raw = imgt_position_from_raw
+        self._raw_position_from_imgt = imgt2raw
+        self._imgt_position_from_raw = raw2imgt
         if self.insertions or self.deletions:
             self._calculate_imgt_indel_positions()
 

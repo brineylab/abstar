@@ -22,20 +22,77 @@
 #
 
 
-def make_cigar(germline_segment):
+def make_cigar(
+    query_start: int,
+    germline_start: int,
+    aligned_query: str,
+    aligned_germline: str,
+) -> str:
+    """
+    Makes a CIGAR string from a realigned germline segment.
+
+    Parameters
+    ----------
+    query_start : int
+        The position in the query sequence where the alignment starts.
+
+    germline_start : int
+        The position in the germline sequence where the alignment starts.
+
+    aligned_query : str
+        The realigned query sequence.
+
+    aligned_germline : str
+        The realigned germline sequence.
+
+    Returns
+    -------
+    str
+        The CIGAR string for the realigned germline segment.
+
+    """
     cigar = ""
-    if germline_segment.query_start > 0:
-        cigar += "{}S".format(germline_segment.query_start)
-    if germline_segment.germline_start > 0:
-        cigar += "{}N".format(germline_segment.germline_start)
+    if query_start > 0:
+        cigar += "{}S".format(query_start)
+    if germline_start > 0:
+        cigar += "{}N".format(germline_start)
     cigar += make_alignment_cigar(
-        germline_segment.realignment.aligned_query,
-        germline_segment.realignment.aligned_target,
+        aligned_query,
+        aligned_germline,
     )
     return cigar
 
 
-def get_cigar_code(q, t):
+# def make_cigar(germline_segment):
+#     cigar = ""
+#     if germline_segment.query_start > 0:
+#         cigar += "{}S".format(germline_segment.query_start)
+#     if germline_segment.germline_start > 0:
+#         cigar += "{}N".format(germline_segment.germline_start)
+#     cigar += make_alignment_cigar(
+#         germline_segment.realignment.aligned_query,
+#         germline_segment.realignment.aligned_target,
+#     )
+#     return cigar
+
+
+def get_cigar_code(q: str, t: str) -> str:
+    """
+    Returns the CIGAR code for a given pair of query and target residues.
+
+    Parameters
+    ----------
+    q : str
+        The query residue.
+
+    t : str
+        The target residue.
+
+    Returns
+    -------
+    str
+        The CIGAR code for the given pair of residues.
+    """
     if q == "-":
         return "D"
     if t == "-":
@@ -43,7 +100,32 @@ def get_cigar_code(q, t):
     return "M"
 
 
-def make_alignment_cigar(query, target):
+# def get_cigar_code(q, t):
+#     if q == "-":
+#         return "D"
+#     if t == "-":
+#         return "I"
+#     return "M"
+
+
+def make_alignment_cigar(query: str, target: str) -> str:
+    """
+    Makes a CIGAR string from a pair of aligned sequences.
+
+    Parameters
+    ----------
+    query : str
+        The query sequence.
+
+    target : str
+        The target sequence.
+
+    Returns
+    -------
+    str
+        The CIGAR string for the aligned sequences.
+
+    """
     prev = get_cigar_code(query[0], target[0])
     count = 1
     cigar = ""
@@ -60,3 +142,22 @@ def make_alignment_cigar(query, target):
             count = 0
     cigar += "{}{}".format(count + 1, prev)
     return cigar
+
+
+# def make_alignment_cigar(query, target):
+#     prev = get_cigar_code(query[0], target[0])
+#     count = 1
+#     cigar = ""
+#     for q, t in zip(query[1:], target[1:]):
+#         curr = get_cigar_code(q, t)
+#         if prev is None:
+#             prev = curr
+#         elif curr == prev:
+#             count += 1
+#         else:
+#             count += 1
+#             cigar += "{}{}".format(count, prev)
+#             prev = curr
+#             count = 0
+#     cigar += "{}{}".format(count + 1, prev)
+#     return cigar

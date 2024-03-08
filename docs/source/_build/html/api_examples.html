@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>API Examples &mdash; abstar 0.3.4 documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js?v=3c521a7a"></script>
+        <script src="_static/doctools.js?v=888ff710"></script>
+        <script src="_static/sphinx_highlight.js?v=4825356b"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="API Reference" href="api.html" />
+    <link rel="prev" title="Commandline Use" href="cli.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            abstar
+          </a>
+              <div class="version">
+                0.3.4
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">getting started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="overview.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Install</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">usage</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="cli.html">Commandline Use</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">API Examples</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#case-1">Case #1</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#case-2">Case #2</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#case-3">Case #3</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="api.html">API Reference</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">about</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="license.html">License</a></li>
+<li class="toctree-l1"><a class="reference internal" href="news.html">News</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">related projects</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/briney/abutils">abutils</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/briney/abcloud">abcloud</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/briney/clonify-python">clonify</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">abstar</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">API Examples</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/api_examples.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="api-examples">
+<span id="apiexamples"></span><h1>API Examples<a class="headerlink" href="#api-examples" title="Permalink to this heading">¶</a></h1>
+<p class="linemarker linemarker-6">abstar and <a class="reference external" href="https://github.com/briney/abutils">abutils</a> both expose a public API containing many of the core functions.
+This makes it reasonably straightforward to build custom pipelines that include
+several abstar/abutils components or integrate these tools with third-party tools.
+A few simple examples are shown below.</p>
+<section id="case-1">
+<h2>Case #1<a class="headerlink" href="#case-1" title="Permalink to this heading">¶</a></h2>
+<p class="linemarker linemarker-13">Sequencing data consists of an Illumina MiSeq run on human samples, with the raw data
+stored in BaseSpace (project ID: 123456789). Samples are indexed, so each sample will
+be downloaded from BaseSpace as a separate pair of read files. We’d like to do several things:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p class="linemarker linemarker-17">get a FASTQC report on the raw data</p></li>
+<li><p class="linemarker linemarker-18">remove adapters</p></li>
+<li><p class="linemarker linemarker-19">quality trim</p></li>
+<li><p class="linemarker linemarker-20">get another FASTQC report on the cleaned data</p></li>
+<li><p class="linemarker linemarker-21">merge paired reads</p></li>
+<li><p class="linemarker linemarker-22">annotate with abstar</p></li>
+</ul>
+</div></blockquote>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">os</span>
+
+<span class="kn">import</span> <span class="nn">abstar</span>
+<span class="kn">from</span> <span class="nn">abstar.utils</span> <span class="kn">import</span> <span class="n">basespace</span><span class="p">,</span> <span class="n">pandaseq</span>
+
+<span class="n">PROJECT_DIR</span> <span class="o">=</span> <span class="s1">&#39;/path/to/project&#39;</span>
+<span class="n">PROJECT_ID</span> <span class="o">=</span> <span class="s1">&#39;123456789&#39;</span>
+
+<span class="c1"># download data from BaseSpace</span>
+<span class="n">bs_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">PROJECT_DIR</span><span class="p">,</span> <span class="s1">&#39;raw_data&#39;</span><span class="p">)</span>
+<span class="n">basespace</span><span class="o">.</span><span class="n">download</span><span class="p">(</span><span class="n">bs_dir</span><span class="p">,</span> <span class="n">project_id</span><span class="o">=</span><span class="n">PROJECT_ID</span><span class="p">)</span>
+
+<span class="c1"># FASTQC on the raw data</span>
+<span class="n">fastqc1_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">PROJECT_DIR</span><span class="p">,</span> <span class="s1">&#39;fastqc-pre&#39;</span><span class="p">)</span>
+<span class="n">abstar</span><span class="o">.</span><span class="n">fastqc</span><span class="p">(</span><span class="n">bs_dir</span><span class="p">,</span> <span class="n">output</span><span class="o">=</span><span class="n">fastqc1_dir</span><span class="p">)</span>
+
+<span class="c1"># adapter trimming</span>
+<span class="n">adapter_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">PROJECT_DIR</span><span class="p">,</span> <span class="s1">&#39;adapter_trimed&#39;</span><span class="p">)</span>
+<span class="n">adapters</span> <span class="o">=</span> <span class="s1">&#39;/path/to/adapters.fasta&#39;</span>
+<span class="n">abstar</span><span class="o">.</span><span class="n">adapter_trim</span><span class="p">(</span><span class="n">bs_dir</span><span class="p">,</span> <span class="n">output</span><span class="o">=</span><span class="n">adapter_dir</span><span class="p">,</span> <span class="n">adapter_both</span><span class="o">=</span><span class="n">adapters</span><span class="p">)</span>
+
+<span class="c1"># quality trimming</span>
+<span class="n">quality_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">PROJECT_DIR</span><span class="p">,</span> <span class="s1">&#39;quality_trimed&#39;</span><span class="p">)</span>
+<span class="n">abstar</span><span class="o">.</span><span class="n">quality_trim</span><span class="p">(</span><span class="n">adapter_dir</span><span class="p">,</span> <span class="n">output</span><span class="o">=</span><span class="n">quality_dir</span><span class="p">)</span>
+
+<span class="c1"># FASTQC on the cleaned data</span>
+<span class="n">fastqc2_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">PROJECT_DIR</span><span class="p">,</span> <span class="s1">&#39;fastqc-post&#39;</span><span class="p">)</span>
+<span class="n">abstar</span><span class="o">.</span><span class="n">fastqc</span><span class="p">(</span><span class="n">quality_dir</span><span class="p">,</span> <span class="n">output</span><span class="o">=</span><span class="n">fastqc2_dir</span><span class="p">)</span>
+
+<span class="c1"># read merging</span>
+<span class="n">merged_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">PROJECT_DIR</span><span class="p">,</span> <span class="s1">&#39;merged&#39;</span><span class="p">)</span>
+<span class="n">pandaseq</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">quality_dir</span><span class="p">,</span> <span class="n">merged_dir</span><span class="p">)</span>
+
+<span class="c1"># run abstar</span>
+<span class="n">temp_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">PROJECT_DIR</span><span class="p">,</span> <span class="s1">&#39;temp&#39;</span><span class="p">)</span>
+<span class="n">json_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">PROJECT_DIR</span><span class="p">,</span> <span class="s1">&#39;json&#39;</span><span class="p">)</span>
+<span class="n">abstar</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="nb">input</span><span class="o">=</span><span class="n">merged_dir</span><span class="p">,</span>
+           <span class="n">temp</span><span class="o">=</span><span class="n">temp_dir</span><span class="p">,</span>
+           <span class="n">output</span><span class="o">=</span><span class="n">json_dir</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="case-2">
+<h2>Case #2<a class="headerlink" href="#case-2" title="Permalink to this heading">¶</a></h2>
+<p class="linemarker linemarker-70">Sequencing data is a directory of single-read FASTQ files that have already been quality/adapter trimmed.
+We’d like to do the following:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p class="linemarker linemarker-73">get a FASTQC report</p></li>
+<li><p class="linemarker linemarker-74">annotate with abstar</p></li>
+<li><p class="linemarker linemarker-75">import the JSONs into a MongoDB database named <code class="docutils literal notranslate"><span class="pre">MyDatabase</span></code></p></li>
+</ul>
+</div></blockquote>
+<p class="linemarker linemarker-77">Our FASTQ file names are formatted as: <code class="docutils literal notranslate"><span class="pre">SampleNumber-SampleName.fastq</span></code>, which means the abstar output
+file name would be <code class="docutils literal notranslate"><span class="pre">SampleNumber-SampleName.json</span></code>. We’d like the corresponding MongoDB collection
+to just be named <code class="docutils literal notranslate"><span class="pre">SampleName</span></code>.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">os</span>
+
+<span class="kn">import</span> <span class="nn">abstar</span>
+<span class="kn">from</span> <span class="nn">abstar.utils</span> <span class="kn">import</span> <span class="n">mongoimport</span>
+
+<span class="n">PROJECT_DIR</span> <span class="o">=</span> <span class="s1">&#39;/path/to/project&#39;</span>
+<span class="n">FASTQ_DIR</span> <span class="o">=</span> <span class="s1">&#39;/path/to/fastqs&#39;</span>
+
+<span class="n">MONGO_IP</span> <span class="o">=</span> <span class="s1">&#39;123.45.67.89&#39;</span>
+<span class="n">MONGO_PORT</span> <span class="o">=</span> <span class="mi">27017</span>
+<span class="n">MONGO_USER</span> <span class="o">=</span> <span class="s1">&#39;MyUsername&#39;</span>
+<span class="n">MONGO_PASS</span> <span class="o">=</span> <span class="s1">&#39;Secr3t&#39;</span>
+
+<span class="c1"># FASTQC on the input data</span>
+<span class="n">fastqc_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">PROJECT_DIR</span><span class="p">,</span> <span class="s1">&#39;fastqc&#39;</span><span class="p">)</span>
+<span class="n">abstar</span><span class="o">.</span><span class="n">fastqc</span><span class="p">(</span><span class="n">FASTQ_DIR</span><span class="p">,</span> <span class="n">output</span><span class="o">=</span><span class="n">fastqc_dir</span><span class="p">)</span>
+
+<span class="c1"># run abstar</span>
+<span class="n">temp_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">PROJECT_DIR</span><span class="p">,</span> <span class="s1">&#39;temp&#39;</span><span class="p">)</span>
+<span class="n">json_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">PROJECT_DIR</span><span class="p">,</span> <span class="s1">&#39;json&#39;</span><span class="p">)</span>
+<span class="n">abstar</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="nb">input</span><span class="o">=</span><span class="n">FASTQ_DIR</span><span class="p">,</span>
+           <span class="n">temp</span><span class="o">=</span><span class="n">temp_dir</span><span class="p">,</span>
+           <span class="n">output</span><span class="o">=</span><span class="n">json_dir</span><span class="p">)</span>
+
+<span class="c1"># import into MongoDB</span>
+<span class="n">mongoimport</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">ip</span><span class="o">=</span><span class="n">MONGO_IP</span><span class="p">,</span>
+                <span class="n">port</span><span class="o">=</span><span class="n">MONGO_PORT</span>
+                <span class="n">user</span><span class="o">=</span><span class="n">MONGO_USER</span><span class="p">,</span>
+                <span class="n">password</span><span class="o">=</span><span class="n">MONGO_PASS</span><span class="p">,</span>
+                <span class="nb">input</span><span class="o">=</span><span class="n">json_dir</span><span class="p">,</span>
+                <span class="n">db</span><span class="o">=</span><span class="s1">&#39;MyDatabase&#39;</span>
+                <span class="n">delim1</span><span class="o">=</span><span class="s1">&#39;-&#39;</span><span class="p">,</span>
+                <span class="n">delim2</span><span class="o">=</span><span class="s1">&#39;.&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="case-3">
+<h2>Case #3<a class="headerlink" href="#case-3" title="Permalink to this heading">¶</a></h2>
+<p class="linemarker linemarker-120">Now we’d like to use abstar as part of an analysis script in which sequence annotation
+isn’t the primary output. In the previous
+examples, we started with raw(ish) sequence data and ended with either a directory of
+JSON files or a MongoDB database populated with abstar output. In this case, we’re
+going to start with a MongoDB database, query that database for some sequences, and
+generate the unmutated common ancestor (UCA). We’d like to annotate the UCA sequence
+inline (as part of the script) so that we can do world-changing things with the
+annotated UCA later in our script. For simplicity’s sake, we’re querying a local MongoDB
+database that doesn’t have authentication enabled, although <code class="docutils literal notranslate"><span class="pre">abutils.utils.mongodb</span></code> can
+work with remote MongoDB servers that require authentication.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">abstar</span>
+
+<span class="kn">from</span> <span class="nn">abutils.utils</span> <span class="kn">import</span> <span class="n">mongodb</span>
+<span class="kn">from</span> <span class="nn">abutils.utils.sequence</span> <span class="kn">import</span> <span class="n">Sequence</span>
+
+<span class="n">DB_NAME</span> <span class="o">=</span> <span class="s1">&#39;MyDatabase&#39;</span>
+<span class="n">COLLECTION_NAME</span> <span class="o">=</span> <span class="s1">&#39;MyCollection&#39;</span>
+
+<span class="k">def</span> <span class="nf">get_sequences</span><span class="p">(</span><span class="n">db_name</span><span class="p">,</span> <span class="n">collection_name</span><span class="p">):</span>
+    <span class="n">db</span> <span class="o">=</span> <span class="n">mongodb</span><span class="o">.</span><span class="n">get_db</span><span class="p">(</span><span class="n">db_name</span><span class="p">)</span>
+    <span class="n">c</span> <span class="o">=</span> <span class="n">db</span><span class="p">[</span><span class="n">collection</span><span class="p">]</span>
+    <span class="n">seqs</span> <span class="o">=</span> <span class="n">c</span><span class="o">.</span><span class="n">find</span><span class="p">({</span><span class="s1">&#39;chain&#39;</span><span class="p">:</span> <span class="s1">&#39;heavy&#39;</span><span class="p">})</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">Sequence</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">seqs</span><span class="p">]</span>
+
+<span class="k">def</span> <span class="nf">calculate_uca</span><span class="p">(</span><span class="n">sequences</span><span class="p">):</span>
+    <span class="c1">#</span>
+    <span class="c1"># code to calculate the UCA sequence, as a string</span>
+    <span class="c1">#</span>
+    <span class="k">return</span> <span class="n">uca</span>
+
+<span class="c1"># get sequences, calculate the UCA</span>
+<span class="n">sequences</span> <span class="o">=</span> <span class="n">get_sequences</span><span class="p">(</span><span class="n">DB_NAME</span><span class="p">,</span> <span class="n">COLLECTION_NAME</span><span class="p">)</span>
+<span class="n">uca_seq</span> <span class="o">=</span> <span class="n">calculate_uca</span><span class="p">(</span><span class="n">sequences</span><span class="p">)</span>
+
+<span class="c1"># run abstar on the UCA, returns an abutils Sequence object</span>
+<span class="n">uca</span> <span class="o">=</span> <span class="n">abstar</span><span class="o">.</span><span class="n">run</span><span class="p">([</span><span class="s1">&#39;UCA&#39;</span><span class="p">,</span> <span class="n">uca_seq</span><span class="p">])</span>
+
+<span class="c1"># do amazing, world-changing things with the UCA</span>
+<span class="c1"># ...</span>
+<span class="c1"># ...</span>
+<span class="c1"># ...</span>
+</pre></div>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="cli.html" class="btn btn-neutral float-left" title="Commandline Use" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="api.html" class="btn btn-neutral float-right" title="API Reference" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2018, Bryan Briney.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

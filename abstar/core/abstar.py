@@ -22,42 +22,35 @@
 #
 
 
-from __future__ import absolute_import, division, print_function, unicode_literals
+# from __future__ import absolute_import, division, print_function, unicode_literals
 
-import warnings
-
-warnings.simplefilter(action="ignore", category=FutureWarning)
-
-from argparse import ArgumentParser
+# warnings.simplefilter(action="ignore", category=FutureWarning)
 import csv
-from glob import glob
 import gzip
 import json
 import logging
-from multiprocessing import Pool, cpu_count
 import os
-import pkg_resources
 import re
-from subprocess import Popen, PIPE
+import shutil
 import sys
 import tempfile
 import time
 import traceback
-from typing import Iterable, Optional
 import warnings
-import shutil
-
-from Bio import SeqIO
+from argparse import ArgumentParser
+from glob import glob
+from multiprocessing import Pool, cpu_count
+from subprocess import PIPE, Popen
+from typing import Iterable, Optional
 
 import dask.dataframe as dd
-
-from abutils.core.sequence import Sequence, read_json, read_csv
+import pkg_resources
+from abutils.core.sequence import Sequence, read_csv, read_json
 from abutils.utils import log
+from Bio import SeqIO
+
 from abstar.utils.parquet_schema import schema
 
-# from abutils.utils.pipeline import list_files
-
-from .antibody import Antibody
 from ..assigners.assigner import BaseAssigner
 from ..assigners.registry import ASSIGNERS
 
@@ -65,27 +58,29 @@ from ..assigners.registry import ASSIGNERS
 from ..utils.output import (
     get_abstar_result,
     get_abstar_results,
-    get_output,
-    write_output,
     get_header,
-    get_output_suffix,
+    get_output,
     get_output_separator,
+    get_output_suffix,
     get_parquet_dtypes,
+    write_output,
 )
 
 # from ..utils.output import PARQUET_INCOMPATIBLE
 from ..utils.queue.celery import celery
-
-
-if sys.version_info[0] > 2:
-    STR_TYPES = [
-        str,
-    ]
-else:
-    STR_TYPES = [str, unicode]
-
-
 from ..version import __version__
+
+# from abutils.utils.pipeline import list_files
+from .antibody import Antibody
+
+STR_TYPES = [str]
+# if sys.version_info[0] > 2:
+#     STR_TYPES = [
+#         str,
+#     ]
+# else:
+#     STR_TYPES = [str, unicode]
+
 
 # __version__ = pkg_resources.require("abstar")[0].version
 
@@ -110,11 +105,11 @@ def create_parser() -> ArgumentParser:
         dest="project_dir",
         default=None,
         help="The data directory, where files will be downloaded (or have previously \
-                        been download), temp files will be stored, and output files will be \
-                        written. During StarCluster configuration, all ephemeral drives on the master \
-                        node will be combined into a single RAID volume and mounted at the data directory. \
-                        Not necessary if '-o', '-t' and '-i' are provided. \
-                        Default is '/data'.",
+            been download), temp files will be stored, and output files will be \
+            written. During StarCluster configuration, all ephemeral drives on the master \
+            node will be combined into a single RAID volume and mounted at the data directory. \
+            Not necessary if '-o', '-t' and '-i' are provided. \
+            Default is '/data'.",
     )
     parser.add_argument(
         "-i",
@@ -122,8 +117,8 @@ def create_parser() -> ArgumentParser:
         dest="input",
         default=None,
         help="The input file or directory, to be split and processed in parallel. \
-                        If a directory is given, all files in the directory will be iteratively processed. \
-                        Required, unless <project> is provided.",
+            If a directory is given, all files in the directory will be iteratively processed. \
+            Required, unless <project> is provided.",
     )
     parser.add_argument(
         "-o",
@@ -131,8 +126,8 @@ def create_parser() -> ArgumentParser:
         dest="output",
         default=None,
         help="The output directory, into which the JSON-formatted output files will be deposited. \
-                        If the directory does not exist, it will be created. \
-                        Required, unless <project> is provided.",
+            If the directory does not exist, it will be created. \
+            Required, unless <project> is provided.",
     )
     parser.add_argument(
         "-l",
@@ -140,8 +135,8 @@ def create_parser() -> ArgumentParser:
         dest="log",
         default=None,
         help="The log directory, into which log files will be deposited. \
-                        Default is <project_directory>/log if <project> is supplied, otherwise \
-                        the parent directory of <output> will be used.",
+            Default is <project_directory>/log if <project> is supplied, otherwise \
+            the parent directory of <output> will be used.",
     )
     parser.add_argument(
         "-t",
@@ -149,7 +144,7 @@ def create_parser() -> ArgumentParser:
         dest="temp",
         default=None,
         help="The directory in which temp files will be stored. If the directory doesn't exist, \
-                        it will be created. Required, unless <project> is provided.",
+            it will be created. Required, unless <project> is provided.",
     )
     parser.add_argument(
         "--sequences",
@@ -163,9 +158,7 @@ def create_parser() -> ArgumentParser:
         dest="assigner",
         default="blastn",
         help="VDJ germline assignment method to use. \
-                        Options are: {}. Default is blastn".format(
-            ", ".join(ASSIGNERS.keys())
-        ),
+            Options are: {}. Default is blastn".format(", ".join(ASSIGNERS.keys())),
     )
     parser.add_argument(
         "-k",
@@ -174,9 +167,9 @@ def create_parser() -> ArgumentParser:
         default=500,
         type=int,
         help="Approximate number of sequences in each distributed job. \
-                        Defaults to 500. \
-                        Set to 0 if you want file splitting to be turned off \
-                        Don't change unless you know what you're doing.",
+            Defaults to 500. \
+            Set to 0 if you want file splitting to be turned off \
+            Don't change unless you know what you're doing.",
     )
     parser.add_argument(
         "-O",
@@ -185,12 +178,12 @@ def create_parser() -> ArgumentParser:
         action="append",
         choices=["json", "imgt", "tabular", "airr"],
         help="Select the output type. Options are 'json', 'imgt', 'csv' and 'airr'. \
-                        IMGT output mimics the Summary table produced by IMGT High-V/Quest, \
-                        to maintain some level of compatibility with existing IMGT-based pipelines. \
-                        JSON output is much more detailed, and is suitable for direct import into MongoDB. \
-                        Tabular output contains a subset of the JSON output format in CSV format. \
-                        AIRR output is tab-delimited and conforms to AIRR data standards. \
-                        Defaults to JSON output.",
+            IMGT output mimics the Summary table produced by IMGT High-V/Quest, \
+            to maintain some level of compatibility with existing IMGT-based pipelines. \
+            JSON output is much more detailed, and is suitable for direct import into MongoDB. \
+            Tabular output contains a subset of the JSON output format in CSV format. \
+            AIRR output is tab-delimited and conforms to AIRR data standards. \
+            Defaults to AIRR output.",
     )
     parser.add_argument(
         "--parquet",
@@ -198,7 +191,7 @@ def create_parser() -> ArgumentParser:
         action="store_true",
         default=False,
         help="For tabular output formats, create parquet formatted output in addition to \
-                        the tabular delimited output. Default is False.",
+            the tabular delimited output. Default is False.",
     )
     parser.add_argument(
         "-m",
@@ -207,9 +200,9 @@ def create_parser() -> ArgumentParser:
         action="store_true",
         default=False,
         help="Use if the input files are paired-end FASTQs \
-                        (either gzip compressed or uncompressed) from Illumina platforms. \
-                        Prior to running the germline assignment pipeline, \
-                        paired reads will be merged with PANDAseq.",
+            (either gzip compressed or uncompressed) from Illumina platforms. \
+            Prior to running the germline assignment pipeline, \
+            paired reads will be merged with PANDAseq.",
     )
     parser.add_argument(
         "-P",
@@ -226,8 +219,8 @@ def create_parser() -> ArgumentParser:
             "uparse",
         ],
         help="Define merging algorithm to be used by PANDAseq.\
-                        Options are 'simple_bayesian', 'ea_util', 'flash', 'pear', 'rdp_mle', 'stitch', or 'uparse'.\
-                        Default is 'simple_bayesian', which is the default PANDAseq algorithm.",
+            Options are 'simple_bayesian', 'ea_util', 'flash', 'pear', 'rdp_mle', 'stitch', or 'uparse'.\
+            Default is 'simple_bayesian', which is the default PANDAseq algorithm.",
     )
     parser.add_argument(
         "-n",
@@ -244,7 +237,7 @@ def create_parser() -> ArgumentParser:
         type=int,
         default=0,
         help="Length of the unique identifier (UID, or molecular barcode) if used. \
-                        Default is unbarcoded (UID length of 0).",
+            Default is unbarcoded (UID length of 0).",
     )
     parser.add_argument(
         "-I",
@@ -253,7 +246,7 @@ def create_parser() -> ArgumentParser:
         action="store_false",
         default=True,
         help="If set, the isotype will not be determined for heavy chains.\
-                        If not set, isotyping sequences for the appropriate species will be used.",
+            If not set, isotyping sequences for the appropriate species will be used.",
     )
     parser.add_argument(
         "-b",
@@ -262,7 +255,7 @@ def create_parser() -> ArgumentParser:
         default=False,
         action="store_true",
         help="Use if files should be downloaded directly from BaseSpace. \
-                        Files will be downloaded into the input directory.",
+            Files will be downloaded into the input directory.",
     )
     parser.add_argument(
         "-c",
@@ -271,9 +264,9 @@ def create_parser() -> ArgumentParser:
         default=False,
         action="store_true",
         help="Use if performing computation on a Celery cluster. \
-                        If set, input files will be split into many subfiles and passed \
-                        to a Celery queue. If not set, input files will still be split, but \
-                        will be distributed to local processors using multiprocessing.",
+            If set, input files will be split into many subfiles and passed \
+            to a Celery queue. If not set, input files will still be split, but \
+            will be distributed to local processors using multiprocessing.",
     )
     parser.add_argument(
         "-N",
@@ -282,7 +275,7 @@ def create_parser() -> ArgumentParser:
         default=0,
         type=int,
         help="Number of cores used by abstar. Default is `0`, which uses \
-                        all available cores.",
+            all available cores.",
     )
     parser.add_argument(
         "-D",
@@ -291,9 +284,9 @@ def create_parser() -> ArgumentParser:
         action="store_true",
         default=False,
         help="If set, logs information about successfully assigned sequences as well \
-                        as unsuccessful sequences. Useful for debugging small test datasets, \
-                        as the logging is fairly detailed. \
-                        Default is to only log unsuccessful sequences.",
+            as unsuccessful sequences. Useful for debugging small test datasets, \
+            as the logging is fairly detailed. \
+            Default is to only log unsuccessful sequences.",
     )
     parser.add_argument(
         "-T",
@@ -301,20 +294,20 @@ def create_parser() -> ArgumentParser:
         dest="use_test_data",
         action="store_true",
         default=False,
-        help="If set, AbStar will run on a small sample of test data (1000 sequences). \
-                        These samples are of human origin, but AbStar doesn't force the use of the human \
-                        germline database. Of the 1000 sequences, only 999 contain an antibody rearrangement, \
-                        so one sequence should fail the germline assignment process. \
-                        Default is False. \
-                        Providing temp and output directories (or a project directory) is required.",
+        help="If set, abstar will run on a small sample of test data (1000 sequences). \
+            These samples are of human origin, but abstar doesn't force the use of the human \
+            germline database. Of the 1000 sequences, only 999 contain an antibody rearrangement, \
+            so one sequence should fail the germline assignment process. \
+            Default is False. \
+            Providing temp and output directories (or a project directory) is required.",
     )
     parser.add_argument(
         "--germ_db",
         dest="germ_db",
         default="human",
         help="Germline database to use. Built-in \
-                        options include 'human', 'mouse', 'macaaque' and 'humouse'. Custom databases can alsu \
-                        be built and used. Default is 'human'.",
+            options include 'human', 'mouse', 'macaaque' and 'humouse'. Custom databases can alsu \
+            be built and used. Default is 'human'.",
     )
     parser.add_argument(
         "-r",
@@ -342,11 +335,11 @@ def create_parser() -> ArgumentParser:
         dest="json_keys",
         default=None,
         help='If supplied, allows selection of a subset of the normal JSON output. \
-                        Should be provided as a list of JSON key names, separated by commas: \
-                        "--json-keys seq_id,v_gene,d_gene,j_gene,cdr3_aa". \
-                        Only top-level keys are supported (that is, cannot select a single nested element). \
-                        Note that if --add-padding is set, padding will be included whether or not the \
-                        padding key name is included in --json-keys.',
+            Should be provided as a list of JSON key names, separated by commas: \
+            "--json-keys seq_id,v_gene,d_gene,j_gene,cdr3_aa". \
+            Only top-level keys are supported (that is, cannot select a single nested element). \
+            Note that if --add-padding is set, padding will be included whether or not the \
+            padding key name is included in --json-keys.',
     )
     parser.add_argument(
         "--pretty",
@@ -367,7 +360,7 @@ def create_parser() -> ArgumentParser:
         default=False,
         action="store_true",
         help="If passed, will add padding to the json output file. \
-                        Really only useful if you're using an old version of MongoDB.",
+            Really only useful if you're using an old version of MongoDB.",
     )
     parser.add_argument(
         "--quiet",
@@ -390,7 +383,7 @@ class Args(object):
         sequences=None,
         chunksize=500,
         output_type=[
-            "json",
+            "airr",
         ],
         assigner="blastn",
         merge=False,
@@ -482,7 +475,7 @@ def validate_args(args):
     # set default output type if not provided
     if args.output_type is None:
         args.output_type = [
-            "json",
+            "airr",
         ]
     if isinstance(args.output_type, str):
         args.output_type = [
@@ -674,7 +667,11 @@ def list_files(d, log=False):
         fnames = [os.path.basename(f) for f in files]
         logger.info("")
         logger.info("FILE COUNT: {}".format(len(fnames)))
-        logger.info("FILES: {}".format(", ".join(fnames)))
+        if len(fnames) < 20:
+            logger.info("FILES: {}".format("\n  - ".join(fnames)))
+        else:
+            logger.info("FILES: {}".format("\n  - ".join(fnames[:20])))
+            logger.info("    ...\n    and {} more input files".format(len(fnames) - 20))
     return files
 
 
@@ -786,8 +783,8 @@ def concat_logs(input_file, logs, log_dir, log_type):
     lfile = os.path.join(log_dir, "{}.{}".format(lprefix, log_type))
     lhandle = open(lfile, "w")
     with lhandle as logfile:
-        for log in logs:
-            with open(log) as f:
+        for _log in logs:
+            with open(_log) as f:
                 for line in f:
                     logfile.write(line)
     return lfile
@@ -833,16 +830,20 @@ def format_check(input_list):
 
 
 def _get_format(in_file):
-    with open(in_file) as f:
+    fmt = None
+    if in_file.endswith(".gz"):
+        f = gzip.open(in_file, "rt")
+    else:
+        f = open(in_file, "r")
+    line = f.readline()
+    while line.strip() == "":
         line = f.readline()
-        while line.strip() == "":
-            line = f.readline()
-        if line.lstrip().startswith(">"):
-            return "fasta"
-        elif line.lstrip().startswith("@"):
-            return "fastq"
-        else:
-            return None
+    if line.lstrip().startswith(">"):
+        fmt = "fasta"
+    elif line.lstrip().startswith("@"):
+        fmt = "fastq"
+    f.close()
+    return fmt
 
 
 def split_file(f, fmt, temp_dir, args):
@@ -857,22 +858,26 @@ def split_file(f, fmt, temp_dir, args):
         out_prefix = os.path.basename(f)
     if args.chunksize != 0:
         try:
-            with open(f, "r") as f_handle:
-                for seq in SeqIO.parse(f_handle, fmt.lower()):
-                    sequences.append(seq.format(fmt.lower()))
-                    seq_counter += 1
-                    total_seq_counter += 1
-                    if seq_counter == args.chunksize:
-                        out_file = os.path.join(
-                            temp_dir, "{}_{}".format(out_prefix, file_counter)
-                        )
-                        ohandle = open(out_file, "w")
-                        ohandle.write("\n".join(sequences))
-                        ohandle.close()
-                        sequences = []
-                        seq_counter = 0
-                        file_counter += 1
-                        subfiles.append(out_file)
+            if f.endswith(".gz"):
+                f_handle = gzip.open(f, "rt")
+            else:
+                f_handle = open(f, "r")
+            for seq in SeqIO.parse(f_handle, fmt.lower()):
+                sequences.append(seq.format(fmt.lower()))
+                seq_counter += 1
+                total_seq_counter += 1
+                if seq_counter == args.chunksize:
+                    out_file = os.path.join(
+                        temp_dir, "{}_{}".format(out_prefix, file_counter)
+                    )
+                    ohandle = open(out_file, "w")
+                    ohandle.write("\n".join(sequences))
+                    ohandle.close()
+                    sequences = []
+                    seq_counter = 0
+                    file_counter += 1
+                    subfiles.append(out_file)
+            f_handle.close()
         except ValueError:
             print("")
             print("ERROR: invalid file.")
@@ -1012,7 +1017,7 @@ def run_abstar(seq_file, output_dir, log_dir, file_format, arg_dict):
                 for i, output_type in enumerate(args.output_type):
                     try:
                         output = get_output(result, output_type)
-                    except:
+                    except Exception:
                         ab.exception("OUTPUT CREATION ERROR", traceback.format_exc())
                     if output is not None:
                         outputs_dict[output_type].append(
@@ -1026,7 +1031,7 @@ def run_abstar(seq_file, output_dir, log_dir, file_format, arg_dict):
                     # only write failed log data once
                     elif i == 0:
                         failed_loghandle.write(ab.format_log())
-            except:
+            except Exception:
                 ab.exception("ANNOTATION ERROR", traceback.format_exc())
                 failed_loghandle.write(ab.format_log())
         # outputs = [outputs_dict[ot] for ot in sorted(args.output_type)]
@@ -1049,7 +1054,7 @@ def run_abstar(seq_file, output_dir, log_dir, file_format, arg_dict):
             failed_logfile,
             unassigned_logfile,
         )
-    except:
+    except Exception:
         logging.debug(traceback.format_exc())
 
         print(traceback.format_exc())
@@ -1096,7 +1101,7 @@ def _run_jobs_singlethreaded(files, output_dir, log_dir, file_format, args):
         try:
             results.append(run_abstar(f, output_dir, log_dir, file_format, vars(args)))
             update_progress(i + 1, len(files))
-        except:
+        except Exception:
             logger.debug("FILE-LEVEL EXCEPTION: {}".format(f))
             logging.debug(traceback.format_exc())
     logger.info("")
@@ -1122,7 +1127,7 @@ def _run_jobs_via_multiprocessing(files, output_dir, log_dir, file_format, args)
     for a in async_results:
         try:
             results.append(a[1].get())
-        except:
+        except Exception:
             logger.debug("FILE-LEVEL EXCEPTION: {}".format(a[0]))
             # if args.debug:
             #     traceback.print_exc()
@@ -1413,7 +1418,7 @@ def run(*args, **kwargs):
                 sequences = [
                     Sequence(args[0]),
                 ]
-        except:
+        except Exception:
             print("ERROR: invalid format for sequence input:")
             for a in args:
                 print(a)
@@ -1421,7 +1426,7 @@ def run(*args, **kwargs):
     elif len(args) > 1:
         try:
             sequences = [Sequence(s) for s in args]
-        except:
+        except Exception:
             print("ERROR: invalid format for sequence input:")
             for a in args:
                 print(a)

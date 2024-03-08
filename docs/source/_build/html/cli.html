@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Commandline Use &mdash; abstar 0.3.4 documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js?v=3c521a7a"></script>
+        <script src="_static/doctools.js?v=888ff710"></script>
+        <script src="_static/sphinx_highlight.js?v=4825356b"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="API Examples" href="api_examples.html" />
+    <link rel="prev" title="Install" href="installation.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            abstar
+          </a>
+              <div class="version">
+                0.3.4
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">getting started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="overview.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Install</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">usage</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Commandline Use</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api_examples.html">API Examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api.html">API Reference</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">about</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="license.html">License</a></li>
+<li class="toctree-l1"><a class="reference internal" href="news.html">News</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">related projects</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/briney/abutils">abutils</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/briney/abcloud">abcloud</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/briney/clonify-python">clonify</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">abstar</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Commandline Use</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/cli.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="commandline-use">
+<h1>Commandline Use<a class="headerlink" href="#commandline-use" title="Permalink to this heading">¶</a></h1>
+<p class="linemarker linemarker-4">Running abstar from the command line is reasonably simple, even for users with
+minimal experience with command-line applications. In the most
+basic case, with a single input file of human antibody sequences:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ abstar -i /path/to/mydata.fasta -t /path/to/temp/ -o /path/to/output/
+</pre></div>
+</div>
+<p class="linemarker linemarker-10">abstar will process all sequences contained in <code class="docutils literal notranslate"><span class="pre">mydata.fasta</span></code> and the
+results will be written to <code class="docutils literal notranslate"><span class="pre">/path/to/output/mydata.json</span></code>. If either (or both)
+of <code class="docutils literal notranslate"><span class="pre">/path/to/temp/</span></code> or <code class="docutils literal notranslate"><span class="pre">/path/to/output/</span></code> don’t exist, they will be created.</p>
+<p class="linemarker linemarker-14">If you have a directory of FASTA/Q-formatted files for abstar to process, you
+can pass a directory via <code class="docutils literal notranslate"><span class="pre">-i</span></code> and all files in the directory will be processed:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ abstar -i /path/to/input/ -t /path/to/temp/ -o /path/to/output/
+</pre></div>
+</div>
+<p class="linemarker linemarker-19">For input directories that contain paired FASTQ files that need to be merged
+prior to processing, passing the <code class="docutils literal notranslate"><span class="pre">-m</span></code> flag instructs abstar to merge
+paired files with PANDAseq:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ abstar -i /path/to/input/ -t /path/to/temp/ -o /path/to/output/ -m
+</pre></div>
+</div>
+<p class="linemarker linemarker-25">The merged reads will be deposited into a <code class="docutils literal notranslate"><span class="pre">merged</span></code> directory located in the parent directory
+of the input directory. By default, abstar will use PANDAseq’s <code class="docutils literal notranslate"><span class="pre">simple_bayesian</span></code>
+merging algorithm, although alternate merging algorithms can be selected with <code class="docutils literal notranslate"><span class="pre">--pandaseq-algo</span></code>.</p>
+<p class="linemarker linemarker-29">For data generated with Illumina sequencers, abstar can directly interface with
+BaseSpace to download raw sequencing data. In order for abstar to connect to BaseSpace,
+you need BaseSpace access token. The easiest way to do this is to set up a
+BaseSpace developer account following
+<a class="reference external" href="https://support.basespace.illumina.com/knowledgebase/articles/403618-python-run-downloader">these instructions</a>.
+Once you have your credentials, you can generate a BaseSpace credentials file by
+running:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ make_basespace_credfile
+</pre></div>
+</div>
+<p class="linemarker linemarker-39">and following the instructions.</p>
+<p class="linemarker linemarker-41">When downloading data from BaseSpace, you obviously
+don’t have an input directory of data for abstar to process (since that data hasn’t
+been downloaded yet). Instead of providing input, output and temp directories, you
+can just pass abstar a project directory using <code class="docutils literal notranslate"><span class="pre">-p</span></code> and abstar will create all of the
+necessary subdirectories within the project directory. Running abstar with the <code class="docutils literal notranslate"><span class="pre">-b</span></code>
+option indicates that input data should be downloaded from BaseSpace:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ abstar -p /path/to/project_dir/ -b
+</pre></div>
+</div>
+<p class="linemarker linemarker-50">A list of available BaseSpace projects will be displayed and you can select the
+appropriate project. If downloading data from BaseSpace, <code class="docutils literal notranslate"><span class="pre">-m</span></code> is assumed and
+paired-end reads will be merged.</p>
+<p class="linemarker linemarker-54">abstar uses a human germline database by default,
+but germline databases are also provided for macaque, mouse and rabbit. To process
+macaque antibody sequences (from BaseSpace):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ abstar -p /path/to/project_dir/ -b -s macaque
+</pre></div>
+</div>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="installation.html" class="btn btn-neutral float-left" title="Install" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="api_examples.html" class="btn btn-neutral float-right" title="API Examples" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2018, Bryan Briney.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

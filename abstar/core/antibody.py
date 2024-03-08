@@ -22,17 +22,18 @@
 #
 
 
-from __future__ import absolute_import, division, print_function, unicode_literals
+# from __future__ import absolute_import, division, print_function, unicode_literals
 
 import traceback
 
+# import abutils
+# from abutils.tl import global_alignment, local_alignment
 from Bio.Seq import Seq
 
-from abutils.utils.alignment import global_alignment, local_alignment
-
-from .germline import get_imgt_germlines
 from ..utils import isotype, junction, mutations, productivity, regions
 from ..utils.mixins import LoggingMixin
+
+# from .germline import get_imgt_germlines
 
 
 class Antibody(LoggingMixin):
@@ -113,7 +114,7 @@ class Antibody(LoggingMixin):
             self._mutations()
             self._isotype()
             self._productivity()
-        except:
+        except Exception:
             self.exception("ANNOTATION", traceback.format_exc())
 
     # ---------------------

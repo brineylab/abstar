@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Install &mdash; abstar 0.3.4 documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js?v=3c521a7a"></script>
+        <script src="_static/doctools.js?v=888ff710"></script>
+        <script src="_static/sphinx_highlight.js?v=4825356b"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Commandline Use" href="cli.html" />
+    <link rel="prev" title="Overview" href="overview.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            abstar
+          </a>
+              <div class="version">
+                0.3.4
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">getting started</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="overview.html">Overview</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Install</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#requirements">Requirements</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#optional-dependencies">Optional dependencies</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">usage</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="cli.html">Commandline Use</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api_examples.html">API Examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api.html">API Reference</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">about</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="license.html">License</a></li>
+<li class="toctree-l1"><a class="reference internal" href="news.html">News</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">related projects</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/briney/abutils">abutils</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/briney/abcloud">abcloud</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/briney/clonify-python">clonify</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">abstar</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Install</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/installation.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="install">
+<h1>Install<a class="headerlink" href="#install" title="Permalink to this heading">¶</a></h1>
+<p class="linemarker linemarker-4">The easiest way to install abstar locally (on OSX or Linux) is to use pip:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ pip install abstar
+</pre></div>
+</div>
+<p class="linemarker linemarker-8">If you don’t have pip, the <a class="reference external" href="https://www.continuum.io/downloads">Anaconda</a> Python distribution contains pip along
+with a ton of useful scientific Python packages and is a great way to get
+started with Python.</p>
+<p class="linemarker linemarker-12">abstar does not run natively on Windows, but Windows users can run abstar with <a class="reference external" href="https://www.docker.com/">Docker</a>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ docker pull briney/abstar
+$ docker run -it briney/abstar
+</pre></div>
+</div>
+<p class="linemarker linemarker-17"><a class="reference external" href="https://github.com/briney/abstar/releases">Stable</a> and <a class="reference external" href="https://github.com/briney/abstar">development</a> versions of abstar can also be downloaded from Github.
+You can manually install the latest development version of abstar with:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ git clone https://github.com/briney/abstar
+$ cd abstar/
+$ python setup.py install
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p class="linemarker linemarker-26">If installing manually via setup.py and you don’t already have scikit-bio installed,
+you may get an error when setuptools attempts to install scikit-bio. This can be fixed
+by first installing scikit-bio with pip:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ pip install scikit-bio
+</pre></div>
+</div>
+<p class="linemarker linemarker-32">and then retrying the manual install of abstar. Starting with version 0.5, scikit-bio
+dropped support for Python 2.7, so install scikit-bio on Python 2.7 with:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ pip install scikit-bio&lt;=0.4.2
+</pre></div>
+</div>
+</div>
+<section id="requirements">
+<h2>Requirements<a class="headerlink" href="#requirements" title="Permalink to this heading">¶</a></h2>
+<ul class="simple">
+<li><p class="linemarker linemarker-41">Python 2.7 or 3.5+</p></li>
+<li><p class="linemarker linemarker-42"><a class="reference external" href="https://github.com/briney/abutils">abutils</a></p></li>
+<li><p class="linemarker linemarker-43"><a class="reference external" href="http://biopython.org/">biopython</a></p></li>
+<li><p class="linemarker linemarker-44"><a class="reference external" href="http://www.celeryproject.org/">celery</a></p></li>
+<li><p class="linemarker linemarker-45"><a class="reference external" href="https://api.mongodb.org/python/current/">pymongo</a></p></li>
+<li><p class="linemarker linemarker-46"><a class="reference external" href="https://docs.pytest.org/en/latest/">pytest</a></p></li>
+<li><p class="linemarker linemarker-47"><a class="reference external" href="http://scikit-bio.org/">scikit bio</a></p></li>
+</ul>
+</section>
+<section id="optional-dependencies">
+<h2>Optional dependencies<a class="headerlink" href="#optional-dependencies" title="Permalink to this heading">¶</a></h2>
+<p class="linemarker linemarker-53">Several optional abstar components have additional dependencies:</p>
+<ul class="simple">
+<li><p class="linemarker linemarker-55"><code class="docutils literal notranslate"><span class="pre">abstar.preprocessing</span></code> requires <a class="reference external" href="http://www.bioinformatics.babraham.ac.uk/projects/fastqc/">FASTQC</a>, <a class="reference external" href="https://github.com/marcelm/cutadapt/">cutadapt</a> and <a class="reference external" href="https://github.com/najoshi/sickle">sickle</a></p></li>
+<li><p class="linemarker linemarker-56">sequence merging requires <a class="reference external" href="https://github.com/neufeld/pandaseq">PANDAseq</a></p></li>
+<li><p class="linemarker linemarker-57">downloading data from BaseSpace requires the <a class="reference external" href="https://github.com/basespace/basespace-python-sdk">BaseSpace Python SDK</a></p></li>
+<li><p class="linemarker linemarker-58"><code class="docutils literal notranslate"><span class="pre">batch_mongoimport</span></code> requires <a class="reference external" href="https://www.mongodb.org/">MongoDB</a></p></li>
+</ul>
+<p class="linemarker linemarker-60">If using Docker, all of the the optional dependencies are included.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="overview.html" class="btn btn-neutral float-left" title="Overview" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="cli.html" class="btn btn-neutral float-right" title="Commandline Use" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2018, Bryan Briney.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
