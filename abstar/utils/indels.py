@@ -60,11 +60,11 @@ class Indel(object):
     def _get_frame(self):
         if "in frame" in self.raw:
             if self.raw["in frame"] in ["yes", "no"]:
-                return self.raw["in frame"]
+                return self.raw["in frame"] == "yes"
             elif self.raw["in frame"] is True:
-                return "yes"
+                return True
             elif self.raw["in frame"] is False:
-                return "no"
+                return False
         return None
 
 
