@@ -97,7 +97,10 @@ def get_cigar_code(q: str, t: str) -> str:
         return "D"
     if t == "-":
         return "I"
-    return "M"
+    # return "M"
+    if q == t:
+        return "="
+    return "X"
 
 
 # def get_cigar_code(q, t):
@@ -126,21 +129,21 @@ def make_alignment_cigar(query: str, target: str) -> str:
         The CIGAR string for the aligned sequences.
 
     """
-    prev = get_cigar_code(query[0], target[0])
-    count = 1
+    prev = None
+    count = 0
     cigar = ""
-    for q, t in zip(query[1:], target[1:]):
+    for q, t in zip(query, target):
         curr = get_cigar_code(q, t)
         if prev is None:
             prev = curr
+            count = 1
         elif curr == prev:
             count += 1
         else:
-            count += 1
             cigar += "{}{}".format(count, prev)
             prev = curr
-            count = 0
-    cigar += "{}{}".format(count + 1, prev)
+            count = 1
+    cigar += "{}{}".format(count, prev)
     return cigar
 
 
