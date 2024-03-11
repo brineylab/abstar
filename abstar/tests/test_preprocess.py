@@ -1,11 +1,11 @@
 import os
-import pytest
 import tempfile
 from subprocess import PIPE, Popen
 
+import pytest
 from Bio import SeqIO
 
-from ..preprocess import adapter_trim, fastqc, quality_trim
+from ..utils.preprocess import adapter_trim, fastqc, quality_trim
 
 
 @pytest.fixture()
@@ -15,7 +15,7 @@ def tmp_path():
 
 @pytest.fixture()
 def test_path(tmp_path):
-    test_file = tmp_path / "test.fastq"
+    test_file = os.path.join(tmp_path, "test.fastq")
     with open(test_file, "w") as f:
         f.write("@test\nACGTCGCGTATA\n+\nIIIIIIIIIIII\n")
     return test_path
@@ -23,7 +23,7 @@ def test_path(tmp_path):
 
 @pytest.fixture()
 def adapter_file(tmp_path):
-    adapter_file = tmp_path / "adapter.fasta"
+    adapter_file = os.path.join(tmp_path, "adapter.fasta")
     with open(adapter_file, "w") as f:
         f.write(">adapter\nACGT\n")
     return adapter_file
