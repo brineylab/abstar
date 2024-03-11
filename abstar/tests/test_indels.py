@@ -1,13 +1,13 @@
 from ..utils.indels import (
+    Deletion,
     Indel,
     Insertion,
-    Deletion,
-    find_insertions,
+    _annotate_deletion,
     _annotate_insertion,
+    _fix_frameshift_deletion,
     _fix_frameshift_insertion,
     find_deletions,
-    _annotate_deletion,
-    _fix_frameshift_deletion,
+    find_insertions,
 )
 
 
@@ -46,7 +46,7 @@ class Antibody:
 # ----------------------------
 
 
-def test_init():
+def test_indel_class_init():
     # test initialization with all fields
     indel = Indel(
         {
@@ -61,10 +61,12 @@ def test_init():
     assert indel.raw_position == 10
     assert indel.sequence == "ATC"
     assert indel.fixed is True
-    assert indel.in_frame == "yes"
+    assert indel.in_frame is True
     assert indel.imgt_position is None
     assert indel.imgt_codon is None
 
+
+def test_indel_class_init_missing_fields():
     # test initialization with some fields missing
     indel = Indel(
         {
@@ -81,7 +83,7 @@ def test_init():
     assert indel.imgt_codon is None
 
 
-def test_contains():
+def test_indel_class_contains():
     indel = Indel(
         {
             "len": 3,
@@ -100,7 +102,7 @@ def test_contains():
     assert "imgt_codon" not in indel
 
 
-def test_getitem():
+def test_indel_class_getitem():
     indel = Indel(
         {
             "len": 3,
@@ -122,7 +124,7 @@ def test_getitem():
     assert indel["foo"] is None
 
 
-def test_get_frame():
+def test_indel_class_get_frame():
     # test getting in-frame status with "in frame" field
     indel = Indel(
         {
@@ -133,8 +135,10 @@ def test_get_frame():
             "in frame": "yes",
         }
     )
-    assert indel._get_frame() == "yes"
+    assert indel._get_frame() is True
 
+
+def test_indel_class_get_frame_boolean_true():
     # test getting in-frame status with boolean "in frame" field
     indel = Indel(
         {
@@ -145,8 +149,10 @@ def test_get_frame():
             "in frame": True,
         }
     )
-    assert indel._get_frame() == "yes"
+    assert indel._get_frame() is True
 
+
+def test_indel_class_get_frame_boolean_false():
     # test getting in-frame status with boolean "in frame" field
     indel = Indel(
         {
@@ -157,8 +163,10 @@ def test_get_frame():
             "in frame": False,
         }
     )
-    assert indel._get_frame() == "no"
+    assert indel._get_frame() is False
 
+
+def test_indel_class_get_frame_missing():
     # test getting in-frame status with missing "in frame" field
     indel = Indel(
         {
@@ -176,7 +184,7 @@ def test_get_frame():
 # ----------------------------
 
 
-def test_init():
+def test_insertion_class_init():
     # test initialization with all fields
     indel = Insertion(
         {
@@ -191,11 +199,13 @@ def test_init():
     assert indel.raw_position == 10
     assert indel.sequence == "ATC"
     assert indel.fixed is True
-    assert indel.in_frame == "yes"
+    assert indel.in_frame is True
     assert indel.imgt_position is None
     assert indel.imgt_codon is None
     assert indel.type == "insertion"
 
+
+def test_insertion_class_init_missing_fields():
     # test initialization with some fields missing
     indel = Insertion(
         {
@@ -213,33 +223,37 @@ def test_init():
     assert indel.type == "insertion"
 
 
-def test_imgt_formatted():
+def test_insertion_class_imgt_formatting_inframe():
     # test imgt_formatted property with in-frame insertion
     indel = Insertion(
         {
             "len": 3,
             "pos": 10,
             "seq": "ATC",
-            "fixed": True,
+            # "fixed": True,
             "in frame": True,
         }
     )
+    indel.imgt_position = 11
     assert indel.imgt_formatted == "11^12>ins^atc"
 
+
+def test_insertion_class_imgt_formatting_frameshift():
     # test imgt_formatted property with out-of-frame insertion
     indel = Insertion(
         {
-            "len": 3,
+            "len": 1,
             "pos": 10,
-            "seq": "ATC",
+            "seq": "A",
             "fixed": True,
             "in frame": False,
         }
     )
-    assert indel.imgt_formatted == "11^12>ins^atc#"
+    indel.imgt_position = 11
+    assert indel.imgt_formatted == "11^12>ins^a#"
 
 
-def test_abstar_formatted():
+def test_insertion_class_abstar_formatting_inframe():
     # test abstar_formatted property with in-frame insertion
     indel = Insertion(
         {
@@ -250,22 +264,26 @@ def test_abstar_formatted():
             "in frame": True,
         }
     )
+    indel.imgt_position = 11
     assert indel.abstar_formatted == "11:3>ATC"
 
+
+def test_insertion_class_abstar_formatting_frameshift():
     # test abstar_formatted property with out-of-frame insertion
     indel = Insertion(
         {
-            "len": 3,
+            "len": 1,
             "pos": 10,
-            "seq": "ATC",
+            "seq": "A",
             "fixed": True,
             "in frame": False,
         }
     )
-    assert indel.abstar_formatted == "11:3!>ATC"
+    indel.imgt_position = 11
+    assert indel.abstar_formatted == "11:1!>A"
 
 
-def test_json_formatted():
+def test_insertion_class_json_formatting_inframe():
     # test json_formatted property with in-frame insertion
     indel = Insertion(
         {
@@ -276,6 +294,7 @@ def test_json_formatted():
             "in frame": True,
         }
     )
+    indel.imgt_position = 11
     assert indel.json_formatted == {
         "in_frame": "yes",
         "length": 3,
@@ -284,20 +303,23 @@ def test_json_formatted():
         "codon": None,
     }
 
+
+def test_insertion_class_json_formatting_frameshift():
     # test json_formatted property with out-of-frame insertion
     indel = Insertion(
         {
-            "len": 3,
+            "len": 1,
             "pos": 10,
-            "seq": "ATC",
+            "seq": "A",
             "fixed": True,
             "in frame": False,
         }
     )
+    indel.imgt_position = 11
     assert indel.json_formatted == {
         "in_frame": "no",
-        "length": 3,
-        "sequence": "ATC",
+        "length": 1,
+        "sequence": "A",
         "position": "11",
         "codon": None,
     }
@@ -308,7 +330,7 @@ def test_json_formatted():
 # ----------------------------
 
 
-def test_init():
+def test_deletion_class_init():
     # test initialization with all fields
     indel = Deletion(
         {
