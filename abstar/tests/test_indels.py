@@ -600,6 +600,60 @@ def test_find_insertions_frameshift_insertion():
     assert insertion.in_frame is False
 
 
+def test_find_insertions_multiple_insertions():
+    # test with a single codon-length insertion
+    segment = GermlineSegment(
+        realignment=None,
+        germline_start=0,
+        germline_end=10,
+        query_start=0,
+        query_end=16,
+        query_sequence="ATCGTCTAATCGTCTA",
+        germline_sequence="ATCGAATCGA",
+        query_alignment="ATCGTCTAATCGTCTA",
+        germline_alignment="ATCG---AATCG---A",
+    )
+    antibody = Antibody(segment.query_sequence)
+    insertions = find_insertions(antibody, segment)
+    assert len(insertions) == 2
+    insertion = insertions[0]
+    assert insertion.raw_position == 4
+    assert insertion.length == 3
+    assert insertion.sequence == "TCT"
+    assert insertion.fixed is False
+    assert insertion.in_frame is True
+    insertion = insertions[1]
+    assert insertion.raw_position == 12
+    assert insertion.length == 3
+    assert insertion.sequence == "TCT"
+    assert insertion.fixed is False
+    assert insertion.in_frame is True
+
+
+def test_find_insertions_inframe_insertion_with_deletion():
+    # test with a single codon-length insertion
+    segment = GermlineSegment(
+        realignment=None,
+        germline_start=0,
+        germline_end=4,
+        query_start=0,
+        query_end=7,
+        query_sequence="ATCGTCTA",
+        germline_sequence="ATCGAA",
+        query_alignment="ATCGTCT-A",
+        germline_alignment="ATCG---A",
+    )
+    antibody = Antibody(segment.query_sequence)
+    insertions = find_insertions(antibody, segment)
+    assert len(insertions) == 1
+    insertion = insertions[0]
+    assert insertion.raw_position == 4
+    assert insertion.length == 3
+    assert insertion.sequence == "TCT"
+    assert insertion.fixed is False
+    assert insertion.in_frame is True
+
+
 def test_annotate_insertion_inframe():
     # test with a codon-length insertion
     insertion = _annotate_insertion(4, 3, "TCT")
@@ -638,6 +692,48 @@ def test_fix_frameshift_insertion():
     _fix_frameshift_insertion(antibody, segment, 2, 3)
     assert segment.query_alignment == "ATCG"
     assert segment.alignment_midline == "||||"
+    assert antibody.oriented_input.sequence == "ATCG"
+
+
+def test_fix_frameshift_insertion_with_inframe_insertion():
+    # test with a frameshift deletion
+    segment = GermlineSegment(
+        realignment=None,
+        germline_start=0,
+        germline_end=4,
+        query_start=0,
+        query_end=2,
+        query_sequence="ATACATGG",
+        germline_sequence="ATCG",
+        query_alignment="ATACATGG",
+        germline_alignment="AT-C---G",
+        alignment_midline="|| |   |",
+    )
+    antibody = Antibody(segment.query_sequence)
+    _fix_frameshift_insertion(antibody, segment, 2, 3)
+    assert segment.query_alignment == "ATCATGG"
+    assert segment.alignment_midline == "|||   |"
+    assert antibody.oriented_input.sequence == "ATCATGG"
+
+
+def test_fix_frameshift_insertion_with_deletion():
+    # test with a frameshift deletion
+    segment = GermlineSegment(
+        realignment=None,
+        germline_start=0,
+        germline_end=4,
+        query_start=0,
+        query_end=2,
+        query_sequence="ATACG",
+        germline_sequence="ATCGG",
+        query_alignment="ATAC-G",
+        germline_alignment="AT-CGG",
+        alignment_midline="|| | |",
+    )
+    antibody = Antibody(segment.query_sequence)
+    _fix_frameshift_insertion(antibody, segment, 2, 3)
+    assert segment.query_alignment == "ATC-G"
+    assert segment.alignment_midline == "||| |"
     assert antibody.oriented_input.sequence == "ATCG"
 
 
