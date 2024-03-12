@@ -21,6 +21,9 @@ class GermlineSegment:
         query_end,
         query_sequence,
         germline_sequence,
+        query_alignment,
+        germline_alignment,
+        alignment_midline=None,
     ):
         self.realignment = realignment
         self.germline_start = germline_start
@@ -29,6 +32,9 @@ class GermlineSegment:
         self.query_end = query_end
         self.query_sequence = query_sequence
         self.germline_sequence = germline_sequence
+        self.query_alignment = query_alignment
+        self.germline_alignment = germline_alignment
+        self.alignment_midline = alignment_midline
 
 
 class Sequence:
@@ -300,7 +306,7 @@ def test_insertion_class_json_formatting_inframe():
         "length": 3,
         "sequence": "ATC",
         "position": "11",
-        "codon": None,
+        "codon": str(None),
     }
 
 
@@ -321,7 +327,7 @@ def test_insertion_class_json_formatting_frameshift():
         "length": 1,
         "sequence": "A",
         "position": "11",
-        "codon": None,
+        "codon": str(None),
     }
 
 
@@ -345,11 +351,13 @@ def test_deletion_class_init():
     assert indel.raw_position == 10
     assert indel.sequence == "ATC"
     assert indel.fixed is True
-    assert indel.in_frame == "yes"
+    assert indel.in_frame is True
     assert indel.imgt_position is None
     assert indel.imgt_codon is None
     assert indel.type == "deletion"
 
+
+def test_deletion_class_init_missing_fields():
     # test initialization with some fields missing
     indel = Deletion(
         {
@@ -367,7 +375,7 @@ def test_deletion_class_init():
     assert indel.type == "deletion"
 
 
-def test_imgt_formatted():
+def test_deletion_class_imgt_formatting_single_nucleotide():
     # test imgt_formatted property with single nucleotide deletion
     indel = Deletion(
         {
@@ -378,8 +386,11 @@ def test_imgt_formatted():
             "in frame": True,
         }
     )
-    assert indel.imgt_formatted == "a10del#"
+    indel.imgt_position = 10
+    assert indel.imgt_formatted == "a10>del#"
 
+
+def test_deletion_class_imgt_formatting_inframe():
     # test imgt_formatted property with multi-nucleotide deletion
     indel = Deletion(
         {
@@ -387,13 +398,29 @@ def test_imgt_formatted():
             "pos": 10,
             "seq": "ATC",
             "fixed": True,
+            "in frame": True,
+        }
+    )
+    indel.imgt_position = 10
+    assert indel.imgt_formatted == "a10-c12>del(3nt)"
+
+
+def test_deletion_class_imgt_formatting_frameshift():
+    # test imgt_formatted property with single nucleotide deletion
+    indel = Deletion(
+        {
+            "len": 2,
+            "pos": 10,
+            "seq": "AG",
+            "fixed": True,
             "in frame": False,
         }
     )
-    assert indel.imgt_formatted == "a10-t12del(3nt)#"
+    indel.imgt_position = 10
+    assert indel.imgt_formatted == "a10-g11>del(2nt)#"
 
 
-def test_abstar_formatted():
+def test_deletion_class_abstar_formatting_single_nucleotide():
     # test abstar_formatted property with single nucleotide deletion
     indel = Deletion(
         {
@@ -404,8 +431,11 @@ def test_abstar_formatted():
             "in frame": False,
         }
     )
-    assert indel.abstar_formatted == "10:1>!A"
+    indel.imgt_position = 10
+    assert indel.abstar_formatted == "10:1!>A"
 
+
+def test_deletion_class_abstar_formatting_inframe():
     # test abstar_formatted property with multi-nucleotide deletion
     indel = Deletion(
         {
@@ -416,10 +446,26 @@ def test_abstar_formatted():
             "in frame": True,
         }
     )
+    indel.imgt_position = 10
     assert indel.abstar_formatted == "10-12:3>ATC"
 
 
-def test_json_formatted():
+def test_deletion_class_abstar_formatting_frameshift():
+    # test abstar_formatted property with multi-nucleotide deletion
+    indel = Deletion(
+        {
+            "len": 2,
+            "pos": 10,
+            "seq": "AT",
+            "fixed": True,
+            "in frame": False,
+        }
+    )
+    indel.imgt_position = 10
+    assert indel.abstar_formatted == "10-11:2!>AT"
+
+
+def test_deletion_class_json_formatting_single_nucleotide():
     # test json_formatted property with single nucleotide deletion
     indel = Deletion(
         {
@@ -427,17 +473,20 @@ def test_json_formatted():
             "pos": 10,
             "seq": "A",
             "fixed": True,
-            "in frame": True,
+            "in frame": False,
         }
     )
+    indel.imgt_position = 10
     assert indel.json_formatted == {
-        "in_frame": "yes",
+        "in_frame": "no",
         "length": 1,
         "sequence": "A",
         "position": "10",
-        "codon": None,
+        "codon": "None",
     }
 
+
+def test_deletion_class_json_formatting_inframe():
     # test json_formatted property with multi-nucleotide deletion
     indel = Deletion(
         {
@@ -445,15 +494,37 @@ def test_json_formatted():
             "pos": 10,
             "seq": "ATC",
             "fixed": True,
+            "in frame": True,
+        }
+    )
+    indel.imgt_position = 10
+    assert indel.json_formatted == {
+        "in_frame": "yes",
+        "length": 3,
+        "sequence": "ATC",
+        "position": "10",
+        "codon": "None",
+    }
+
+
+def test_deletion_class_json_formatting_frameshift():
+    # test json_formatted property with multi-nucleotide deletion
+    indel = Deletion(
+        {
+            "len": 2,
+            "pos": 10,
+            "seq": "AT",
+            "fixed": True,
             "in frame": False,
         }
     )
+    indel.imgt_position = 10
     assert indel.json_formatted == {
         "in_frame": "no",
-        "length": 3,
-        "sequence": "ATC",
-        "position": "10-12",
-        "codon": None,
+        "length": 2,
+        "sequence": "AT",
+        "position": "10",
+        "codon": "None",
     }
 
 
@@ -462,7 +533,7 @@ def test_json_formatted():
 # ----------------------------
 
 
-def test_find_insertions():
+def test_find_insertions_no_insertion():
     # test with no insertions
     segment = GermlineSegment(
         realignment=None,
@@ -472,11 +543,15 @@ def test_find_insertions():
         query_end=4,
         query_sequence="ATCG",
         germline_sequence="ATCG",
+        query_alignment="ATCG",
+        germline_alignment="ATCG",
     )
     antibody = Antibody(segment.query_sequence)
     insertions = find_insertions(antibody, segment)
-    assert insertions is None
+    assert len(insertions) == 0
 
+
+def test_find_insertions_inframe_insertion():
     # test with a single codon-length insertion
     segment = GermlineSegment(
         realignment=None,
@@ -486,52 +561,63 @@ def test_find_insertions():
         query_end=7,
         query_sequence="ATCGTCTA",
         germline_sequence="ATCGA",
+        query_alignment="ATCGTCTA",
+        germline_alignment="ATCG---A",
     )
     antibody = Antibody(segment.query_sequence)
     insertions = find_insertions(antibody, segment)
     assert len(insertions) == 1
-    assert insertions[0].raw_position == 4
-    assert insertions[0].length == 3
-    assert insertions[0].sequence == "TCT"
-    assert insertions[0].fixed is False
-    assert insertions[0].in_frame == "yes"
-
-    # test with a single frameshift insertion
-    segment = GermlineSegment(
-        realignment=None,
-        germline_start=0,
-        germline_end=4,
-        query_start=0,
-        query_end=8,
-        query_sequence="ATCGTCTGA",
-        germline_sequence="ATCGTTGA",
-    )
-    antibody = Antibody(segment.query_sequence)
-    insertions = find_insertions(antibody, segment)
-    assert len(insertions) == 1
-    assert insertions[0].raw_position == 4
-    assert insertions[0].length == 3
-    assert insertions[0].sequence == "TCT"
-    assert insertions[0].fixed is True
-    assert insertions[0].in_frame == "no"
-
-
-def test_annotate_insertion():
-    # test with a codon-length insertion
-    insertion = _annotate_insertion(None, 4, 3, "TCT")
+    insertion = insertions[0]
     assert insertion.raw_position == 4
     assert insertion.length == 3
     assert insertion.sequence == "TCT"
     assert insertion.fixed is False
-    assert insertion.in_frame == "yes"
+    assert insertion.in_frame is True
 
+
+def test_find_insertions_frameshift_insertion():
+    # test with a single frameshift insertion
+    segment = GermlineSegment(
+        realignment=None,
+        germline_start=0,
+        germline_end=7,
+        query_start=0,
+        query_end=8,
+        query_sequence="ATCGTCTGA",
+        germline_sequence="ATCGTTGA",
+        query_alignment="ATCGTCTGA",
+        germline_alignment="ATCGT-TGA",
+        alignment_midline="|||| |||",
+    )
+    antibody = Antibody(segment.query_sequence)
+    insertions = find_insertions(antibody, segment)
+    assert len(insertions) == 1
+    insertion = insertions[0]
+    assert insertion.raw_position == 5
+    assert insertion.length == 1
+    assert insertion.sequence == "C"
+    assert insertion.fixed is True
+    assert insertion.in_frame is False
+
+
+def test_annotate_insertion_inframe():
+    # test with a codon-length insertion
+    insertion = _annotate_insertion(4, 3, "TCT")
+    assert insertion.raw_position == 4
+    assert insertion.length == 3
+    assert insertion.sequence == "TCT"
+    assert insertion.fixed is False
+    assert insertion.in_frame is True
+
+
+def test_annotate_insertion_frameshift():
     # test with a non-codon-length insertion
-    insertion = _annotate_insertion(None, 4, 2, "TC")
+    insertion = _annotate_insertion(4, 2, "TC")
     assert insertion.raw_position == 4
     assert insertion.length == 2
     assert insertion.sequence == "TC"
     assert insertion.fixed is False
-    assert insertion.in_frame == "no"
+    assert insertion.in_frame is False
 
 
 def test_fix_frameshift_insertion():
@@ -544,6 +630,9 @@ def test_fix_frameshift_insertion():
         query_end=2,
         query_sequence="ATACG",
         germline_sequence="ATCG",
+        query_alignment="ATACG",
+        germline_alignment="AT-CG",
+        alignment_midline="|| ||",
     )
     antibody = Antibody(segment.query_sequence)
     _fix_frameshift_insertion(antibody, segment, 2, 3)
@@ -557,7 +646,7 @@ def test_fix_frameshift_insertion():
 # ----------------------------
 
 
-def test_find_deletions():
+def test_find_deletions_no_deletion():
     # test with no deletions
     segment = GermlineSegment(
         realignment=None,
@@ -567,11 +656,15 @@ def test_find_deletions():
         query_end=4,
         query_sequence="ATCG",
         germline_sequence="ATCG",
+        query_alignment="ATCG",
+        germline_alignment="ATCG",
     )
     antibody = Antibody(segment.query_sequence)
     deletions = find_deletions(antibody, segment)
-    assert deletions is None
+    assert len(deletions) == 0
 
+
+def test_find_deletions_inframe_deletion():
     # test with a single codon-length deletion
     segment = GermlineSegment(
         realignment=None,
@@ -579,18 +672,22 @@ def test_find_deletions():
         germline_end=4,
         query_start=0,
         query_end=3,
-        query_sequence="ATC",
-        germline_sequence="ATCG",
+        query_sequence="ATCG",
+        germline_sequence="ATCATCG",
+        query_alignment="ATC---G",
+        germline_alignment="ATCATCG",
     )
     antibody = Antibody(segment.query_sequence)
     deletions = find_deletions(antibody, segment)
     assert len(deletions) == 1
     assert deletions[0].raw_position == 3
-    assert deletions[0].length == 1
-    assert deletions[0].sequence == "G"
+    assert deletions[0].length == 3
+    assert deletions[0].sequence == "ATC"
     assert deletions[0].fixed is False
-    assert deletions[0].in_frame == "yes"
+    assert deletions[0].in_frame is True
 
+
+def test_find_deletions_frameshift_deletion():
     # test with a single frameshift deletion
     segment = GermlineSegment(
         realignment=None,
@@ -598,35 +695,40 @@ def test_find_deletions():
         germline_end=4,
         query_start=0,
         query_end=2,
-        query_sequence="AT",
+        query_sequence="ATG",
         germline_sequence="ATCG",
+        query_alignment="AT-G",
+        germline_alignment="ATCG",
+        alignment_midline="|| |",
     )
     antibody = Antibody(segment.query_sequence)
     deletions = find_deletions(antibody, segment)
     assert len(deletions) == 1
     assert deletions[0].raw_position == 2
-    assert deletions[0].length == 2
-    assert deletions[0].sequence == "CG"
+    assert deletions[0].length == 1
+    assert deletions[0].sequence == "C"
     assert deletions[0].fixed is True
-    assert deletions[0].in_frame == "no"
+    assert deletions[0].in_frame is False
 
 
-def test_annotate_deletion():
+def test_annotate_deletion_inframe():
     # test with a codon-length deletion
-    deletion = _annotate_deletion(None, 3, 1, "G")
+    deletion = _annotate_deletion(3, 3, "CGT")
     assert deletion.raw_position == 3
-    assert deletion.length == 1
-    assert deletion.sequence == "G"
+    assert deletion.length == 3
+    assert deletion.sequence == "CGT"
     assert deletion.fixed is False
-    assert deletion.in_frame == "yes"
+    assert deletion.in_frame is True
 
+
+def test_annotate_deletion_frameshift():
     # test with a frameshift deletion
-    deletion = _annotate_deletion(None, 2, 2, "CG", fixed=True)
+    deletion = _annotate_deletion(2, 2, "CG", fixed=True)
     assert deletion.raw_position == 2
     assert deletion.length == 2
     assert deletion.sequence == "CG"
     assert deletion.fixed is True
-    assert deletion.in_frame == "no"
+    assert deletion.in_frame is False
 
 
 def test_fix_frameshift_deletion():
@@ -639,6 +741,9 @@ def test_fix_frameshift_deletion():
         query_end=2,
         query_sequence="ATG",
         germline_sequence="ATCG",
+        query_alignment="AT-G",
+        germline_alignment="ATCG",
+        alignment_midline="|| |",
     )
     antibody = Antibody(segment.query_sequence)
     _fix_frameshift_deletion(antibody, segment, 2, 3)
