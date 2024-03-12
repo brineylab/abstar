@@ -24,18 +24,16 @@
 
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-from multiprocessing import cpu_count
 import os
-from subprocess import Popen, PIPE
 import sys
-
-from Bio import SeqIO
-
-from .pandaseq import pair_files
+from multiprocessing import cpu_count
+from subprocess import PIPE, Popen
 
 from abutils.utils.log import get_logger
 from abutils.utils.pipeline import list_files, make_dir
+from Bio import SeqIO
 
+from .pandaseq import pair_files
 
 logger = get_logger("preprocess")
 
@@ -143,7 +141,7 @@ def quality_trim(
                     len(f), "\n".join(f)
                 )
             )
-            err2 += "If you have paired-end reads that do not follow the Illumina naming scheme, "
+            err2 = "If you have paired-end reads that do not follow the Illumina naming scheme, "
             err2 += "you can pass pairs of filenames (a list of lists/tuples) with the <file_pairs> option. "
             err2 += "If using <file_pairs>, the output directory must also be provided."
             logger.info(err)
