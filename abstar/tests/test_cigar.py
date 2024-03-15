@@ -1,3 +1,6 @@
+#!usr/env/python
+# filename: test_cigar.py
+
 import pytest
 
 from ..utils.cigar import make_alignment_cigar, make_cigar

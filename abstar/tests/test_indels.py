@@ -1,3 +1,6 @@
+#!usr/env/python
+# filename: test_indels.py
+
 from ..utils.indels import (
     Deletion,
     Indel,
