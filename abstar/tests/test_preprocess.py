@@ -34,10 +34,13 @@ def input_directory(tmpdir):
     # create temporary input directory
     input_dir = tmpdir.mkdir("input")
     # create temporary input files
+    sequence = "ACGT" * 100
+    qual1 = "IIII" * 100
+    qual2 = "IIII" * 90 + "!!!!" * 10
     input_file1 = input_dir.join("input_file1.fastq")
-    input_file1.write("@seq1\nACGT\n+\nIIII\n")
+    input_file1.write(f"@seq1\n{sequence}\n+\n{qual1}\n")
     input_file2 = input_dir.join("input_file2.fastq")
-    input_file2.write("@seq2\nACGT\n+\nIIII\n")
+    input_file2.write(f"@seq1\n{sequence}\n+\n{qual2}\n")
     # return path to input directory
     return str(input_dir)
 
@@ -67,12 +70,17 @@ def test_quality_trim(input_directory, output_directory):
         file_pairs=None,
         singles_directory=None,
         nextseq=False,
-        paired_reads=True,
+        paired_reads=False,
         allow_5prime_trimming=False,
         print_debug=False,
     )
+    # check that input files were created
+    input_files = os.listdir(input_directory)
+    assert len(input_files) == 2
     # check that output files were created
-    assert os.path.exists(os.path.join(output_directory, "input_file1.fastq.gz"))
+    output_files = os.listdir(output_directory)
+    assert len(output_files) == 2
+    assert os.path.exists(os.path.join(output_directory, "input_file1.fastq"))
     assert os.path.exists(os.path.join(output_directory, "input_file2.fastq.gz"))
 
 
