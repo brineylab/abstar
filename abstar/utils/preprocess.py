@@ -28,7 +28,9 @@ import os
 import sys
 from multiprocessing import cpu_count
 from subprocess import PIPE, Popen
+from typing import Optional
 
+import abutils
 from abutils.utils.log import get_logger
 from abutils.utils.pipeline import list_files, make_dir
 from Bio import SeqIO
@@ -39,18 +41,19 @@ logger = get_logger("preprocess")
 
 
 def quality_trim(
-    input_directory=None,
-    output_directory=None,
-    quality_cutoff=20,
-    length_cutoff=50,
-    quality_type="sanger",
-    compress_output=True,
-    file_pairs=None,
-    singles_directory=None,
-    nextseq=False,
-    paired_reads=True,
-    allow_5prime_trimming=False,
-    print_debug=False,
+    input_directory: Optional[str] = None,
+    output_directory: Optional[str] = None,
+    quality_cutoff: int = 20,
+    length_cutoff: int = 50,
+    quality_type: str = "sanger",
+    compress_output: bool = True,
+    file_pairs: Optional[list] = None,
+    singles_directory: Optional[str] = None,
+    nextseq: bool = False,
+    paired_reads: bool = True,
+    allow_5prime_trimming: bool = False,
+    print_debug: bool = False,
+    sickle_bin: Optional[str] = None,
 ):
     """
     Performs quality trimming with sickle.
@@ -109,6 +112,7 @@ def quality_trim(
 
         str: Path to the output directory
     """
+    # files and directories
     if input_directory is None and any([file_pairs is None, output_directory is None]):
         err = "\nERROR: Either an input_directory must be provided or "
         err += "both file_pairs and an output_directory must be provided.\n"
@@ -124,10 +128,16 @@ def quality_trim(
         make_dir(output_directory)
         if paired_reads:
             files = list_files(input_directory)
-            file_pairs = pair_files(files, nextseq)
+            file_pairs = pair_files(files)
             files = file_pairs.values()
         else:
             files = [[f] for f in list_files(input_directory)]
+
+    # get sickle binary
+    if sickle_bin is None:
+        sickle_bin = abutils.bin.get_path("sickle")
+
+    # process files
     for f in files:
         logger.info(f)
         if len(f) == 2:
@@ -149,26 +159,26 @@ def quality_trim(
             continue
         f.sort()
         # set basic sickle cmd options
-        sickle = "sickle pe" if paired_end else "sickle se"
-        sickle += " -t {}".format(quality_type)
-        sickle += " -l {}".format(length_cutoff)
-        sickle += " -q {}".format(quality_cutoff)
+        sickle = f"{sickle_bin} pe" if paired_end else f"{sickle_bin} se"
+        sickle += f" -t {quality_type}"
+        sickle += f" -l {length_cutoff}"
+        sickle += f" -q {quality_cutoff}"
         if compress_output:
             sickle += " -g"
         if not allow_5prime_trimming:
             sickle += " -x"
         # compute input/output filenames, add to sickle cmd
-        sickle += " -f {}".format(f[0])
+        sickle += f" -f {f[0]}"
         o1_basename = os.path.basename(f[0]).rstrip(".gz")
         if compress_output:
             o1_basename += ".gz"
         sickle += " -o {}".format(os.path.join(output_directory, o1_basename))
         if paired_end:
-            sickle += " -r {}".format(f[1])
+            sickle += f" -r {f[1]}"
             o2_basename = os.path.basename(f[1]).rstrip(".gz")
             if compress_output:
                 o2_basename += ".gz"
-            sickle += " -p {}".format(os.path.join(output_directory, o2_basename))
+            sickle += f" -p {os.path.join(output_directory, o2_basename)}"
         # compute singles output filename, add to sickle cmd
         if paired_end:
             if singles_directory is not None:
@@ -178,7 +188,7 @@ def quality_trim(
                 )
                 if compress_output:
                     sfilename += ".gz"
-                sickle += " -s {}".format(os.path.join(singles_directory, sfilename))
+                sickle += f" -s {os.path.join(singles_directory, sfilename)}"
             else:
                 sickle += " -s /dev/null"
         if print_debug:
@@ -197,14 +207,15 @@ def quality_trim(
 
 
 def adapter_trim(
-    input_directory,
-    output_directory=None,
-    adapter_5prime=None,
-    adapter_3prime=None,
-    adapter_5prime_anchored=None,
-    adapter_3prime_anchored=None,
-    adapter_both=None,
-    compress_output=True,
+    input_directory: str,
+    output_directory: Optional[str] = None,
+    adapter_5prime: Optional[str] = None,
+    adapter_3prime: Optional[str] = None,
+    adapter_5prime_anchored: Optional[str] = None,
+    adapter_3prime_anchored: Optional[str] = None,
+    adapter_both: Optional[str] = None,
+    compress_output: bool = False,
+    cutadapt_bin: str = "cutadapt",
 ):
     """
     Trims adapters with cutadapt.
@@ -244,6 +255,7 @@ def adapter_trim(
 
         str: Path to the output directory
     """
+    # files and directories
     input_directory = os.path.normpath(input_directory)
     if output_directory is None:
         oparent = os.path.dirname(input_directory)
@@ -279,7 +291,7 @@ def adapter_trim(
         ofile = os.path.join(output_directory, oname)
         # set up cutadapt command
         adapter_string = " ".join(adapters)
-        cutadapt = "cutadapt -o {} {} {}".format(ofile, adapter_string, ifile)
+        cutadapt = f"{cutadapt_bin} -o {ofile} {adapter_string} {ifile}"
         # run cutadapt
         p = Popen(cutadapt, stdout=PIPE, stderr=PIPE, shell=True)
         stdout, stderr = p.communicate()
