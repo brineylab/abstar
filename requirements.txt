@@ -1,6 +1,7 @@
 abutils>=0.4.14
 biopython == 1.78
 celery
+cutadapt
 dask[complete]
 matplotlib # == 3.6.3
 numpy ~=1.24
