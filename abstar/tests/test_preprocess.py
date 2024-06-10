@@ -14,15 +14,17 @@ def tmp_path():
 
 
 @pytest.fixture()
-def test_path(tmp_path):
+def test_fastq(tmp_path):
+    tmp_path = tempfile.mkdtemp()
     test_file = os.path.join(tmp_path, "test.fastq")
     with open(test_file, "w") as f:
         f.write("@test\nACGTCGCGTATA\n+\nIIIIIIIIIIII\n")
-    return test_path
+    return tmp_path
 
 
 @pytest.fixture()
-def adapter_file(tmp_path):
+def adapter_file():
+    tmp_path = tempfile.mkdtemp()
     adapter_file = os.path.join(tmp_path, "adapter.fasta")
     with open(adapter_file, "w") as f:
         f.write(">adapter\nACGT\n")
@@ -30,25 +32,28 @@ def adapter_file(tmp_path):
 
 
 @pytest.fixture
-def input_directory(tmpdir):
+# def input_directory(tmpdir):
+def input_directory():
     # create temporary input directory
-    input_dir = tmpdir.mkdir("input")
+    input_dir = tempfile.mkdtemp()
     # create temporary input files
     sequence = "ACGT" * 100
     qual1 = "IIII" * 100
     qual2 = "IIII" * 90 + "!!!!" * 10
-    input_file1 = input_dir.join("input_file1.fastq")
-    input_file1.write(f"@seq1\n{sequence}\n+\n{qual1}\n")
-    input_file2 = input_dir.join("input_file2.fastq")
-    input_file2.write(f"@seq1\n{sequence}\n+\n{qual2}\n")
+    input_file1 = os.path.join(input_dir, "input_file1.fastq")
+    with open(input_file1, "w") as f:
+        f.write(f"@seq1\n{sequence}\n+\n{qual1}\n")
+    input_file2 = os.path.join(input_dir, "input_file2.fastq")
+    with open(input_file2, "w") as f:
+        f.write(f"@seq1\n{sequence}\n+\n{qual2}\n")
     # return path to input directory
     return str(input_dir)
 
 
 @pytest.fixture
-def output_directory(tmpdir):
+def output_directory():
     # create temporary output directory
-    output_dir = tmpdir.mkdir("output")
+    output_dir = tempfile.mkdtemp()
     # return path to output directory
     return str(output_dir)
 
@@ -58,7 +63,7 @@ def output_directory(tmpdir):
 # ----------------------------
 
 
-def test_quality_trim(input_directory, output_directory):
+def test_quality_trim_compressed(input_directory, output_directory):
     # run quality_trim function
     quality_trim(
         input_directory=input_directory,
@@ -69,7 +74,33 @@ def test_quality_trim(input_directory, output_directory):
         compress_output=True,
         file_pairs=None,
         singles_directory=None,
-        nextseq=False,
+        # nextseq=False,
+        paired_reads=False,
+        allow_5prime_trimming=False,
+        print_debug=False,
+    )
+    # check that input files were created
+    input_files = os.listdir(input_directory)
+    assert len(input_files) == 2
+    # check that output files were created
+    output_files = os.listdir(output_directory)
+    assert len(output_files) == 2
+    assert os.path.exists(os.path.join(output_directory, "input_file1.fastq.gz"))
+    assert os.path.exists(os.path.join(output_directory, "input_file2.fastq.gz"))
+
+
+def test_quality_trim_uncompressed(input_directory, output_directory):
+    # run quality_trim function
+    quality_trim(
+        input_directory=input_directory,
+        output_directory=output_directory,
+        quality_cutoff=20,
+        length_cutoff=50,
+        quality_type="sanger",
+        compress_output=False,
+        file_pairs=None,
+        singles_directory=None,
+        # nextseq=False,
         paired_reads=False,
         allow_5prime_trimming=False,
         print_debug=False,
@@ -81,7 +112,7 @@ def test_quality_trim(input_directory, output_directory):
     output_files = os.listdir(output_directory)
     assert len(output_files) == 2
     assert os.path.exists(os.path.join(output_directory, "input_file1.fastq"))
-    assert os.path.exists(os.path.join(output_directory, "input_file2.fastq.gz"))
+    assert os.path.exists(os.path.join(output_directory, "input_file2.fastq"))
 
 
 # ----------------------------
@@ -89,54 +120,70 @@ def test_quality_trim(input_directory, output_directory):
 # ----------------------------
 
 
-def test_adapter_trim(test_path):
+def test_adapter_trim(test_fastq, adapter_file):
     # run adapter_trim
-    output_dir = adapter_trim(str(test_path))
+    output_dir = adapter_trim(input_directory=test_fastq, adapter_both=adapter_file)
+    # check that output files were created
+    assert os.path.exists(os.path.join(output_dir, "test.fastq"))
+
+
+def test_adapter_trim_compressed(test_fastq, adapter_file):
+    # run adapter_trim
+    output_dir = adapter_trim(
+        input_directory=test_fastq,
+        adapter_both=adapter_file,
+        compress_output=True,
+    )
     # check that output files were created
     assert os.path.exists(os.path.join(output_dir, "test.fastq.gz"))
 
 
-def test_adapter_trim_output_directory(test_path):
+def test_adapter_trim_output_directory(test_fastq, adapter_file):
     # run adapter_trim with a custom output directory
-    custom_output_dir = test_path / "custom_output"
-    output_dir = adapter_trim(str(test_path), str(custom_output_dir))
+    custom_output_dir = tempfile.mkdtemp()
+    output_dir = adapter_trim(
+        input_directory=test_fastq,
+        output_directory=custom_output_dir,
+        adapter_both=adapter_file,
+    )
     # check that output files were created in the custom output directory
-    assert os.path.exists(os.path.join(output_dir, "test.fastq.gz"))
+    assert output_dir == custom_output_dir
+    assert os.path.exists(os.path.join(custom_output_dir, "test.fastq"))
 
 
 def test_adapter_trim_5prime(test_path, adapter_file):
     # run adapter_trim with a 5' adapter
     output_dir = adapter_trim(str(test_path), adapter_5prime=str(adapter_file))
     # check that output files were created
-    assert os.path.exists(os.path.join(output_dir, "test.fastq.gz"))
+    assert os.path.exists(os.path.join(output_dir, "test.fastq"))
 
 
 def test_adapter_trim_3prime(test_path, adapter_file):
     # run adapter_trim with a 3' adapter
     output_dir = adapter_trim(str(test_path), adapter_3prime=str(adapter_file))
     # check that output files were created
-    assert os.path.exists(os.path.join(output_dir, "test.fastq.gz"))
+    assert os.path.exists(os.path.join(output_dir, "test.fastq"))
 
 
 def test_adapter_trim_both(test_path, adapter_file):
     # run adapter_trim with a 5' and 3' adapter
     output_dir = adapter_trim(str(test_path), adapter_both=str(adapter_file))
     # check that output files were created
-    assert os.path.exists(os.path.join(output_dir, "test.fastq.gz"))
+    assert os.path.exists(os.path.join(output_dir, "test.fastq"))
 
 
 def test_adapter_trim_5prime_anchored(test_path, adapter_file):
     # run adapter_trim with a 5' anchored adapter
     output_dir = adapter_trim(str(test_path), adapter_5prime_anchored=str(adapter_file))
     # check that output files were created
-    assert os.path.exists(os.path.join(output_dir, "test.fastq.gz"))
+    assert os.path.exists(os.path.join(output_dir, "test.fastq"))
 
 
 def test_adapter_trim_3prime_anchored(test_path, adapter_file):
     # run adapter_trim with a 3' anchored adapter
     output_dir = adapter_trim(str(test_path), adapter_3prime_anchored=str(adapter_file))
     # check that output files were created
-    assert os.path.exists(os.path.join(output_dir, "test.fastq.gz"))
+    assert os.path.exists(os.path.join(output_dir, "test.fastq"))
 
 
 def test_adapter_trim_no_input_files(tmp_path):
