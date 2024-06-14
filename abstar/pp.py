@@ -22,4 +22,5 @@
 #
 
 
-from _preprocess.umi import parse_umis
+from .preprocess.merging import group_paired_fastqs, merge_fastqs
+from .preprocess.umi import parse_umis
