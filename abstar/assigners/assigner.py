@@ -22,13 +22,82 @@
 #
 
 
-import abc
 import os
+
+import abutils
 
 from ..core.germline import get_germline_database_directory
 
 
-class BaseAssigner(object):
+class AssignerBase:
+    """
+    docstring for AssignerBase
+    """
+
+    def __init__(self, output_directory: str, germdb_name: str, receptor: str):
+        self.output_directory = output_directory
+        self.receptor = receptor
+        self.germdb_name = germdb_name
+        self.germdb_path = self.get_germline_database_path(germdb_name, receptor)
+        self.to_delete = []  # files that should be deleted during cleanup
+
+    def __call__(self, sequence_file: str):
+        pass
+
+    def cleanup(self):
+        abutils.io.delete_files(self.to_delete)
+        self.to_delete = []
+
+    @staticmethod
+    def get_germline_database_path(germdb_name: str, receptor: str = "bcr") -> str:
+        """
+        Get the path to a germline database.
+
+        Parameters
+        ----------
+        germdb_name : str
+            The name of the germline database.
+
+        receptor : str, default: "bcr"
+            The receptor type. Options are "bcr" and "tcr".
+
+        Returns
+        -------
+        str
+            The path to the germline database.
+        """
+        germdb_name = germdb_name.lower()
+        receptor = receptor.lower()
+        if receptor not in ["bcr", "tcr"]:
+            raise ValueError(f"Receptor type {receptor} not supported")
+
+        # check the addon directory first
+        addon_dir = os.path.expanduser(f"~/.abstar/germline_dbs/{receptor}")
+        if os.path.isdir(addon_dir):
+            if germdb_name.lower() in [
+                os.path.basename(d[0]) for d in os.walk(addon_dir)
+            ]:
+                return os.path.join(addon_dir, f"{receptor}/{germdb_name}")
+
+        # if a user-generated DB isn't found, use the built-in DB
+        curr_dir = os.path.dirname(os.path.abspath(__file__))
+        germ_db_path = os.path.join(curr_dir, f"germline_dbs/{receptor}/{germdb_name}")
+        if not os.path.exists(germ_db_path):
+            raise FileNotFoundError(
+                f"Germline database {germdb_name} for receptor {receptor} not found"
+            )
+        return germ_db_path
+
+
+##
+##
+##
+##
+##
+##
+
+
+class BaseAssigner:
     """
     ``BaseAssigner`` provides an abstract base class for custom VDJ Assigners.
 
@@ -288,8 +357,6 @@ class BaseAssigner(object):
 
     """
 
-    __metaclass__ = abc.ABCMeta
-
     def __init__(self, db_name, receptor):
         super(BaseAssigner, self).__init__()
         self.name = self.__class__.__name__.lower()
@@ -301,12 +368,15 @@ class BaseAssigner(object):
         self._germline_directory = None
         self._binary_directory = None
 
-    @abc.abstractmethod
-    def __call__(self, sequence_file, file_format):
+    def __call__(self, sequence_file: str, file_format: str):
+        # __call__ should be implemented by subclasses
         pass
 
     @property
     def germline_directory(self):
+        """
+        returns a path to the directory containing the germline database for the species and receptor
+        """
         if self._germline_directory is None:
             self._germline_directory = get_germline_database_directory(
                 self.db_name, self.receptor
@@ -319,6 +389,9 @@ class BaseAssigner(object):
 
     @property
     def binary_directory(self):
+        """
+        returns a path to the directory containing the binary for the assigner
+        """
         if self._binary_directory is None:
             mod_dir = os.path.dirname(os.path.abspath(__file__))
             self._binary_directory = os.path.join(mod_dir, "bin")
@@ -326,6 +399,9 @@ class BaseAssigner(object):
 
     @property
     def assigned(self):
+        """
+        returns a list of VDJ objects that were successfully assigned
+        """
         if self._assigned is None:
             self._assigned = []
         return self._assigned
@@ -336,6 +412,9 @@ class BaseAssigner(object):
 
     @property
     def unassigned(self):
+        """
+        returns a list of VDJ objects that were not successfully assigned
+        """
         if self._unassigned is None:
             self._unassigned = []
         return self._unassigned
