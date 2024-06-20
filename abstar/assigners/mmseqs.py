@@ -45,15 +45,40 @@ class MMseqs(AssignerBase):
     def __call__(self, sequence_file: str) -> str:
         """
         Run the MMseqs assigner.
+
+        Parameters
+        ----------
+        sequence_file : str
+            The path to the input file, in either FASTA or FASTQ format. Gzip-compressed files
+            are supported.
+
+        Returns
+        -------
+        str
+            The path to the output Parquet file.
         """
         self.sample_name = ".".join(
             os.path.basename(sequence_file).rstrip(".gz").split(".")[:-1]
         )
-        self.prepare_input_files(sequence_file)
+        input_fasta, input_csv = self.prepare_input_files(sequence_file)
+        return self.assign_germlines(input_fasta, input_csv)
 
     def assign_germlines(self, input_fasta: str, input_csv: str) -> str:
         """
-        Assign germline segments to input sequences.
+        V, D and J germline gene segment assignment.
+
+        Parameters
+        ----------
+        input_fasta : str
+            The path to the input FASTA file.
+
+        input_csv : str
+            The path to the input CSV file.
+
+        Returns
+        -------
+        str
+            The path to the output Parquet file.
         """
         mmseqs_format_output = "query,target,evalue,qstart,qend,qseq"
         germdb_path = os.path.join(self.germdb_path, "mmseqs")
