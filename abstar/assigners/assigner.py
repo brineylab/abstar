@@ -34,22 +34,55 @@ class AssignerBase:
     docstring for AssignerBase
     """
 
-    def __init__(self, output_directory: str, germdb_name: str, receptor: str):
-        self.output_directory = output_directory
+    def __init__(
+        self,
+        output_directory: str,
+        germdb_name: str,
+        receptor: str,
+        log_directory: str,
+        verbose: bool = False,
+        debug: bool = False,
+    ):
+        self.output_directory = os.path.abspath(output_directory)
+        self.log_directory = os.path.abspath(log_directory)
         self.receptor = receptor
         self.germdb_name = germdb_name
-        self.germdb_path = self.get_germline_database_path(germdb_name, receptor)
+        self.verbose = verbose
+        self.debug = debug
+        self.germdb_path = self.get_germdb_path(germdb_name, receptor)
         self.to_delete = []  # files that should be deleted during cleanup
 
-    def __call__(self, sequence_file: str):
-        pass
+        abutils.io.make_dir(self.output_directory)
+
+    def __call__(self, sequence_file: str) -> str:
+        """
+        All classes subclassing ``AssignerBase`` must implement this method.
+
+        The only expected argument is `sequence_file`, which is a single FASTA or FASTQ-formatted
+        file containing input sequences. Gzipped files are supported.
+
+        The return value should be the path to a parquet-formatted file containing the following
+        columns:
+          * ``sequence_id``: a unique identifier for each input sequence.
+          * ``sequence``: the input sequence.
+          * ``quality``: the quality score for each input sequence.
+          * ``is_rc``: a boolean indicating whether the input sequence is in the reverse_complement orientation
+          * ``v_call``: the V-gene call for each input sequence.
+          * ``v_evalue``: the V-gene evalue for each input sequence.
+          * ``d_call``: the D-gene call for each input sequence.
+          * ``d_evalue``: the D-gene evalue for each input sequence.
+          * ``j_call``: the J-gene call for each input sequence.
+          * ``j_evalue``: the J-gene evalue for each input sequence.
+
+        """
+        raise NotImplementedError("Subclasses must implement this method")
 
     def cleanup(self):
         abutils.io.delete_files(self.to_delete)
         self.to_delete = []
 
     @staticmethod
-    def get_germline_database_path(germdb_name: str, receptor: str = "bcr") -> str:
+    def get_germdb_path(germdb_name: str, receptor: str = "bcr") -> str:
         """
         Get the path to a germline database.
 
@@ -81,12 +114,12 @@ class AssignerBase:
 
         # if a user-generated DB isn't found, use the built-in DB
         curr_dir = os.path.dirname(os.path.abspath(__file__))
-        germ_db_path = os.path.join(curr_dir, f"germline_dbs/{receptor}/{germdb_name}")
-        if not os.path.exists(germ_db_path):
+        germdb_path = os.path.join(curr_dir, f"germline_dbs/{receptor}/{germdb_name}")
+        if not os.path.exists(germdb_path):
             raise FileNotFoundError(
                 f"Germline database {germdb_name} for receptor {receptor} not found"
             )
-        return germ_db_path
+        return germdb_path
 
 
 ##
