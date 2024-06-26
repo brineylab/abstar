@@ -27,11 +27,16 @@ import subprocess as sp
 import tempfile
 from typing import Iterable, Optional, Union
 
+from abutils.bin import get_path as get_binary_path
+from abutils.io import (
+    concatenate_files,
+    delete_files,
+    list_files,
+    make_dir,
+    rename_file,
+)
 from natsort import natsorted
 from tqdm.auto import tqdm
-
-from ..bin import get_path as get_binary_path
-from ..io import concatenate_files, delete_files, list_files, make_dir, rename_file
 
 __all__ = ["merge_fastqs", "group_paired_fastqs"]
 
@@ -198,6 +203,8 @@ class MergeGroup:
         self.merged_file = os.path.join(
             merged_directory, f"{self.name}.{format.lower()}{compress_suffix}"
         )
+        if show_progress:
+            groups = tqdm(groups, total=n_groups, leave=True)
         for group in groups:
             r1, r2 = natsorted(group, key=lambda x: x.read)
             # add name and compression suffix, if necessary
