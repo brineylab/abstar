@@ -22,45 +22,47 @@
 #
 
 
-from __future__ import absolute_import, division, print_function, unicode_literals
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
 import warnings
+
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
-from argparse import ArgumentParser
-import csv
-from glob import glob
 import gzip
-import json
 import logging
-from multiprocessing import Pool, cpu_count
 import os
-import pkg_resources
 import re
-from subprocess import Popen, PIPE
+import shutil
 import sys
 import tempfile
 import time
 import traceback
-from typing import Optional
 import warnings
-import shutil
-
-from Bio import SeqIO
+from argparse import ArgumentParser
+from glob import glob
+from multiprocessing import Pool, cpu_count
+from subprocess import PIPE, Popen
+from typing import Optional
 
 import dask.dataframe as dd
-
-from abutils.core.sequence import Sequence, read_json, read_csv
+from abutils.core.sequence import Sequence, read_csv, read_json
 from abutils.utils import log
-from abstar.utils.parquet_schema import schema
-# from abutils.utils.pipeline import list_files
+from Bio import SeqIO
 
-from .antibody import Antibody
-from ..assigners.assigner import BaseAssigner
+from abstar.utils.parquet_schema import schema
+
 from ..assigners.registry import ASSIGNERS
 # from ..utils import output
-from ..utils.output import get_abstar_result, get_abstar_results, get_output, write_output, get_header, get_output_suffix, get_output_separator, get_parquet_dtypes
+from ..utils.output import (get_abstar_result, get_header,
+                            get_output, get_output_separator,
+                            get_output_suffix, get_parquet_dtypes,
+                            write_output)
 from ..utils.queue.celery import celery
+from .antibody import Antibody
+
+# from abutils.utils.pipeline import list_files
+
 
 
 if sys.version_info[0] > 2:
@@ -70,6 +72,7 @@ else:
 
 
 from ..version import __version__
+
 # __version__ = pkg_resources.require("abstar")[0].version
 
 # ASSIGNERS = {cls.__name__.lower(): cls for cls in vars()['BaseAssigner'].__subclasses__()}
@@ -111,6 +114,12 @@ def create_parser() -> ArgumentParser:
     parser.add_argument('-a', '--assigner', dest='assigner', default='blastn',
                         help='VDJ germline assignment method to use. \
                         Options are: {}. Default is blastn'.format(', '.join(ASSIGNERS.keys())))
+    parser.add_argument("--v-match-gene", dest='v_match_gene', default=None,
+                        help="The V gene to match to if known.")
+    parser.add_argument("--j-match-gene", dest='j_match_gene', default=None,
+                        help="The J gene to match to if known.")
+    parser.add_argument("--max-targets", dest='max_targets', default=10, type=int,
+                        help="The maximum number of germline gene targets for blast to return for each V and J gene.")
     parser.add_argument('-k', '--chunksize', dest='chunksize', default=500, type=int,
                         help="Approximate number of sequences in each distributed job. \
                         Defaults to 500. \
@@ -200,10 +209,11 @@ def create_parser() -> ArgumentParser:
 class Args(object):
     def __init__(self, project_dir=None, input=None, output=None, log=None, temp=None,
                  sequences=None, chunksize=500, output_type=['json', ], assigner='blastn',
-                 merge=False, pandaseq_algo='simple_bayesian', use_test_data=False,
-                 parquet=False, nextseq=False, uid=0, isotype=False, pretty=False, num_cores=0,
-                 basespace=False, cluster=False, padding=False, raw=False, json_keys=None,
-                 debug=False, germ_db='human', receptor='bcr', gzip=False, verbose=True):
+                 v_match_gene=None, j_match_gene=None, max_targets=10, merge=False, pandaseq_algo='simple_bayesian',
+                 use_test_data=False, parquet=False, nextseq=False, uid=0, isotype=False, 
+                 pretty=False, num_cores=0, basespace=False, cluster=False, padding=False,
+                 raw=False, json_keys=None, debug=False, germ_db='human', receptor='bcr', 
+                 gzip=False, verbose=True):
         super(Args, self).__init__()
         self.sequences = sequences
         self.project_dir = os.path.abspath(project_dir) if project_dir is not None else project_dir
@@ -216,6 +226,9 @@ class Args(object):
         self.output_type = [output_type, ] if output_type in STR_TYPES else output_type
         self.parquet = parquet
         self.assigner = assigner
+        self.v_match_gene = v_match_gene
+        self.j_match_gene = j_match_gene
+        self.max_targets = max_targets
         self.merge = True if basespace else merge
         self.pandaseq_algo = str(pandaseq_algo)
         self.nextseq = nextseq
@@ -685,7 +698,7 @@ def run_abstar(seq_file, output_dir, log_dir, file_format, arg_dict):
         unassigned_loghandle = open(unassigned_logfile, 'a')
         # start assignment
         assigner_class = ASSIGNERS[args.assigner]
-        assigner = assigner_class(args.germ_db, args.receptor) 
+        assigner = assigner_class(args.germ_db, args.receptor, args.v_match_gene, args.j_match_gene, args.max_targets) 
         assigner(seq_file, file_format)  # call the assigner
         # process all of the successfully assigned sequences
         outputs_dict = build_output_base(args.output_type)

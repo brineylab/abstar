@@ -43,8 +43,11 @@ class Blastn(BaseAssigner):
     docstring for Blastn
     """
 
-    def __init__(self, db_name, receptor):
+    def __init__(self, db_name, receptor, v_match_gene, j_match_gene, max_targets):
         super(Blastn, self).__init__(db_name, receptor)
+        self.v_match_gene = v_match_gene
+        self.j_match_gene = j_match_gene
+        self.max_targets = max_targets
 
     def __call__(self, sequence_file, file_format):
         with open(sequence_file, "r") as sequence_handle:
@@ -74,7 +77,7 @@ class Blastn(BaseAssigner):
         jquery_seqs = []
         for seq, vbr in zip(seqs, vblast_records):
             try:
-                germ = self.process_blast_record(vbr)
+                germ = self.process_blast_record(vbr, self.v_match_gene[:3] if self.v_match_gene else None, self.v_match_gene)
                 vdj = VDJ(seq, v=germ)
                 self.orient_query(vdj, vbr)
                 jquery = self.get_jquery_sequence(vdj.oriented, vbr)
@@ -117,7 +120,7 @@ class Blastn(BaseAssigner):
         for vdj, jquery, jbr in zip(vdjs, jquery_seqs, jblast_records):
             try:
                 # germ = self.process_blast_record(jbr)
-                germ = self.process_blast_record(jbr, match_locus=vdj.v.full[:3])
+                germ = self.process_blast_record(jbr, match_locus=vdj.v.full[:3], match_gene=self.j_match_gene)
                 vdj.j = germ
                 # sanity check to make sure there's not an obvious problem with the V/J
                 # assignments (likely due to poor germline matches to a non-antibody sequence)
@@ -190,7 +193,7 @@ class Blastn(BaseAssigner):
             outfmt=5,
             dust="no",
             word_size=self._word_size(segment),
-            max_target_seqs=10,
+            max_target_seqs=self.max_targets,
             evalue=self._evalue(segment),
             reward=self._match_reward(segment),
             penalty=self._mismatch_penalty(segment),
@@ -236,7 +239,7 @@ class Blastn(BaseAssigner):
         )
 
     def process_blast_record(
-        self, blast_record: str, match_locus: str = None
+        self, blast_record: str, match_locus: str = None, match_gene: str = None
     ) -> GermlineSegment:
         """
         Processes a single BLAST record.
@@ -253,6 +256,10 @@ class Blastn(BaseAssigner):
             three-character string. Options are ``"IGH"``, ``"IGK"``, ``"IGL"``,
             ``"TRA"``, ``"TRB"``, ``"TRD"`` or ``"TRG"``.
 
+        match_gene : str, default=None
+            Gene to match against. Used when one knows which gene they are
+            expecting to find.
+
         Returns
         -------
         germline : GermlineSegment
@@ -260,7 +267,10 @@ class Blastn(BaseAssigner):
         """
         all_gls = [a.title.split()[0] for a in blast_record.alignments]
         if match_locus is not None:
-            matching_gls = [gl for gl in all_gls if gl[:3] == match_locus]
+            if match_gene is not None:
+                matching_gls = [gl for gl in all_gls if (gl[:3] == match_locus and gl.startswith(match_gene))]
+            else:
+                matching_gls = [gl for gl in all_gls if (gl[:3] == match_locus)]
             if matching_gls:
                 all_gls = matching_gls
             #     n_others = min(5, len(all_gls))
