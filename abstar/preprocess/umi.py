@@ -180,7 +180,7 @@ def parse_umis(
     extra_length_for_alignment: int = 25,
     ignore_strand: bool = False,
     fmt: str = "fasta",
-    sequence_key: str = "raw_input",
+    sequence_key: str = "sequence_input",
     id_key: str = "sequence_id",
 ) -> str:
     """
@@ -191,9 +191,10 @@ def parse_umis(
     sequences : str or iterable
         Can be one of several things:
             1. path to a FASTA- or FASTQ-formatted file
-            2. a list of BioPython ``SeqRecord`` objects
-            3. a list of abutils ``Sequence`` objects
-            4. a list of lists/tuples, of the format ``[sequence_id, sequence]``
+            2. a single sequence, as a string
+            3. a list of BioPython ``SeqRecord`` objects
+            4. a list of abutils ``Sequence`` objects
+            5. a list of lists/tuples, of the format ``[sequence_id, sequence]``
 
     output_file : str, default=None
         Path to an output file. If `sequences` is not a file, and `output_file` is not
@@ -330,7 +331,7 @@ def parse_umis(
         sys.exit()
     # input processing
     if isinstance(sequences, str) and os.path.isfile(sequences):
-        output_file = _parse_umis_from_file(
+        output = _parse_umis_from_file(
             input_file=sequences,
             patterns=patterns,
             lengths=lengths,
@@ -340,13 +341,22 @@ def parse_umis(
             ignore_strand=ignore_strand,
             fmt=fmt,
         )
+    elif isinstance(sequences, (str, abutils.Sequence, SeqRecord)):
+        output = _parse_umis_from_single_sequence(
+            sequence=sequences,
+            patterns=patterns,
+            lengths=lengths,
+            allowed_mismatches=allowed_mismatches,
+            extra_length_for_alignment=extra_length_for_alignment,
+            ignore_strand=ignore_strand,
+        )
     else:
         # if output_file is None:
         #     err = "\nERROR: if input is not a FASTA- or FASTQ-formatted file, "
         #     err += f"output_file must be provided.\n"
         #     print(err)
         #     sys.exit()
-        output_file = _parse_umis_from_sequences(
+        output = _parse_umis_from_sequences(
             sequences=sequences,
             patterns=patterns,
             lengths=lengths,
@@ -358,7 +368,7 @@ def parse_umis(
             sequence_key=sequence_key,
             id_key=id_key,
         )
-    return output_file
+    return output
 
 
 def _parse_umis_from_file(
@@ -421,7 +431,7 @@ def _parse_umis_from_sequences(
     extra_length_for_alignment: int = 25,
     ignore_strand: bool = False,
     fmt: str = "fasta",
-    sequence_key: str = "raw_input",
+    sequence_key: str = "sequence_input",
     id_key: str = "sequence_id",
 ) -> str:
     """
@@ -469,6 +479,45 @@ def _parse_umis_from_sequences(
         with open(output_file, "w") as ofile:
             ofile.write("\n".join(output))
         return output_file
+
+
+def _parse_umis_from_single_sequence(
+    sequence: str,
+    patterns: Iterable,
+    lengths: Iterable,
+    allowed_mismatches: int = 1,
+    extra_length_for_alignment: int = 25,
+    ignore_strand: bool = False,
+    sequence_key: str = "sequence_input",
+    id_key: str = "sequence_id",
+) -> str:
+    """
+    Parses UMIs from a list of sequences.
+    """
+    # process input
+    s = abutils.Sequence(sequence)
+    if sequence_key in s:
+        s.sequence = s[sequence_key]
+    if id_key in s:
+        s.id = s[id_key]
+    # find UMIs
+    umi_list = []
+    for pattern, length in zip(patterns, lengths):
+        u = UMI(
+            sequence=s,
+            pattern=pattern,
+            length=length,
+            extra_length_for_alignment=extra_length_for_alignment,
+            ignore_strand=ignore_strand,
+        )
+        if u.num_mismatches <= allowed_mismatches:
+            umi_list.append(u.umi)
+    # concatenate all of the UMI segments with "+"
+    umi = "+".join([u for u in umi_list if u is not None])
+    # if we couldn't find a UMI (UMI is an empty string), return None
+    if not umi:
+        return None
+    return umi
 
 
 def _get_patterns(name):
