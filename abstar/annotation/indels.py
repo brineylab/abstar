@@ -8,6 +8,11 @@ import re
 from ..core.antibody import Antibody
 from .positions import get_gapped_position_from_raw
 
+__all__ = [
+    "annotate_v_insertions",
+    "annotate_v_deletions",
+]
+
 
 def annotate_v_insertions(
     aligned_sequence: str,
