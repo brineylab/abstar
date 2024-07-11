@@ -26,7 +26,7 @@ class UMI:
         pattern: str,
         length: Optional[int] = None,
         ignore_strand: bool = False,
-        extra_length_for_alignment: int = 25,
+        # extra_length_for_alignment: int = 25,
     ):
         """
         Parameters
@@ -51,7 +51,7 @@ class UMI:
         self.length = length
         self.pattern = pattern if pattern is None else pattern.strip().upper()
         self.ignore_strand = ignore_strand
-        self.extra_length_for_alignment = extra_length_for_alignment
+        # self.extra_length_for_alignment = extra_length_for_alignment
         self.sequence = self.process_sequence(sequence)
         self._leading_aln = None
         self._trailing_aln = None
@@ -132,13 +132,13 @@ class UMI:
         truncated : str
         """
         if self.pattern is not None:
-            length_for_aln = (
-                len(self.pattern.replace("[UMI]", "")) + self.extra_length_for_alignment
-            )
-            length_for_aln += self.length if self.length is not None else 16
-            sequence = sequence[:length_for_aln]
+            # length_for_aln = (
+            #     len(self.pattern.replace("[UMI]", "")) + self.extra_length_for_alignment
+            # )
+            # length_for_aln += self.length if self.length is not None else 16
+            # sequence = sequence[:length_for_aln]
             if self.length < 0 and not self.ignore_strand:
-                return abutils.tl.reverse_complement(sequence)
+                sequence = abutils.tl.reverse_complement(sequence)
         return sequence
 
     def align(self, pattern: str, sequence: Sequence) -> PairwiseAlignment:
@@ -205,7 +205,7 @@ def parse_umis(
     pattern: Union[str, Iterable, None] = None,
     length: Union[int, Iterable, None] = None,
     allowed_mismatches: int = 1,
-    extra_length_for_alignment: int = 25,
+    # extra_length_for_alignment: int = 25,
     ignore_strand: bool = False,
     fmt: str = "fasta",
     sequence_key: str = "sequence_input",
@@ -375,7 +375,7 @@ def parse_umis(
             lengths=lengths,
             output_file=output_file,
             allowed_mismatches=allowed_mismatches,
-            extra_length_for_alignment=extra_length_for_alignment,
+            # extra_length_for_alignment=extra_length_for_alignment,
             ignore_strand=ignore_strand,
             fmt=fmt,
         )
@@ -385,7 +385,7 @@ def parse_umis(
             patterns=patterns,
             lengths=lengths,
             allowed_mismatches=allowed_mismatches,
-            extra_length_for_alignment=extra_length_for_alignment,
+            # extra_length_for_alignment=extra_length_for_alignment,
             ignore_strand=ignore_strand,
         )
     else:
@@ -395,7 +395,7 @@ def parse_umis(
             lengths=lengths,
             output_file=output_file,
             allowed_mismatches=allowed_mismatches,
-            extra_length_for_alignment=extra_length_for_alignment,
+            # extra_length_for_alignment=extra_length_for_alignment,
             ignore_strand=ignore_strand,
             fmt=fmt,
             sequence_key=sequence_key,
@@ -410,7 +410,7 @@ def _parse_umis_from_file(
     lengths: Iterable,
     output_file: Optional[str] = None,
     allowed_mismatches: int = 1,
-    extra_length_for_alignment: int = 25,
+    # extra_length_for_alignment: int = 25,
     ignore_strand: bool = False,
     separator: str = "_",
     fmt: str = "fasta",
@@ -436,7 +436,7 @@ def _parse_umis_from_file(
                     sequence=s,
                     pattern=pattern,
                     length=length,
-                    extra_length_for_alignment=extra_length_for_alignment,
+                    # extra_length_for_alignment=extra_length_for_alignment,
                     ignore_strand=ignore_strand,
                 )
                 if u.num_mismatches <= allowed_mismatches:
@@ -463,7 +463,7 @@ def _parse_umis_from_sequences(
     lengths: Iterable,
     output_file: str,
     allowed_mismatches: int = 1,
-    extra_length_for_alignment: int = 25,
+    # extra_length_for_alignment: int = 25,
     ignore_strand: bool = False,
     fmt: str = "fasta",
     sequence_key: str = "sequence_input",
@@ -490,7 +490,7 @@ def _parse_umis_from_sequences(
                 sequence=s,
                 pattern=pattern,
                 length=length,
-                extra_length_for_alignment=extra_length_for_alignment,
+                # extra_length_for_alignment=extra_length_for_alignment,
                 ignore_strand=ignore_strand,
             )
             if u.num_mismatches <= allowed_mismatches:
@@ -522,7 +522,7 @@ def _parse_umis_from_single_sequence(
     patterns: Iterable,
     lengths: Iterable,
     allowed_mismatches: int = 1,
-    extra_length_for_alignment: int = 25,
+    # extra_length_for_alignment: int = 25,
     ignore_strand: bool = False,
     sequence_key: str = "sequence_input",
     id_key: str = "sequence_id",
@@ -543,7 +543,7 @@ def _parse_umis_from_single_sequence(
             sequence=s,
             pattern=pattern,
             length=length,
-            extra_length_for_alignment=extra_length_for_alignment,
+            # extra_length_for_alignment=extra_length_for_alignment,
             ignore_strand=ignore_strand,
         )
         if u.num_mismatches <= allowed_mismatches:
