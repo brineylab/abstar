@@ -271,6 +271,7 @@ def merge_fastqs(
     quality_trim: bool = True,
     window_size: int = 4,
     quality_cutoff: int = 20,
+    interleaved: bool = True,
     compress_output: bool = False,
     debug: bool = False,
     show_progress: bool = False,
@@ -345,37 +346,74 @@ def merge_fastqs(
         A list of paths to the merged FASTA/Q files.
 
     """
-    # group files by sample
-    file_pairs = group_paired_fastqs(files, schema=schema)
-    if show_progress:
-        # print("--------------------")
-        # print("    MERGE FASTQs    ")
-        # print("--------------------")
-        file_pairs = tqdm(file_pairs, desc="Merging FASTQs", leave=True)
-    # merge files
+    # input/output files and directories
+    if isinstance(files, str):
+        if os.path.isdir(files):
+            files = list_files(files)
+        elif os.path.isfile(files):
+            files = [files]
+        else:
+            raise ValueError(
+                f"If files are supplied as a string, it must be either a directory or a file. The supplied ({files}) is neither."
+            )
     make_dir(output_directory)
+
     merged_files = []
-    for fp in file_pairs:
-        merged_file = fp.merge(
-            merged_directory=output_directory,
-            format=output_format,
-            algo=algo,
-            binary_path=binary_path,
-            log_directory=log_directory,
-            minimum_overlap=minimum_overlap,
-            allowed_mismatches=allowed_mismatches,
-            allowed_mismatch_percent=allowed_mismatch_percent,
-            trim_adapters=trim_adapters,
-            adapter_file=adapter_file,
-            quality_trim=quality_trim,
-            window_size=window_size,
-            quality_cutoff=quality_cutoff,
-            merge_args=merge_args,
-            compress_output=compress_output,
-            debug=debug,
-            show_progress=show_progress,
-        )
-        merged_files.append(merged_file)
+
+    if interleaved:
+        if show_progress:
+            files = tqdm(files, desc="Merging FASTQs", leave=True)
+        for f in files:
+            compress_suffix = ".gz" if compress_output else ""
+            name = os.path.basename(f).rstrip(".gz").rstrip(".fastq")
+            merged_file = os.path.join(
+                output_directory, f"{name}.{output_format.lower()}{compress_suffix}"
+            )
+            merge_fastqs_fastp(
+                forward=f,
+                merged=merged_file,
+                binary_path=binary_path,
+                log_directory=log_directory,
+                minimum_overlap=minimum_overlap,
+                allowed_mismatches=allowed_mismatches,
+                allowed_mismatch_percent=allowed_mismatch_percent,
+                trim_adapters=trim_adapters,
+                adapter_file=adapter_file,
+                quality_trim=quality_trim,
+                window_size=window_size,
+                quality_cutoff=quality_cutoff,
+                additional_args=merge_args,
+                interleaved=True,
+                debug=debug,
+            )
+            merged_files.append(merged_file)
+    else:
+        # group files by sample
+        file_pairs = group_paired_fastqs(files, schema=schema)
+        if show_progress:
+            file_pairs = tqdm(file_pairs, desc="Merging FASTQs", leave=True)
+        # merge files
+        for fp in file_pairs:
+            merged_file = fp.merge(
+                merged_directory=output_directory,
+                format=output_format,
+                algo=algo,
+                binary_path=binary_path,
+                log_directory=log_directory,
+                minimum_overlap=minimum_overlap,
+                allowed_mismatches=allowed_mismatches,
+                allowed_mismatch_percent=allowed_mismatch_percent,
+                trim_adapters=trim_adapters,
+                adapter_file=adapter_file,
+                quality_trim=quality_trim,
+                window_size=window_size,
+                quality_cutoff=quality_cutoff,
+                merge_args=merge_args,
+                compress_output=compress_output,
+                debug=debug,
+                show_progress=show_progress,
+            )
+            merged_files.append(merged_file)
     return merged_files
 
 
@@ -427,7 +465,7 @@ def group_paired_fastqs(
 
 def merge_fastqs_vsearch(
     forward: str,
-    reverse: str,
+    reverse: Optional[str],
     merged_file: str,
     output_format: str = "fasta",
     binary_path: Optional[str] = None,
@@ -435,6 +473,7 @@ def merge_fastqs_vsearch(
     allowed_mismatches: int = 5,
     allowed_mismatch_percent: float = 20.0,
     additional_args: Optional[str] = None,
+    interleaved: bool = False,
     debug: bool = False,
 ) -> str:
     """
@@ -473,8 +512,11 @@ def merge_fastqs_vsearch(
     if not os.path.isfile(forward):
         err = f"The supplied forward read file path ({forward}) does not exist or is not a file."
         raise ValueError(err)
-    if not os.path.isfile(reverse):
+    if reverse is not None and not os.path.isfile(reverse):
         err = f"The supplied reverse read file path ({reverse}) does not exist or is not a file."
+        raise ValueError(err)
+    if reverse is None and not interleaved:
+        err = "Reverse read file path is required when not using interleaved mode."
         raise ValueError(err)
     # make output directory
     out_dir = os.path.dirname(merged_file)
@@ -507,8 +549,8 @@ def merge_fastqs_vsearch(
 
 def merge_fastqs_fastp(
     forward: str,
-    reverse: str,
-    merged: str,
+    reverse: Optional[str] = None,
+    merged: Optional[str] = None,
     binary_path: Optional[str] = None,
     minimum_overlap: int = 30,
     allowed_mismatches: int = 5,
@@ -521,11 +563,12 @@ def merge_fastqs_fastp(
     quality_cutoff: int = 20,
     name: Optional[str] = None,
     log_directory: Optional[str] = None,
+    interleaved: bool = False,
     additional_args: Optional[str] = None,
     debug: bool = False,
 ) -> str:
     """
-    Merge paired-end reads using vsearch.
+    Merge paired-end reads using fastp.
 
     Parameters
     ----------
@@ -533,7 +576,13 @@ def merge_fastqs_fastp(
         Path to the forward read file.
 
     reverse : str
-        Path to the reverse read file.
+        Path to the reverse read file. If `interleaved` is ``True``, the merged output file can optionally
+        be provided to this parameter. This allows calling the function using positional arguments for the
+        input/output files, like so:
+
+        ```python
+        merged_file = merge_fastqs_fastp("path/to/forward.fastq", "path/to/merged.fastq", interleaved=True)
+        ```
 
     merged : str
         Path to the merged read file. If the merged file ends in ".gz", the merged file
@@ -593,30 +642,44 @@ def merge_fastqs_fastp(
     if not os.path.isfile(forward):
         err = f"The supplied forward read file path ({forward}) does not exist or is not a file."
         raise ValueError(err)
-    if not os.path.isfile(reverse):
+    if reverse is not None and not os.path.isfile(reverse):
         err = f"The supplied reverse read file path ({reverse}) does not exist or is not a file."
         raise ValueError(err)
+    if reverse is None and not interleaved:
+        err = "Reverse read file path is required when not using interleaved mode."
+        raise ValueError(err)
+    if merged is None:
+        if interleaved and reverse is not None:
+            merged = os.path.abspath(reverse)
+            reverse = None
+        else:
+            raise ValueError("You must supply a path for the merged output file.")
 
     # make output directory
     merged = os.path.abspath(merged)
     out_dir = os.path.dirname(merged)
     make_dir(out_dir)
 
-    # get the vsearch binary
+    # get the fastp binary
     if binary_path is None:
         binary_path = get_binary_path("fastp")
 
-    # compile the vsearch command
-    cmd = f"{binary_path} -i '{forward}' -I '{reverse}' --merge --merged_out '{merged}'"
+    # compile the fastp command
+    cmd = f"{binary_path} -i '{forward}' --merge --merged_out '{merged}'"
+    if not interleaved:
+        cmd += f" -I '{reverse}'"
     cmd += f" --overlap_len_require {int(minimum_overlap)}"
     cmd += f" --overlap_diff_limit {int(allowed_mismatches)}"
     cmd += f" --overlap_diff_percent_limit {int(allowed_mismatch_percent)}"
     if correct_overlap_region:
         cmd += " --correction"
+    if interleaved:
+        cmd += " --interleaved_in"
 
     # adapters
     if trim_adapters:
         if adapter_file is None:
+            # default Illumina TruSeq adapters
             cmd += " --adapter_sequence=AGATCGGAAGAGCACACGTCTGAACTCCAGTCA"
             cmd += " --adapter_sequence_r2=AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGT"
         else:
