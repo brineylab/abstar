@@ -29,10 +29,8 @@ import re
 import sys
 import traceback
 
-from Bio.Seq import Seq
-
 from abutils.utils import log
-
+from Bio.Seq import Seq
 
 # Both IMGT_REGION_END_POSITIONS_AA and IMGT_REGION_END_POSITIONS_NT use the actual
 # IMGT end positions, thus they're not suitable for slicing (because Python's uses
@@ -304,4 +302,3 @@ class JoiningRegions(BaseRegions):
         super(JoiningRegions, self).__init__(antibody)
         self.segment = antibody.j
         self.region_names = ["FR4"]
-
