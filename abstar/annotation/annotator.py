@@ -15,6 +15,7 @@ from .germline import (
 )
 from .indels import annotate_v_deletions, annotate_v_insertions
 from .mutations import annotate_mutations
+from .productivity import assess_productivity
 from .regions import get_region_sequence
 
 
@@ -448,16 +449,7 @@ def annotate(ab: Antibody):
     ab.log(" PRODUCTIVITY")
     ab.log("--------------\n")
 
-    # scan for issues
-    if "*" in ab.sequence_aa:
-        ab.productivity_issues.append("stop codon(s)")
-    if "N" in ab.sequence:
-        ab.productivity_issues.append("ambiguous nucleotide(s)")
-
-    # flag sequences with issues as non-productive
-    if ab.productivity_issues:
-        ab.productive = False
-    ab.productivity_issues = "|".join(ab.productivity_issues)
+    ab = assess_productivity(ab)
     ab.log("PRODUCTIVE:", ab.productive)
     ab.log("PRODUCTIVITY ISSUES:", ab.productivity_issues)
 
