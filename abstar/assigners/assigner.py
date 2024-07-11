@@ -26,6 +26,8 @@ import os
 
 import abutils
 
+from ..annotation.germline import get_germline_database_path
+
 
 class AssignerBase:
     """
@@ -47,7 +49,7 @@ class AssignerBase:
         self.germdb_name = germdb_name
         self.verbose = verbose
         self.debug = debug
-        self.germdb_path = self.get_germdb_path(germdb_name, receptor)
+        self.germdb_path = get_germline_database_path(germdb_name, receptor)
         self.to_delete = []  # files that should be deleted during cleanup
 
         abutils.io.make_dir(self.output_directory)
@@ -64,13 +66,13 @@ class AssignerBase:
           * ``sequence_id``: a unique identifier for each input sequence.
           * ``sequence``: the input sequence.
           * ``quality``: the quality score for each input sequence.
-          * ``is_rc``: a boolean indicating whether the input sequence is in the reverse_complement orientation
+          * ``rev_comp``: a boolean indicating whether the input sequence is in the reverse_complement orientation
           * ``v_call``: the V-gene call for each input sequence.
-          * ``v_evalue``: the V-gene evalue for each input sequence.
+          * ``v_support``: the V-gene evalue for each input sequence.
           * ``d_call``: the D-gene call for each input sequence.
-          * ``d_evalue``: the D-gene evalue for each input sequence.
+          * ``d_support``: the D-gene evalue for each input sequence.
           * ``j_call``: the J-gene call for each input sequence.
-          * ``j_evalue``: the J-gene evalue for each input sequence.
+          * ``j_support``: the J-gene evalue for each input sequence.
 
         """
         raise NotImplementedError("Subclasses must implement this method")
@@ -79,45 +81,45 @@ class AssignerBase:
         abutils.io.delete_files(self.to_delete)
         self.to_delete = []
 
-    @staticmethod
-    def get_germdb_path(germdb_name: str, receptor: str = "bcr") -> str:
-        """
-        Get the path to a germline database.
+    # @staticmethod
+    # def get_germdb_path(germdb_name: str, receptor: str = "bcr") -> str:
+    #     """
+    #     Get the path to a germline database.
 
-        Parameters
-        ----------
-        germdb_name : str
-            The name of the germline database.
+    #     Parameters
+    #     ----------
+    #     germdb_name : str
+    #         The name of the germline database.
 
-        receptor : str, default: "bcr"
-            The receptor type. Options are "bcr" and "tcr".
+    #     receptor : str, default: "bcr"
+    #         The receptor type. Options are "bcr" and "tcr".
 
-        Returns
-        -------
-        str
-            The path to the germline database.
-        """
-        germdb_name = germdb_name.lower()
-        receptor = receptor.lower()
-        if receptor not in ["bcr", "tcr"]:
-            raise ValueError(f"Receptor type {receptor} not supported")
+    #     Returns
+    #     -------
+    #     str
+    #         The path to the germline database.
+    #     """
+    #     germdb_name = germdb_name.lower()
+    #     receptor = receptor.lower()
+    #     if receptor not in ["bcr", "tcr"]:
+    #         raise ValueError(f"Receptor type {receptor} not supported")
 
-        # check the addon directory first
-        addon_dir = os.path.expanduser(f"~/.abstar/germline_dbs/{receptor}")
-        if os.path.isdir(addon_dir):
-            if germdb_name.lower() in [
-                os.path.basename(d[0]) for d in os.walk(addon_dir)
-            ]:
-                return os.path.join(addon_dir, f"{receptor}/{germdb_name}")
+    #     # check the addon directory first
+    #     addon_dir = os.path.expanduser(f"~/.abstar/germline_dbs/{receptor}")
+    #     if os.path.isdir(addon_dir):
+    #         if germdb_name.lower() in [
+    #             os.path.basename(d[0]) for d in os.walk(addon_dir)
+    #         ]:
+    #             return os.path.join(addon_dir, f"{receptor}/{germdb_name}")
 
-        # if a user-generated DB isn't found, use the built-in DB
-        curr_dir = os.path.dirname(os.path.abspath(__file__))
-        germdb_path = os.path.join(curr_dir, f"germline_dbs/{receptor}/{germdb_name}")
-        if not os.path.exists(germdb_path):
-            raise FileNotFoundError(
-                f"Germline database {germdb_name} for receptor {receptor} not found"
-            )
-        return germdb_path
+    #     # if a user-generated DB isn't found, use the built-in DB
+    #     curr_dir = os.path.dirname(os.path.abspath(__file__))
+    #     germdb_path = os.path.join(curr_dir, f"germline_dbs/{receptor}/{germdb_name}")
+    #     if not os.path.exists(germdb_path):
+    #         raise FileNotFoundError(
+    #             f"Germline database {germdb_name} for receptor {receptor} not found"
+    #         )
+    #     return germdb_path
 
 
 ##
