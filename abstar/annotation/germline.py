@@ -13,13 +13,13 @@ from natsort import natsorted
 from ..core.antibody import Antibody
 
 __all__ = [
-    "get_germdb_path",
+    "get_germline_database_path",
     "get_germline",
-    "realign_germline",
-    "reassign_dgene",
-    "process_vgene_alignment",
-    "process_jgene_alignment",
-    "process_dgene_alignment",
+    # "realign_germline",
+    # "reassign_dgene",
+    # "process_vgene_alignment",
+    # "process_jgene_alignment",
+    # "process_dgene_alignment",
 ]
 
 
@@ -28,7 +28,7 @@ __all__ = [
 # ------------------------------
 
 
-def get_germdb_path(germdb_name: str, receptor: str = "bcr") -> str:
+def get_germline_database_path(germdb_name: str, receptor: str = "bcr") -> str:
     """
     Get the path to a germline database. The addon directory (which contains user-built
     databases) is checked first, and if a user-built database is not found, the built-in
@@ -143,7 +143,7 @@ def get_germline(
         If no germline genes matching the query are found in the database.
 
     """
-    germdb_path = get_germdb_path(germdb_name, receptor)
+    germdb_path = get_germline_database_path(germdb_name, receptor)
     # parse the segment type
     segment = germline_gene[3].lower()
     if segment in ["a", "d", "g", "e", "m"]:
