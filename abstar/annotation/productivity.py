@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: MIT
 
 
-from ..core.antibody import Antibody
+from .antibody import Antibody
 
 
 def assess_productivity(ab: Antibody) -> Antibody:
