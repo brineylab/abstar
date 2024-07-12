@@ -2,9 +2,14 @@
 # Distributed under the terms of the MIT License.
 # SPDX-License-Identifier: MIT
 
-import abutils
+import os
+import traceback
+from typing import Iterable, Optional
 
-from ..core.antibody import Antibody
+import abutils
+import polars as pl
+
+from .antibody import Antibody
 from .germline import (
     get_germline,
     process_dgene_alignment,
@@ -17,9 +22,130 @@ from .indels import annotate_v_deletions, annotate_v_insertions
 from .mutations import annotate_mutations
 from .productivity import assess_productivity
 from .regions import get_region_sequence
+from .umi import parse_umis
 
 
-def annotate(ab: Antibody):
+def annotate(
+    input_file: str,
+    output_directory: str,
+    germline_database: str,
+    log_directory: Optional[str] = None,
+    umi_pattern: Optional[str] = None,
+    umi_length: Optional[int] = None,
+    debug: bool = False,
+) -> Iterable[str, Optional[str], Optional[str]]:
+    """
+    Annotates a Parquet file of V(D)J-assigned antibody sequences.
+
+    Parameters
+    ----------
+    input_file : str
+        Path to the input file, in Parquet format. The following fields are required:
+
+            - sequence_id
+            - sequence_input
+            - quality
+            - rev_comp
+            - v_call
+            - v_support
+            - d_call
+            - d_support
+            - j_call
+            - j_support
+            - c_call
+            - c_support
+
+        although any of the values (aside from sequence_id, sequence_input, and rev_comp)
+        can be None.
+
+    output_directory : str
+        Path to the directory where the annotated Parquet file will be written.
+
+    germline_database : str
+        Name of the germline database to use for annotation.
+
+    log_directory : Optional[str], default=None
+        Path to the directory where the log files will be written.
+
+    umi_pattern : Optional[str], default=None
+        Pattern to match for UMI sequences, or name of a built-in pattern.
+
+    umi_length : Optional[int], default=None
+        Length of the UMI sequences.
+
+    debug : bool, default=False
+        Whether to write log files for failed and succeeded sequences.
+
+    Returns
+    -------
+    output_file : str
+        Path to the output Parquet file containing annotated sequences.
+
+    failed_logfile : Optional[str]
+        Path to the log file for failed sequences. Only returned if
+        `log_directory` is provided
+
+    succeeded_logfile : Optional[str]
+        Path to the log file for succeeded sequences. Only returned if
+        `debug=True` and `log_directory` is provided.
+
+    """
+    # load the input parquet file
+    df = pl.read_parquet(input_file)
+
+    # do annotations
+    annotated = []
+    for r in df.iter_rows(named=True):
+        ab = Antibody(**r)
+        try:
+            ab = annotate_single_sequence(
+                ab=ab,
+                germline_database=germline_database,
+                umi_pattern=umi_pattern,
+                umi_length=umi_length,
+            )
+        except Exception as e:
+            ab.exception("ANNOTATION EXCEPTION", traceback.format_exc())
+        annotated.append(ab)
+
+    # gather the results
+    failed = [a for a in annotated if a.exceptions]
+    succeeded = [a for a in annotated if not a.exceptions]
+    succeeded_df = pl.DataFrame([s.to_dict() for s in succeeded])
+
+    # write logs
+    basename = os.path.basename(input_file)
+    if log_directory:
+        failed_logfile = os.path.join(log_directory, f"{basename}.failed")
+        with open(failed_logfile, "w") as f:
+            for fail in failed:
+                f.write(fail.format_log())
+        if debug:
+            succeeded_logfile = os.path.join(log_directory, f"{basename}.succeeded")
+            with open(succeeded_logfile, "w") as f:
+                for succ in succeeded:
+                    f.write(succ.format_log())
+
+    # write outputs
+    output_file = os.path.join(output_directory, f"{basename}_annotated.parquet")
+    succeeded_df.write_parquet(output_file)
+
+    # returns
+    if log_directory:
+        if debug:
+            return output_file, failed_logfile, succeeded_logfile
+        else:
+            return output_file, failed_logfile, None
+    else:
+        return output_file, None, None
+
+
+def annotate_single_sequence(
+    ab: Antibody,
+    germline_database: str,
+    umi_pattern: Optional[str] = None,
+    umi_length: Optional[int] = None,
+):
     # log information from the assigner
     ab.log("=" * (len(ab.sequence_id) + 15))
     ab.log(" SEQUENCE ID:", ab.sequence_id)
@@ -29,11 +155,19 @@ def annotate(ab: Antibody):
     ab.log("REV COMP:", ab.rev_comp)
 
     # germline database, locus, and receptor type
-    ab.germline_database = "human"  # TODO: replace with the actual germdb variable name
+    ab.germline_database = germline_database
     ab.locus = ab.v_call[:3].upper()
     ab.receptor_type = "bcr" if ab.locus[:2] == "IG" else "tcr"
     ab.log("GERMLINE DATABASE:", ab.germline_database)
     ab.log("LOCUS:", ab.locus)
+
+    # umi
+    if any([umi_pattern is not None, umi_length is not None]):
+        ab.umi = parse_umis(
+            ab.sequence_input,
+            pattern=umi_pattern,
+            length=umi_length,
+        )
 
     # orient the input sequence
     if ab.rev_comp:
