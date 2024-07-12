@@ -1,24 +1,23 @@
-#!/usr/bin/python
-# filename: pp.py
-
-#
 # Copyright (c) 2024 Bryan Briney
-# License: The MIT license (http://opensource.org/licenses/MIT)
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy of this software
-# and associated documentation files (the "Software"), to deal in the Software without restriction,
-# including without limitation the rights to use, copy, modify, merge, publish, distribute,
-# sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included in all copies or
-# substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING
-# BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-# DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-#
+# Distributed under the terms of the MIT License.
+# SPDX-License-Identifier: MIT
 
 from .annotation.germline import *
+
+
+#  TODO:
+#
+#  should think about the pros/cons of building a single germline database per species that
+#  contains both BCR and TCR germline segments
+#
+#  the biggest con is the fact that OGRDB only has BCR data, so all databases would need to be
+#  hybrid of IMGT and OGRDB datasets -- maybe this just needs some more time??
+#
+#  functions:
+#    - build_database() -- has `schema` kwarg, which can be either "ogrdb" or "imgt"
+#    - build_database_ogrdb()
+#       - should use their JSON files by default, but constant regions may need to be FASTA (and come from IMGT)
+#    - build_database_imgt()
+#
+#    - show_manifest()
+#       - prints the manifest for a given germline database
