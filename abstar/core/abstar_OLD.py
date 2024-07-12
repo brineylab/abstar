@@ -54,6 +54,9 @@ from abstar.utils.parquet_schema import schema
 from ..assigners.assigner import BaseAssigner
 from ..assigners.registry import ASSIGNERS
 
+# from abutils.utils.pipeline import list_files
+from ..core.antibody import Antibody
+
 # from ..utils import output
 from ..utils.output import (
     get_abstar_result,
@@ -69,9 +72,6 @@ from ..utils.output import (
 # from ..utils.output import PARQUET_INCOMPATIBLE
 from ..utils.queue.celery import celery
 from ..version import __version__
-
-# from abutils.utils.pipeline import list_files
-from .antibody import Antibody
 
 STR_TYPES = [str]
 # if sys.version_info[0] > 2:
