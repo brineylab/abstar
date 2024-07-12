@@ -5,7 +5,7 @@
 
 import re
 
-from ..core.antibody import Antibody
+from .antibody import Antibody
 from .positions import get_gapped_position_from_raw
 
 __all__ = [

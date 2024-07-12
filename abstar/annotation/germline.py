@@ -10,7 +10,7 @@ import abutils
 from abutils import Sequence
 from natsort import natsorted
 
-from ..core.antibody import Antibody
+from .antibody import Antibody
 
 __all__ = [
     "get_germline_database_path",

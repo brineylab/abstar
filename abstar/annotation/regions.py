@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: MIT
 
 
-from ..core.antibody import Antibody
+from .antibody import Antibody
 from .positions import (
     get_gapped_position_from_raw,
     get_raw_position_from_aligned,
