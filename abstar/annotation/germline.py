@@ -92,6 +92,8 @@ def get_germline(
     germdb_name: str,
     receptor: str = "bcr",
     imgt_gapped: bool = False,
+    exact_match: bool = False,
+    force_constant: bool = False,
 ) -> Union[list, Sequence]:
     """
     Get the germline sequence for a given germline gene.
@@ -123,6 +125,11 @@ def get_germline(
     imgt_gapped : bool, default: False
         Whether to use the IMGT gapped or ungapped germline sequences.
 
+    force_constant : bool, default: False
+        Whether to force the query to match a constant germline gene. This is necessary because both IgD and diversity (D)
+        gene names are formatted as IGHD, making it ambiguous whether the query is for IgD or diversity. By default,
+        a supplied germline name of the format IGHD is assumed to be diversity.
+
     Returns
     -------
     list or Sequence
@@ -146,7 +153,7 @@ def get_germline(
     germdb_path = get_germline_database_path(germdb_name, receptor)
     # parse the segment type
     segment = germline_gene[3].lower()
-    if segment in ["a", "d", "g", "e", "m"]:
+    if segment in ["a", "g", "e", "m"] or force_constant:
         segment = "c"
     if segment not in ["v", "d", "j", "c"]:
         raise ValueError(
@@ -163,7 +170,10 @@ def get_germline(
         )
     # retrieve germline sequences
     germs = abutils.io.read_fasta(germdb_file)
-    germs = [g for g in germs if germline_gene in g.id]
+    if exact_match:
+        germs = [g for g in germs if germline_gene == g.id]
+    else:
+        germs = [g for g in germs if germline_gene in g.id]
     if not germs:
         raise ValueError(
             f"No substring matches to {germline_gene} were found in {germdb_file}"
@@ -251,7 +261,9 @@ def realign_germline(
 
     """
     # initial semi-global alignment
-    germ = get_germline(germline_name, germdb_name, imgt_gapped=imgt_gapped)
+    germ = get_germline(
+        germline_name, germdb_name, imgt_gapped=imgt_gapped, exact_match=True
+    )
     if truncate_query is not None:
         sequence = sequence[: -int(truncate_query)]
     if truncate_target is not None:
