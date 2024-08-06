@@ -3,3 +3,4 @@
 # SPDX-License-Identifier: MIT
 
 from .annotation.umi import *
+from .core.germline import build_germline_database
