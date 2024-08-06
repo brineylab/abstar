@@ -18,7 +18,7 @@ from tqdm.auto import tqdm
 from ..annotation.annotator import annotate
 from ..assigners.mmseqs import MMseqs
 from ..preprocess.merging import merge_fastqs
-from ..utils import parse_dict_from_string
+from ..utils.callbacks import parse_dict_from_string
 
 #  TODO: inputs/returns
 #  --------------------
@@ -188,7 +188,7 @@ def run(
     interleaved_fastq: bool = False,
     chunksize: int = 500,
     n_processes: Optional[int] = None,
-    verbose: bool = True,
+    verbose: bool = False,
     debug: bool = False,
 ):
     """
@@ -201,11 +201,11 @@ def run(
         The sequences to annotate. Can be one of the following:
 
           - ``str``: path to a FASTA/Q file, path to a directory of FASTA/Q files, or a single sequence, as a string
-          - ``Sequence``: a single sequence object
-          - ``Iterable[Sequence]``: an iterable of sequence objects
+          - ``Sequence``: a single ``abutils.Sequence`` object
+          - ``Iterable[Sequence]``: an iterable of ``abutils.Sequence`` objects
 
         .. note::
-            If ``sequences`` is a directory path, files in the directory will be consumed recursively, including
+            If `sequences` is a directory path, files in the directory will be consumed recursively, including
             files in any subfolders.
 
     project_path : Optional[str] = None
@@ -324,13 +324,15 @@ def run(
         to_delete = []
 
         # parse sample name
-        sample_name = os.path.basename(sequence_file).rstrip(".gz").split(".")[:-1]
+        sample_name = ".".join(
+            os.path.basename(sequence_file).rstrip(".gz").split(".")[:-1]
+        )
         if verbose:
             print(f"  {sample_name}")
             print("-" * (len(sample_name) + 4))
 
         # assign VDJC genes
-        assign_file = assigner(sequence_file)
+        assign_file = assigner(sequence_file)  # returns a parquet file
         assigner.cleanup()
 
         # split into annotation jobs
@@ -422,6 +424,7 @@ def _process_inputs(
     sequence_files : Iterable[str]
         A list of one or more sequence files.
     """
+    sequence_files = None
     if isinstance(sequences, str):
         if os.path.isfile(sequences):
             sequence_files = [os.path.abspath(sequences)]
@@ -437,6 +440,10 @@ def _process_inputs(
         temp_file.write("\n".join(fastas))
         temp_file.close()
         sequence_files = [temp_file.name]
+    if sequence_files is None:
+        raise ValueError(
+            "Invalid input sequences. Must be a path to a file or directory, a single sequence, or an iterable of sequences."
+        )
     return sequence_files
 
 
