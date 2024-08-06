@@ -14,6 +14,7 @@ from abutils.io import (
     delete_files,
     list_files,
     make_dir,
+    parse_fastx,
     rename_file,
 )
 from natsort import natsorted
@@ -350,8 +351,14 @@ def merge_fastqs(
             merged_file = os.path.join(
                 output_directory, f"{name}.{output_format.lower()}{compress_suffix}"
             )
+            # fastp seems to occasionally have problems with multi-line interleaved FASTQ
+            # files, so we'll make a temp file with sequences/qualities each on a single line
+            tmp = tempfile.NamedTemporaryFile(delete=False, dir=os.path.dirname(f))
+            for seq in parse_fastx(f):
+                tmp.write(f"{seq.fastq}\n")
+            tmp.close()
             merge_fastqs_fastp(
-                forward=f,
+                forward=tmp.name,
                 merged=merged_file,
                 binary_path=binary_path,
                 log_directory=log_directory,
@@ -368,6 +375,7 @@ def merge_fastqs(
                 debug=debug,
             )
             merged_files.append(merged_file)
+            os.unlink(tmp.name)
     else:
         # group files by sample
         file_pairs = group_paired_fastqs(files, schema=schema)
