@@ -30,13 +30,18 @@ def parse_dict_from_string(
     dict
         The parsed dictionary.
 
+    Raises
+    ------
+    click.BadParameter
+        If the format is not similar to ``key1=val1,key2=val2``.
+
     """
     if not value:
         return {}
     try:
-        # Split the string into key-value pairs
+        # split the string into key-value pairs
         kv_pairs = value.split(",")
-        # Convert the pairs into a dictionary
+        # convert the pairs into a dictionary
         return dict(kv_pair.split("=") for kv_pair in kv_pairs)
     except ValueError:
         raise click.BadParameter("Format must be 'key1=val1,key2=val2'")
