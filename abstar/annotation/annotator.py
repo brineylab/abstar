@@ -68,10 +68,10 @@ def annotate(
         Path to the directory where the log files will be written.
 
     umi_pattern : Optional[str], default=None
-        Pattern to match for UMI sequences, or name of a built-in pattern.
+        Pattern to match for parsing the UMI sequence, or name of a built-in pattern.
 
     umi_length : Optional[int], default=None
-        Length of the UMI sequences.
+        Length of the UMI sequence.
 
     debug : bool, default=False
         Whether to write log files for failed and succeeded sequences.
