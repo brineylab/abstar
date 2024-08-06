@@ -9,16 +9,16 @@ from setuptools import find_packages, setup
 
 # read version
 version_file = os.path.join(os.path.dirname(__file__), "abstar", "version.py")
-with open(version_file) as f:
-    exec(f.read())
+with open(version_file) as version:
+    exec(version.read())
 
 # read requirements
-with open("requirements.txt") as f:
-    requirements = f.read().splitlines()
+with open("requirements.txt") as reqs:
+    requirements = reqs.read().splitlines()
 
 # read long description
-with open("README.md", encoding="utf-8") as f:
-    long_description = f.read()
+with open("README.md", encoding="utf-8") as readme:
+    long_description = readme.read()
 
 setup(
     name="abstar",
