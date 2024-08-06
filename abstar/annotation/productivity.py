@@ -32,6 +32,7 @@ def assess_productivity(ab: Antibody) -> Antibody:
     # scan for issues
     if "*" in ab.sequence_aa:
         ab.productivity_issues.append("stop codon(s)")
+        ab.stop_codon = True
     if "N" in ab.sequence:
         ab.productivity_issues.append("ambiguous nucleotide(s)")
     if ab.v_call[:3] != ab.j_call[:3]:
