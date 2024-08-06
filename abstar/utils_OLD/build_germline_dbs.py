@@ -22,12 +22,12 @@
 #
 
 
-from argparse import ArgumentParser
 import os
 import platform
 import shutil
 import subprocess as sp
 import sys
+from argparse import ArgumentParser
 
 from Bio import SeqIO
 
@@ -243,8 +243,10 @@ def make_blast_db(ungapped_germline_file, addon_directory, segment, dbname):
     mbd_log = os.path.join(
         addon_directory, "{}/blast/{}.blastlog".format(dbname.lower(), segment.lower())
     )
-    mbd_cmd = "{} -in {} -out {} -parse_seqids -dbtype nucl -title {} -logfile {}".format(
-        mbd_binary, ungapped_germline_file, mbd_output, segment.lower(), mbd_log
+    mbd_cmd = (
+        "{} -in {} -out {} -parse_seqids -dbtype nucl -title {} -logfile {}".format(
+            mbd_binary, ungapped_germline_file, mbd_output, segment.lower(), mbd_log
+        )
     )
     p = sp.Popen(mbd_cmd, stdout=sp.PIPE, stderr=sp.PIPE, shell=True)
     stdout, stderr = p.communicate()
