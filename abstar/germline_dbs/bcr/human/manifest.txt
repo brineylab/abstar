@@ -1,20 +1,9 @@
-Homo sapiens germline gene database
+human germline gene database
+============================
+
+SOURCE: https://ogrdb.airr-community.org/germline_sets/Homo%20sapiens
+OGRDB RELEASE DATE: 2024-01-11
 
 
-SOURCE: https://www.imgt.org/vquest/refseqh.html
-DOWNLOAD DATE: February 2, 2023
-
-
-V-GENES: F+ORF+in-frame P nucleotide sequences with IMGT gaps
-D-GENES: F+ORF+in-frame P nucleotide sequences
-J-GENES: F+ORF+in-frame P nucleotide sequences
-
-
-A few changes were made to the germline sequences downloaded from IMGT. 
-  - IGHV1-2*03 contains an ambiguous nucleotide. All other alleles of this gene encode a G at the position, so the ambiguous nucleotide was changed to G.
-  - IGHV1-45*01 contains an ambiguous nucleotide. All other alleles of this gene encode a T at this position, so the ambiguous nucleotide was changed to T.
-  - IGHV4-30-4*05 contains an ambiguous nucleotide. All other alleles of this gene encode a C at this position, so the ambiguous nucleotide was changed to C.
-  - IGHV4-59*09 contains several ambiguous nucleotides and was removed.
-  - IGHV1-NL1*01 contained an ambiguous nucleotide and was removed.
 
 

@@ -4,7 +4,7 @@
 
 import os
 import traceback
-from typing import Iterable, Optional
+from typing import Iterable, Optional, Union
 
 import abutils
 import polars as pl
@@ -22,6 +22,7 @@ from .indels import annotate_v_deletions, annotate_v_insertions
 from .mutations import annotate_mutations
 from .productivity import assess_productivity
 from .regions import get_region_sequence
+from .schema import OUTPUT_SCHEMA
 from .umi import parse_umis
 
 
@@ -33,7 +34,7 @@ def annotate(
     umi_pattern: Optional[str] = None,
     umi_length: Optional[int] = None,
     debug: bool = False,
-) -> Iterable[str, Optional[str], Optional[str]]:
+) -> Iterable[Union[str, Optional[str], Optional[str]]]:
     """
     Annotates a Parquet file of V(D)J-assigned antibody sequences.
 
@@ -111,7 +112,7 @@ def annotate(
     # gather the results
     failed = [a for a in annotated if a.exceptions]
     succeeded = [a for a in annotated if not a.exceptions]
-    succeeded_df = pl.DataFrame([s.to_dict() for s in succeeded])
+    succeeded_df = pl.DataFrame([s.to_dict() for s in succeeded], schema=OUTPUT_SCHEMA)
 
     # write logs
     basename = os.path.basename(input_file)
@@ -187,6 +188,7 @@ def annotate_single_sequence(
     if ab.d_call is not None:
         if len(dsplit := ab.d_call.split("__")) > 1:
             ab.d_call, _ = dsplit
+    ab.log("SPECIES:", ab.species)
 
     # get genes from calls
     ab.v_gene = ab.v_call.split("*")[0]
@@ -207,6 +209,8 @@ def annotate_single_sequence(
         semiglobal_aln_params=ALIGNMENT_PARAMS,
         local_aln_params=ALIGNMENT_PARAMS,
     )
+    ab.log("V GERMLINE:", v_sg.query.sequence)
+
     ab.log("SEMIGLOBAL ALIGNMENT:")
     ab.log(f"     QUERY: {v_sg.aligned_query}")
     ab.log(f"            {v_sg.alignment_midline}")
@@ -584,6 +588,7 @@ def annotate_single_sequence(
     ab.log("--------------\n")
 
     ab = assess_productivity(ab)
+    ab.log("STOP CODON:", ab.stop_codon)
     ab.log("PRODUCTIVE:", ab.productive)
     ab.log("PRODUCTIVITY ISSUES:", ab.productivity_issues)
 

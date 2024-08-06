@@ -83,6 +83,7 @@ class Antibody(LoggingMixin):
     j_germline: str = None
     c_call: str = None
     c_score: float = None
+    c_support: float = None
     c_identity: float = None
     c_identity_aa: float = None
     c_cigar: str = None
