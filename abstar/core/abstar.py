@@ -16,6 +16,8 @@ from natsort import natsorted
 from tqdm.auto import tqdm
 
 from ..annotation.annotator import annotate
+
+# from ..annotation.schema import OUTPUT_SCHEMA
 from ..assigners.mmseqs import MMseqs
 from ..preprocess.merging import merge_fastqs
 from ..utils.callbacks import parse_dict_from_string
@@ -90,12 +92,12 @@ from ..utils.callbacks import parse_dict_from_string
 @click.argument(
     "sequences",
     type=str,
-    help="Path to a FASTA/Q file or a directory of FASTA/Q files. Gzip-compressed files are supported.",
+    # help="Path to a FASTA/Q file or a directory of FASTA/Q files. Gzip-compressed files are supported.",
 )
 @click.argument(
     "project_path",
     type=str,
-    help="Path to a directory in which tmp, log and output files will be deposited",
+    # help="Path to a directory in which tmp, log and output files will be deposited",
 )
 @click.option(
     "--germline_database",
@@ -112,7 +114,8 @@ from ..utils.callbacks import parse_dict_from_string
     help="Name of the receptor to be used for assignment/annotation",
 )
 @click.option(
-    "-O" "--output_format",
+    "-o",
+    "--output-format",
     type=click.Choice(["airr", "parquet"], case_sensitive=False),
     multiple=True,
     show_default=True,
@@ -120,25 +123,26 @@ from ..utils.callbacks import parse_dict_from_string
     help="Format of the output files",
 )
 @click.option(
-    "--umi_pattern",
+    "--umi-pattern",
     type=str,
     default=None,
     help="Pattern to match for extracting the UMI sequence, or name of a built-in pattern",
 )
 @click.option(
-    "--umi_length",
+    "--umi-length",
     type=int,
     default=None,
     help="Length of the UMI sequence to extract. If positive, the UMI will be parsed from the start of the sequence. If negative, the UMI will be parsed from the end of the sequence.",
 )
 @click.option(
+    "-m",
     "--merge",
     is_flag=True,
     default=False,
     help="Whether to merge FASTQ files prior to assignment",
 )
 @click.option(
-    "--merge_kwargs",
+    "--merge-kwargs",
     type=str,
     callback=parse_dict_from_string,
     default=None,
@@ -151,6 +155,7 @@ from ..utils.callbacks import parse_dict_from_string
     help="Whether the input FASTQ files are interleaved",
 )
 @click.option(
+    "-c",
     "--chunksize",
     type=int,
     show_default=True,
@@ -158,7 +163,7 @@ from ..utils.callbacks import parse_dict_from_string
     help="Number of sequences to process at a time",
 )
 @click.option(
-    "--n_processes",
+    "--n-processes",
     type=int,
     show_default=True,
     default=None,
@@ -190,9 +195,16 @@ def run(
     n_processes: Optional[int] = None,
     verbose: bool = False,
     debug: bool = False,
-):
+) -> Optional[Union[Iterable[Sequence], Sequence]]:
     """
     Annotate antibody or TCR sequences.
+
+    \b
+    command line arguments:
+      SEQUENCES can be a FASTA/Q file or a directory of FASTA/Q files.
+      PROJECT_PATH is the path to a directory in which tmp, log and output files will be deposited.
+
+    \f
 
     Parameters
     ----------
@@ -301,7 +313,7 @@ def run(
     if n_processes is None:
         n_processes = mp.cpu_count()
     annot_kwargs = {
-        "output-directory": temp_dir,
+        "output_directory": temp_dir,
         "germline_database": germline_database,
         "log_directory": log_dir,
         "umi_pattern": umi_pattern,
@@ -345,9 +357,10 @@ def run(
         failed_log_files = []
         succeeded_log_files = []
         if verbose:
+            print("sequence annotation:")
             progress_bar = tqdm(
                 total=len(split_assign_files),
-                desc="  - annotating",
+                bar_format="{desc:<2.5}{percentage:3.0f}%|{bar:25}{r_bar}",
             )
         with ProcessPoolExecutor(max_workers=n_processes) as executor:
             futures = [
@@ -387,11 +400,11 @@ def run(
                 _assemble_logs(succeeded_log_files, succeeded_log_file)
 
         # collect files for removal
-        # NOTE: failed_log_files aren't here, because they're retained regardless of debug status
         to_delete.append(assign_file)
         to_delete.extend(split_assign_files)
         to_delete.extend(annotated_files)
         to_delete.extend(succeeded_log_files)
+        to_delete.extend(failed_log_files)
 
         # remove tmp files
         if not debug:
@@ -426,13 +439,18 @@ def _process_inputs(
     """
     sequence_files = None
     if isinstance(sequences, str):
+        # input is a string -- either a file/directory path or a raw sequence string
         if os.path.isfile(sequences):
             sequence_files = [os.path.abspath(sequences)]
         elif os.path.isdir(sequences):
             sequence_files = abutils.io.list_files(sequences, recursive=True)
         else:
             sequences = Sequence(sequences)
-    if isinstance(sequences, (Sequence, Iterable[Sequence])):
+    if isinstance(sequences, Sequence) or (
+        isinstance(sequences, Iterable)
+        and all(isinstance(s, Sequence) for s in sequences)
+    ):
+        # input is a Sequence or an iterable of Sequences
         if isinstance(sequences, Sequence):
             sequences = [sequences]
         temp_file = tempfile.NamedTemporaryFile(delete=False, dir=temp_dir, mode="w")
