@@ -30,15 +30,20 @@ setup(
     long_description_content_type="text/markdown",
     url="https://github.com/brineylab/abstar",
     packages=find_packages(),
-    scripts=[
-        "bin/abstar",
-        # "bin/batch_mongoimport",
-        # "bin/basespace_downloader",
-        # "bin/build_abstar_germline_db",
-        # "bin/make_basespace_credfile",
-    ],
-    install_requires=requirements,
     include_package_data=True,
+    # scripts=[
+    #     "bin/abstar",
+    #     # "bin/batch_mongoimport",
+    #     # "bin/basespace_downloader",
+    #     # "bin/build_abstar_germline_db",
+    #     # "bin/make_basespace_credfile",
+    # ],
+    entry_points={
+        "console_scripts": [
+            "abstar=abstar.scripts.abstar:cli",
+        ]
+    },
+    install_requires=requirements,
     classifiers=[
         "Development Status :: 5 - Production/Stable",
         "Intended Audience :: Science/Research",
