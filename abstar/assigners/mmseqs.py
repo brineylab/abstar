@@ -4,6 +4,7 @@
 
 
 import os
+import sys
 from typing import Iterable, Union
 
 import abutils
@@ -54,7 +55,7 @@ class MMseqs(AssignerBase):
         )
 
         if self.verbose:
-            print("  - preparing input file")
+            print("preparing input file")
         input_fasta, input_tsv = self.prepare_input_files(sequence_file)
         return self.assign_germlines(input_fasta=input_fasta, input_tsv=input_tsv)
 
@@ -84,7 +85,9 @@ class MMseqs(AssignerBase):
         # -----------
 
         if self.verbose:
-            print("  - assigning V genes")
+            print("germline assignment:")
+            print("  V", end="")
+            sys.stdout.flush()
         v_germdb = os.path.join(germdb_path, "v")
         vresult_path = os.path.join(
             self.output_directory, f"{self.sample_name}.vresult.tsv"
@@ -125,7 +128,8 @@ class MMseqs(AssignerBase):
         # -----------
 
         if self.verbose:
-            print("  - assigning J genes")
+            print(" | J", end="")
+            sys.stdout.flush()
         j_germdb = os.path.join(germdb_path, "j")
         jquery_path = os.path.join(
             self.output_directory, f"{self.sample_name}.jquery.fasta"
@@ -176,7 +180,8 @@ class MMseqs(AssignerBase):
         # -----------
 
         if self.verbose:
-            print("  - assigning D genes")
+            print(" | D", end="")
+            sys.stdout.flush()
         d_germdb = os.path.join(germdb_path, "d")
         dquery_path = os.path.join(
             self.output_directory, f"{self.sample_name}.dquery.fasta"
@@ -214,13 +219,21 @@ class MMseqs(AssignerBase):
         # keep only the highest scoring assignment for each sequence
         dresult_df = dresult_df.sort(by=["d_nident"], descending=True, nulls_last=True)
         dresult_df = dresult_df.unique(subset=["d_query"], keep="first")
-        # join the D and VJ assignment results
-        vdjresult_df = vjresult_df.join(
-            dresult_df,
-            left_on="v_query",
-            right_on="d_query",
-            how="left",
-        )
+        if dresult_df.select(pl.len()).collect().item() > 0:
+            # join the D and VJ assignment results
+            vdjresult_df = vjresult_df.join(
+                dresult_df,
+                left_on="v_query",
+                right_on="d_query",
+                how="left",
+            )
+        else:
+            # if none of the sequences have a D gene assignment,
+            # set the D gene columns to None
+            vdjresult_df = vjresult_df.with_columns(
+                pl.lit(None).alias("d_call"),
+                pl.lit(None).alias("d_support"),
+            )
 
         # -----------
         #   C genes
@@ -233,8 +246,8 @@ class MMseqs(AssignerBase):
         # so we only try to assign if the database exists
         if os.path.exists(c_germdb):
             if self.verbose:
-                print("  - assigning C genes")
-
+                print(" | C")
+                sys.stdout.flush()
             cresult_path = os.path.join(
                 self.output_directory, f"{self.sample_name}.cresult.tsv"
             )
@@ -270,15 +283,28 @@ class MMseqs(AssignerBase):
                 by=["c_nident"], descending=True, nulls_last=True
             )
             cresult_df = cresult_df.unique(subset=["c_query"], keep="first")
-            # join the C and VDJ assignment results
-            vdjcresult_df = vdjresult_df.join(
-                cresult_df,
-                left_on="v_query",
-                right_on="c_query",
-                how="left",
-            )
+            if cresult_df.select(pl.len()).collect().item() > 0:
+                # join the C and VDJ assignment results
+                vdjcresult_df = vdjresult_df.join(
+                    cresult_df,
+                    left_on="v_query",
+                    right_on="c_query",
+                    how="left",
+                )
+            else:
+                # if none of the sequences have a C gene assignment,
+                # set the C gene columns to None
+                vdjcresult_df = vdjresult_df.with_columns(
+                    pl.lit(None).alias("c_call"),
+                    pl.lit(None).alias("c_support"),
+                )
         else:
-            vdjcresult_df = vdjresult_df
+            # if the C segment germline database does not exist,
+            # set the C gene columns to None
+            vdjcresult_df = vdjresult_df.with_columns(
+                pl.lit(None).alias("c_call"),
+                pl.lit(None).alias("c_support"),
+            )
 
         # join the input CSV data with VDJC assignment results
         vdjcresult_df = input_df.join(
