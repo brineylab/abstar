@@ -154,7 +154,7 @@ class MergeGroup:
         quality_cutoff: int = 20,
         merge_args: Optional[str] = None,
         compress_output: bool = False,
-        show_progress: bool = False,
+        # show_progress: bool = False,
         debug: bool = False,
     ) -> str:
         groups = self._group_by_lane()
@@ -185,8 +185,8 @@ class MergeGroup:
         self.merged_file = os.path.join(
             merged_directory, f"{self.name}.{format.lower()}{compress_suffix}"
         )
-        if show_progress:
-            groups = tqdm(groups, total=n_groups, leave=True)
+        # if show_progress:
+        #     groups = tqdm(groups, total=n_groups, leave=True)
         for group in groups:
             r1, r2 = natsorted(group, key=lambda x: x.read)
             # add name and compression suffix, if necessary
@@ -344,7 +344,15 @@ def merge_fastqs(
 
     if interleaved:
         if show_progress:
-            files = tqdm(files, desc="Merging FASTQs", leave=True)
+            _print_files_to_merge(
+                [os.path.basename(f) for f in files], name="interleaved FASTQ file"
+            )
+            files = tqdm(
+                files,
+                desc="merging FASTQ files:",
+                leave=True,
+                bar_format="{desc}{percentage:3.0f}%|{bar:25}{r_bar}",
+            )
         for f in files:
             compress_suffix = ".gz" if compress_output else ""
             name = os.path.basename(f).rstrip(".gz").rstrip(".fastq")
@@ -380,7 +388,15 @@ def merge_fastqs(
         # group files by sample
         file_pairs = group_paired_fastqs(files, schema=schema)
         if show_progress:
-            file_pairs = tqdm(file_pairs, desc="Merging FASTQs", leave=True)
+            _print_files_to_merge(
+                [f.name for f in file_pairs], name="paired-end FASTQ group"
+            )
+            file_pairs = tqdm(
+                file_pairs,
+                desc="merging FASTQ files:",
+                leave=True,
+                bar_format="{desc}{percentage:3.0f}%|{bar:25}{r_bar}",
+            )
         # merge files
         for fp in file_pairs:
             merged_file = fp.merge(
@@ -400,7 +416,7 @@ def merge_fastqs(
                 merge_args=merge_args,
                 compress_output=compress_output,
                 debug=debug,
-                show_progress=show_progress,
+                # show_progress=show_progress,
             )
             merged_files.append(merged_file)
     return merged_files
@@ -710,3 +726,18 @@ def merge_fastqs_fastp(
         err = f"Error merging reads with fastp: {stderr.decode()}"
         raise ValueError(err)
     return merged
+
+
+def _print_files_to_merge(files: Iterable[str], name: str = "file") -> None:
+    num_files = len(files)
+    plural = f"{name}s" if num_files > 1 else name
+    print("")
+    print(f"found {num_files} {plural} to merge:")
+    if num_files < 6:
+        for f in files:
+            print(f"  {f}")
+    else:
+        for f in files[:5]:
+            print(f"  {f}")
+        print(f"  ... and {num_files - 5} more")
+    print("")
