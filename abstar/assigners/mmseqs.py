@@ -54,10 +54,15 @@ class MMseqs(AssignerBase):
             os.path.basename(sequence_file).rstrip(".gz").split(".")[:-1]
         )
 
+        # if self.verbose:
+        #     print(f"preparing input file: {os.path.basename(sequence_file)}")
+        input_fasta, input_tsv, sequence_count = self.prepare_input_files(sequence_file)
         if self.verbose:
-            print("preparing input file")
-        input_fasta, input_tsv = self.prepare_input_files(sequence_file)
-        return self.assign_germlines(input_fasta=input_fasta, input_tsv=input_tsv)
+            print(f"found {sequence_count:,} sequences")
+        assigned_path = self.assign_germlines(
+            input_fasta=input_fasta, input_tsv=input_tsv
+        )
+        return assigned_path, sequence_count
 
     def assign_germlines(self, input_fasta: str, input_tsv: str) -> str:
         """
@@ -85,6 +90,7 @@ class MMseqs(AssignerBase):
         # -----------
 
         if self.verbose:
+            print("")
             print("germline assignment:")
             print("  V", end="")
             sys.stdout.flush()
@@ -246,7 +252,7 @@ class MMseqs(AssignerBase):
         # so we only try to assign if the database exists
         if os.path.exists(c_germdb):
             if self.verbose:
-                print(" | C")
+                print(" | C", end="")
                 sys.stdout.flush()
             cresult_path = os.path.join(
                 self.output_directory, f"{self.sample_name}.cresult.tsv"
@@ -307,6 +313,9 @@ class MMseqs(AssignerBase):
             )
 
         # join the input CSV data with VDJC assignment results
+        if self.verbose:
+            print("")
+            print("combining germline assignment results")
         vdjcresult_df = input_df.join(
             vdjcresult_df,
             left_on="sequence_id",
@@ -387,6 +396,7 @@ class MMseqs(AssignerBase):
             self.to_delete.extend([output_fasta, output_csv])
 
         # process input file
+        sequence_count = 0
         with open(output_fasta, "w") as ofasta:
             with open(output_csv, "w") as ocsv:
                 ocsv.write("sequence_id\tsequence_input\tquality\n")  # header
@@ -394,7 +404,8 @@ class MMseqs(AssignerBase):
                     qual = seq.qual if seq.qual is not None else ""
                     ofasta.write(f">{seq.id}\n{seq.sequence}\n")
                     ocsv.write(f"{seq.id}\t{seq.sequence}\t{qual}\n")
-        return output_fasta, output_csv
+                    sequence_count += 1
+        return output_fasta, output_csv, sequence_count
 
     def build_jquery_fasta(
         self,
