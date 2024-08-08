@@ -235,6 +235,12 @@ def annotate_single_sequence(
     ab.log("V SEQUENCE AA:", ab.v_sequence_aa)
     ab.log("V GERMLINE AA:", ab.v_germline_aa)
 
+    # # verify that the NT sequences are not empty
+    # if len(ab.v_sequence) == 0:
+    #     raise ValueError(f"V-gene sequence is empty for {ab.sequence_id}")
+    # if len(ab.v_germline) == 0:
+    #     raise ValueError(f"V-gene germline sequence is empty for {ab.sequence_id}")
+
     # global alignment of sequence and germline
     # using the start/end positions determined parsed from the
     # semiglobal and local alignments
@@ -248,6 +254,13 @@ def annotate_single_sequence(
     ab.log(f"            {v_global.alignment_midline}")
     ab.log(f"  GERMLINE: {v_global.aligned_target}")
 
+    # # verify that the AA sequences are not empty
+    # if len(ab.v_sequence_aa) == 0:
+    #     raise ValueError(f"V-gene AA sequence is empty for {ab.sequence_id}")
+    # if len(ab.v_germline_aa) == 0:
+    #     raise ValueError(f"V-gene germline AA sequence is empty for {ab.sequence_id}")
+
+    # global alignment of the AA sequences
     v_global_aa = abutils.tl.global_alignment(
         ab.v_sequence_aa,
         ab.v_germline_aa,
@@ -312,6 +325,8 @@ def annotate_single_sequence(
 
     # j-gene realignment
     jquery = ab.sequence_oriented[ab.v_sequence_end :]
+    if len(jquery) == 0:
+        raise ValueError(f"J-gene sequence is empty for {ab.sequence_id}")
     j_sg, j_loc = realign_germline(
         sequence=jquery,
         germline_name=ab.j_call,
