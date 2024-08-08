@@ -3,7 +3,9 @@
 # SPDX-License-Identifier: MIT
 
 
+import logging
 import os
+from typing import Optional
 
 import abutils
 
@@ -21,15 +23,15 @@ class AssignerBase:
         germdb_name: str,
         receptor: str,
         log_directory: str,
-        verbose: bool = False,
+        logger: Optional[logging.Logger] = None,
         debug: bool = False,
     ):
         self.output_directory = os.path.abspath(output_directory)
         self.log_directory = os.path.abspath(log_directory)
         self.receptor = receptor
         self.germdb_name = germdb_name
-        self.verbose = verbose
         self.debug = debug
+        self.logger = logger if logger is not None else abutils.log.null_logger()
         self.germdb_path = get_germline_database_path(germdb_name, receptor)
         self.to_delete = []  # files that should be deleted during cleanup
 
