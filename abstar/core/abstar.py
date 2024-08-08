@@ -4,8 +4,10 @@
 
 import multiprocessing as mp
 import os
+import shutil
 import tempfile
 from concurrent.futures import ProcessPoolExecutor, as_completed
+from datetime import datetime
 from typing import Iterable, Optional, Union
 
 import abutils
@@ -20,7 +22,7 @@ from ..annotation.annotator import annotate
 # from ..annotation.schema import OUTPUT_SCHEMA
 from ..assigners.mmseqs import MMseqs
 from ..preprocess.merging import merge_fastqs
-from ..utils.callbacks import parse_dict_from_string
+from ..utils.callbacks import HiddenClickOption, parse_dict_from_string
 
 #  TODO: inputs/returns
 #  --------------------
@@ -165,7 +167,6 @@ from ..utils.callbacks import parse_dict_from_string
 @click.option(
     "--n-processes",
     type=int,
-    show_default=True,
     default=None,
     help="Number of processes to use for annotation",
 )
@@ -180,6 +181,18 @@ from ..utils.callbacks import parse_dict_from_string
     default=False,
     help="Whether to run in debug mode, which results in temporary files being retained and additional logging.",
 )
+@click.option(
+    "--copy-inputs-to-project",
+    cls=HiddenClickOption,
+    is_flag=True,
+    default=True,
+)
+@click.option(
+    "--started_from_cli",
+    cls=HiddenClickOption,
+    is_flag=True,
+    default=True,
+)
 def run(
     sequences: Union[str, Sequence, Iterable[Sequence]],
     project_path: Optional[str] = None,
@@ -193,7 +206,9 @@ def run(
     interleaved_fastq: bool = False,
     chunksize: int = 500,
     n_processes: Optional[int] = None,
+    copy_inputs_to_project: bool = False,
     verbose: bool = False,
+    started_from_cli: bool = False,
     debug: bool = False,
 ) -> Optional[Union[Iterable[Sequence], Sequence]]:
     """
@@ -299,15 +314,52 @@ def run(
     for fmt in output_format:
         abutils.io.make_dir(os.path.join(project_path, fmt))
 
+    if started_from_cli:
+        _print_run_parameters(
+            project_path=project_path,
+            germline_database=germline_database,
+            receptor=receptor,
+            output_format=output_format,
+            umi_pattern=umi_pattern,
+            umi_length=umi_length,
+            merge=merge,
+            merge_kwargs=merge_kwargs,
+            interleaved_fastq=interleaved_fastq,
+            chunksize=chunksize,
+            n_processes=n_processes,
+            copy_inputs_to_project=copy_inputs_to_project,
+            verbose=verbose,
+            debug=debug,
+        )
+
     # process input sequences
     sequence_files = _process_inputs(sequences, temp_dir)
+    if copy_inputs_to_project:
+        _copy_inputs_to_project(sequence_files, project_path)
 
     # merge FASTQ files
     if merge:
         merge_dir = os.path.join(project_path, "merged")
+        abutils.io.make_dir(merge_dir)
+        merge_log_dir = os.path.join(log_dir, "merge_fastqs")
+        abutils.io.make_dir(merge_log_dir)
+        if verbose and started_from_cli:
+            print("\n\n")
+            print("MERGE FASTQS")
+            print("============")
+            print(f"merge directory: {merge_dir}")
         sequence_files = merge_fastqs(
-            sequence_files, merge_dir, interleaved=interleaved_fastq, **merge_kwargs
+            sequence_files,
+            merge_dir,
+            interleaved=interleaved_fastq,
+            show_progress=verbose,
+            log_directory=merge_log_dir,
+            **merge_kwargs,
         )
+
+    # print sequence file info
+    if verbose and started_from_cli:
+        _print_sequence_file_info(sequence_files)
 
     # annotation config
     if n_processes is None:
@@ -333,18 +385,21 @@ def run(
 
     # annotate sequences
     for sequence_file in natsorted(sequence_files):
+        start_time = datetime.now()
         to_delete = []
 
         # parse sample name
         sample_name = ".".join(
             os.path.basename(sequence_file).rstrip(".gz").split(".")[:-1]
         )
-        if verbose:
+        if verbose and started_from_cli:
+            print("\n")
+            print("-" * (len(sample_name) + 4))
             print(f"  {sample_name}")
             print("-" * (len(sample_name) + 4))
 
-        # assign VDJC genes
-        assign_file = assigner(sequence_file)  # returns a parquet file
+        # assign VDJC genes, the returned assign_file is in parquet format
+        assign_file, raw_sequence_count = assigner(sequence_file)
         assigner.cleanup()
 
         # split into annotation jobs
@@ -357,6 +412,7 @@ def run(
         failed_log_files = []
         succeeded_log_files = []
         if verbose:
+            print("")
             print("sequence annotation:")
             progress_bar = tqdm(
                 total=len(split_assign_files),
@@ -378,7 +434,24 @@ def run(
 
         # get output Sequences
         if return_sequences:
-            sequences_to_return.extend(abutils.io.read_parquet(annotated_files))
+            annotated_sequences = abutils.io.read_parquet(annotated_files)
+            if verbose:
+                sequence_count = len(annotated_sequences)
+                duration = datetime.now() - start_time
+                _print_results_summary(
+                    sequence_count=sequence_count,
+                    sequences_per_second=raw_sequence_count // duration.total_seconds(),
+                    seconds=duration.total_seconds(),
+                )
+                # duration_in_seconds = duration.total_seconds()
+                # seqs_per_second = raw_sequence_count // duration_in_seconds
+                # duration_string = _format_duration(duration_in_seconds)
+                # print("")
+                # print(f"{sequence_count} sequences had an identifiable rearrangement")
+                # print(
+                #     f"time elapsed: {duration_string} ({seqs_per_second} sequences/second)"
+                # )
+            sequences_to_return.extend(annotated_sequences)
 
         # or assemble output files (including logs)
         else:
@@ -398,6 +471,24 @@ def run(
                 # only log succeeded sequences if we're in debug mode
                 succeeded_log_file = os.path.join(log_dir, f"{sample_name}.succeeded")
                 _assemble_logs(succeeded_log_files, succeeded_log_file)
+
+            # print results summary
+            if verbose:
+                sequence_count = output_df.select(pl.count()).collect().row(0)[0]
+                duration = datetime.now() - start_time
+                _print_results_summary(
+                    sequence_count=sequence_count,
+                    sequences_per_second=raw_sequence_count // duration.total_seconds(),
+                    seconds=duration.total_seconds(),
+                )
+                # duration_in_seconds = duration.total_seconds()
+                # seqs_per_second = raw_sequence_count // duration_in_seconds
+                # duration_string = _format_duration(duration_in_seconds)
+                # print("")
+                # print(f"{sequence_count} sequences had an identifiable rearrangement")
+                # print(
+                #     f"time elapsed: {duration_string} ({seqs_per_second} sequences/second)"
+                # )
 
         # collect files for removal
         to_delete.append(assign_file)
@@ -419,7 +510,8 @@ def run(
 
 
 def _process_inputs(
-    sequences: Union[str, Sequence, Iterable[Sequence]], temp_dir: str
+    sequences: Union[str, Sequence, Iterable[Sequence]],
+    temp_dir: str,
 ) -> Iterable[str]:
     """
     Process the various inputs accepted by abstar and return a list of one or more sequence files.
@@ -465,6 +557,24 @@ def _process_inputs(
     return sequence_files
 
 
+def _copy_inputs_to_project(sequence_files: Iterable[str], project_path: str) -> None:
+    """
+    Copy input sequences to the project directory.
+
+    Parameters
+    ----------
+    sequence_files : Iterable[str]
+        A list of sequence files to copy.
+
+    project_path : str
+        The path to the project directory.
+    """
+    inputs_path = os.path.join(project_path, "input")
+    abutils.io.make_dir(inputs_path)
+    for f in sequence_files:
+        shutil.copy(f, inputs_path)
+
+
 def _assemble_logs(log_files: Iterable[str], combined_log_file: str) -> None:
     """
     Assemble log files into a single file.
@@ -496,3 +606,92 @@ def _delete_files(files: Iterable[str]) -> None:
         if f is not None:
             if os.path.exists(f):
                 os.remove(f)
+
+
+# ==========================
+#
+#      PRINTING
+#
+# ==========================
+
+
+def _print_run_parameters(
+    project_path: str,
+    germline_database: str,
+    receptor: str,
+    output_format: Union[str, Iterable[str]],
+    umi_pattern: Optional[str],
+    umi_length: Optional[int],
+    merge: bool,
+    merge_kwargs: Optional[dict],
+    interleaved_fastq: bool,
+    chunksize: int,
+    n_processes: Optional[int],
+    copy_inputs_to_project: bool,
+    verbose: bool,
+    debug: bool,
+) -> None:
+    print(ABSTAR_SPLASH)
+    print("")
+    print("RUN PARAMETERS")
+    print("==============")
+    print(f"PROJECT PATH: {project_path}")
+    print(f"GERMLINE DATABASE: {germline_database}")
+    print(f"RECEPTOR: {receptor}")
+    print(f"OUTPUT FORMAT: {', '.join(output_format)}")
+    print(f"UMI PATTERN: {umi_pattern}")
+    print(f"UMI LENGTH: {umi_length}")
+    print(f"MERGE: {merge}")
+    print(f"MERGE KWARGS: {merge_kwargs}")
+    print(f"INTERLEAVED FASTQ: {interleaved_fastq}")
+    print(f"CHUNKSIZE: {chunksize}")
+    print(f"NUM PROCESSES: {n_processes if n_processes is not None else 'auto'}")
+    print(f"COPY INPUTS TO PROJECT: {copy_inputs_to_project}")
+    print(f"VERBOSE: {verbose}")
+    print(f"DEBUG: {debug}")
+
+
+def _print_sequence_file_info(sequence_files: Iterable[str]) -> None:
+    num_files = len(sequence_files)
+    plural = "files" if num_files > 1 else "file"
+    print("\n\n")
+    print("INPUT FILES")
+    print("===========")
+    print(f"found {num_files} input {plural}:")
+    if num_files < 6:
+        for f in sequence_files:
+            print(f"  {os.path.basename(f)}")
+    else:
+        for f in sequence_files[:5]:
+            print(f"  {os.path.basename(f)}")
+        print(f"  ... and {num_files - 5} more")
+
+
+def _print_results_summary(
+    sequence_count: int, sequences_per_second: int, seconds: float
+) -> None:
+    if seconds < 60:
+        hours = 0
+        minutes = 0
+        seconds = seconds
+    elif seconds < 3600:
+        hours = 0
+        minutes = int(seconds / 60)
+        seconds = int(seconds % 60)
+    else:
+        hours = int(seconds / 3600)
+        minutes = (seconds % 3600) / 60
+        seconds = seconds % 60
+    duration_string = f"{hours:02}:{minutes:02}:{seconds:02.2f}"
+    print("")
+    print(f"{sequence_count:,} sequences had an identifiable rearrangement")
+    print(f"time elapsed: {duration_string} ({sequences_per_second:,} sequences/sec)")
+
+
+ABSTAR_SPLASH = """
+         __         __ 
+  ____ _/ /_  _____/ /_____ ______
+ / __ `/ __ \/ ___/ __/ __ `/ ___/
+/ /_/ / /_/ (__  ) /_/ /_/ / /    
+\__,_/_.___/____/\__/\__,_/_/      
+"""
