@@ -45,3 +45,8 @@ def parse_dict_from_string(
         return dict(kv_pair.split("=") for kv_pair in kv_pairs)
     except ValueError:
         raise click.BadParameter("Format must be 'key1=val1,key2=val2'")
+
+
+class HiddenClickOption(click.Option):
+    def get_help_record(self, ctx):
+        return None
