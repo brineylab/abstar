@@ -314,8 +314,16 @@ def run(
     for fmt in output_format:
         abutils.io.make_dir(os.path.join(project_path, fmt))
 
+    # setup logging
+    _setup_logging(
+        log_dir,
+        add_stream_handler=verbose and started_from_cli,
+        single_line_handler=True,
+        debug=debug,
+    )
+
     if started_from_cli:
-        _print_run_parameters(
+        _log_run_parameters(
             project_path=project_path,
             germline_database=germline_database,
             receptor=receptor,
@@ -343,11 +351,12 @@ def run(
         abutils.io.make_dir(merge_dir)
         merge_log_dir = os.path.join(log_dir, "merge_fastqs")
         abutils.io.make_dir(merge_log_dir)
-        if verbose and started_from_cli:
-            print("\n\n")
-            print("MERGE FASTQS")
-            print("============")
-            print(f"merge directory: {merge_dir}")
+        # log merge info
+        logger.info("\n\n\n")
+        logger.info("MERGE FASTQS\n")
+        logger.info("============\n")
+        logger.info(f"merge directory: {merge_dir}\n")
+        # merging
         sequence_files = merge_fastqs(
             sequence_files,
             merge_dir,
@@ -358,8 +367,7 @@ def run(
         )
 
     # print sequence file info
-    if verbose and started_from_cli:
-        _print_sequence_file_info(sequence_files)
+    _log_sequence_file_info(sequence_files)
 
     # annotation config
     if n_processes is None:
@@ -379,7 +387,7 @@ def run(
         log_directory=log_dir,
         germdb_name=germline_database,
         receptor=receptor,
-        verbose=verbose,
+        logger=logger,
         debug=debug,
     )
 
@@ -392,11 +400,13 @@ def run(
         sample_name = ".".join(
             os.path.basename(sequence_file).rstrip(".gz").split(".")[:-1]
         )
-        if verbose and started_from_cli:
-            print("\n")
-            print("-" * (len(sample_name) + 4))
-            print(f"  {sample_name}")
-            print("-" * (len(sample_name) + 4))
+        # log sample info
+        logger.info("\n\n")
+        logger.info("-" * (len(sample_name) + 4))
+        logger.info("\n")
+        logger.info(f"  {sample_name}\n")
+        logger.info("-" * (len(sample_name) + 4))
+        logger.info("\n")
 
         # assign VDJC genes, the returned assign_file is in parquet format
         assign_file, raw_sequence_count = assigner(sequence_file)
@@ -411,9 +421,10 @@ def run(
         annotated_files = []
         failed_log_files = []
         succeeded_log_files = []
+        # log annotation info
+        logger.info("\n\n")
+        logger.info("sequence annotation:\n")
         if verbose:
-            print("")
-            print("sequence annotation:")
             progress_bar = tqdm(
                 total=len(split_assign_files),
                 bar_format="{desc:<2.5}{percentage:3.0f}%|{bar:25}{r_bar}",
@@ -435,23 +446,16 @@ def run(
         # get output Sequences
         if return_sequences:
             annotated_sequences = abutils.io.read_parquet(annotated_files)
-            if verbose:
-                sequence_count = len(annotated_sequences)
-                duration = datetime.now() - start_time
-                _print_results_summary(
-                    sequence_count=sequence_count,
-                    sequences_per_second=raw_sequence_count // duration.total_seconds(),
-                    seconds=duration.total_seconds(),
-                )
-                # duration_in_seconds = duration.total_seconds()
-                # seqs_per_second = raw_sequence_count // duration_in_seconds
-                # duration_string = _format_duration(duration_in_seconds)
-                # print("")
-                # print(f"{sequence_count} sequences had an identifiable rearrangement")
-                # print(
-                #     f"time elapsed: {duration_string} ({seqs_per_second} sequences/second)"
-                # )
             sequences_to_return.extend(annotated_sequences)
+
+            # log results summary
+            sequence_count = len(annotated_sequences)
+            duration = datetime.now() - start_time
+            _log_results_summary(
+                sequence_count=sequence_count,
+                sequences_per_second=raw_sequence_count / duration.total_seconds(),
+                seconds=duration.total_seconds(),
+            )
 
         # or assemble output files (including logs)
         else:
@@ -472,23 +476,14 @@ def run(
                 succeeded_log_file = os.path.join(log_dir, f"{sample_name}.succeeded")
                 _assemble_logs(succeeded_log_files, succeeded_log_file)
 
-            # print results summary
-            if verbose:
-                sequence_count = output_df.select(pl.count()).collect().row(0)[0]
-                duration = datetime.now() - start_time
-                _print_results_summary(
-                    sequence_count=sequence_count,
-                    sequences_per_second=raw_sequence_count // duration.total_seconds(),
-                    seconds=duration.total_seconds(),
-                )
-                # duration_in_seconds = duration.total_seconds()
-                # seqs_per_second = raw_sequence_count // duration_in_seconds
-                # duration_string = _format_duration(duration_in_seconds)
-                # print("")
-                # print(f"{sequence_count} sequences had an identifiable rearrangement")
-                # print(
-                #     f"time elapsed: {duration_string} ({seqs_per_second} sequences/second)"
-                # )
+            # log results summary
+            sequence_count = output_df.select(pl.count()).collect().row(0)[0]
+            duration = datetime.now() - start_time
+            _log_results_summary(
+                sequence_count=sequence_count,
+                sequences_per_second=raw_sequence_count / duration.total_seconds(),
+                seconds=duration.total_seconds(),
+            )
 
         # collect files for removal
         to_delete.append(assign_file)
@@ -608,14 +603,35 @@ def _delete_files(files: Iterable[str]) -> None:
                 os.remove(f)
 
 
-# ==========================
+# ===============================
 #
-#      PRINTING
+#       PRINTING/LOGGING
 #
-# ==========================
+# ===============================
 
 
-def _print_run_parameters(
+def _setup_logging(
+    log_dir: str,
+    add_stream_handler: bool,
+    single_line_handler: bool = False,
+    debug: bool = False,
+) -> None:
+    logfile = os.path.join(log_dir, "abstar.log")
+    abutils.log.setup_logging(
+        logfile=logfile,
+        add_stream_handler=add_stream_handler,
+        single_line_handler=single_line_handler,
+        debug=debug,
+    )
+    global logger
+    logger = abutils.log.get_logger(
+        name="abstar",
+        add_stream_handler=add_stream_handler,
+        single_line_handler=single_line_handler,
+    )
+
+
+def _log_run_parameters(
     project_path: str,
     germline_database: str,
     receptor: str,
@@ -631,43 +647,45 @@ def _print_run_parameters(
     verbose: bool,
     debug: bool,
 ) -> None:
-    print(ABSTAR_SPLASH)
-    print("")
-    print("RUN PARAMETERS")
-    print("==============")
-    print(f"PROJECT PATH: {project_path}")
-    print(f"GERMLINE DATABASE: {germline_database}")
-    print(f"RECEPTOR: {receptor}")
-    print(f"OUTPUT FORMAT: {', '.join(output_format)}")
-    print(f"UMI PATTERN: {umi_pattern}")
-    print(f"UMI LENGTH: {umi_length}")
-    print(f"MERGE: {merge}")
-    print(f"MERGE KWARGS: {merge_kwargs}")
-    print(f"INTERLEAVED FASTQ: {interleaved_fastq}")
-    print(f"CHUNKSIZE: {chunksize}")
-    print(f"NUM PROCESSES: {n_processes if n_processes is not None else 'auto'}")
-    print(f"COPY INPUTS TO PROJECT: {copy_inputs_to_project}")
-    print(f"VERBOSE: {verbose}")
-    print(f"DEBUG: {debug}")
+    logger.info(ABSTAR_SPLASH + "\n")
+    logger.info("\n")
+    logger.info("RUN PARAMETERS\n")
+    logger.info("===============\n")
+    logger.info(f"PROJECT PATH: {project_path}\n")
+    logger.info(f"GERMLINE DATABASE: {germline_database}\n")
+    logger.info(f"RECEPTOR: {receptor}\n")
+    logger.info(f"OUTPUT FORMAT: {', '.join(output_format)}\n")
+    logger.info(f"UMI PATTERN: {umi_pattern}\n")
+    logger.info(f"UMI LENGTH: {umi_length}\n")
+    logger.info(f"MERGE: {merge}\n")
+    logger.info(f"MERGE KWARGS: {merge_kwargs}\n")
+    logger.info(f"INTERLEAVED FASTQ: {interleaved_fastq}\n")
+    logger.info(f"CHUNKSIZE: {chunksize}\n")
+    logger.info(
+        f"NUM PROCESSES: {n_processes if n_processes is not None else 'auto'}\n"
+    )
+    logger.info(f"COPY INPUTS TO PROJECT: {copy_inputs_to_project}\n")
+    logger.info(f"VERBOSE: {verbose}\n")
+    logger.info(f"DEBUG: {debug}\n")
 
 
-def _print_sequence_file_info(sequence_files: Iterable[str]) -> None:
+def _log_sequence_file_info(sequence_files: Iterable[str]) -> None:
     num_files = len(sequence_files)
     plural = "files" if num_files > 1 else "file"
-    print("\n\n")
-    print("INPUT FILES")
-    print("===========")
-    print(f"found {num_files} input {plural}:")
+    logger.info("\n\n\n")
+    logger.info("INPUT FILES\n")
+    logger.info("===========\n")
+    logger.info(f"found {num_files} input {plural}:\n")
     if num_files < 6:
         for f in sequence_files:
-            print(f"  {os.path.basename(f)}")
+            logger.info(f"  {os.path.basename(f)}\n")
     else:
         for f in sequence_files[:5]:
-            print(f"  {os.path.basename(f)}")
-        print(f"  ... and {num_files - 5} more")
+            logger.info(f"  {os.path.basename(f)}\n")
+        logger.info(f"  ... and {num_files - 5} more\n")
 
 
-def _print_results_summary(
+def _log_results_summary(
     sequence_count: int, sequences_per_second: int, seconds: float
 ) -> None:
     if seconds < 60:
@@ -683,9 +701,11 @@ def _print_results_summary(
         minutes = (seconds % 3600) / 60
         seconds = seconds % 60
     duration_string = f"{hours:02}:{minutes:02}:{seconds:02.2f}"
-    print("")
-    print(f"{sequence_count:,} sequences had an identifiable rearrangement")
-    print(f"time elapsed: {duration_string} ({sequences_per_second:,} sequences/sec)")
+    logger.info("\n")
+    logger.info(f"{sequence_count:,} sequences had an identifiable rearrangement\n")
+    logger.info(
+        f"time elapsed: {duration_string} ({sequences_per_second:,} sequences/sec)\n"
+    )
 
 
 ABSTAR_SPLASH = """

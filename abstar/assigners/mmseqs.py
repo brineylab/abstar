@@ -3,9 +3,10 @@
 # SPDX-License-Identifier: MIT
 
 
+import logging
 import os
 import sys
-from typing import Iterable, Union
+from typing import Iterable, Optional, Union
 
 import abutils
 import polars as pl
@@ -20,7 +21,7 @@ class MMseqs(AssignerBase):
         log_directory: str,
         germdb_name: str,
         receptor: str,
-        verbose: bool = False,
+        logger: Optional[logging.Logger] = None,
         debug: bool = False,
     ) -> None:
         """
@@ -31,7 +32,7 @@ class MMseqs(AssignerBase):
             log_directory=log_directory,
             germdb_name=germdb_name,
             receptor=receptor,
-            verbose=verbose,
+            logger=logger,
             debug=debug,
         )
 
@@ -53,12 +54,8 @@ class MMseqs(AssignerBase):
         self.sample_name = ".".join(
             os.path.basename(sequence_file).rstrip(".gz").split(".")[:-1]
         )
-
-        # if self.verbose:
-        #     print(f"preparing input file: {os.path.basename(sequence_file)}")
         input_fasta, input_tsv, sequence_count = self.prepare_input_files(sequence_file)
-        if self.verbose:
-            print(f"found {sequence_count:,} sequences")
+        self.logger.info(f"found {sequence_count:,} sequences\n")
         assigned_path = self.assign_germlines(
             input_fasta=input_fasta, input_tsv=input_tsv
         )
@@ -89,11 +86,9 @@ class MMseqs(AssignerBase):
         #   V genes
         # -----------
 
-        if self.verbose:
-            print("")
-            print("germline assignment:")
-            print("  V", end="")
-            sys.stdout.flush()
+        self.logger.info("\n")
+        self.logger.info("germline assignment:\n")
+        self.logger.info("  V")
         v_germdb = os.path.join(germdb_path, "v")
         vresult_path = os.path.join(
             self.output_directory, f"{self.sample_name}.vresult.tsv"
@@ -133,9 +128,7 @@ class MMseqs(AssignerBase):
         #   J genes
         # -----------
 
-        if self.verbose:
-            print(" | J", end="")
-            sys.stdout.flush()
+        self.logger.info(" | J")
         j_germdb = os.path.join(germdb_path, "j")
         jquery_path = os.path.join(
             self.output_directory, f"{self.sample_name}.jquery.fasta"
@@ -185,9 +178,7 @@ class MMseqs(AssignerBase):
         #   D genes
         # -----------
 
-        if self.verbose:
-            print(" | D", end="")
-            sys.stdout.flush()
+        self.logger.info(" | D")
         d_germdb = os.path.join(germdb_path, "d")
         dquery_path = os.path.join(
             self.output_directory, f"{self.sample_name}.dquery.fasta"
@@ -251,9 +242,7 @@ class MMseqs(AssignerBase):
         # some germline databases may not have constant genes
         # so we only try to assign if the database exists
         if os.path.exists(c_germdb):
-            if self.verbose:
-                print(" | C", end="")
-                sys.stdout.flush()
+            self.logger.info(" | C")
             cresult_path = os.path.join(
                 self.output_directory, f"{self.sample_name}.cresult.tsv"
             )
@@ -313,9 +302,8 @@ class MMseqs(AssignerBase):
             )
 
         # join the input CSV data with VDJC assignment results
-        if self.verbose:
-            print("")
-            print("combining germline assignment results")
+        self.logger.info("\n")
+        self.logger.info("combining germline assignment results\n")
         vdjcresult_df = input_df.join(
             vdjcresult_df,
             left_on="sequence_id",
