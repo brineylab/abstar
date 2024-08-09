@@ -7,6 +7,11 @@ import os
 
 from setuptools import find_packages, setup
 
+# the actual __version__ is read from version.py, not assigned directly
+# this causes the linter to freak out when we mention __version__ in setup()
+# to fix that, we fake assign it here
+__version__ = None
+
 # read version
 version_file = os.path.join(os.path.dirname(__file__), "abstar", "version.py")
 with open(version_file) as version:
