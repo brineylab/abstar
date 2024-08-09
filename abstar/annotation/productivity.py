@@ -40,10 +40,26 @@ def assess_productivity(ab: Antibody) -> Antibody:
             f"V/J locus mismatch ({ab.v_call} and {ab.j_call})"
         )
     if ab.junction_aa:
+        # conserved C at the start of the junction
         if ab.junction_aa[0] != "C":
             ab.productivity_issues.append("junction does not start with conserved C")
-        if ab.junction_aa[-1] not in ["W", "F"]:
-            ab.productivity_issues.append("junction does not end with conserved W/F")
+        # conserved W/F at the end of the junction
+        if ab.locus is not None:
+            if ab.locus.upper() in ["IGH", "TRA", "TRD"]:
+                if ab.junction_aa[-1] != "W":
+                    ab.productivity_issues.append(
+                        "junction does not end with conserved W"
+                    )
+            else:
+                if ab.junction_aa[-1] != "F":
+                    ab.productivity_issues.append(
+                        "junction does not end with conserved F"
+                    )
+        else:
+            if ab.junction_aa[-1] not in ["F", "W"]:
+                ab.productivity_issues.append(
+                    "junction does not end with conserved W/F"
+                )
 
     # flag sequences with issues as non-productive
     if ab.productivity_issues:
