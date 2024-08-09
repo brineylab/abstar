@@ -55,7 +55,7 @@ class MMseqs(AssignerBase):
             os.path.basename(sequence_file).rstrip(".gz").split(".")[:-1]
         )
         input_fasta, input_tsv, sequence_count = self.prepare_input_files(sequence_file)
-        self.logger.info(f"found {sequence_count:,} sequences\n")
+        self.logger.info(f"input contained {sequence_count:,} sequences\n")
         assigned_path = self.assign_germlines(
             input_fasta=input_fasta, input_tsv=input_tsv
         )
