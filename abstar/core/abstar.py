@@ -11,20 +11,14 @@ from datetime import datetime
 from typing import Iterable, Optional, Union
 
 import abutils
-
-# import click
 import polars as pl
 from abutils import Sequence
 from natsort import natsorted
 from tqdm.auto import tqdm
 
 from ..annotation.annotator import annotate
-
-# from ..annotation.schema import OUTPUT_SCHEMA
 from ..assigners.mmseqs import MMseqs
 from ..preprocess.merging import merge_fastqs
-
-# from ..utils.callbacks import HiddenClickOption, parse_dict_from_string
 
 #  TODO: inputs/returns
 #  --------------------
@@ -92,109 +86,6 @@ from ..preprocess.merging import merge_fastqs
 #    - remove all of the temporary output and log files
 
 
-# @click.command()
-# @click.argument(
-#     "sequences",
-#     type=str,
-#     # help="Path to a FASTA/Q file or a directory of FASTA/Q files. Gzip-compressed files are supported.",
-# )
-# @click.argument(
-#     "project_path",
-#     type=str,
-#     # help="Path to a directory in which tmp, log and output files will be deposited",
-# )
-# @click.option(
-#     "--germline_database",
-#     type=str,
-#     show_default=True,
-#     default="human",
-#     help="Name of the germline database to be used for assignment/annotation",
-# )
-# @click.option(
-#     "--receptor",
-#     type=click.Choice(["bcr", "tcr"], case_sensitive=False),
-#     show_default=True,
-#     default="bcr",
-#     help="Name of the receptor to be used for assignment/annotation",
-# )
-# @click.option(
-#     "-o",
-#     "--output-format",
-#     type=click.Choice(["airr", "parquet"], case_sensitive=False),
-#     multiple=True,
-#     show_default=True,
-#     default=["airr"],
-#     help="Format of the output files",
-# )
-# @click.option(
-#     "--umi-pattern",
-#     type=str,
-#     default=None,
-#     help="Pattern to match for extracting the UMI sequence, or name of a built-in pattern",
-# )
-# @click.option(
-#     "--umi-length",
-#     type=int,
-#     default=None,
-#     help="Length of the UMI sequence to extract. If positive, the UMI will be parsed from the start of the sequence. If negative, the UMI will be parsed from the end of the sequence.",
-# )
-# @click.option(
-#     "-m",
-#     "--merge",
-#     is_flag=True,
-#     default=False,
-#     help="Whether to merge FASTQ files prior to assignment",
-# )
-# @click.option(
-#     "--merge-kwargs",
-#     type=str,
-#     callback=parse_dict_from_string,
-#     default=None,
-#     help="Keyword arguments to pass to the merge_fastqs function. Format must be 'key1=val1,key2=val2'",
-# )
-# @click.option(
-#     "--interleaved_fastq",
-#     is_flag=True,
-#     default=False,
-#     help="Whether the input FASTQ files are interleaved",
-# )
-# @click.option(
-#     "-c",
-#     "--chunksize",
-#     type=int,
-#     show_default=True,
-#     default=500,
-#     help="Number of sequences to process at a time",
-# )
-# @click.option(
-#     "--n-processes",
-#     type=int,
-#     default=None,
-#     help="Number of processes to use for annotation",
-# )
-# @click.option(
-#     "--verbose/--quiet",
-#     default=True,
-#     help="Whether to print verbose output",
-# )
-# @click.option(
-#     "--debug",
-#     is_flag=True,
-#     default=False,
-#     help="Whether to run in debug mode, which results in temporary files being retained and additional logging.",
-# )
-# @click.option(
-#     "--copy-inputs-to-project",
-#     cls=HiddenClickOption,
-#     is_flag=True,
-#     default=True,
-# )
-# @click.option(
-#     "--started_from_cli",
-#     cls=HiddenClickOption,
-#     is_flag=True,
-#     default=True,
-# )
 def run(
     sequences: Union[str, Sequence, Iterable[Sequence]],
     project_path: Optional[str] = None,
