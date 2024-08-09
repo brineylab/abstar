@@ -430,10 +430,13 @@ class MMseqs(AssignerBase):
             start = int(start)
             end = int(end)
             if start > end:
-                fasta = f">{name}\n{seq[:end]}"
+                s = seq[:end]
             else:
-                fasta = f">{name}\n{seq[end:]}"
-            fastas.append(fasta)
+                s = seq[end:]
+            # sequences shorter than 14 nt can break MMseqs2
+            # when using our J-gene alignment paramters
+            if len(s) >= 14:
+                fastas.append(f">{name}\n{s}")
 
         # write the FASTA file
         with open(fasta_path, "w") as f:
