@@ -11,7 +11,8 @@ from datetime import datetime
 from typing import Iterable, Optional, Union
 
 import abutils
-import click
+
+# import click
 import polars as pl
 from abutils import Sequence
 from natsort import natsorted
@@ -22,7 +23,8 @@ from ..annotation.annotator import annotate
 # from ..annotation.schema import OUTPUT_SCHEMA
 from ..assigners.mmseqs import MMseqs
 from ..preprocess.merging import merge_fastqs
-from ..utils.callbacks import HiddenClickOption, parse_dict_from_string
+
+# from ..utils.callbacks import HiddenClickOption, parse_dict_from_string
 
 #  TODO: inputs/returns
 #  --------------------
@@ -90,109 +92,109 @@ from ..utils.callbacks import HiddenClickOption, parse_dict_from_string
 #    - remove all of the temporary output and log files
 
 
-@click.command()
-@click.argument(
-    "sequences",
-    type=str,
-    # help="Path to a FASTA/Q file or a directory of FASTA/Q files. Gzip-compressed files are supported.",
-)
-@click.argument(
-    "project_path",
-    type=str,
-    # help="Path to a directory in which tmp, log and output files will be deposited",
-)
-@click.option(
-    "--germline_database",
-    type=str,
-    show_default=True,
-    default="human",
-    help="Name of the germline database to be used for assignment/annotation",
-)
-@click.option(
-    "--receptor",
-    type=click.Choice(["bcr", "tcr"], case_sensitive=False),
-    show_default=True,
-    default="bcr",
-    help="Name of the receptor to be used for assignment/annotation",
-)
-@click.option(
-    "-o",
-    "--output-format",
-    type=click.Choice(["airr", "parquet"], case_sensitive=False),
-    multiple=True,
-    show_default=True,
-    default=["airr"],
-    help="Format of the output files",
-)
-@click.option(
-    "--umi-pattern",
-    type=str,
-    default=None,
-    help="Pattern to match for extracting the UMI sequence, or name of a built-in pattern",
-)
-@click.option(
-    "--umi-length",
-    type=int,
-    default=None,
-    help="Length of the UMI sequence to extract. If positive, the UMI will be parsed from the start of the sequence. If negative, the UMI will be parsed from the end of the sequence.",
-)
-@click.option(
-    "-m",
-    "--merge",
-    is_flag=True,
-    default=False,
-    help="Whether to merge FASTQ files prior to assignment",
-)
-@click.option(
-    "--merge-kwargs",
-    type=str,
-    callback=parse_dict_from_string,
-    default=None,
-    help="Keyword arguments to pass to the merge_fastqs function. Format must be 'key1=val1,key2=val2'",
-)
-@click.option(
-    "--interleaved_fastq",
-    is_flag=True,
-    default=False,
-    help="Whether the input FASTQ files are interleaved",
-)
-@click.option(
-    "-c",
-    "--chunksize",
-    type=int,
-    show_default=True,
-    default=500,
-    help="Number of sequences to process at a time",
-)
-@click.option(
-    "--n-processes",
-    type=int,
-    default=None,
-    help="Number of processes to use for annotation",
-)
-@click.option(
-    "--verbose/--quiet",
-    default=True,
-    help="Whether to print verbose output",
-)
-@click.option(
-    "--debug",
-    is_flag=True,
-    default=False,
-    help="Whether to run in debug mode, which results in temporary files being retained and additional logging.",
-)
-@click.option(
-    "--copy-inputs-to-project",
-    cls=HiddenClickOption,
-    is_flag=True,
-    default=True,
-)
-@click.option(
-    "--started_from_cli",
-    cls=HiddenClickOption,
-    is_flag=True,
-    default=True,
-)
+# @click.command()
+# @click.argument(
+#     "sequences",
+#     type=str,
+#     # help="Path to a FASTA/Q file or a directory of FASTA/Q files. Gzip-compressed files are supported.",
+# )
+# @click.argument(
+#     "project_path",
+#     type=str,
+#     # help="Path to a directory in which tmp, log and output files will be deposited",
+# )
+# @click.option(
+#     "--germline_database",
+#     type=str,
+#     show_default=True,
+#     default="human",
+#     help="Name of the germline database to be used for assignment/annotation",
+# )
+# @click.option(
+#     "--receptor",
+#     type=click.Choice(["bcr", "tcr"], case_sensitive=False),
+#     show_default=True,
+#     default="bcr",
+#     help="Name of the receptor to be used for assignment/annotation",
+# )
+# @click.option(
+#     "-o",
+#     "--output-format",
+#     type=click.Choice(["airr", "parquet"], case_sensitive=False),
+#     multiple=True,
+#     show_default=True,
+#     default=["airr"],
+#     help="Format of the output files",
+# )
+# @click.option(
+#     "--umi-pattern",
+#     type=str,
+#     default=None,
+#     help="Pattern to match for extracting the UMI sequence, or name of a built-in pattern",
+# )
+# @click.option(
+#     "--umi-length",
+#     type=int,
+#     default=None,
+#     help="Length of the UMI sequence to extract. If positive, the UMI will be parsed from the start of the sequence. If negative, the UMI will be parsed from the end of the sequence.",
+# )
+# @click.option(
+#     "-m",
+#     "--merge",
+#     is_flag=True,
+#     default=False,
+#     help="Whether to merge FASTQ files prior to assignment",
+# )
+# @click.option(
+#     "--merge-kwargs",
+#     type=str,
+#     callback=parse_dict_from_string,
+#     default=None,
+#     help="Keyword arguments to pass to the merge_fastqs function. Format must be 'key1=val1,key2=val2'",
+# )
+# @click.option(
+#     "--interleaved_fastq",
+#     is_flag=True,
+#     default=False,
+#     help="Whether the input FASTQ files are interleaved",
+# )
+# @click.option(
+#     "-c",
+#     "--chunksize",
+#     type=int,
+#     show_default=True,
+#     default=500,
+#     help="Number of sequences to process at a time",
+# )
+# @click.option(
+#     "--n-processes",
+#     type=int,
+#     default=None,
+#     help="Number of processes to use for annotation",
+# )
+# @click.option(
+#     "--verbose/--quiet",
+#     default=True,
+#     help="Whether to print verbose output",
+# )
+# @click.option(
+#     "--debug",
+#     is_flag=True,
+#     default=False,
+#     help="Whether to run in debug mode, which results in temporary files being retained and additional logging.",
+# )
+# @click.option(
+#     "--copy-inputs-to-project",
+#     cls=HiddenClickOption,
+#     is_flag=True,
+#     default=True,
+# )
+# @click.option(
+#     "--started_from_cli",
+#     cls=HiddenClickOption,
+#     is_flag=True,
+#     default=True,
+# )
 def run(
     sequences: Union[str, Sequence, Iterable[Sequence]],
     project_path: Optional[str] = None,
@@ -306,7 +308,7 @@ def run(
         return_sequences = True
         sequences_to_return = []
         output_format = ["parquet"]
-        project_path = tempfile.TemporaryDirectory(prefix="abstar", dir="/tmp")
+        project_path = tempfile.TemporaryDirectory(prefix="abstar", dir="/tmp").name
     log_dir = os.path.join(project_path, "logs")
     abutils.io.make_dir(log_dir)
     temp_dir = os.path.join(project_path, "tmp")
@@ -315,12 +317,20 @@ def run(
         abutils.io.make_dir(os.path.join(project_path, fmt))
 
     # setup logging
-    _setup_logging(
-        log_dir,
-        add_stream_handler=verbose and started_from_cli,
-        single_line_handler=True,
-        debug=debug,
-    )
+    global logger
+    if started_from_cli:
+        logger = _setup_logging(
+            log_dir,
+            add_stream_handler=verbose,
+            single_line_handler=True,
+            debug=debug,
+        )
+    elif verbose:
+        # global logger
+        logger = abutils.log.NotebookLogger(verbose=verbose, end="")
+    else:
+        # global logger
+        logger = abutils.log.null_logger()
 
     if started_from_cli:
         _log_run_parameters(
@@ -367,7 +377,8 @@ def run(
         )
 
     # print sequence file info
-    _log_sequence_file_info(sequence_files)
+    if started_from_cli:
+        _log_sequence_file_info(sequence_files)
 
     # annotation config
     if n_processes is None:
@@ -401,12 +412,13 @@ def run(
             os.path.basename(sequence_file).rstrip(".gz").split(".")[:-1]
         )
         # log sample info
-        logger.info("\n\n")
-        logger.info("-" * (len(sample_name) + 4))
-        logger.info("\n")
-        logger.info(f"  {sample_name}\n")
-        logger.info("-" * (len(sample_name) + 4))
-        logger.info("\n")
+        if started_from_cli:
+            logger.info("\n\n")
+            logger.info("-" * (len(sample_name) + 4))
+            logger.info("\n")
+            logger.info(f"  {sample_name}\n")
+            logger.info("-" * (len(sample_name) + 4))
+            logger.info("\n")
 
         # assign VDJC genes, the returned assign_file is in parquet format
         assign_file, raw_sequence_count = assigner(sequence_file)
@@ -422,12 +434,16 @@ def run(
         failed_log_files = []
         succeeded_log_files = []
         # log annotation info
-        logger.info("\n\n")
+        logger.info("\n")
         logger.info("sequence annotation:\n")
-        if verbose:
+        if verbose and started_from_cli:
             progress_bar = tqdm(
                 total=len(split_assign_files),
                 bar_format="{desc:<2.5}{percentage:3.0f}%|{bar:25}{r_bar}",
+            )
+        elif verbose:
+            progress_bar = tqdm(
+                total=len(split_assign_files),
             )
         with ProcessPoolExecutor(max_workers=n_processes) as executor:
             futures = [
@@ -549,7 +565,7 @@ def _process_inputs(
         raise ValueError(
             "Invalid input sequences. Must be a path to a file or directory, a single sequence, or an iterable of sequences."
         )
-    return sequence_files
+    return natsorted(sequence_files)
 
 
 def _copy_inputs_to_project(sequence_files: Iterable[str], project_path: str) -> None:
@@ -623,12 +639,13 @@ def _setup_logging(
         single_line_handler=single_line_handler,
         debug=debug,
     )
-    global logger
+    # global logger
     logger = abutils.log.get_logger(
         name="abstar",
         add_stream_handler=add_stream_handler,
         single_line_handler=single_line_handler,
     )
+    return logger
 
 
 def _log_run_parameters(
