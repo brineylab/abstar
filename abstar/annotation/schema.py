@@ -5,7 +5,17 @@
 
 import polars as pl
 
-OUTPUT_SCHEMA = {
+
+class NoneDict(dict):
+    """
+    A dictionary that returns None for missing keys.
+    """
+
+    def __getitem__(self, key):
+        return dict.get(self, key)
+
+
+schema_dict = {
     "sequence_id": pl.String,
     "v_gene": pl.String,
     "d_gene": pl.String,
@@ -74,6 +84,19 @@ OUTPUT_SCHEMA = {
     "c_cigar": pl.String,
     "c_sequence": pl.String,
     "c_germline": pl.String,
+    "c_sequence_aa": pl.String,
+    "c_germline_aa": pl.String,
+    "c_mutations": pl.String,
+    "c_mutations_aa": pl.String,
+    "c_mutation_count": pl.Int64,
+    "c_mutation_count_aa": pl.Int64,
+    "c_insertions": pl.String,
+    "c_deletions": pl.String,
+    "c_sequence_start": pl.Int64,
+    "c_sequence_end": pl.Int64,
+    "c_germline_start": pl.Int64,
+    "c_germline_end": pl.Int64,
+    "c_frame": pl.Int64,
     "np1": pl.String,
     "np2": pl.String,
     "np1_length": pl.Int64,
@@ -102,3 +125,6 @@ OUTPUT_SCHEMA = {
     "j_germline_start": pl.Int64,
     "j_germline_end": pl.Int64,
 }
+
+
+OUTPUT_SCHEMA = NoneDict(schema_dict)

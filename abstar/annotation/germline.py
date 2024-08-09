@@ -200,6 +200,7 @@ def realign_germline(
     skip_local: bool = False,
     truncate_query: Optional[int] = None,
     truncate_target: Optional[int] = None,
+    force_constant: bool = False,
 ) -> Tuple[Optional[abutils.tl.PairwiseAlignment]]:
     """
     Performs an (optionally) two-step realignment of an assigned germline gene to a query sequence.
@@ -253,6 +254,11 @@ def realign_germline(
     truncate_target : int, default: None
         The number of bases to truncate from the 3' end of the target sequence.
 
+    force_constant : bool, default: False
+        Whether to force the query to match a constant germline gene. This is necessary because both IgD and diversity (D)
+        gene names are formatted as IGHD, making it ambiguous whether the query is for IgD or diversity. By default,
+        a supplied germline name of the format IGHD is assumed to be diversity.
+
     Returns
     -------
     Tuple[Optional[abutils.tl.PairwiseAlignment], Optional[abutils.tl.PairwiseAlignment]]
@@ -262,7 +268,11 @@ def realign_germline(
     """
     # initial semi-global alignment
     germ = get_germline(
-        germline_name, germdb_name, imgt_gapped=imgt_gapped, exact_match=True
+        germline_name,
+        germdb_name,
+        imgt_gapped=imgt_gapped,
+        exact_match=True,
+        force_constant=force_constant,
     )
     if truncate_query is not None:
         sequence = sequence[: -int(truncate_query)]
@@ -525,4 +535,81 @@ def process_dgene_alignment(
     ab.d_germline = local_aln.target[ab.d_germline_start : ab.d_germline_end]
     # d frame
     ab.d_frame = (3 - (ab.d_germline_start % 3)) % 3 + 1
+    return ab
+
+
+def process_cgene_alignment(
+    oriented_input: str,
+    j_sequence_end: int,
+    semiglobal_aln: abutils.tl.PairwiseAlignment,
+    local_aln: abutils.tl.PairwiseAlignment,
+    ab: Antibody,
+) -> Antibody:
+    """
+    Processes a constant region alignment and updates ``Antibody`` annotations accordingly.
+
+    .. note:
+        all start/end positions are 0-indexed and end postions are
+        exclusive, which aligns with Python slicing. This means that
+        ``sequence[start : end]`` will work as expected
+
+    Parameters:
+    -----------
+    oriented_input: str
+        The oriented input sequence.
+
+    j_sequence_end: int
+        The end position of the J gene in the `oriented_input` sequence.
+
+    semiglobal_aln: abutils.tl.PairwiseAlignment
+        Semiglobal alignment of a query sequence to the constant region germline.
+
+    local_aln: abutils.tl.PairwiseAlignment
+        Local alignment of a query sequence to the constant region germline.
+
+    ab: Antibody
+        Antibody object to update with annotation information.
+
+        The following ``Antibody`` properties are updated:
+
+        - ``c_sequence``: the constant region of the query sequence
+        - ``c_score``: the score of the local alignment
+        - ``c_sequence_start``: start position of the constant region in the query sequence, in positions corresponding to the ``sequence_oriented`` property
+        - ``c_sequence_end``: end position of the constant region in the query sequence, in positions corresponding to the ``sequence_oriented`` property
+        - ``c_germline``: the constant region of the assigned germline sequence
+        - ``c_germline_start``: start position of the constant region in the assigned germline sequence
+        - ``c_germline_end``: end position of the constant region in the assigned germline sequence
+
+        Does not require any ``Antibody`` properties to be set.
+
+    """
+    ab.c_score = local_aln.score
+    # sequence/germline start position
+    if semiglobal_aln.query_begin < semiglobal_aln.target_begin:
+        # the query sequence doesn't extend to the beginning of the germline
+        # so we'll use the start position of the local alignment
+        ab.c_sequence_start = (
+            j_sequence_end + semiglobal_aln.query_begin + local_aln.query_begin
+        )
+        ab.c_germline_start = semiglobal_aln.target_begin + local_aln.target_begin
+    else:
+        # if the query extends 5' at least to the beginning of the germline,
+        # we set the start position at the beginning of the germline
+        # to avoid an edge case where a mutation at or near the start of the
+        # query sequence causes the start position to be incorrect
+        ab.c_sequence_start = j_sequence_end + semiglobal_aln.query_begin
+        ab.c_germline_start = semiglobal_aln.target_begin
+    # sequence/germline stop positions
+    ab.c_sequence_end = (
+        ab.c_sequence_start + semiglobal_aln.query_begin + local_aln.query_end + 1
+    )
+    ab.c_germline_end = semiglobal_aln.target_begin + local_aln.target_end + 1
+    # j-region sequence and germline
+    ab.c_sequence = oriented_input[ab.c_sequence_start : ab.c_sequence_end]
+    ab.c_germline = semiglobal_aln.target[ab.c_germline_start : ab.c_germline_end]
+    # frame -- 1-indexed, which works with abutils.tl.translate()
+    ab.c_frame = (3 - (ab.c_germline_start % 3)) % 3 + 1
+    # AA sequence and germline
+    ab.c_sequence_aa = abutils.tl.translate(ab.c_sequence, frame=ab.c_frame)
+    ab.c_germline_aa = abutils.tl.translate(ab.c_germline, frame=ab.c_frame)
     return ab
