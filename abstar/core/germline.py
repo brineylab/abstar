@@ -119,7 +119,7 @@ def build_germline_database(
     mmseqs_dir = sub_dirs["mmseqs"]
 
     # process FASTA-formatted VDJ segments
-    if fastas is not None:
+    if fastas:
         if verbose:
             print("processing FASTA-formatted VDJ segments")
         if isinstance(fastas, str):
@@ -134,7 +134,7 @@ def build_germline_database(
             gapped_vdjs.extend(sequences)
 
     # process JSON-formatted VDJ segments
-    if jsons is not None:
+    if jsons:
         if verbose:
             print("processing JSON-formatted VDJ segments")
         if isinstance(jsons, str):
@@ -149,7 +149,7 @@ def build_germline_database(
             gapped_vdjs.extend(sequences)
 
     # process FASTA-formatted constant regions
-    if constants is not None:
+    if constants:
         if verbose:
             print("processing FASTA-formatted constant regions")
         if isinstance(constants, str):
