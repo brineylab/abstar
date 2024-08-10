@@ -171,7 +171,6 @@ def build_germline_database(
         vdjs=gapped_vdjs,
         constants=gapped_constants,
         database_dir=gapped_dir,
-        dbname=name,
         verbose=verbose,
     )
 
@@ -189,7 +188,6 @@ def build_germline_database(
         vdjs=ungapped_vdjs,
         constants=ungapped_constants,
         database_dir=ungapped_dir,
-        dbname=name,
         verbose=verbose,
     )
 
@@ -198,10 +196,8 @@ def build_germline_database(
         print("")
         print("building MMseqs database")
     make_mmseqs_dbs(
-        vdjs=ungapped_vdjs,
-        constants=ungapped_constants,
         database_dir=mmseqs_dir,
-        dbname=name,
+        ungapped_dir=ungapped_dir,
         verbose=verbose,
         debug=debug,
     )
@@ -276,13 +272,13 @@ def get_database_directory(receptor: str, db_location: Optional[str]) -> str:
 
     """
     if db_location is not None:
-        print("\n")
+        print("")
         print(
             "NOTE: You have selected a non-default location for the germline directory."
         )
         string = "abstar only looks in the default location (~/.abstar/) for user-created germline databases, "
         string += "so this database will not be used by abstar. The custom database location option is primarily "
-        string += "provided so that users can test the database creation process without overwriting existing databases."
+        string += "provided so that users can test the database creation process without overwriting existing databases.\n"
         print(string)
         database_dir = db_location
     else:
@@ -338,7 +334,7 @@ def confirm_overwrite_existing_db(name: str) -> bool:
     bool
         True if the user wants to continue, False otherwise.
     """
-    print("\n")
+    print("")
     print(f"WARNING: A {name.lower()} germline database already exists.")
     print("Creating a new database with that name will overwrite the old one.")
     keep_going = input("Do you want to continue? [y/N]: ")
@@ -347,6 +343,8 @@ def confirm_overwrite_existing_db(name: str) -> bool:
         print("Aborting germline database creation.")
         print("\n")
         sys.exit()
+    else:
+        print("")
 
 
 def make_db_directories(database_dir: str) -> None:
@@ -357,9 +355,6 @@ def make_db_directories(database_dir: str) -> None:
     ----------
     database_dir : str
         The path to the database directory.
-
-    dbname : str
-        The name of the germline database.
 
     """
     # make the main DB directory
@@ -502,7 +497,7 @@ def make_fasta_dbs(
                 print("  V", end="")
             else:
                 print(f" | {segment}", end="")
-        seqs = [s for s in vdjs if s.id[4] == segment]
+        seqs = [s for s in vdjs if s.id[3] == segment]
         if seqs:
             abutils.io.to_fasta(
                 seqs, os.path.join(database_dir, f"{segment.lower()}.fasta")
