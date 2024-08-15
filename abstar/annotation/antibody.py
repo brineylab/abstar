@@ -6,7 +6,8 @@
 from dataclasses import dataclass, field
 from typing import Iterable, Optional, Union
 
-from ..utils.mixins import LoggingMixin
+# from ..utils.mixins import LoggingMixin
+from abutils.tools.log import LoggingMixin
 
 
 @dataclass
