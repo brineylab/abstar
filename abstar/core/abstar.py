@@ -555,7 +555,10 @@ def _log_run_parameters(
     verbose: bool,
     debug: bool,
 ) -> None:
-    logger.info(ABSTAR_SPLASH + "\n")
+    logger.info("\n")
+    # printing the splash line-by-line makes the log files look nicer
+    for line in ABSTAR_SPLASH.split("\n"):
+        logger.info(line + "\n")
     logger.info("\n")
     logger.info("RUN PARAMETERS\n")
     logger.info("===============\n")
