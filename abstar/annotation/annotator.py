@@ -7,7 +7,8 @@ import traceback
 from typing import Iterable, Optional, Union
 
 import abutils
-import pandas as pd
+
+# import pandas as pd
 import polars as pl
 
 from .antibody import Antibody
@@ -94,14 +95,14 @@ def annotate(
 
     """
     # load the input parquet file
-    # df = pl.read_parquet(input_file)
+    df = pl.read_parquet(input_file)
     # polars isn't thread-safe (when using fork), so we use pandas instead
-    df = pd.read_parquet(input_file)
+    # df = pd.read_parquet(input_file)
 
     # do annotations
     annotated = []
-    # for r in df.iter_rows(named=True):
-    for _, r in df.iterrows():
+    for r in df.iter_rows(named=True):
+        # for _, r in df.iterrows():
         ab = Antibody(**r)
         try:
             ab = annotate_single_sequence(
@@ -117,8 +118,8 @@ def annotate(
     # gather the results
     failed = [a for a in annotated if a.exceptions]
     succeeded = [a for a in annotated if not a.exceptions]
-    # succeeded_df = pl.DataFrame([s.to_dict() for s in succeeded], schema=OUTPUT_SCHEMA)
-    succeeded_df = pd.DataFrame([s.to_dict() for s in succeeded])
+    succeeded_df = pl.DataFrame([s.to_dict() for s in succeeded], schema=OUTPUT_SCHEMA)
+    # succeeded_df = pd.DataFrame([s.to_dict() for s in succeeded])
 
     # write logs
     basename = os.path.basename(input_file)
@@ -135,8 +136,8 @@ def annotate(
 
     # write outputs
     output_file = os.path.join(output_directory, f"{basename}_annotated.parquet")
-    # succeeded_df.write_parquet(output_file)
-    succeeded_df.to_parquet(output_file)
+    succeeded_df.write_parquet(output_file)
+    # succeeded_df.to_parquet(output_file)
 
     # returns
     if log_directory:

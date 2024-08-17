@@ -336,7 +336,9 @@ def run(
             progress_bar = tqdm(
                 total=len(split_assign_files),
             )
-        with ProcessPoolExecutor(max_workers=n_processes) as executor:
+        with ProcessPoolExecutor(
+            max_workers=n_processes, mp_context=mp.get_context("spawn")
+        ) as executor:
             futures = [
                 executor.submit(annotate, f, **annot_kwargs) for f in split_assign_files
             ]
