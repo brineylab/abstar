@@ -135,7 +135,8 @@ def annotate(
 
     # write outputs
     output_file = os.path.join(output_directory, f"{basename}_annotated.parquet")
-    succeeded_df.write_parquet(output_file)
+    # succeeded_df.write_parquet(output_file)
+    succeeded_df.to_parquet(output_file)
 
     # returns
     if log_directory:
