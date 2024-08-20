@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: MIT
 
 from .annotation.germline import *
+from .core.germline import *
 
 
 #  TODO:
