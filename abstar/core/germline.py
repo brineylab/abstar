@@ -35,7 +35,7 @@ from abutils import Sequence
 # import click
 from natsort import natsorted
 
-__all__ = ["build_germline_database", "get_addon_directory"]
+__all__ = ["build_germline_database"]
 
 # ===============================
 #
