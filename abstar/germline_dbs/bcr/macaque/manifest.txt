@@ -1,14 +1,12 @@
-Macaca mulatta germline gene database
+macaque germline gene database
+==============================
 
+IGH V/D/J genes were obtained from KIMDB (http://kimdb.gkhlab.se/)
+  KIMDB version: 1.1
+  DOWNLOAD DATE: 08/19/2024
 
-SOURCE: IMGT and KIMDB
-DOWNLOAD DATE: February 14, 2023
+IGK and IGL V/D/J genes were obtained from IMGT's GENE-DB
+  DOWNLOAD DATE: 08/19/2024
 
-
-V-GENES: KIMDB: http://kimdb.gkhlab.se./datasets/
-D-GENES: IMGT: F+ORF+in-frame P nucleotide sequences
-J-GENES: IMGT: F+ORF+in-frame P nucleotide sequences
-
-
-
-
+IGH/K/L constant region genes were obtained from IMGT's GENE-DB
+  DOWNLOAD DATE: 08/19/2024
