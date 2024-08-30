@@ -338,7 +338,7 @@ def run(
             )
         with ProcessPoolExecutor(
             max_workers=n_processes,
-            # mp_context=mp.get_context("spawn"),
+            mp_context=mp.get_context("spawn"),
         ) as executor:
             futures = [
                 executor.submit(annotate, f, **annot_kwargs) for f in split_assign_files
