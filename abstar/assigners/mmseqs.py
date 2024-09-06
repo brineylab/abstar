@@ -190,44 +190,57 @@ class MMseqs(AssignerBase):
             self.to_delete.extend([dresult_path, dquery_path])
         # make the input FASTA file for D gene assignment
         self.build_dquery_fasta(vjresult_df, dquery_path)
-        # assign D genes
-        abutils.tl.mmseqs_search(
-            query=dquery_path,
-            target=d_germdb,
-            output_path=dresult_path,
-            search_type=3,
-            max_seqs=25,
-            max_evalue=1000000.0,
-            format_mode=4,
-            additional_cli_args="--min-aln-len 5 -k 3 --alignment-mode 3",
-            format_output=mmseqs_format_output,
-            log_to=os.path.join(self.log_directory, "d_assignment.log"),
-            debug=self.debug,
-        )
-        # read the results
-        dresult_df = pl.scan_csv(
-            dresult_path,
-            separator="\t",
-            with_column_names=lambda x: [
-                f"d_{_x}".replace("target", "call").replace("evalue", "support")
-                for _x in x
-            ],
-        )
-        # keep only the highest scoring assignment for each sequence
-        dresult_df = dresult_df.sort(by=["d_nident"], descending=True, nulls_last=True)
-        dresult_df = dresult_df.unique(subset=["d_query"], keep="first")
-        if dresult_df.select(pl.len()).collect().item() > 0:
-            # join the D and VJ assignment results
-            vdjresult_df = vjresult_df.join(
-                dresult_df,
-                left_on="v_query",
-                right_on="d_query",
-                how="left",
+
+        # only assign D genes if the dquery fasta file is not empty
+        # if os.path.exists(dquery_path):
+        if abutils.io.determine_fastx_format(dquery_path) == "fasta":
+            # assign D genes
+            abutils.tl.mmseqs_search(
+                query=dquery_path,
+                target=d_germdb,
+                output_path=dresult_path,
+                search_type=3,
+                max_seqs=25,
+                max_evalue=1000000.0,
+                format_mode=4,
+                additional_cli_args="--min-aln-len 5 -k 3 --alignment-mode 3",
+                format_output=mmseqs_format_output,
+                log_to=os.path.join(self.log_directory, "d_assignment.log"),
+                debug=self.debug,
             )
+            # read the results
+            dresult_df = pl.scan_csv(
+                dresult_path,
+                separator="\t",
+                with_column_names=lambda x: [
+                    f"d_{_x}".replace("target", "call").replace("evalue", "support")
+                    for _x in x
+                ],
+            )
+            # keep only the highest scoring assignment for each sequence
+            dresult_df = dresult_df.sort(
+                by=["d_nident"], descending=True, nulls_last=True
+            )
+            dresult_df = dresult_df.unique(subset=["d_query"], keep="first")
+            if dresult_df.select(pl.len()).collect().item() > 0:
+                # join the D and VJ assignment results
+                vdjresult_df = vjresult_df.join(
+                    dresult_df,
+                    left_on="v_query",
+                    right_on="d_query",
+                    how="left",
+                )
+            else:
+                # if none of the sequences have a D gene assignment,
+                # set the D gene columns to None
+                vdjresult_df = vjresult_df.with_columns(
+                    pl.lit(None).alias("d_call"),
+                    pl.lit(None).alias("d_support"),
+                )
         else:
-            # if none of the sequences have a D gene assignment,
+            # if the dquery fasta file is empty,
             # set the D gene columns to None
-            vdjresult_df = vjresult_df.with_columns(
+            vdjresult_df = vdjresult_df.with_columns(
                 pl.lit(None).alias("d_call"),
                 pl.lit(None).alias("d_support"),
             )
