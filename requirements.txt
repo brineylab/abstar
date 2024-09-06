@@ -5,10 +5,10 @@ click
 # cutadapt
 # dask[complete]
 matplotlib # == 3.6.3
-numpy ~=1.24
+numpy~=1.24
 pandas
 parasail
-polars
+polars>=0.20.18
 pyarrow
 # pymongo
 pytest
