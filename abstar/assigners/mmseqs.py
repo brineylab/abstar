@@ -105,7 +105,7 @@ class MMseqs(AssignerBase):
             sensitivity=7.5,
             # max_evalue=1.0e-6,
             format_mode=4,
-            additional_cli_args="--alignment-mode 3",
+            additional_cli_args="--min-aln-len 12 -k 5 --alignment-mode 3",
             format_output=mmseqs_format_output,
             log_to=os.path.join(self.log_directory, "v_assignment.log"),
             debug=self.debug,
@@ -240,7 +240,7 @@ class MMseqs(AssignerBase):
         else:
             # if the dquery fasta file is empty,
             # set the D gene columns to None
-            vdjresult_df = vdjresult_df.with_columns(
+            vdjresult_df = vjresult_df.with_columns(
                 pl.lit(None).alias("d_call"),
                 pl.lit(None).alias("d_support"),
             )
