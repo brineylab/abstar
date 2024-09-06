@@ -618,7 +618,7 @@ def _log_results_summary(
     logger.info("\n")
     logger.info(f"{sequence_count:,} sequences had an identifiable rearrangement\n")
     logger.info(
-        f"time elapsed: {duration_string} ({sequences_per_second:,} sequences/sec)\n"
+        f"time elapsed: {duration_string} ({sequences_per_second:,.2f} sequences/sec)\n"
     )
 
 
