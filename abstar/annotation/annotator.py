@@ -156,9 +156,9 @@ def annotate_single_sequence(
     umi_length: Optional[int] = None,
 ):
     # log information from the assigner
-    ab.log("=" * (len(ab.sequence_id) + 15))
+    ab.log("=" * (len(str(ab.sequence_id)) + 15))
     ab.log(" SEQUENCE ID:", ab.sequence_id)
-    ab.log("=" * (len(ab.sequence_id) + 15) + "\n")
+    ab.log("=" * (len(str(ab.sequence_id)) + 15) + "\n")
     ab.log(f">{ab.sequence_id}\n{ab.sequence_input}\n")
     ab.log(f"{ab.v_call} | {ab.d_call} | {ab.j_call}")
     ab.log("REV COMP:", ab.rev_comp)
