@@ -22,6 +22,7 @@ class MMseqs(AssignerBase):
         germdb_name: str,
         receptor: str,
         logger: Optional[logging.Logger] = None,
+        concise_logging: bool = False,
         debug: bool = False,
     ) -> None:
         """
@@ -33,6 +34,7 @@ class MMseqs(AssignerBase):
             germdb_name=germdb_name,
             receptor=receptor,
             logger=logger,
+            concise_logging=concise_logging,
             debug=debug,
         )
 
@@ -55,7 +57,10 @@ class MMseqs(AssignerBase):
             os.path.basename(sequence_file).rstrip(".gz").split(".")[:-1]
         )
         input_fasta, input_tsv, sequence_count = self.prepare_input_files(sequence_file)
-        self.logger.info(f"input contained {sequence_count:,} sequences\n")
+        if self.concise_logging:
+            self.logger.info(f"input sequences: {sequence_count:,}\n")
+        else:
+            self.logger.info(f"input contained {sequence_count:,} sequences\n")
         assigned_path = self.assign_germlines(
             input_fasta=input_fasta, input_tsv=input_tsv
         )
@@ -86,9 +91,12 @@ class MMseqs(AssignerBase):
         #   V genes
         # -----------
 
-        self.logger.info("\n")
-        self.logger.info("germline assignment:\n")
-        self.logger.info("  V")
+        if self.concise_logging:
+            self.logger.info("germline assignment: V")
+        else:
+            self.logger.info("\n")
+            self.logger.info("germline assignment:\n")
+            self.logger.info("  V")
         v_germdb = os.path.join(germdb_path, "v")
         vresult_path = os.path.join(
             self.output_directory, f"{self.sample_name}.vresult.tsv"
@@ -189,7 +197,7 @@ class MMseqs(AssignerBase):
         if not self.debug:
             self.to_delete.extend([dresult_path, dquery_path])
         # make the input FASTA file for D gene assignment
-        self.build_dquery_fasta(vjresult_df, dquery_path)
+        self.build_dquery_fasta(vjresult_df, dquery_path, minimum_length=5)
 
         # only assign D genes if the dquery fasta file is not empty
         # if os.path.exists(dquery_path):
@@ -459,6 +467,7 @@ class MMseqs(AssignerBase):
         self,
         vjresult_df: Union[pl.LazyFrame, pl.DataFrame],
         fasta_path: str,
+        minimum_length: int = 5,
     ) -> None:
         """
         Builds a FASTA file for the D gene assignment.
@@ -494,6 +503,8 @@ class MMseqs(AssignerBase):
         )["dq"]:
             start = int(start)
             end = int(end)
+            if abs(start - end) < minimum_length:
+                continue
             if start > end:
                 fasta = f">{name}\n{seq[start:]}"
             else:

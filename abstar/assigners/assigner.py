@@ -24,6 +24,7 @@ class AssignerBase:
         receptor: str,
         log_directory: str,
         logger: Optional[logging.Logger] = None,
+        concise_logging: bool = False,
         debug: bool = False,
     ):
         self.output_directory = os.path.abspath(output_directory)
@@ -32,6 +33,7 @@ class AssignerBase:
         self.germdb_name = germdb_name
         self.debug = debug
         self.logger = logger if logger is not None else abutils.log.null_logger()
+        self.concise_logging = concise_logging
         self.germdb_path = get_germline_database_path(germdb_name, receptor)
         self.to_delete = []  # files that should be deleted during cleanup
 

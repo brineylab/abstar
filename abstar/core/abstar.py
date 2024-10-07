@@ -101,6 +101,7 @@ def run(
     n_processes: Optional[int] = None,
     copy_inputs_to_project: bool = False,
     verbose: bool = False,
+    concise_logging: bool = False,
     started_from_cli: bool = False,
     debug: bool = False,
 ) -> Optional[Union[Iterable[Sequence], Sequence]]:
@@ -172,6 +173,13 @@ def run(
     n_processes : Optional[int] = None,
         Number of processes to use for annotation. If ``None``, the number of processes will be set to the number of
         available CPU cores.
+
+    copy_inputs_to_project : bool = False,
+        Whether to copy input sequences to the project directory.
+
+    concise_logging : bool = False,
+        Whether to use concise logging. If ``True``, the logging is more concise, more suitable for running
+        abstar inside some other pipeline where only basic progress information is needed.
 
     verbose : bool = False,
         Whether to print verbose output.
@@ -253,11 +261,12 @@ def run(
         merge_log_dir = os.path.join(log_dir, "merge_fastqs")
         abutils.io.make_dir(merge_log_dir)
         # log merge info
-        logger.info("\n\n\n")
-        logger.info("MERGE FASTQS\n")
-        logger.info("============\n")
-        logger.info(f"merge directory: {merge_dir}\n")
-        # merging
+        if not concise_logging:
+            logger.info("\n\n\n")
+            logger.info("MERGE FASTQS\n")
+            logger.info("============\n")
+            logger.info(f"merge directory: {merge_dir}\n")
+            # merging
         sequence_files = merge_fastqs(
             sequence_files,
             merge_dir,
@@ -290,6 +299,7 @@ def run(
         germdb_name=germline_database,
         receptor=receptor,
         logger=logger,
+        concise_logging=concise_logging,
         debug=debug,
     )
 
@@ -325,8 +335,11 @@ def run(
         failed_log_files = []
         succeeded_log_files = []
         # log annotation info
-        logger.info("\n")
-        logger.info("sequence annotation:\n")
+        if concise_logging:
+            logger.info("sequence annotation: ")
+        else:
+            logger.info("\n")
+            logger.info("sequence annotation:\n")
         if verbose and started_from_cli:
             progress_bar = tqdm(
                 total=len(split_assign_files),
@@ -389,11 +402,14 @@ def run(
             # log results summary
             sequence_count = output_df.select(pl.count()).collect().row(0)[0]
             duration = datetime.now() - start_time
-            _log_results_summary(
-                sequence_count=sequence_count,
-                sequences_per_second=raw_sequence_count / duration.total_seconds(),
-                seconds=duration.total_seconds(),
-            )
+            if concise_logging:
+                logger.info(f"annotated sequences: {sequence_count:,}\n")
+            else:
+                _log_results_summary(
+                    sequence_count=sequence_count,
+                    sequences_per_second=raw_sequence_count / duration.total_seconds(),
+                    seconds=duration.total_seconds(),
+                )
 
         # collect files for removal
         to_delete.append(assign_file)
