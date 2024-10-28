@@ -634,10 +634,7 @@ def _log_results_summary(
         seconds = seconds % 60
     duration_string = f"{hours:02}:{minutes:02}:{seconds:02.2f}"
     if concise_logging:
-        logger.info(f"annotated sequences: {sequence_count:,}")
-        logger.info(
-            f"time elapsed: {duration_string} ({sequences_per_second:,.2f} sequences/sec)"
-        )
+        logger.info(f"annotated sequences: {sequence_count:,}\n")
     else:
         logger.info("\n")
         logger.info(f"{sequence_count:,} sequences had an identifiable rearrangement\n")
