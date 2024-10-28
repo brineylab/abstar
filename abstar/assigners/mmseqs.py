@@ -323,8 +323,9 @@ class MMseqs(AssignerBase):
             )
 
         # join the input CSV data with VDJC assignment results
-        self.logger.info("\n")
-        self.logger.info("combining germline assignment results\n")
+        if self.concise_logging:
+            self.logger.info("\n")
+            self.logger.info("combining germline assignment results\n")
         vdjcresult_df = input_df.join(
             vdjcresult_df,
             left_on="sequence_id",
