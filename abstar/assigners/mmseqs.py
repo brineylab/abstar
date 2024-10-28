@@ -263,7 +263,7 @@ class MMseqs(AssignerBase):
         # some germline databases may not have constant genes
         # so we only try to assign if the database exists
         if os.path.exists(c_germdb):
-            self.logger.info(" | C")
+            self.logger.info(" | C\n")
             cresult_path = os.path.join(
                 self.output_directory, f"{self.sample_name}.cresult.tsv"
             )
@@ -324,7 +324,7 @@ class MMseqs(AssignerBase):
 
         # join the input CSV data with VDJC assignment results
         if not self.concise_logging:
-            self.logger.info("\n")
+            # self.logger.info("\n")
             self.logger.info("combining germline assignment results\n")
         vdjcresult_df = input_df.join(
             vdjcresult_df,
