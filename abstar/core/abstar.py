@@ -378,6 +378,7 @@ def run(
                 sequence_count=sequence_count,
                 sequences_per_second=raw_sequence_count / duration.total_seconds(),
                 seconds=duration.total_seconds(),
+                concise_logging=concise_logging,
             )
 
         # or assemble output files (including logs)
@@ -402,14 +403,12 @@ def run(
             # log results summary
             sequence_count = output_df.select(pl.count()).collect().row(0)[0]
             duration = datetime.now() - start_time
-            if concise_logging:
-                logger.info(f"annotated sequences: {sequence_count:,}\n")
-            else:
-                _log_results_summary(
-                    sequence_count=sequence_count,
-                    sequences_per_second=raw_sequence_count / duration.total_seconds(),
-                    seconds=duration.total_seconds(),
-                )
+            _log_results_summary(
+                sequence_count=sequence_count,
+                sequences_per_second=raw_sequence_count / duration.total_seconds(),
+                seconds=duration.total_seconds(),
+                concise_logging=concise_logging,
+            )
 
         # collect files for removal
         to_delete.append(assign_file)
@@ -616,7 +615,10 @@ def _log_sequence_file_info(sequence_files: Iterable[str]) -> None:
 
 
 def _log_results_summary(
-    sequence_count: int, sequences_per_second: int, seconds: float
+    sequence_count: int,
+    sequences_per_second: int,
+    seconds: float,
+    concise_logging: bool = False,
 ) -> None:
     if seconds < 60:
         hours = 0
@@ -631,8 +633,14 @@ def _log_results_summary(
         minutes = (seconds % 3600) / 60
         seconds = seconds % 60
     duration_string = f"{hours:02}:{minutes:02}:{seconds:02.2f}"
-    logger.info("\n")
-    logger.info(f"{sequence_count:,} sequences had an identifiable rearrangement\n")
+    if concise_logging:
+        logger.info(f"annotated sequences: {sequence_count:,}")
+        logger.info(
+            f"time elapsed: {duration_string} ({sequences_per_second:,.2f} sequences/sec)"
+        )
+    else:
+        logger.info("\n")
+        logger.info(f"{sequence_count:,} sequences had an identifiable rearrangement\n")
     logger.info(
         f"time elapsed: {duration_string} ({sequences_per_second:,.2f} sequences/sec)\n"
     )
