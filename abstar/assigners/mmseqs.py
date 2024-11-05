@@ -23,6 +23,7 @@ class MMseqs(AssignerBase):
         receptor: str,
         logger: Optional[logging.Logger] = None,
         concise_logging: bool = False,
+        chunksize: int = 1e6,
         debug: bool = False,
     ) -> None:
         """
@@ -38,9 +39,9 @@ class MMseqs(AssignerBase):
             debug=debug,
         )
 
-        # self.split_memory_limit=split_memory_limit
+        self.chunksize = chunksize
 
-    def __call__(self, sequence_file: str, chunksize: int = 1e6) -> str:
+    def __call__(self, sequence_file: str) -> str:
         """
         Run the MMseqs assigner.
 
@@ -61,7 +62,7 @@ class MMseqs(AssignerBase):
 
         # input files are split into 1M sequence chunks
         input_fastas, input_tsvs, sequence_count = self.prepare_input_files(
-            sequence_file, chunksize=chunksize
+            sequence_file, chunksize=self.chunksize
         )
         if self.concise_logging:
             self.logger.info(f"input sequences: {sequence_count:,}\n")

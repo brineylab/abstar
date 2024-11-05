@@ -98,6 +98,7 @@ def run(
     merge_kwargs: Optional[dict] = None,
     interleaved_fastq: bool = False,
     chunksize: int = 500,
+    mmseqs_chunksize: int = 1e6,
     n_processes: Optional[int] = None,
     copy_inputs_to_project: bool = False,
     verbose: bool = False,
@@ -168,7 +169,10 @@ def run(
         separate files.
 
     chunksize : int = 500,
-        Number of sequences to process at a time.
+        Number of sequences to process at a time for annotation.
+
+    mmseqs_chunksize : int = 1e6,
+        Number of sequences to process at a time for MMseqs2 searches (VDJC assignment).
 
     n_processes : Optional[int] = None,
         Number of processes to use for annotation. If ``None``, the number of processes will be set to the number of
@@ -300,6 +304,7 @@ def run(
         receptor=receptor,
         logger=logger,
         concise_logging=concise_logging,
+        chunksize=mmseqs_chunksize,
         debug=debug,
     )
 

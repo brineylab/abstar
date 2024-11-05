@@ -95,6 +95,13 @@ def cli():
     help="Number of sequences to process at a time",
 )
 @click.option(
+    "--mmseqs-chunksize",
+    type=int,
+    show_default=True,
+    default=1e6,
+    help="Number of sequences to process at a time for MMseqs2 searches (VDJC assignment)",
+)
+@click.option(
     "--n-processes",
     type=int,
     default=None,
@@ -135,6 +142,7 @@ def run(
     merge_kwargs: Optional[dict] = None,
     interleaved_fastq: bool = False,
     chunksize: int = 500,
+    mmseqs_chunksize: int = 1e6,
     n_processes: Optional[int] = None,
     copy_inputs_to_project: bool = False,
     verbose: bool = False,
@@ -161,6 +169,7 @@ def run(
         merge_kwargs=merge_kwargs,
         interleaved_fastq=interleaved_fastq,
         chunksize=chunksize,
+        mmseqs_chunksize=mmseqs_chunksize,
         n_processes=n_processes,
         copy_inputs_to_project=copy_inputs_to_project,
         verbose=verbose,
