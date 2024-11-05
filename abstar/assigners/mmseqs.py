@@ -443,7 +443,7 @@ class MMseqs(AssignerBase):
             sequence_count += 1
 
         # split input file, if necessary
-        if sequence_count > 1e6:
+        if sequence_count > chunksize:
             sequence_files = abutils.io.split_fastx(
                 sequence_file,
                 output_directory=os.path.dirname(sequence_file),
