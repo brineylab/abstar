@@ -579,7 +579,8 @@ def _make_mmseqs_db(input_file: str, output_file: str, debug: bool = False) -> N
         Whether to print debug output.
     """
     # create MMseqs2 database
-    createdb_cmd = f"mmseqs createdb {input_file} {output_file}"
+    mmseqs_bin = abutils.bin.get_path("mmseqs")
+    createdb_cmd = f"{mmseqs_bin} createdb {input_file} {output_file}"
     p = sp.Popen(createdb_cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
     stdout, stderr = p.communicate()
     if debug:
@@ -588,7 +589,7 @@ def _make_mmseqs_db(input_file: str, output_file: str, debug: bool = False) -> N
         print(stderr)
 
     # create MMseqs2 index
-    createindex_cmd = f"mmseqs createindex {output_file} /tmp"
+    createindex_cmd = f"{mmseqs_bin} createindex {output_file} /tmp"
     p = sp.Popen(createindex_cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
     stdout, stderr = p.communicate()
     if debug:
