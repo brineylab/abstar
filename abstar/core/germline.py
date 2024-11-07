@@ -25,9 +25,15 @@
 import json
 import os
 import shutil
+import datetime
 import subprocess as sp
+from weakref import ref
+from tqdm.auto import tqdm
 import sys
 from typing import Iterable, Optional, Union
+from ..gl import get_germline_database_path
+from concurrent.futures import ThreadPoolExecutor
+
 
 import abutils
 from abutils import Sequence
@@ -246,6 +252,97 @@ def build_germline_database(
     #     if verbose:
     #         print_manifest_info(manifest)
     #     transfer_manifest_data(manifest, addon_dir, name)
+
+
+# -------------------------
+#   GENERATING CUSTOM DATABASE FROM IgDiscover
+# -------------------------
+
+def build_germdb_from_igdiscover(
+    name: str,
+    igdiscover_output: str,
+    constants: Optional[str] = None,
+    receptor: str = "bcr",
+    species: str = 'human',
+    location: Optional[str] = None,
+    verbose: bool = True,
+    debug: bool = False,
+) -> None:
+    """ 
+    Builds a custom reference database using the output from IgDiscover
+
+    """
+
+    abutils.io.make_dir('/tmp/refs')
+
+    origin = get_germline_database_path(receptor='bcr', germdb_name=species)
+
+    shutil.copyfile(os.path.join(origin, 'manifest.txt'), '/tmp/refs/manifest.txt')
+
+    with open('/tmp/refs/manifest.txt', 'a') as f:
+        f.write("\n\n")
+        f.write("/!\\ CUSTOMIZED REFERENCE SPECIFIC TO DONOR /!\\\n\n")
+        f.write("Custom database modified with IgDiscover output\n")
+        f.write(f"Donor identifier: {name}\n")
+        f.write(f"Database created on {str(datetime.date.today())}\n")
+
+    files = abutils.io.list_files(igdiscover_output, extension='fasta')
+    for file_in in files:
+        filename = os.path.basename(file_in).lower()
+        file_out = os.path.join('/tmp/refs/', filename)
+
+        if 'v' in filename: # We only need to gap the V gene file
+
+            gapped_sequences = []
+            sequences = abutils.io.read_fasta(file_in)
+            v_refs = abutils.io.read_fasta(os.path.join(origin, 'imgt_gapped', 'v.fasta'))
+            v_refs_hyphen = [Sequence(s.sequence.replace('.','-'), id=s.id) for s in v_refs]
+
+            with ThreadPoolExecutor() as executor:
+                if verbose:
+                    gapped_sequences = list(tqdm(executor.map(lambda seq: gap_sequence(seq, v_refs_hyphen), sequences), desc='Gapping new sequences...', total=len(sequences)))
+
+                else:
+                    gapped_sequences = list(executor.map(lambda seq: gap_sequence(seq, v_refs_hyphen), sequences), )
+
+            with open(file_out, 'w') as f:
+                for s in gapped_sequences:
+                    f.write(s.fasta)
+                    f.write('\n')
+
+        else: # D and J gene fils don't need to be gapped
+            shutil.copyfile(file_in, file_out)
+
+    # Constant genes are never part of the IgDiscover output, hence they need to be imported
+    if constants == None:
+        shutil.copyfile(os.path.join(origin, 'imgt_gapped', 'c.fasta'), '/tmp/refs/c.fasta')
+
+    fastas = abutils.io.list_files('/tmp/refs/', extension='fasta')
+
+    # Building the germline_database using prepared files
+    build_germline_database(name = name,
+                            fastas = fastas,
+                            constants = constants,
+                            receptor = receptor,
+                            include_species_in_name = False,
+                            location = location, 
+                            verbose = verbose,
+                            debug = debug,
+                            )
+
+    if not debug:
+        shutil.rmtree('/tmp/refs')  
+
+    return
+
+
+def gap_sequence(sequence, reference, gaps='.'):
+    to_align = [sequence, ] + reference
+    aln = abutils.tools.alignment.mafft(sequences = to_align, )
+    gapped_seq = [s for s in aln if s.id == sequence.id][0].sequence.replace("-", gaps)
+    gapped = Sequence(gapped_seq, id=sequence.id)
+
+    return gapped
 
 
 # -------------------------
