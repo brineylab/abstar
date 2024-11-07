@@ -28,6 +28,7 @@ import shutil
 import datetime
 import subprocess as sp
 from weakref import ref
+from networkx import max_flow_min_cost
 from tqdm.auto import tqdm
 import sys
 from typing import Iterable, Optional, Union
@@ -338,7 +339,7 @@ def build_germdb_from_igdiscover(
 
 def gap_sequence(sequence, reference, gaps='.'):
     to_align = [sequence, ] + reference
-    aln = abutils.tools.alignment.mafft(sequences = to_align, )
+    aln = abutils.tools.alignment.mafft(sequences = to_align, mafft_bin='mafft')
     gapped_seq = [s for s in aln if s.id == sequence.id][0].sequence.replace("-", gaps)
     gapped = Sequence(gapped_seq, id=sequence.id)
 
