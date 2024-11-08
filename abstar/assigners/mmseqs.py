@@ -66,8 +66,12 @@ class MMseqs(AssignerBase):
         )
         if self.concise_logging:
             self.logger.info(f"input sequences: {sequence_count:,}\n")
+            self.logger.info("germline assignment: V | D | J | C")
         else:
             self.logger.info(f"input contained {sequence_count:,} sequences\n")
+            self.logger.info("\n")
+            self.logger.info("germline assignment:\n")
+            self.logger.info("  V | D | J | C")
 
         # process input data file(s)
         assigned_paths = []
@@ -110,13 +114,6 @@ class MMseqs(AssignerBase):
         # -----------
         #   V genes
         # -----------
-
-        if self.concise_logging:
-            self.logger.info("germline assignment: V | D | J | C")
-        else:
-            self.logger.info("\n")
-            self.logger.info("germline assignment:\n")
-            self.logger.info("  V | D | J | C")
         v_germdb = os.path.join(germdb_path, "v")
 
         # process input FASTA files
