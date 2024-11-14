@@ -75,7 +75,7 @@ class MMseqs(AssignerBase):
             self.logger.info("germline assignment:\n")
             self.logger.info("  V | D | J | C")
 
-        if self.threads is None and sequence_count > 1000:
+        if self.threads is None and sequence_count < 1000:
             self.threads = 1
 
         if self.debug:
