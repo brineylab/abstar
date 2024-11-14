@@ -24,6 +24,7 @@ class MMseqs(AssignerBase):
         logger: Optional[logging.Logger] = None,
         concise_logging: bool = False,
         chunksize: int = 1e6,
+        threads: Optional[int] = None,
         debug: bool = False,
     ) -> None:
         """
@@ -40,6 +41,7 @@ class MMseqs(AssignerBase):
         )
 
         self.chunksize = chunksize
+        self.threads = threads
 
     def __call__(self, sequence_file: str) -> str:
         """
@@ -73,10 +75,12 @@ class MMseqs(AssignerBase):
             self.logger.info("germline assignment:\n")
             self.logger.info("  V | D | J | C")
 
+        if self.threads is None and sequence_count > 1000:
+            self.threads = 1
+
         # process input data file(s)
         assigned_paths = []
         unassigned_paths = []
-
         for input_fasta, input_tsv in zip(input_fastas, input_tsvs):
             assigned, unassigned = self.assign_germlines(
                 input_fasta=input_fasta, input_tsv=input_tsv
@@ -137,6 +141,7 @@ class MMseqs(AssignerBase):
             log_to=os.path.join(
                 self.log_directory, f"{self.sample_name}.v_assignment.log"
             ),
+            threads=self.threads,
             debug=self.debug,
         )
         # read the results
@@ -187,6 +192,7 @@ class MMseqs(AssignerBase):
             log_to=os.path.join(
                 self.log_directory, f"{self.sample_name}.j_assignment.log"
             ),
+            threads=self.threads,
             debug=self.debug,
         )
         # read the results
@@ -243,6 +249,7 @@ class MMseqs(AssignerBase):
                 log_to=os.path.join(
                     self.log_directory, f"{self.sample_name}.d_assignment.log"
                 ),
+                threads=self.threads,
                 debug=self.debug,
             )
             # read the results
@@ -315,6 +322,7 @@ class MMseqs(AssignerBase):
                 log_to=os.path.join(
                     self.log_directory, f"{self.sample_name}.c_assignment.log"
                 ),
+                threads=self.threads,
                 debug=self.debug,
             )
             # read the results
