@@ -2,6 +2,7 @@
 # Distributed under the terms of the MIT License.
 # SPDX-License-Identifier: MIT
 
+from typing import Optional
 
 from .antibody import Antibody
 from .positions import get_gapped_position_from_raw
@@ -12,6 +13,8 @@ def annotate_mutations(
     aligned_germline: str,
     gapped_germline: str,
     germline_start: int,
+    ab: Optional[Antibody] = None,
+    debug: bool = False,
 ) -> Antibody:
     """
     Annotates mutations in an antibody germline gene region. The notation abstar uses for mutations is:
@@ -37,6 +40,13 @@ def annotate_mutations(
         The starting position of the aligned germline sequence relative to the start of the
         complete germline gene.
 
+    ab : Antibody, optional
+        If provided, the ``Antibody`` object is only used for logging purposes.
+
+    debug : bool, optional
+        If ``True``, the mutation annotation process is logged to the ``Antibody`` object's
+        logger.
+
     Returns
     -------
     mutations : list[str]
@@ -45,13 +55,32 @@ def annotate_mutations(
     """
     mutations = []
     raw_position = germline_start
+    if ab is not None:
+        ab.log("ALIGNED SEQUENCE:", aligned_sequence)
+        ab.log("ALIGNED GERMLINE:", aligned_germline)
+        ab.log("GAPPED GERMLINE:", gapped_germline)
+        ab.log("GERMLINE START:", germline_start)
+        ab.log("GERM      SEQ       RAW       IMGT      MUTATION  ")
+        # ab.log("--------------------------------------------------")
     for s, g in zip(aligned_sequence, aligned_germline):
+        log_str = f"{g}{' ' * (10 - len(g))}{s}{' ' * (10 - len(s))}"
         if s == g:
             # sequence and germline match -- no mutation and increment the position
             raw_position += 1
+            log_str += f"{raw_position}{' ' * (10 - len(str(raw_position)))}"
+            if debug:
+                imgt_position = get_gapped_position_from_raw(
+                    raw_position, gapped_germline
+                )
+                log_str += f"{imgt_position}{' ' * (10 - len(str(imgt_position)))}"
         elif g == "-":
             # sequence has insertion -- no mutation and don't increment the position
-            continue
+            log_str += f"{raw_position}{' ' * (10 - len(str(raw_position)))}"
+            if debug:
+                imgt_position = get_gapped_position_from_raw(
+                    raw_position, gapped_germline
+                )
+                log_str += f"{imgt_position}{' ' * (10 - len(str(imgt_position)))}"
         elif s == "-":
             # sequence has a deletion -- no mutation but increment the position
             raw_position += 1
@@ -61,6 +90,11 @@ def annotate_mutations(
             imgt_position = get_gapped_position_from_raw(raw_position, gapped_germline)
             mutation = f"{imgt_position}:{g}>{s}"
             mutations.append(mutation)
+            log_str += f"{raw_position}{' ' * (10 - len(str(raw_position)))}"
+            log_str += f"{imgt_position}{' ' * (10 - len(str(imgt_position)))}"
+            log_str += f"{mutation}"
+        if ab is not None:
+            ab.log(log_str)
     return mutations
 
 
@@ -71,6 +105,7 @@ def annotate_v_mutations(
     germline_start: int,
     is_aa: bool,
     ab: Antibody,
+    debug: bool = False,
 ) -> Antibody:
     """
     Annotates mutations in an antibody germline gene region. The notation abstar uses for mutations is:
@@ -109,6 +144,10 @@ def annotate_v_mutations(
         - ``v_mutations_aa`` (if ``is_aa=True``)
         - ``v_mutation_count_aa`` (if ``is_aa=True``)
 
+    debug : bool, optional
+        If ``True``, the mutation annotation process is logged to the ``Antibody`` object's
+        logger.
+
     Returns
     -------
     ab : Antibody
@@ -120,6 +159,8 @@ def annotate_v_mutations(
         aligned_germline=aligned_germline,
         gapped_germline=gapped_germline,
         germline_start=germline_start,
+        ab=ab,
+        debug=debug,
     )
     if is_aa:
         ab.v_mutations_aa = "|".join(mutations)
@@ -137,6 +178,7 @@ def annotate_c_mutations(
     germline_start: int,
     is_aa: bool,
     ab: Antibody,
+    debug: bool = False,
 ) -> Antibody:
     """
     Annotates mutations in an antibody germline gene region. The notation abstar uses for mutations is:
@@ -175,6 +217,10 @@ def annotate_c_mutations(
         - ``c_mutations_aa`` (if ``is_aa=True``)
         - ``c_mutation_count_aa`` (if ``is_aa=True``)
 
+    debug : bool, optional
+        If ``True``, the mutation annotation process is logged to the ``Antibody`` object's
+        logger.
+
     Returns
     -------
     ab : Antibody
@@ -186,6 +232,8 @@ def annotate_c_mutations(
         aligned_germline=aligned_germline,
         gapped_germline=gapped_germline,
         germline_start=germline_start,
+        ab=ab,
+        debug=debug,
     )
     if is_aa:
         ab.c_mutations_aa = "|".join(mutations)

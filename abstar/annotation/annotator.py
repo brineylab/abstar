@@ -96,13 +96,10 @@ def annotate(
     """
     # load the input parquet file
     df = pl.read_parquet(input_file)
-    # polars isn't thread-safe (when using fork), so we use pandas instead
-    # df = pd.read_parquet(input_file)
 
     # do annotations
     annotated = []
     for r in df.iter_rows(named=True):
-        # for _, r in df.iterrows():
         ab = Antibody(**r)
         try:
             ab = annotate_single_sequence(
@@ -110,6 +107,7 @@ def annotate(
                 germline_database=germline_database,
                 umi_pattern=umi_pattern,
                 umi_length=umi_length,
+                debug=debug,
             )
         except Exception as e:
             ab.exception("ANNOTATION EXCEPTION", traceback.format_exc())
@@ -119,7 +117,6 @@ def annotate(
     failed = [a for a in annotated if a.exceptions]
     succeeded = [a for a in annotated if not a.exceptions]
     succeeded_df = pl.DataFrame([s.to_dict() for s in succeeded], schema=OUTPUT_SCHEMA)
-    # succeeded_df = pd.DataFrame([s.to_dict() for s in succeeded])
 
     # write logs
     basename = os.path.basename(input_file)
@@ -137,7 +134,6 @@ def annotate(
     # write outputs
     output_file = os.path.join(output_directory, f"{basename}_annotated.parquet")
     succeeded_df.write_parquet(output_file)
-    # succeeded_df.to_parquet(output_file)
 
     # returns
     if log_directory:
@@ -154,6 +150,7 @@ def annotate_single_sequence(
     germline_database: str,
     umi_pattern: Optional[str] = None,
     umi_length: Optional[int] = None,
+    debug: bool = False,
 ):
     # log information from the assigner
     ab.log("=" * (len(str(ab.sequence_id)) + 15))
@@ -248,12 +245,6 @@ def annotate_single_sequence(
     ab.log("V SEQUENCE AA:", ab.v_sequence_aa)
     ab.log("V GERMLINE AA:", ab.v_germline_aa)
 
-    # # verify that the NT sequences are not empty
-    # if len(ab.v_sequence) == 0:
-    #     raise ValueError(f"V-gene sequence is empty for {ab.sequence_id}")
-    # if len(ab.v_germline) == 0:
-    #     raise ValueError(f"V-gene germline sequence is empty for {ab.sequence_id}")
-
     # global alignment of sequence and germline
     # using the start/end positions determined parsed from the
     # semiglobal and local alignments
@@ -266,12 +257,6 @@ def annotate_single_sequence(
     ab.log(f"     QUERY: {v_global.aligned_query}")
     ab.log(f"            {v_global.alignment_midline}")
     ab.log(f"  GERMLINE: {v_global.aligned_target}")
-
-    # # verify that the AA sequences are not empty
-    # if len(ab.v_sequence_aa) == 0:
-    #     raise ValueError(f"V-gene AA sequence is empty for {ab.sequence_id}")
-    # if len(ab.v_germline_aa) == 0:
-    #     raise ValueError(f"V-gene germline AA sequence is empty for {ab.sequence_id}")
 
     # global alignment of the AA sequences
     v_global_aa = abutils.tl.global_alignment(
@@ -678,6 +663,7 @@ def annotate_single_sequence(
         germline_start=ab.v_germline_start,
         is_aa=False,
         ab=ab,
+        debug=debug,
     )
     ab.log("V MUTATIONS:", ab.v_mutations)
     ab.log("V MUTATION COUNT:", ab.v_mutation_count)
@@ -690,6 +676,7 @@ def annotate_single_sequence(
         germline_start=ab.v_germline_start // 3,
         is_aa=True,
         ab=ab,
+        debug=debug,
     )
     ab.log("V MUTATIONS AA:", ab.v_mutations_aa)
     ab.log("V MUTATION COUNT AA:", ab.v_mutation_count_aa)
