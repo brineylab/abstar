@@ -78,6 +78,9 @@ class MMseqs(AssignerBase):
         if self.threads is None and sequence_count > 1000:
             self.threads = 1
 
+        if self.debug:
+            print(f"MMSEQS THREADS: {self.threads}")
+
         # process input data file(s)
         assigned_paths = []
         unassigned_paths = []
