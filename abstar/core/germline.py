@@ -34,7 +34,7 @@ import sys
 from typing import Iterable, Optional, Union
 from ..gl import get_germline_database_path
 from concurrent.futures import ThreadPoolExecutor
-
+import difflib
 
 import abutils
 from abutils import Sequence
