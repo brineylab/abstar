@@ -139,7 +139,7 @@ class MMseqs(AssignerBase):
             sensitivity=7.5,
             # max_evalue=1.0e-6,
             format_mode=4,
-            additional_cli_args="--min-aln-len 12 -k 3 --alignment-mode 3",
+            additional_cli_args="--min-aln-len 12 -k 5 --alignment-mode 3",
             format_output=mmseqs_format_output,
             log_to=os.path.join(
                 self.log_directory, f"{self.sample_name}.v_assignment.log"
@@ -190,7 +190,7 @@ class MMseqs(AssignerBase):
             max_seqs=25,
             max_evalue=1000.0,
             format_mode=4,
-            additional_cli_args="--min-aln-len 12 -k 3 --alignment-mode 3",
+            additional_cli_args="--min-aln-len 12 -k 5 --alignment-mode 3",
             format_output=mmseqs_format_output,
             log_to=os.path.join(
                 self.log_directory, f"{self.sample_name}.j_assignment.log"
