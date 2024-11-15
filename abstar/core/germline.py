@@ -34,7 +34,7 @@ import sys
 from typing import Iterable, Optional, Union
 from ..gl import get_germline_database_path
 from concurrent.futures import ThreadPoolExecutor
-
+import difflib
 
 import abutils
 from abutils import Sequence
@@ -277,7 +277,6 @@ def build_germdb_from_igdiscover(
     abutils.io.make_dir('/tmp/refs')
 
     origin = get_germline_database_path(receptor='bcr', germdb_name=species)
-
     shutil.copyfile(os.path.join(origin, 'manifest.txt'), '/tmp/refs/manifest.txt')
 
     with open('/tmp/refs/manifest.txt', 'a') as f:
@@ -301,10 +300,10 @@ def build_germdb_from_igdiscover(
 
             with ThreadPoolExecutor() as executor:
                 if verbose:
-                    gapped_sequences = list(tqdm(executor.map(lambda seq: gap_sequence(seq, v_refs_hyphen), sequences), desc='Gapping new sequences...', total=len(sequences)))
+                    gapped_sequences = list(tqdm(executor.map(lambda seq: pairwise_gap_sequence(seq, v_refs_hyphen, verbose=verbose), sequences), desc='Gapping new sequences...', total=len(sequences)))
 
                 else:
-                    gapped_sequences = list(executor.map(lambda seq: gap_sequence(seq, v_refs_hyphen), sequences), )
+                    gapped_sequences = list(executor.map(lambda seq: pairwise_gap_sequence(seq, v_refs_hyphen, verbose=verbose), sequences), )
 
             with open(file_out, 'w') as f:
                 for s in gapped_sequences:
@@ -325,6 +324,7 @@ def build_germdb_from_igdiscover(
                             fastas = fastas,
                             constants = constants,
                             receptor = receptor,
+                            manifest = '/tmp/refs/manifest.txt',
                             include_species_in_name = False,
                             location = location, 
                             verbose = verbose,
@@ -337,10 +337,30 @@ def build_germdb_from_igdiscover(
     return
 
 
-def gap_sequence(sequence, reference, gaps='.'):
-    to_align = [sequence, ] + reference
-    aln = abutils.tools.alignment.mafft(sequences = to_align, mafft_bin='mafft')
-    gapped_seq = [s for s in aln if s.id == sequence.id][0].sequence.replace("-", gaps)
+# def gap_sequence(sequence, reference, gaps='.'):
+#     to_align = [sequence, ] + reference
+#     aln = abutils.tools.alignment.mafft(sequences = to_align, mafft_bin='mafft')
+#     gapped_seq = [s for s in aln if s.id == sequence.id][0].sequence.replace("-", gaps)
+#     gapped = Sequence(gapped_seq, id=sequence.id)
+
+#     return gapped
+
+
+def pairwise_gap_sequence(sequence, references, gaps='.', verbose=False):
+    gene_name = sequence.id.split('_')[0]
+
+    # Getting the correct reference gene from IMGT to gap new sequence
+    try:
+        reference = [s for s in references if s.id == gene_name][0]
+    except:
+        match = difflib.get_close_matches(gene_name, [r.id for r in references], n=1, cutoff=0.6)[0]
+        if verbose:
+            print(f"No exact match for {gene_name}. Using {match} to perform alignement...")
+        reference = [s for s in references if s.id == match][0]
+
+    # Performing the alignment
+    aln = abutils.aln.semiglobal_alignment(query=sequence, target=reference, mismatch=-5)
+    gapped_seq = aln.aligned_query.replace("-", gaps)
     gapped = Sequence(gapped_seq, id=sequence.id)
 
     return gapped
