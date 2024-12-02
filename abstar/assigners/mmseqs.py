@@ -475,7 +475,6 @@ class MMseqs(AssignerBase):
                 self.to_delete.extend([output_fasta, output_csv])
 
             # process input file
-            sequence_count = 0
             with open(output_fasta, "w") as ofasta:
                 with open(output_csv, "w") as ocsv:
                     ocsv.write("sequence_id\tsequence_input\tquality\n")  # header
@@ -483,7 +482,6 @@ class MMseqs(AssignerBase):
                         qual = seq.qual if seq.qual is not None else ""
                         ofasta.write(f">{seq.id}\n{seq.sequence}\n")
                         ocsv.write(f"{seq.id}\t{seq.sequence}\t{qual}\n")
-                        sequence_count += 1
             output_fastas.append(output_fasta)
             output_csvs.append(output_csv)
 
