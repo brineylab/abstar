@@ -460,7 +460,7 @@ def _process_inputs(
         if os.path.isfile(sequences):
             sequence_files = [os.path.abspath(sequences)]
         elif os.path.isdir(sequences):
-            sequence_files = abutils.io.list_files(sequences, recursive=True)
+            sequence_files = abutils.io.list_files(sequences, recursive=True, extension=['fasta','fa','fastq','fq','fasta.gz','fastq.gz'])
         else:
             sequences = Sequence(sequences)
     if isinstance(sequences, Sequence) or (

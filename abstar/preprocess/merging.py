@@ -331,7 +331,7 @@ def merge_fastqs(
     # input/output files and directories
     if isinstance(files, str):
         if os.path.isdir(files):
-            files = list_files(files)
+            files = list_files(files, extension=[".fastq", ".fq", ".fastq.gz", ".fq.gz"])
         elif os.path.isfile(files):
             files = [files]
         else:
