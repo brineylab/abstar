@@ -276,7 +276,7 @@ def build_germdb_from_igdiscover(
 
     abutils.io.make_dir('/tmp/refs')
 
-    origin = get_germline_database_path(receptor='bcr', germdb_name=species)
+    origin = get_germline_database_path(receptor=receptor, germdb_name=species)
     shutil.copyfile(os.path.join(origin, 'manifest.txt'), '/tmp/refs/manifest.txt')
 
     with open('/tmp/refs/manifest.txt', 'a') as f:
