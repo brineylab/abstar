@@ -10,7 +10,6 @@ from typing import Iterable, Optional, Union
 
 import abutils
 import polars as pl
-import numpy as np 
 
 from .assigner import AssignerBase
 
@@ -518,23 +517,7 @@ class MMseqs(AssignerBase):
             _df = pl.scan_parquet(assigned_path)
             assigned_dfs.append(_df)
         assigned_df = pl.concat(assigned_dfs)
-        
-        assigned_df = assigned_df.with_columns([ # Replace nulls based on data types to handle errors in chunk processing
-            pl.when(pl.col(col).is_null())
-            .then(
-                pl.lit(np.nan) if dtype in [pl.Float32, pl.Float64] else
-                pl.lit(0) if dtype in [pl.Int32, pl.Int64, pl.UInt32, pl.UInt64] else
-                pl.lit("") if dtype == pl.Utf8 else
-                pl.lit(None)  # Fallback for other types
-            )
-            .otherwise(pl.col(col))
-            .alias(col)
-            for col, dtype in zip(assigned_df.columns, assigned_df.dtypes)
-        ])
-
-        # Write to Parquet with statistics disabled
         assigned_df.sink_parquet(assigned, statistics=False)
-
 
         # unassigned_files
         unassigned = os.path.join(
