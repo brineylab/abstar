@@ -88,12 +88,14 @@ def get_region_sequence(
 
     # positions in the unaligned sequence
     start = get_raw_position_from_aligned(
-        position=aligned_start + 1,  # needs to be 1-indexed
+        # position=aligned_start + 1,  # needs to be 1-indexed
+        position=aligned_start # no need to do +1 as this is already 1-indexed (cf below)
         aligned_sequence=aligned_sequence,
         aligned_reference=aligned_germline,
     )
     end = get_raw_position_from_aligned(
-        position=aligned_end + 1,  # needs to be 1-indexed
+        # position=aligned_end + 1,  # needs to be 1-indexed
+        position=aligned_end # no need to do +1 as this is already 1-indexed (cf below)
         aligned_sequence=aligned_sequence,
         aligned_reference=aligned_germline,
     )
