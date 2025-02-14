@@ -517,27 +517,9 @@ class MMseqs(AssignerBase):
             _df = pl.scan_parquet(assigned_path)
             assigned_dfs.append(_df)
         assigned_df = pl.concat(assigned_dfs)
-        
-        # Replace nulls based on data types to handle errors in chunk processing
-        # /!\ that doesn't work the way intended, do not push these changes
-        # needs to fill in the null fields without removing data (dataloss observed)
-        
-        assigned_df = assigned_df.with_columns([ 
-            pl.when(pl.col(col).is_null())
-            .then(
-                pl.lit(np.nan) if dtype in [pl.Float32, pl.Float64] else
-                pl.lit(0) if dtype in [pl.Int32, pl.Int64, pl.UInt32, pl.UInt64] else
-                pl.lit("") if dtype == pl.Utf8 else
-                pl.lit(None)  # Fallback for other types
-            )
-            .otherwise(pl.col(col))
-            .alias(col)
-            for col, dtype in zip(assigned_df.columns, assigned_df.dtypes)
-        ])
 
         # Write to Parquet with statistics disabled
         assigned_df.sink_parquet(assigned, statistics=False)
-
 
         # unassigned_files
         unassigned = os.path.join(
