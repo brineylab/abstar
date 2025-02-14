@@ -94,8 +94,8 @@ def get_region_sequence(
         aligned_reference=aligned_germline,
     )
     end = get_raw_position_from_aligned(
-        # position=aligned_end + 1,  # needs to be 1-indexed
-        position=aligned_end, # no need to do +1 as this is already 1-indexed (cf below)
+        position=aligned_end + 1,  # needs to be 1-indexed
+        # position=aligned_end, # no need to do +1 as this is already 1-indexed (cf below)
         aligned_sequence=aligned_sequence,
         aligned_reference=aligned_germline,
     )
