@@ -693,6 +693,15 @@ def annotate_single_sequence(
 
     # V regions
     v_regions = ["fwr1", "cdr1", "fwr2", "cdr2", "fwr3"]
+    ab.log("ALIGNED SEQUENCE:", v_global.aligned_query)
+    ab.log("ALIGNED GERMLINE:", v_global.aligned_target)
+    ab.log("GAPPED GERMLINE:", gapped_v_germline)
+    ab.log("GERMLINE START:", ab.v_germline_start + 1)
+    ab.log("ALIGNED QUERY AA:", v_global_aa.aligned_query)
+    ab.log("ALIGNED GERMLINE AA:", v_global_aa.aligned_target)
+    ab.log("GAPPED GERMLINE AA:", gapped_v_germline_aa)
+    ab.log("GERMLINE START AA:", ab.v_germline_start // 3 + 1)
+
     for region in v_regions:
         # nucleotide region
         region_sequence = get_region_sequence(
@@ -701,7 +710,7 @@ def annotate_single_sequence(
             aligned_germline=v_global.aligned_target,
             gapped_germline=gapped_v_germline,
             ab=ab,
-            germline_start=ab.v_germline_start,
+            germline_start=ab.v_germline_start + 1,  # needs to be 1-indexed
         )
         setattr(ab, f"{region}", region_sequence)
         ab.log(f"{region.upper()} SEQUENCE:", region_sequence)
@@ -712,7 +721,7 @@ def annotate_single_sequence(
             aligned_germline=v_global_aa.aligned_target,
             gapped_germline=gapped_v_germline_aa,
             ab=ab,
-            germline_start=ab.v_germline_start // 3 + 1,
+            germline_start=ab.v_germline_start // 3 + 1,  # needs to be 1-indexed
             aa=True,
         )
         setattr(ab, f"{region}_aa", region_sequence_aa)
@@ -723,8 +732,8 @@ def annotate_single_sequence(
     fwr4_end = fr4_sg.query_end
     ab.fwr4 = fr4_sg.aligned_query[fwr4_start:fwr4_end]
     ab.fwr4_aa = abutils.tl.translate(ab.fwr4)
-    ab.log("FR4 SEQUENCE", ab.fwr4)
-    ab.log("FR4 SEQUENCE AA", ab.fwr4_aa)
+    ab.log("FR4 SEQUENCE:", ab.fwr4)
+    ab.log("FR4 SEQUENCE AA:", ab.fwr4_aa)
 
     ab.log("\n--------------")
     ab.log(" PRODUCTIVITY")
