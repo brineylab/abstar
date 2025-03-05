@@ -7,6 +7,7 @@ __all__ = [
     "get_gapped_position_from_raw",
     "get_raw_position_from_gapped",
     "get_raw_position_from_aligned",
+    "get_gapped_sequence",
 ]
 
 
@@ -119,3 +120,55 @@ def get_raw_position_from_aligned(
             raw_position += 1
         if raw_position == position:
             return aligned_position
+
+
+def get_gapped_sequence(
+    aligned_sequence: str,
+    aligned_germline: str,
+    gapped_germline: str,
+    germline_start: int,
+) -> str:
+    """
+    Get the gapped sequence from an aligned sequence and aligned germline.
+
+    Parameters
+    ----------
+    aligned_sequence : str
+        The aligned sequence to convert to a gapped sequence.
+
+    aligned_germline : str
+        The aligned germline sequence.
+
+    gapped_germline : str
+        The gapped germline sequence, which will be used to determine where gaps should be inserted.
+
+    germline_start : int
+        The start position of the germline sequence in the alignment with the query sequence.
+
+    Returns
+    -------
+    str
+        The gapped sequence.
+
+    """
+    gapped_seq = ""
+    seq_pos = 0
+    germ_pos = 0
+    gap_pos = germline_start
+
+    while gap_pos < len(gapped_germline):
+        seq = aligned_sequence[seq_pos]
+        germ = aligned_germline[germ_pos]
+        gap = gapped_germline[gap_pos]
+        if gap == "." and germ != "-":
+            gapped_seq += gap
+            gap_pos += 1
+        else:
+            gapped_seq += seq
+            seq_pos += 1
+            germ_pos += 1
+            gap_pos += 1
+        if seq_pos >= len(aligned_sequence):
+            break
+
+    return gapped_seq

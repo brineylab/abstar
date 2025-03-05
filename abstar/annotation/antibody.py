@@ -41,6 +41,10 @@ class Antibody(LoggingMixin):
     germline: str = None
     sequence_aa: str = None
     germline_aa: str = None
+    sequence_gapped: str = None
+    germline_gapped: str = None
+    sequence_gapped_aa: str = None
+    germline_gapped_aa: str = None
     sequence_alignment: str = None
     germline_alignment: str = None
     sequence_alignment_aa: str = None
