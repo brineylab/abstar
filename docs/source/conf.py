@@ -29,16 +29,6 @@ if os.environ.get("READTHEDOCS", None) == "True":
     #     def __getattr__(cls, name):
     #             return Mock()
 
-    class MockLoggingMixin:
-        # Add any methods/attributes Sphinx might need to introspect
-        pass
-
-    # If the module 'problematic_module' contains LoggingMixin
-    # You might need to mock the module and then insert the class.
-    # Warning: This can be fragile!
-    sys.modules["problematic_module"] = MagicMock()
-    sys.modules["problematic_module"].LoggingMixin = MockLoggingMixin
-
     MOCK_MODULES = [
         "pygtk",
         "gtk",
@@ -47,29 +37,29 @@ if os.environ.get("READTHEDOCS", None) == "True":
         "numpy",
         "nwalign",
         "pandas",
-        "abutils",
+        # "abutils",
         "dask",
         "dask.dataframe",
-        "abutils.core",
-        "abutils.core.sequence",
-        "abutils.tools",
-        "abutils.tools.log",
-        "abutils.utils",
-        "abutils.utils.log",
-        "abutils.utils.alignment",
-        "abutils.utils.codons",
-        "abutils.utils.pipeline",
-        "abutils.utils.decorators",
-        "abutils.utils.progbar",
+        # "abutils.core",
+        # "abutils.core.sequence",
+        # "abutils.tools",
+        # "abutils.tools.log",
+        # "abutils.utils",
+        # "abutils.utils.log",
+        # "abutils.utils.alignment",
+        # "abutils.utils.codons",
+        # "abutils.utils.pipeline",
+        # "abutils.utils.decorators",
+        # "abutils.utils.progbar",
         "biopython",
         "celery",
-        "pymongo",
-        "scikit-bio",
-        "BaseSpacePy",
-        "BaseSpacePy.api",
-        "BaseSpacePy.model",
-        "BaseSpacePy.api.BaseSpaceAPI",
-        "BaseSpacePy.model.QueryParameters",
+        # "pymongo",
+        # "scikit-bio",
+        # "BaseSpacePy",
+        # "BaseSpacePy.api",
+        # "BaseSpacePy.model",
+        # "BaseSpacePy.api.BaseSpaceAPI",
+        # "BaseSpacePy.model.QueryParameters",
         "Bio",
         "Bio.Align",
         "Bio.Alphabet",
