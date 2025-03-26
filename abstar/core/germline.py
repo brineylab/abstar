@@ -37,8 +37,8 @@ import abutils
 from abutils import Sequence
 
 # import click
-from natsort import natsorted
-from networkx import max_flow_min_cost
+# from natsort import natsorted
+# from networkx import max_flow_min_cost
 from tqdm.auto import tqdm
 
 from ..gl import get_germline_database_path
