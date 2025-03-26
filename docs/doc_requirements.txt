@@ -11,7 +11,7 @@ autodocsumm
 # dependencies
 abutils
 biopython
-celery
+# celery
 click
 natsort
 numpy
