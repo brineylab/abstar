@@ -63,12 +63,13 @@ if os.environ.get("READTHEDOCS", None) == "True":
         "Bio",
         "Bio.Align",
         "Bio.Alphabet",
+        "Bio.Blast",
+        "Bio.Blast.Applications",
+        "Bio.Data",
         "Bio.SeqIO",
         "Bio.Seq",
         "Bio.SeqRecord",
         "Bio.SeqFeature",
-        "Bio.Blast",
-        "Bio.Blast.Applications",
     ]
     sys.modules.update((mod_name, MagicMock()) for mod_name in MOCK_MODULES)
 
