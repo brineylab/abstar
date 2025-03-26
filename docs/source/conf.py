@@ -52,7 +52,7 @@ if os.environ.get("READTHEDOCS", None) == "True":
         # "abutils.utils.decorators",
         # "abutils.utils.progbar",
         "biopython",
-        "celery",
+        # "celery",
         # "pymongo",
         # "scikit-bio",
         # "BaseSpacePy",
@@ -66,6 +66,7 @@ if os.environ.get("READTHEDOCS", None) == "True":
         "Bio.SeqIO",
         "Bio.Seq",
         "Bio.SeqRecord",
+        "Bio.SeqFeature",
         "Bio.Blast",
         "Bio.Blast.Applications",
     ]
