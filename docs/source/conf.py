@@ -24,52 +24,10 @@ HERE = Path(__file__).parent
 
 
 if os.environ.get("READTHEDOCS", None) == "True":
-    # class Mock(MagicMock):
-    #     @classmethod
-    #     def __getattr__(cls, name):
-    #             return Mock()
-
     MOCK_MODULES = [
         "pygtk",
         "gtk",
         "gobject",
-        # "argparse",
-        # "numpy",
-        # "nwalign",
-        # "pandas",
-        # "abutils",
-        # "dask",
-        # "dask.dataframe",
-        # "abutils.core",
-        # "abutils.core.sequence",
-        # "abutils.tools",
-        # "abutils.tools.log",
-        # "abutils.utils",
-        # "abutils.utils.log",
-        # "abutils.utils.alignment",
-        # "abutils.utils.codons",
-        # "abutils.utils.pipeline",
-        # "abutils.utils.decorators",
-        # "abutils.utils.progbar",
-        # "celery",
-        # "pymongo",
-        # "scikit-bio",
-        # "BaseSpacePy",
-        # "BaseSpacePy.api",
-        # "BaseSpacePy.model",
-        # "BaseSpacePy.api.BaseSpaceAPI",
-        # "BaseSpacePy.model.QueryParameters",
-        # "biopython",
-        # "Bio",
-        # "Bio.Align",
-        # "Bio.Alphabet",
-        # "Bio.Blast",
-        # "Bio.Blast.Applications",
-        # "Bio.Data",
-        # "Bio.SeqIO",
-        # "Bio.Seq",
-        # "Bio.SeqRecord",
-        # "Bio.SeqFeature",
     ]
     sys.modules.update((mod_name, MagicMock()) for mod_name in MOCK_MODULES)
 
