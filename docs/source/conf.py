@@ -130,7 +130,7 @@ author = "Bryan Briney"
 # built documents.
 #
 # The short X.Y version.
-from abutils.version import __version__
+from abstar.version import __version__
 
 version = __version__
 # The full version, including alpha/beta/rc tags.
