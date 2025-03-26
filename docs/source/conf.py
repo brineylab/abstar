@@ -29,6 +29,16 @@ if os.environ.get("READTHEDOCS", None) == "True":
     #     def __getattr__(cls, name):
     #             return Mock()
 
+    class MockLoggingMixin:
+        # Add any methods/attributes Sphinx might need to introspect
+        pass
+
+    # If the module 'problematic_module' contains LoggingMixin
+    # You might need to mock the module and then insert the class.
+    # Warning: This can be fragile!
+    sys.modules["problematic_module"] = MagicMock()
+    sys.modules["problematic_module"].LoggingMixin = MockLoggingMixin
+
     MOCK_MODULES = [
         "pygtk",
         "gtk",
