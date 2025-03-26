@@ -8,3 +8,17 @@ sphinx_copybutton
 sphinx_togglebutton
 sphinx_design
 autodocsumm
+# dependencies
+abutils
+biopython
+celery
+click
+natsort
+numpy
+pandas
+parasail
+polars
+pyarrow
+pytest
+scipy
+tqdm
