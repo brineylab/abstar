@@ -10,7 +10,7 @@ The default germline database is human, but a different germline database can be
 
 .. code-block:: console
 
-    $ abstar run --germline_database mouse path/to/sequences.fasta path/to/output/
+    abstar run --germline_database mouse path/to/sequences.fasta path/to/output/
 
 
 ``abstar`` can also create custom germline databases, either for a species that is not included in 
@@ -32,7 +32,7 @@ An example command for creating a database named ``my_germline_db`` might look l
 
 .. code-block:: console
 
-    $ abstar build_germline_database my_germline_db -f germlines.fasta -j more_germlines.json -c constants.fasta
+    abstar build_germline_database my_germline_db -f germlines.fasta -j more_germlines.json -c constants.fasta
 
 |
 
@@ -65,7 +65,7 @@ the the manifest file could contain information about the source of the germline
 date of the germline sequences, or any other relevant information. An example using the ``-m`` option might look 
 like this::
 
-.. code-block:: bash
+.. code-block:: console
 
     abstar build_germline_database my_germline_db -f germlines.fasta -m manifest.txt
 
