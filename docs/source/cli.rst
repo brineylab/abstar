@@ -16,6 +16,7 @@ can pass a directory instead of a single file, and all files in the directory wi
 
     $ abstar run path/to/input/ path/to/output/
 
+|
 
 **Merging paired-end reads**
 
@@ -36,5 +37,11 @@ FASTQ files, pass the ``--interleaved_fastq`` flag::
 The ``--interleaved_fastq`` flag will automatically trigger read merging, so the ``--merge`` 
 flag is not necessary.
 
+|
+
+**Germline database creation**
+
+``abstar`` can be used to create germline databases for use with ``abstar``. The ``build_germline_database`` 
+command can be used to create germline databases from a variety of input formats.
 
 

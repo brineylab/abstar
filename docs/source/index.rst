@@ -59,7 +59,7 @@ or `Digger <https://academic.oup.com/bioinformatics/article/40/3/btae144/7628126
 
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
    :hidden:
    :caption: usage
 
