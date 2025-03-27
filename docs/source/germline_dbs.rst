@@ -9,6 +9,7 @@ The default germline database is human, but a different germline database can be
 ``--germline_database``::
 
 .. code-block:: bash
+
     $ abstar run --germline_database mouse path/to/sequences.fasta path/to/output/
 
 
@@ -30,6 +31,7 @@ using ``--constants`` (or ``-c``), which can also be used multiple times to spec
 An example command for creating a database named ``my_germline_db`` might look like this::
 
 .. code-block:: bash
+
     $ abstar build_germline_database my_germline_db -f germlines.fasta -j more_germlines.json -c constants.fasta
 
 |
@@ -64,6 +66,7 @@ date of the germline sequences, or any other relevant information. An example us
 like this::
 
 .. code-block:: bash
+
     $ abstar build_germline_database my_germline_db -f germlines.fasta -m manifest.txt
 
 |
@@ -86,6 +89,7 @@ with ``homo_sapiens``.
 For example:
 
 .. code-block:: bash
+    
     $ abstar build_germline_database my_germline_db -j human.json -j mouse.json --include_species_in_name
 
 
