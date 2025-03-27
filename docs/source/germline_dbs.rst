@@ -17,9 +17,9 @@ the set of built-in germline databases or for donor-specific databases created u
 The ``build_germline_database`` command can be used to create germline databases using one of two
 different types of input files (or even a mix of the two):
 
-  * FASTA-formatted files containing IMGT-gapped germline gene sequences
-  * JSON-formatted files containing germline gene sequences in `AIRR <https://docs.airr-community.org/en/latest/>`_ 
-    format, such as those from `OGRDB <https://ogrdb.airr-community.org/>`_.
+* FASTA-formatted files containing IMGT-gapped germline gene sequences
+* JSON-formatted files containing germline gene sequences in `AIRR <https://docs.airr-community.org/en/latest/>`_ 
+  format, such as those from `OGRDB <https://ogrdb.airr-community.org/>`_.
 
 FASTA-formatted files can be supplied using ``--fasta`` (or ``-f``), which can be used 
 multiple times to specify multiple files. JSON-formatted files can be supplied using  ``--json`` 
@@ -39,8 +39,8 @@ using the ``-l`` (or ``--location``) option, which can be used to specify a alte
 ``abstar`` will only look for custom germline databases in ``~/.abstar/germline_dbs/``, so 
 the option to specify a custom location is provided primarily for testing purposes.
 
-.. note::
-    when running ``abstar``, databases in ``~/.abstar/germline_dbs/`` will have priority over 
+.. warning::
+    When running ``abstar``, databases in ``~/.abstar/germline_dbs/`` will have priority over 
     the built-in databases. This means that if a custom database named ``human`` exists in 
     ``~/.abstar/germline_dbs/``, it will be used instead of the built-in human database.
 
@@ -48,11 +48,11 @@ the option to specify a custom location is provided primarily for testing purpos
 
 **Manifest files**
 
-Optionally, a manifest file can be supplied using the ``--manifest`` (or ``-m``) option. Manifest 
-files can be any text file containing supplementary information about the germline database. For example,
-the the manifest file could contain information about the source of the germline sequences, the 
-species of the sequences, the date of download of the germline sequences, or any other relevant information. 
-An example using the ``-m`` option might look like this::
+An optional manifest file can be supplied using the ``--manifest`` (or ``-m``) option. A manifest file 
+is a text file (of any format) that contains supplementary information about the germline database. For example,
+the the manifest file could contain information about the source of the germline sequences, the download 
+date of the germline sequences, or any other relevant information. An example using the ``-m`` option might look 
+like this::
 
     $ abstar build_germline_database my_germline_db -f germlines.fasta -m manifest.txt
 
