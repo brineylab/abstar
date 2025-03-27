@@ -238,7 +238,7 @@ def run(
     help="Location into which the new germline databases will be deposited. This option is provided primarily to test database creation without overwriting current databases of the same name.",
 )
 @click.option(
-    "--include-species-in-name/--exclude-species-from-name",
+    "--include_species_in_name/--exclude_species_from_name",
     default=True,
     help="Whether to include the species in the name of each sequence, like so: 'IGHV1-2*02__homo_sapiens'. Only applies if input data is JSON-formatted or FASTA-formatted with species names already included in the sequence names.",
 )
