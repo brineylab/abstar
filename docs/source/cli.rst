@@ -26,12 +26,13 @@ can pass a directory instead of a single file, and all files in the directory wi
 additional options
 --------------------
 
-``abstar`` has many other options that can be used to customize the analysis or to handle more complex cases. 
+``abstar`` has many other options that can be used to customize the resulting analysis or to handle more complex cases. 
 This includes:
 
 - :ref:`merging paired-end reads <read-merging>` prior to annotation
 - :ref:`UMI detection <umis>` and incorporation into the annotated output
 - creation and use of :ref:`custom germline databases <germline-dbs>`
+- different :ref:`output file formats <output-formats>` for AIRR-compatible annotations
 
 
 .. toctree::
