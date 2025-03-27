@@ -21,6 +21,6 @@ You can manually install the latest development version of ``abstar`` with::
 
 
 .. _Docker: https://www.docker.com/
-.. _Anaconda: https://www.continuum.io/downloads
+.. _datascience: https://hub.docker.com/repository/docker/brineylab/datascience/general
 .. _stable: https://github.com/briney/abstar/releases
 .. _development: https://github.com/briney/abstar
