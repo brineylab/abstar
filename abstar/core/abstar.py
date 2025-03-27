@@ -259,7 +259,7 @@ def run(
         _copy_inputs_to_project(sequence_files, project_path)
 
     # merge FASTQ files
-    if merge:
+    if merge or interleaved_fastq:
         merge_dir = os.path.join(project_path, "merged")
         abutils.io.make_dir(merge_dir)
         merge_log_dir = os.path.join(log_dir, "merge_fastqs")
@@ -460,7 +460,11 @@ def _process_inputs(
         if os.path.isfile(sequences):
             sequence_files = [os.path.abspath(sequences)]
         elif os.path.isdir(sequences):
-            sequence_files = abutils.io.list_files(sequences, recursive=True, extension=['fasta','fa','fastq','fq','fasta.gz','fastq.gz'])
+            sequence_files = abutils.io.list_files(
+                sequences,
+                recursive=True,
+                extension=["fasta", "fa", "fastq", "fq", "fasta.gz", "fastq.gz"],
+            )
         else:
             sequences = Sequence(sequences)
     if isinstance(sequences, Sequence) or (
