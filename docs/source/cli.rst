@@ -16,32 +16,13 @@ can pass a directory instead of a single file, and all files in the directory wi
 
     $ abstar run path/to/input/ path/to/output/
 
-|
 
-**Merging paired-end reads**
 
-For input directories that contain paired FASTQ files that need to be merged
-prior to processing, passing the ``--merge`` (``-m``) flag instructs ``abstar`` to merge
-paired files with `fastp <https://github.com/OpenGene/fastp>`_::
-
-    $ abstar run --merge path/to/input/ path/to/output/
-
-Reads will be merged prior to annotation, and the merged reads will be deposited into a ``merged`` 
-sub-directory located within the output directory. ``abstar`` can also accomodate interleaved 
-FASTQ files, in which paired-end reads are stored in a single file. This is common when using 
-data downloaded from the `SRA <https://www.ncbi.nlm.nih.gov/sra>`_. To process interleaved 
-FASTQ files, pass the ``--interleaved_fastq`` flag::
-
-    $ abstar run --interleaved_fastq path/to/input/ path/to/output/
-
-The ``--interleaved_fastq`` flag will automatically trigger read merging, so the ``--merge`` 
-flag is not necessary.
-
-|
-
-**Germline database creation**
-
-``abstar`` can be used to create germline databases for use with ``abstar``. The ``build_germline_database`` 
-command can be used to create germline databases from a variety of input formats.
-
+.. toctree::
+    :hidden:
+    
+    outputs <output_formats>
+    read merging <read_merging>
+    umis <umis>
+    germline DBs <germline_dbs>
 
