@@ -16,7 +16,7 @@ data downloaded from the `SRA <https://www.ncbi.nlm.nih.gov/sra>`_. To process i
 FASTQ files, pass the ``--interleaved_fastq`` flag::
 
     $ abstar run --interleaved_fastq path/to/input/ path/to/output/
-|
-  .. note::
+
+.. note::
     The ``--interleaved_fastq`` flag will automatically trigger read merging, so the ``--merge`` 
     flag is not necessary.

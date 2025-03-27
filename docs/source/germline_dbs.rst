@@ -39,7 +39,7 @@ using the ``-l`` (or ``--location``) option, which can be used to specify a alte
 ``abstar`` will only look for custom germline databases in ``~/.abstar/germline_dbs/``, so 
 the option to specify a custom location is provided primarily for testing purposes.
 
-  ..note::
+.. note::
     when running ``abstar``, databases in ``~/.abstar/germline_dbs/`` will have priority over 
     the built-in databases. This means that if a custom database named ``human`` exists in 
     ``~/.abstar/germline_dbs/``, it will be used instead of the built-in human database.
