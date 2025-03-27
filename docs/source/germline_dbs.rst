@@ -8,6 +8,7 @@ germline databases
 The default germline database is human, but a different germline database can be specified with 
 ``--germline_database``::
 
+.. code-block:: bash
     $ abstar run --germline_database mouse path/to/sequences.fasta path/to/output/
 
 
@@ -28,6 +29,7 @@ a mix of V, D or J gene sequences. Constant region sequences can be supplied as 
 using ``--constants`` (or ``-c``), which can also be used multiple times to specify multiple files. 
 An example command for creating a database named ``my_germline_db`` might look like this::
 
+.. code-block:: bash
     $ abstar build_germline_database my_germline_db -f germlines.fasta -j more_germlines.json -c constants.fasta
 
 |
@@ -46,6 +48,13 @@ the option to specify a custom location is provided primarily for testing purpos
 
 |
 
+**Receptor type**
+
+The ``-r`` (or ``--receptor``) option can be used to specify the receptor type for the germline database. 
+The default receptor type is ``bcr``, but ``tcr`` can also be specified.
+
+|
+
 **Manifest files**
 
 An optional manifest file can be supplied using the ``--manifest`` (or ``-m``) option. A manifest file 
@@ -54,11 +63,33 @@ the the manifest file could contain information about the source of the germline
 date of the germline sequences, or any other relevant information. An example using the ``-m`` option might look 
 like this::
 
+.. code-block:: bash
     $ abstar build_germline_database my_germline_db -f germlines.fasta -m manifest.txt
 
 |
 
 **Species names**
+
+The ``--include_species_in_name`` option can be used to include the species name in the 
+name of each sequence in the germline database. This option is provided primarily to simplify the creation of multi-species databases that 
+may result in duplicate germline gene names. This is useful when analyzing data from, for example, transgenic 
+mouse models that contain one or more human sequences in addition to the mouse sequences. The resulting 
+germline database will have unique sequence names like so: ``IGHV1-2*02__homo_sapiens``. When processing 
+data with a multi-species database, ``abstar`` will automatically remove the species when populating the 
+germline call fields, and the species name will be included in the ``species`` field. For example, ``IGHV1-2*02__homo_sapiens`` 
+will be truncated to ``IGHV1-2*02`` when populating the ``v_call`` field, and the ``species`` field will be populated 
+with ``homo_sapiens``.
+
+.. note::
+    The ``--include_species_in_name`` option is only applicable when using JSON-formatted files as input.
+
+For example:
+
+.. code-block:: bash
+    $ abstar build_germline_database my_germline_db -j human.json -j mouse.json --include_species_in_name
+
+
+
 
 
 
