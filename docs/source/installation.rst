@@ -1,7 +1,7 @@
 install
 =======
 
-The easiest way to install ``abstar`` locally (on macOS or Linux) is to use pip::
+The easiest way to install ``abstar`` locally (on macOS or Linux) is to use pip:
 
 .. code-block:: console
 
@@ -9,7 +9,7 @@ The easiest way to install ``abstar`` locally (on macOS or Linux) is to use pip:
 
 ``abstar`` does not run natively on Windows, but Windows users can use Docker_ 
 (the brineylab datascience_ Docker container contains the entire ab[x] toolkit,
-which includes ``abstar``)::
+which includes ``abstar``):
 
 .. code-block:: console
 
@@ -17,7 +17,7 @@ which includes ``abstar``)::
     docker run -it brineylab/datascience
 
 Stable and development versions of ``abstar`` can also be downloaded from GitHub_. 
-You can manually install the latest version of ``abstar`` with::
+You can manually install the latest version of ``abstar`` with:
 
 .. code-block:: console
 
