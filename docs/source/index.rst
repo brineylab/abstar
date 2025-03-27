@@ -50,19 +50,12 @@ or `Digger <https://academic.oup.com/bioinformatics/article/40/3/btae144/7628126
 
 
 
-
-
-
-
-
-
-
-
 getting started
 ---------------
 
 .. toctree::
    :maxdepth: 1
+   :hidden:
    :caption: getting started
 
    installation
@@ -73,6 +66,7 @@ usage
 
 .. toctree::
    :maxdepth: 1
+   :hidden:
    :caption: usage
 
    cli
@@ -84,6 +78,7 @@ about
 
 .. toctree::
    :maxdepth: 1
+   :hidden:
    :caption: about
 
    license
@@ -95,15 +90,17 @@ related projects
 
 .. toctree::
    :maxdepth: 1
+   :hidden:
    :caption: related projects
 
    abutils <https://github.com/brineylab/abutils>
    scab <https://github.com/brineylab/scab>
 
 
-Index
+index
 -----
 
+* :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
 
