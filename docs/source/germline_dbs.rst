@@ -76,17 +76,17 @@ like this:
 The ``--include_species_in_name`` option can be used to include the species name in the 
 name of each sequence in the germline database. This option is provided primarily to simplify the creation of multi-species databases that 
 may result in duplicate germline gene names. This is useful when analyzing data from, for example, transgenic 
-mouse models that contain one or more human sequences in addition to the mouse sequences. The resulting 
-germline database will have unique sequence names like so: ``IGHV1-2*02__homo_sapiens``. When processing 
-data with a multi-species database, ``abstar`` will automatically remove the species when populating the 
-germline call fields, and the species name will be included in the ``species`` field. For example, ``IGHV1-2*02__homo_sapiens`` 
-will be truncated to ``IGHV1-2*02`` when populating the ``v_call`` field, and the ``species`` field will be populated 
-with ``homo_sapiens``.
+mouse models that contain one or more human sequences in addition to the mouse sequences. 
 
 .. note::
     The ``--include_species_in_name`` option is only applicable when using JSON-formatted files as input.
 
-For example:
+The resulting 
+germline database will have unique sequence names like so: ``IGHV1-2*02__homo_sapiens``. When processing 
+data with a multi-species database, ``abstar`` will automatically remove the species when populating the 
+germline call fields, and the species name will be included in the ``species`` field. For example, ``IGHV1-2*02__homo_sapiens`` 
+will be truncated to ``IGHV1-2*02`` when populating the ``v_call`` field, and the ``species`` field will be populated 
+with ``homo_sapiens``. For example:
 
 .. code-block:: bash
 
