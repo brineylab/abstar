@@ -273,6 +273,9 @@ def build_germline_database(
     verbose: bool = True,
     debug: bool = False,
 ):
+    """
+    Build a custom germline database.
+    """
     return _build_germline_database(
         name=name,
         fastas=fasta_files,
