@@ -8,8 +8,10 @@ import click
 from abutils import Sequence
 
 from ..core.abstar import run as _run
+from ..core.germline import (
+    build_germdb_from_igdiscover as _build_germdb_from_igdiscover,
+)
 from ..core.germline import build_germline_database as _build_germline_database
-from ..core.germline import build_germdb_from_igdiscover as _build_germdb_from_igdiscover
 from ..utils.callbacks import HiddenClickOption, parse_dict_from_string
 
 
@@ -48,7 +50,7 @@ def cli():
 )
 @click.option(
     "-o",
-    "--output-format",
+    "--output_format",
     type=click.Choice(["airr", "parquet"], case_sensitive=False),
     multiple=True,
     show_default=True,
@@ -56,13 +58,13 @@ def cli():
     help="Format of the output files",
 )
 @click.option(
-    "--umi-pattern",
+    "--umi_pattern",
     type=str,
     default=None,
     help="Pattern to match for extracting the UMI sequence, or name of a built-in pattern",
 )
 @click.option(
-    "--umi-length",
+    "--umi_length",
     type=int,
     default=None,
     help="Length of the UMI sequence to extract. If positive, the UMI will be parsed from the start of the sequence. If negative, the UMI will be parsed from the end of the sequence.",
@@ -75,7 +77,7 @@ def cli():
     help="Whether to merge FASTQ files prior to assignment",
 )
 @click.option(
-    "--merge-kwargs",
+    "--merge_kwargs",
     type=str,
     callback=parse_dict_from_string,
     default=None,
@@ -96,14 +98,14 @@ def cli():
     help="Number of sequences to process at a time",
 )
 @click.option(
-    "--mmseqs-chunksize",
+    "--mmseqs_chunksize",
     type=int,
     show_default=True,
     default=1e6,
     help="Number of sequences to process at a time for MMseqs2 searches (VDJC assignment)",
 )
 @click.option(
-    "--n-processes",
+    "--n_processes",
     type=int,
     default=None,
     help="Number of processes to use for annotation",
@@ -120,7 +122,7 @@ def cli():
     help="Whether to run in debug mode, which results in temporary files being retained and additional logging.",
 )
 @click.option(
-    "--copy-inputs-to-project",
+    "--copy_inputs_to_project",
     cls=HiddenClickOption,
     is_flag=True,
     default=True,
@@ -336,7 +338,7 @@ def build_germdb_from_igdiscover(
     igdiscover_output: str,
     constants: Optional[str] = None,
     receptor: str = "bcr",
-    species: str = 'human',
+    species: str = "human",
     location: Optional[str] = None,
     verbose: bool = True,
     debug: bool = False,
