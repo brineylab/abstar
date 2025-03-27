@@ -10,8 +10,10 @@ basic case, with a single input file of human antibody sequences, ``abstar`` can
     abstar run path/to/sequences.fasta path/to/output/
 
 ``abstar`` will process all sequences contained in ``sequences.fasta`` and the
-results, including annotations and logs, will be deposited into ``path/to/output/``. If
- ``path/to/output/`` does not exist, it will be created.
+results, including annotations and logs, will be deposited into ``path/to/output/``. 
+
+.. note::
+    If ``path/to/output/`` does not exist, it will be created.
 
 If you have a directory of FASTA/Q-formatted files for ``abstar`` to process, you 
 can pass a directory instead of a single file, and all files in the directory will be processed:
