@@ -1,58 +1,40 @@
-Commandline Use
+cli
 ===============
 
-Running abstar from the command line is reasonably simple, even for users with
+Running ``abstar`` from the command line is designed to be relatively straightforward, even for users with
 minimal experience with command-line applications. In the most
-basic case, with a single input file of human antibody sequences::
+basic case, with a single input file of human antibody sequences, ``abstar`` can be run with::
 
-    $ abstar -i /path/to/mydata.fasta -t /path/to/temp/ -o /path/to/output/
+    $ abstar run path/to/sequences.fasta path/to/output/
 
-abstar will process all sequences contained in ``mydata.fasta`` and the
-results will be written to ``/path/to/output/mydata.json``. If either (or both)
-of ``/path/to/temp/`` or ``/path/to/output/`` don't exist, they will be created.
+``abstar`` will process all sequences contained in ``sequences.fasta`` and the
+results, including annotations and logs, will be deposited into ``path/to/output/``. If
+ ``path/to/output/`` does not exist, it will be created.
 
-If you have a directory of FASTA/Q-formatted files for abstar to process, you 
-can pass a directory via ``-i`` and all files in the directory will be processed::
+If you have a directory of FASTA/Q-formatted files for ``abstar`` to process, you 
+can pass a directory instead of a single file, and all files in the directory will be processed::
 
-    $ abstar -i /path/to/input/ -t /path/to/temp/ -o /path/to/output/
+    $ abstar run path/to/input/ path/to/output/
+
+
+**Merging paired-end reads**
 
 For input directories that contain paired FASTQ files that need to be merged
-prior to processing, passing the ``-m`` flag instructs abstar to merge
-paired files with PANDAseq::
+prior to processing, passing the ``--merge`` (``-m``) flag instructs ``abstar`` to merge
+paired files with `fastp <https://github.com/OpenGene/fastp>`_::
 
-    $ abstar -i /path/to/input/ -t /path/to/temp/ -o /path/to/output/ -m
+    $ abstar run --merge path/to/input/ path/to/output/
 
-The merged reads will be deposited into a ``merged`` directory located in the parent directory
-of the input directory. By default, abstar will use PANDAseq's ``simple_bayesian``
-merging algorithm, although alternate merging algorithms can be selected with ``--pandaseq-algo``. 
+Reads will be merged prior to annotation, and the merged reads will be deposited into a ``merged`` 
+sub-directory located within the output directory. ``abstar`` can also accomodate interleaved 
+FASTQ files, in which paired-end reads are stored in a single file. This is common when using 
+data downloaded from the `SRA <https://www.ncbi.nlm.nih.gov/sra>`_. To process interleaved 
+FASTQ files, pass the ``--interleaved_fastq`` flag::
 
-For data generated with Illumina sequencers, abstar can directly interface with
-BaseSpace to download raw sequencing data. In order for abstar to connect to BaseSpace,
-you need BaseSpace access token. The easiest way to do this is to set up a
-BaseSpace developer account following
-`these instructions <https://support.basespace.illumina.com/knowledgebase/articles/403618-python-run-downloader>`_. 
-Once you have your credentials, you can generate a BaseSpace credentials file by
-running::
+    $ abstar run --interleaved_fastq path/to/input/ path/to/output/
 
-    $ make_basespace_credfile
+The ``--interleaved_fastq`` flag will automatically trigger read merging, so the ``--merge`` 
+flag is not necessary.
 
-and following the instructions.
 
-When downloading data from BaseSpace, you obviously 
-don't have an input directory of data for abstar to process (since that data hasn't
-been downloaded yet). Instead of providing input, output and temp directories, you
-can just pass abstar a project directory using ``-p`` and abstar will create all of the
-necessary subdirectories within the project directory. Running abstar with the ``-b``
-option indicates that input data should be downloaded from BaseSpace::
 
-    $ abstar -p /path/to/project_dir/ -b
-
-A list of available BaseSpace projects will be displayed and you can select the 
-appropriate project. If downloading data from BaseSpace, ``-m`` is assumed and
-paired-end reads will be merged. 
-
-abstar uses a human germline database by default, 
-but germline databases are also provided for macaque, mouse and rabbit. To process 
-macaque antibody sequences (from BaseSpace)::
-
-    $ abstar -p /path/to/project_dir/ -b -s macaque
