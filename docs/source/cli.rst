@@ -23,12 +23,15 @@ can pass a directory instead of a single file, and all files in the directory wi
     abstar run path/to/input/ path/to/output/
 
 
-`abstar` has many other options that can be used to customize the analysis or to handle more complex cases. 
+additional options
+--------------------
+
+``abstar`` has many other options that can be used to customize the analysis or to handle more complex cases. 
 This includes:
 
-- :ref:`merging paired-end reads <read_merging>` prior to annotation
+- :ref:`merging paired-end reads <read-merging>` prior to annotation
 - :ref:`UMI detection <umis>` and incorporation into the annotated output
-- creation and use of :ref:`custom germline databases <germline_dbs>`
+- creation and use of :ref:`custom germline databases <germline-dbs>`
 
 
 .. toctree::
