@@ -3,9 +3,9 @@ cli
 
 Running ``abstar`` from the command line is designed to be relatively straightforward, even for users with
 minimal experience with command-line applications. In the most
-basic case, with a single input file of human antibody sequences, ``abstar`` can be run with::
+basic case, with a single input file of human antibody sequences, ``abstar`` can be run with:
 
-.. code-block:: console
+.. code-block:: bash
 
     abstar run path/to/sequences.fasta path/to/output/
 
@@ -14,9 +14,9 @@ results, including annotations and logs, will be deposited into ``path/to/output
  ``path/to/output/`` does not exist, it will be created.
 
 If you have a directory of FASTA/Q-formatted files for ``abstar`` to process, you 
-can pass a directory instead of a single file, and all files in the directory will be processed::
+can pass a directory instead of a single file, and all files in the directory will be processed:
 
-.. code-block:: console
+.. code-block:: bash
 
     abstar run path/to/input/ path/to/output/
 

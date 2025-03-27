@@ -6,9 +6,9 @@ germline databases
 
 ``abstar`` comes pre-packaged with built-in germline databases for human, macaque, and mouse. 
 The default germline database is human, but a different germline database can be specified with 
-``--germline_database``::
+``--germline_database``:
 
-.. code-block:: console
+.. code-block:: bash
 
     abstar run --germline_database mouse path/to/sequences.fasta path/to/output/
 
@@ -28,9 +28,9 @@ multiple times to specify multiple files. JSON-formatted files can be supplied u
 (or ``-j``), which can also be used multiple times to specify multiple files. The files can contain
 a mix of V, D or J gene sequences. Constant region sequences can be supplied as FASTA-formatted file(s) 
 using ``--constants`` (or ``-c``), which can also be used multiple times to specify multiple files. 
-An example command for creating a database named ``my_germline_db`` might look like this::
+An example command for creating a database named ``my_germline_db`` might look like this:
 
-.. code-block:: console
+.. code-block:: bash
 
     abstar build_germline_database my_germline_db -f germlines.fasta -j more_germlines.json -c constants.fasta
 
@@ -63,9 +63,9 @@ An optional manifest file can be supplied using the ``--manifest`` (or ``-m``) o
 is a text file (of any format) that contains supplementary information about the germline database. For example,
 the the manifest file could contain information about the source of the germline sequences, the download 
 date of the germline sequences, or any other relevant information. An example using the ``-m`` option might look 
-like this::
+like this:
 
-.. code-block:: console
+.. code-block:: bash
 
     abstar build_germline_database my_germline_db -f germlines.fasta -m manifest.txt
 
@@ -88,7 +88,7 @@ with ``homo_sapiens``.
 
 For example:
 
-.. code-block:: console
+.. code-block:: bash
 
     abstar build_germline_database my_germline_db -j human.json -j mouse.json --include_species_in_name
 
