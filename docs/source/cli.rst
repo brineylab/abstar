@@ -24,5 +24,5 @@ can pass a directory instead of a single file, and all files in the directory wi
     outputs <output_formats>
     read merging <read_merging>
     umis <umis>
-    germline DBs <germline_dbs>
+    germline databases <germline_dbs>
 
