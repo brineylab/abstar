@@ -4,7 +4,7 @@ output formats
 ==============
 
 ``abstar`` can output annotations in two different file formats, each of which contains identical data 
-in `AIRR-compatible format <https://docs.airr-community.org/en/stable/datarep/rearrangements.html>`. 
+in `AIRR-compatible format <https://docs.airr-community.org/en/stable/datarep/rearrangements.html>`_. 
 The two formats are:
 
 - ``airr``: a tab-delimited file with a header row
