@@ -238,6 +238,12 @@ def run(
     help="Location into which the new germline databases will be deposited. This option is provided primarily to test database creation without overwriting current databases of the same name.",
 )
 @click.option(
+    "--reference",
+    type=str,
+    default="human",
+    help="Reference species to use for adding IMGT gaps. Only used if ungapped VDJ sequences are provided.",
+)
+@click.option(
     "--include_species_in_name/--exclude_species_from_name",
     default=True,
     help="Whether to include the species in the name of each sequence, like so: 'IGHV1-2*02__homo_sapiens'. Only applies if input data is JSON-formatted or FASTA-formatted with species names already included in the sequence names.",
@@ -262,6 +268,7 @@ def build_germline_database(
     manifest: Optional[str] = None,
     include_species_in_name: bool = True,
     location: Optional[str] = None,
+    reference: str = "human",
     verbose: bool = True,
     debug: bool = False,
 ):
@@ -274,82 +281,83 @@ def build_germline_database(
         manifest=manifest,
         include_species_in_name=include_species_in_name,
         location=location,
+        reference=reference,
         verbose=verbose,
         debug=debug,
     )
 
 
-@cli.command()
-@click.argument(
-    "name",
-    type=str,
-    required=True,
-)
-@click.option(
-    "-i",
-    "--igdiscover_output",
-    type=str,
-    default=None,
-    help="Path to a directory containing the IgDiscover ouput. Usually myExperiment/final/database/",
-)
-@click.option(
-    "-c",
-    "--constants",
-    type=str,
-    default=None,
-    help="Path to a FASTA-formatted file containing gapped constant region sequences.",
-)
-@click.option(
-    "-r",
-    "--receptor",
-    type=click.Choice(["bcr", "tcr"], case_sensitive=False),
-    show_default=True,
-    default="bcr",
-    help="Receptor type",
-)
-@click.option(
-    "-s",
-    "--species",
-    type=str,
-    show_default=True,
-    default="human",
-    help="Name of the germline database to be used as source",
-)
-@click.option(
-    "-l",
-    "--location",
-    type=str,
-    default=None,
-    help="Location into which the new germline databases will be deposited. This option is provided primarily to test database creation without overwriting current databases of the same name.",
-)
-@click.option(
-    "--verbose/--quiet",
-    default=True,
-    help="Print verbose output",
-)
-@click.option(
-    "--debug",
-    is_flag=True,
-    default=False,
-    help="Run in debug mode, which will print more verbose information including stdout/stderr from command line tools.",
-)
-def build_germdb_from_igdiscover(
-    name: str,
-    igdiscover_output: str,
-    constants: Optional[str] = None,
-    receptor: str = "bcr",
-    species: str = "human",
-    location: Optional[str] = None,
-    verbose: bool = True,
-    debug: bool = False,
-):
-    return _build_germdb_from_igdiscover(
-        name=name,
-        igdiscover_output=igdiscover_output,
-        constants=constants,
-        receptor=receptor,
-        species=species,
-        location=location,
-        verbose=verbose,
-        debug=debug,
-    )
+# @cli.command()
+# @click.argument(
+#     "name",
+#     type=str,
+#     required=True,
+# )
+# @click.option(
+#     "-i",
+#     "--igdiscover_output",
+#     type=str,
+#     default=None,
+#     help="Path to a directory containing the IgDiscover ouput. Usually myExperiment/final/database/",
+# )
+# @click.option(
+#     "-c",
+#     "--constants",
+#     type=str,
+#     default=None,
+#     help="Path to a FASTA-formatted file containing gapped constant region sequences.",
+# )
+# @click.option(
+#     "-r",
+#     "--receptor",
+#     type=click.Choice(["bcr", "tcr"], case_sensitive=False),
+#     show_default=True,
+#     default="bcr",
+#     help="Receptor type",
+# )
+# @click.option(
+#     "-s",
+#     "--species",
+#     type=str,
+#     show_default=True,
+#     default="human",
+#     help="Name of the germline database to be used as source",
+# )
+# @click.option(
+#     "-l",
+#     "--location",
+#     type=str,
+#     default=None,
+#     help="Location into which the new germline databases will be deposited. This option is provided primarily to test database creation without overwriting current databases of the same name.",
+# )
+# @click.option(
+#     "--verbose/--quiet",
+#     default=True,
+#     help="Print verbose output",
+# )
+# @click.option(
+#     "--debug",
+#     is_flag=True,
+#     default=False,
+#     help="Run in debug mode, which will print more verbose information including stdout/stderr from command line tools.",
+# )
+# def build_germdb_from_igdiscover(
+#     name: str,
+#     igdiscover_output: str,
+#     constants: Optional[str] = None,
+#     receptor: str = "bcr",
+#     species: str = "human",
+#     location: Optional[str] = None,
+#     verbose: bool = True,
+#     debug: bool = False,
+# ):
+#     return _build_germdb_from_igdiscover(
+#         name=name,
+#         igdiscover_output=igdiscover_output,
+#         constants=constants,
+#         receptor=receptor,
+#         species=species,
+#         location=location,
+#         verbose=verbose,
+#         debug=debug,
+#     )
