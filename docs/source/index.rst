@@ -50,9 +50,6 @@ or `Digger <https://academic.oup.com/bioinformatics/article/40/3/btae144/7628126
 
 
 
-getting started
----------------
-
 .. toctree::
    :maxdepth: 1
    :hidden:
@@ -60,9 +57,6 @@ getting started
 
    installation
 
-
-usage
------
 
 .. toctree::
    :maxdepth: 1
@@ -73,20 +67,13 @@ usage
    api
    
 
-about
------
-
 .. toctree::
    :maxdepth: 1
    :hidden:
    :caption: about
 
    license
-   news
 
-
-related projects
-----------------
 
 .. toctree::
    :maxdepth: 1
