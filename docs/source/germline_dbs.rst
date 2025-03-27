@@ -65,9 +65,9 @@ the the manifest file could contain information about the source of the germline
 date of the germline sequences, or any other relevant information. An example using the ``-m`` option might look 
 like this::
 
-.. code-block:: console
+.. code-block:: bash
 
-    $ abstar build_germline_database my_germline_db -f germlines.fasta -m manifest.txt
+    abstar build_germline_database my_germline_db -f germlines.fasta -m manifest.txt
 
 |
 
@@ -90,7 +90,7 @@ For example:
 
 .. code-block:: console
 
-    $ abstar build_germline_database my_germline_db -j human.json -j mouse.json --include_species_in_name
+    abstar build_germline_database my_germline_db -j human.json -j mouse.json --include_species_in_name
 
 
 
