@@ -97,11 +97,20 @@ def get_region_sequence(
         aligned_sequence=aligned_sequence,
         aligned_reference=aligned_germline,
     )
-    ab.log(f"{region.upper()} RAW START:", start - 1)  # actual slicing start
-    ab.log(f"{region.upper()} RAW END:", end)
+    if start is not None:
+        ab.log(f"{region.upper()} RAW START:", start - 1)  # actual slicing start
+    else:
+        ab.log(f"{region.upper()} RAW START: not found")
+    if end is not None:
+        ab.log(f"{region.upper()} RAW END:", end)
+    else:
+        ab.log(f"{region.upper()} RAW END: not found")
 
     # collect the sequence
-    region_sequence = aligned_sequence[start - 1 : end].replace("-", "")
+    if start is not None and end is not None:
+        region_sequence = aligned_sequence[start - 1 : end].replace("-", "")
+    else:
+        region_sequence = ""
     return region_sequence
 
 
