@@ -94,6 +94,7 @@ def get_germline(
     imgt_gapped: bool = False,
     exact_match: bool = False,
     force_constant: bool = False,
+    truncate_species: bool = True,
 ) -> Union[list, Sequence]:
     """
     Get the germline sequence for a given germline gene.
@@ -129,6 +130,11 @@ def get_germline(
         Whether to force the query to match a constant germline gene. This is necessary because both IgD and diversity (D)
         gene names are formatted as IGHD, making it ambiguous whether the query is for IgD or diversity. By default,
         a supplied germline name of the format IGHD is assumed to be diversity.
+
+    truncate_species : bool, default: True
+        Whether to truncate the species name from the germline gene name (if it is present). Truncation
+        happens before matching, so if `truncate_species` is ``False`` and `exact_match` is ``True``, the query
+        must contain the species name if the germline gene name is to be found in the database.
 
     Returns
     -------
@@ -170,11 +176,12 @@ def get_germline(
         )
     # retrieve germline sequences
     all_germs = abutils.io.read_fasta(germdb_file)
+    if truncate_species:
+        for g in all_germs:
+            g.id = g.id.split("__")[0]
+    # do the matching
     if exact_match:
         germs = [g for g in all_germs if germline_gene == g.id]
-        # in case the species is present in the germline database but not the query
-        if not germs:
-            germs = [g for g in all_germs if germline_gene in g.id]
     else:
         germs = [g for g in all_germs if germline_gene in g.id]
     if not germs:
