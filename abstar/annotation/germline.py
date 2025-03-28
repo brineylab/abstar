@@ -169,14 +169,14 @@ def get_germline(
             f"Germline database {germdb_name} for receptor {receptor} not found"
         )
     # retrieve germline sequences
-    germs = abutils.io.read_fasta(germdb_file)
+    all_germs = abutils.io.read_fasta(germdb_file)
     if exact_match:
-        germs = [g for g in germs if germline_gene == g.id]
+        germs = [g for g in all_germs if germline_gene == g.id]
         # in case the species is present in the germline database but not the query
         if not germs:
-            germs = [g for g in germs if germline_gene == g.id.split("__")[0]]
+            germs = [g for g in all_germs if germline_gene in g.id]
     else:
-        germs = [g for g in germs if germline_gene in g.id]
+        germs = [g for g in all_germs if germline_gene in g.id]
     if not germs:
         raise ValueError(
             f"No substring matches to {germline_gene} were found in {germdb_file}"
