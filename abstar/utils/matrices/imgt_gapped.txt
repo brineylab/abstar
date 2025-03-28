@@ -8,8 +8,8 @@
 # any input sequence character that is outside of the alphabet.
 #
     A   T   G   C   *
-A   3  -2  -2  -2  -5
-T  -2   3  -2  -2  -5
-G  -2  -2   3  -2  -5
-C  -2  -2  -2   3  -5
-*  -5  -5  -5  -5   0
+A   3  -2  -2  -2  -3
+T  -2   3  -2  -2  -3
+G  -2  -2   3  -2  -3
+C  -2  -2  -2   3  -3
+*  -3  -3  -3  -3   0

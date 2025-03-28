@@ -315,7 +315,9 @@ def add_imgt_gaps(
     gapped_vgenes = []
     for ungapped in vgenes:
         # find the best germline match
-        alns = abutils.tl.semiglobal_alignment(ungapped, targets=germs, matrix=matrix)
+        alns = abutils.tl.semiglobal_alignment(
+            ungapped, targets=germs, matrix=matrix, gap_open=-25
+        )
         top_aln = alns[0]
         # build the gapped sequence
         gapped = ""
