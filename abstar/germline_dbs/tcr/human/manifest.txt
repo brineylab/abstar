@@ -1,0 +1,15 @@
+Homo sapiens TCR germline gene database
+
+SOURCE: www.imgt.org/genedb
+DOWNLOAD DATE: March 27th, 2025
+
+DOWNLOAD OPTIONS
+----------------
+SPECIES: Homo sapiens
+FUNCTIONALITY: functional
+MOLECULAR COMPONENT: TR
+LOCUS: any
+MAIN LOCUS: any
+OR CHROMOSOMAL ORPHON SET: any
+
+DISPLAY: F+ORF+in-frame P nucleotide sequences with IMGT gaps
