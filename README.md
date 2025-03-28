@@ -1,5 +1,5 @@
 ![](https://img.shields.io/pypi/v/abstar.svg?colorB=blue)
-[![Build Status](https://travis-ci.com/briney/abstar.svg?branch=master)](https://app.travis-ci.com/github/briney/abstar)
+[![tests](https://github.com/brineylab/abstar/actions/workflows/pytest.yml/badge.svg)](https://github.com/brineylab/abstar/actions/workflows/pytest.yml)
 [![Documentation Status](https://readthedocs.org/projects/abstar/badge/?version=latest)](https://abstar.readthedocs.io/en/latest/?badge=latest)
 ![](https://img.shields.io/pypi/pyversions/abstar.svg)
 ![](https://img.shields.io/badge/license-MIT-blue.svg)
