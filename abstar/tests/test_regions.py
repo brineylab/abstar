@@ -1,91 +1,435 @@
-#!usr/env/python
-# filename: test_regions.py
+# Copyright (c) 2024 Bryan Briney
+# Distributed under the terms of the MIT License.
+# SPDX-License-Identifier: MIT
 
-import sys
+import pytest
 
-from . import REFERENCE_BNAB_HC_ANTIBODIES, REFERENCE_BNAB_LC_ANTIBODIES
-from .mock_classes import MockAntibody
-from ..core.germline import GermlineSegment
-from ..utils.regions import get_joining_regions, get_variable_regions
+from ..annotation.antibody import Antibody
+from ..annotation.regions import (
+    IMGT_REGION_END_POSITIONS_AA,
+    IMGT_REGION_END_POSITIONS_NT,
+    IMGT_REGION_START_POSITIONS_AA,
+    IMGT_REGION_START_POSITIONS_NT,
+    get_region_sequence,
+)
 
-
-def test_var_regions_bnab_hcs():
-    compare_v_regions_to_reference(REFERENCE_BNAB_HC_ANTIBODIES)
-
-
-def test_join_regions_bnab_hcs():
-    compare_j_regions_to_reference(REFERENCE_BNAB_HC_ANTIBODIES)
-
-
-def test_var_regions_bnab_lcs():
-    compare_v_regions_to_reference(REFERENCE_BNAB_LC_ANTIBODIES)
+# =============================================
+#                  FIXTURES
+# =============================================
 
 
-def test_join_regions_bnab_lcs():
-    compare_j_regions_to_reference(REFERENCE_BNAB_LC_ANTIBODIES)
+@pytest.fixture
+def antibody():
+    """Create a basic Antibody object with logging methods."""
+    return Antibody(sequence_id="test_sequence")
 
 
-def compare_v_regions_to_reference(antibodies):
-    errors = []
-    for antibody in antibodies:
-        ref = antibody.v.regions
-        ab = MockAntibody()
-        ab.oriented_input = antibody.oriented_input
-        ab.v_rf_offset = antibody.v_rf_offset
-        v = GermlineSegment(antibody.v.full, antibody.v.species, antibody.v.db_name, 'bcr', initialize_log=False)
-        v.query_start = antibody.v.query_start
-        v.gene_type = antibody.v.gene_type
-        v._imgt_position_from_raw = antibody.v._imgt_position_from_raw
-        v._raw_position_from_imgt = antibody.v._raw_position_from_imgt
-        ab.v = v
-        regions = get_variable_regions(ab)
-        for r in regions.region_names:
-            if ref.raw_nt_positions[r] != regions.raw_nt_positions[r]:
-                e = '{} {}: '.format(antibody.id, r)
-                e += 'reference raw_nt_positions ({}) '.format(ref.raw_nt_positions[r]())
-                e += 'did not match calculated raw_nt_positions ({})'.format(regions.raw_nt_positions[r])
-                errors.append(e)
-            if ref.nt_seqs[r] != regions.nt_seqs[r]:
-                e = '{} {}: '.format(antibody.id, r)
-                e += 'reference nt_seq ({}) '.format(ref.nt_seqs[r]())
-                e += 'did not match calculated nt_seq ({})'.format(regions.nt_seqs[r])
-                errors.append(e)
-            if ref.aa_seqs[r] != regions.aa_seqs[r]:
-                e = '{} {}: '.format(antibody.id, r)
-                e += 'reference aa_seq ({}) '.format(ref.aa_seqs[r]())
-                e += 'did not match calculated aa_seq ({})'.format(regions.aa_seqs[r])
-                errors.append(e)
-    assert len(errors) == 0, '\n'.join(errors)
+@pytest.fixture
+def aligned_sequence():
+    """
+    A sample aligned sequence spanning all antibody regions.
+    This represents a V region with a few gaps aligned to the germline.
+    """
+    # FWR1 (positions 1-78)
+    fwr1 = "CAGGTTCAGCTGGTGCAGTCTGGAGCTGAGGTGAAGAAGCCTGGGGCCTCAGTGAAGGTCTCCTGCAAGGCTTCT"
+    # CDR1 (positions 79-114), with a single A>T mutation immediately after the IMGT gap
+    cdr1 = "CACTTCACCGGCTTGCACTGGGAGTCAGTA"
+    # FWR2 (positions 115-165)
+    fwr2 = "GTGCGACAGGCCCCTGGACAAGGGCTTGAGCGGATCAACCCTAACAGT"
+    # CDR2 (positions 166-195), with a single codon (AAA) insertion in the IMGT gap
+    cdr2 = "GGGGGCAAAACAAACTATGCACAGAAG"
+    # FWR3 (positions 196-312), with a single codon deletion immediately after the IMGT gap
+    fwr3 = "TTCCAGGGCAGAGTCACCATGACCACAGACACATCCGAT---AGCACAGCCTACATGGAGCTGAGCAGCCTGAGATCTGAGGACACGGCCGTGTATTACTGTGCG"
+    # CDR3 (positions 313-351)
+    cdr3 = "AGAGTGGGCAACTGGGGCCAGGGTACCTTTGACTACTGG"
+    # FWR4 (positions 352-387)
+    fwr4 = "GGCCAGGGAACCCTGGTCACCGTCTCCTCAGGTAAG"
+
+    return fwr1 + cdr1 + fwr2 + cdr2 + fwr3 + cdr3 + fwr4
 
 
-def compare_j_regions_to_reference(antibodies):
-    errors = []
-    for antibody in antibodies:
-        ref = antibody.j.regions
-        ab = MockAntibody()
-        ab.oriented_input = antibody.oriented_input
-        ab.v_rf_offset = antibody.v_rf_offset
-        j = GermlineSegment(antibody.j.full, antibody.j.species, antibody.j.db_name, 'bcr', initialize_log=False)
-        j.query_start = antibody.j.query_start
-        j.gene_type = antibody.j.gene_type
-        j._imgt_position_from_raw = antibody.j._imgt_position_from_raw
-        j._raw_position_from_imgt = antibody.j._raw_position_from_imgt
-        ab.j = j
-        regions = get_joining_regions(ab)
-        for r in regions.region_names:
-            if ref.raw_nt_positions[r] != regions.raw_nt_positions[r]:
-                e = '{} {}: '.format(antibody.id, r)
-                e += 'reference raw_nt_positions ({}) '.format(ref.raw_nt_positions[r]())
-                e += 'did not match calculated raw_nt_positions ({})'.format(regions.raw_nt_positions[r])
-                errors.append(e)
-            if ref.nt_seqs[r] != regions.nt_seqs[r]:
-                e = '{} {}: '.format(antibody.id, r)
-                e += 'reference nt_seq ({}) '.format(ref.nt_seqs[r]())
-                e += 'did not match calculated nt_seq ({})'.format(regions.nt_seqs[r])
-                errors.append(e)
-            if ref.aa_seqs[r] != regions.aa_seqs[r]:
-                e = '{} {}: '.format(antibody.id, r)
-                e += 'reference aa_seq ({}) '.format(ref.aa_seqs[r]())
-                e += 'did not match calculated aa_seq ({})'.format(regions.aa_seqs[r])
-                errors.append(e)
-    assert len(errors) == 0, '\n'.join(errors)
+@pytest.fixture
+def aligned_germline():
+    """
+    A sample aligned germline sequence spanning all antibody regions.
+    Matches aligned_sequence but with gaps where the sequence has insertions,
+    and nucleotides where the sequence has deletions.
+    """
+    # FWR1 (positions 1-78)
+    fwr1 = "CAGGTTCAGCTGGTGCAGTCTGGAGCTGAGGTGAAGAAGCCTGGGGCCTCAGTGAAGGTCTCCTGCAAGGCTTCT"
+    # CDR1 (positions 79-114)
+    cdr1 = "CACTTCACCGGCATGCACTGGGAGTCAGTA"
+    # FWR2 (positions 115-165)
+    fwr2 = "GTGCGACAGGCCCCTGGACAAGGGCTTGAGCGGATCAACCCTAACAGT"
+    # CDR2 (positions 166-195)
+    cdr2 = "GGGGGC---ACAAACTATGCACAGAAG"
+    # FWR3 (positions 196-312)
+    fwr3 = "TTCCAGGGCAGAGTCACCATGACCACAGACACATCCGATACGAGCACAGCCTACATGGAGCTGAGCAGCCTGAGATCTGAGGACACGGCCGTGTATTACTGTGCG"
+    # CDR3 (positions 313-351)
+    cdr3 = "AGAGTGGGCAACTGGGGCCAGGGTACCTTTGACTACTGG"
+    # FWR4 (positions 352-387)
+    fwr4 = "GGCCAGGGAACCCTGGTCACCGTCTCCTCAGGTAAG"
+
+    return fwr1 + cdr1 + fwr2 + cdr2 + fwr3 + cdr3 + fwr4
+
+
+@pytest.fixture
+def gapped_germline():
+    """
+    A sample IMGT-gapped germline sequence spanning all antibody regions.
+    This represents the germline with IMGT-defined gaps (periods) in codon-length groups.
+    """
+    # IMGT gaps are typically inserted at specific regions in multiples of three to maintain the
+    # reading frame. The key IMGT insertion points include:
+    # - FWR1: Insertion after codon 6 (position 18)
+    # - FWR2: Insertion after codon 45 (position 135) and sometimes another after codon 47
+    # - CDR2: Variable insertions to align conserved anchor residues
+    # - FWR3: Insertions to maintain alignment of conserved residues
+
+    # FWR1 (positions 1-78) with gaps after position 18 (codon 6)
+    fwr1 = "CAGGTTCAGCTG...GTGCAGTCTGGAGCTGAGGTGAAGAAGCCTGGGGCCTCAGTGAAGGTCTCCTGCAAGGCTTCT"  # Codons 1-4
+    # CDR1 (positions 79-114)
+    cdr1 = "CACTTCACCGGC......ATGCACTGGGAGTCAGTA"
+    # FWR2 (positions 115-165) with gaps after position 135 (codon 45)
+    fwr2 = "GTGCGACAGGCCCCTGGACAAGGGCTTGAG...CGGATCAACCCTAACAGT"
+    # CDR2 (positions 166-195) with gaps to align conserved residues
+    cdr2 = "GGGGGC......ACAAACTATGCACAGAAG"
+    # FWR3 (positions 196-312) with a gap to maintain alignment
+    fwr3 = "TTCCAGGGCAGAGTCACCATGACCACAGACACATCCGAT............ACGAGCACAGCCTACATGGAGCTGAGCAGCCTGAGATCTGAGGACACGGCCGTGTATTACTGTGCG"
+    # CDR3 (positions 313-351) often highly variable but we'll keep it simple
+    cdr3 = "AGAGTGGGCAACTGGGGCCAGGGTACCTTTGACTACTGG"
+    # FWR4 (positions 352-387)
+    fwr4 = "GGCCAGGGAACCCTGGTCACCGTCTCCTCAGGTAAG"
+
+    return fwr1 + cdr1 + fwr2 + cdr2 + fwr3 + cdr3 + fwr4
+
+
+@pytest.fixture
+def truncated_aligned_sequence():
+    """
+    A truncated aligned sequence (missing part of the 5' end).
+    Starts at position 40 (in FWR1).
+    """
+    # Partial FWR1 (starting at position 40)
+    partial_fwr1 = (
+        "---------------------------------------CCTGGGGCCTCAGTGAAGGTCTCCTGCAAGGCTTCT"
+    )
+    # CDR1 (positions 79-114)
+    cdr1 = "CACTTCACCGGCATGCACTGGGAGTCAGTA"
+    # FWR2 (positions 115-165)
+    fwr2 = "GTGCGACAGGCCCCTGGACAAGGGCTTGAGCGGATCAACCCTAACAGT"
+    # CDR2 (positions 166-195)
+    cdr2 = "GTGCGACAGGCCCCTGGACAAGGGCTTGAG---CGGATCAACCCTAACAGT"
+    # FWR3 (positions 196-312)
+    fwr3 = "TTCCAGGGCAGAGTCACCATGACCACAGACACATCCGATACGAGCACAGCCTACATGGAGCTGAGCAGCCTGAGATCTGAGGACACGGCCGTGTATTACTGTGCG"
+    # CDR3 (positions 313-351)
+    cdr3 = "AGAGTGGGCAACTGGGGCCAGGGTACCTTTGACTACTGG"
+    # FWR4 (positions 352-387)
+    fwr4 = "GGCCAGGGAACCCTGGTCACCGTCTCCTCAGGTAAG"
+
+    return partial_fwr1 + cdr1 + fwr2 + cdr2 + fwr3 + cdr3 + fwr4
+
+
+@pytest.fixture
+def truncated_aligned_germline():
+    """
+    The corresponding aligned germline for the truncated sequence.
+    This preserves the full germline, with the sequence being truncated.
+    """
+    # Partial FWR1 (starting at position 40)
+    fwr1 = "CAGGTTCAGCTGGTGCAGTCTGGAGCTGAGGTGAAGAAGCCTGGGGCCTCAGTGAAGGTCTCCTGCAAGGCTTCT"
+    # CDR1 (positions 79-114)
+    cdr1 = "CACTTCACCGGCATGCACTGGGAGTCAGTA"
+    # FWR2 (positions 115-165)
+    fwr2 = "GTGCGACAGGCCCCTGGACAAGGGCTTGAGCGGATCAACCCTAACAGT"
+    # CDR2 (positions 166-195)
+    cdr2 = "GTGCGACAGGCCCCTGGACAAGGGCTTGAG---CGGATCAACCCTAACAGT"
+    # FWR3 (positions 196-312)
+    fwr3 = "TTCCAGGGCAGAGTCACCATGACCACAGACACATCCGATACGAGCACAGCCTACATGGAGCTGAGCAGCCTGAGATCTGAGGACACGGCCGTGTATTACTGTGCG"
+    # CDR3 (positions 313-351)
+    cdr3 = "AGAGTGGGCAACTGGGGCCAGGGTACCTTTGACTACTGG"
+    # FWR4 (positions 352-387)
+    fwr4 = "GGCCAGGGAACCCTGGTCACCGTCTCCTCAGGTAAG"
+
+    return fwr1 + cdr1 + fwr2 + cdr2 + fwr3 + cdr3 + fwr4
+
+
+@pytest.fixture
+def mock_region_data():
+    """
+    Mock region start/end positions for testing.
+    """
+    return {
+        "fwr1": {"start_nt": 1, "end_nt": 78, "start_aa": 1, "end_aa": 26},
+        "cdr1": {"start_nt": 79, "end_nt": 114, "start_aa": 27, "end_aa": 38},
+        "fwr2": {"start_nt": 115, "end_nt": 165, "start_aa": 39, "end_aa": 55},
+        "cdr2": {"start_nt": 166, "end_nt": 195, "start_aa": 56, "end_aa": 65},
+        "fwr3": {"start_nt": 196, "end_nt": 312, "start_aa": 66, "end_aa": 104},
+        "cdr3": {"start_nt": 313, "end_nt": 351, "start_aa": 105, "end_aa": 117},
+        "fwr4": {"start_nt": 352, "end_nt": 387, "start_aa": 118, "end_aa": 129},
+    }
+
+
+# =============================================
+#           REGION SEQUENCE TESTS
+# =============================================
+
+
+def test_get_region_sequence_fwr1(
+    aligned_sequence, aligned_germline, gapped_germline, antibody
+):
+    """Test getting FWR1 region sequence."""
+    region = "fwr1"
+    result = get_region_sequence(
+        region=region,
+        aligned_sequence=aligned_sequence,
+        aligned_germline=aligned_germline,
+        gapped_germline=gapped_germline,
+        germline_start=1,
+        ab=antibody,
+    )
+    expected_fwr1 = (
+        "CAGGTTCAGCTGGTGCAGTCTGGAGCTGAGGTGAAGAAGCCTGGGGCCTCAGTGAAGGTCTCCTGCAAGGCTTCT"
+    )
+    assert result == expected_fwr1
+    # Verify the sequence is not empty
+    assert len(result) > 0
+    # Verify no gaps in the result
+    assert "-" not in result
+
+
+def test_get_region_sequence_aa(
+    aligned_sequence, aligned_germline, gapped_germline, antibody
+):
+    """Test getting a region sequence as amino acids."""
+    region = "fwr1"
+    result = get_region_sequence(
+        region=region,
+        aligned_sequence=aligned_sequence,
+        aligned_germline=aligned_germline,
+        gapped_germline=gapped_germline,
+        germline_start=1,
+        ab=antibody,
+        aa=True,
+    )
+    expected_fwr1 = "CAGGTTCAGCTGGTGCAGTCTGG"
+    assert result == expected_fwr1
+    # Verify the sequence is not empty
+    assert len(result) > 0
+    # Verify no gaps in the result
+    assert "-" not in result
+
+
+def test_get_region_sequence_truncated(
+    truncated_aligned_sequence, truncated_aligned_germline, gapped_germline, antibody
+):
+    """Test getting a region sequence from a truncated sequence."""
+    region = "fwr1"
+    result = get_region_sequence(
+        region=region,
+        aligned_sequence=truncated_aligned_sequence,
+        aligned_germline=truncated_aligned_germline,
+        gapped_germline=gapped_germline,
+        germline_start=1,
+        ab=antibody,
+    )
+    # The sequence is truncated at the 5' end, so we expect a partial FWR1
+    expected_partial_fwr1 = "CCTGGGGCCTCAGTGAAGGTCTCCTGCAAGGCTTCT"
+    assert result == expected_partial_fwr1
+    assert len(result) > 0
+    assert "-" not in result
+
+
+def test_get_region_sequence_missing_region(
+    aligned_sequence, aligned_germline, gapped_germline, antibody
+):
+    """Test getting a region that's missing from the sequence."""
+    # Set germline_start high enough that the region is entirely missing
+    germline_start = 400  # Well beyond any regions in our test data
+    region = "fwr1"
+    result = get_region_sequence(
+        region=region,
+        aligned_sequence=aligned_sequence,
+        aligned_germline=aligned_germline,
+        gapped_germline=gapped_germline,
+        germline_start=germline_start,
+        ab=antibody,
+    )
+    # The result should be an empty string for a missing region
+    assert result == ""
+
+
+def test_all_regions(
+    aligned_sequence, aligned_germline, gapped_germline, antibody, mock_region_data
+):
+    """Test getting all regions from the sequence."""
+    regions = ["fwr1", "cdr1", "fwr2", "cdr2", "fwr3"]
+
+    # Expected sequences for each region
+    expected_sequences = {
+        "fwr1": "CAGGTTCAGCTGGTGCAGTCTGGAGCTGAGGTGAAGAAGCCTGGGGCCTCAGTGAAGGTCTCCTGCAAGGCTTCT",
+        "cdr1": "CACTTCACCGGCTTGCACTGGGAGTCAGTA",
+        "fwr2": "GTGCGACAGGCCCCTGGACAAGGGCTTGAGCGGATCAACCCTAACAGT",
+        "cdr2": "GGGGGCAAAACAAACTATGCACAGAAG",
+        "fwr3": "TTCCAGGGCAGAGTCACCATGACCACAGACACATCCGATAGCACAGCCTACATGGAGCTGAGCAGCCTGAGATCTGAGGACACGGCCGTGTATTACTGTGCG",
+        # "cdr3": "AGAGTGGGCAACTGGGGCCAGGGTACCTTTGACTACTGG",
+        # "fwr4": "GGCCAGGGAACCCTGGTCACCGTCTCCTCAGGTAAG",
+    }
+
+    for region in regions:
+        result = get_region_sequence(
+            region=region,
+            aligned_sequence=aligned_sequence,
+            aligned_germline=aligned_germline,
+            gapped_germline=gapped_germline,
+            germline_start=1,
+            ab=antibody,
+        )
+        # Compare with expected sequence
+        assert result == expected_sequences[region], f"Failed for region {region}"
+        # Basic validation - result should be a string and shouldn't contain gaps
+        assert isinstance(result, str)
+        assert "-" not in result
+
+
+# =============================================
+#         IMGT REGION CONSTANTS TESTS
+# =============================================
+
+
+def test_imgt_region_constants_consistency(mock_region_data):
+    """Test that IMGT region constants are consistent with each other."""
+    regions = ["fwr1", "cdr1", "fwr2", "cdr2", "fwr3", "cdr3", "fwr4"]
+
+    for region in regions:
+        # Check that each region has start and end positions defined
+        assert region in IMGT_REGION_START_POSITIONS_NT
+        assert region in IMGT_REGION_END_POSITIONS_NT
+        assert region in IMGT_REGION_START_POSITIONS_AA
+        assert region in IMGT_REGION_END_POSITIONS_AA
+
+        # Verify that start positions are always less than end positions
+        assert (
+            IMGT_REGION_START_POSITIONS_NT[region]
+            <= IMGT_REGION_END_POSITIONS_NT[region]
+        )
+        assert (
+            IMGT_REGION_START_POSITIONS_AA[region]
+            <= IMGT_REGION_END_POSITIONS_AA[region]
+        )
+
+        # Compare with mock data
+        assert (
+            IMGT_REGION_START_POSITIONS_NT[region]
+            == mock_region_data[region]["start_nt"]
+        )
+        assert (
+            IMGT_REGION_END_POSITIONS_NT[region] == mock_region_data[region]["end_nt"]
+        )
+        assert (
+            IMGT_REGION_START_POSITIONS_AA[region]
+            == mock_region_data[region]["start_aa"]
+        )
+        assert (
+            IMGT_REGION_END_POSITIONS_AA[region] == mock_region_data[region]["end_aa"]
+        )
+
+
+def test_region_boundaries_consistency():
+    """Test that region boundaries are consistent (end of one region + 1 = start of next region)."""
+    # For nucleotides
+    assert (
+        IMGT_REGION_END_POSITIONS_NT["fwr1"] + 1
+        == IMGT_REGION_START_POSITIONS_NT["cdr1"]
+    )
+    assert (
+        IMGT_REGION_END_POSITIONS_NT["cdr1"] + 1
+        == IMGT_REGION_START_POSITIONS_NT["fwr2"]
+    )
+    assert (
+        IMGT_REGION_END_POSITIONS_NT["fwr2"] + 1
+        == IMGT_REGION_START_POSITIONS_NT["cdr2"]
+    )
+    assert (
+        IMGT_REGION_END_POSITIONS_NT["cdr2"] + 1
+        == IMGT_REGION_START_POSITIONS_NT["fwr3"]
+    )
+    assert (
+        IMGT_REGION_END_POSITIONS_NT["fwr3"] + 1
+        == IMGT_REGION_START_POSITIONS_NT["cdr3"]
+    )
+    assert (
+        IMGT_REGION_END_POSITIONS_NT["cdr3"] + 1
+        == IMGT_REGION_START_POSITIONS_NT["fwr4"]
+    )
+
+    # For amino acids
+    assert (
+        IMGT_REGION_END_POSITIONS_AA["fwr1"] + 1
+        == IMGT_REGION_START_POSITIONS_AA["cdr1"]
+    )
+    assert (
+        IMGT_REGION_END_POSITIONS_AA["cdr1"] + 1
+        == IMGT_REGION_START_POSITIONS_AA["fwr2"]
+    )
+    assert (
+        IMGT_REGION_END_POSITIONS_AA["fwr2"] + 1
+        == IMGT_REGION_START_POSITIONS_AA["cdr2"]
+    )
+    assert (
+        IMGT_REGION_END_POSITIONS_AA["cdr2"] + 1
+        == IMGT_REGION_START_POSITIONS_AA["fwr3"]
+    )
+    assert (
+        IMGT_REGION_END_POSITIONS_AA["fwr3"] + 1
+        == IMGT_REGION_START_POSITIONS_AA["cdr3"]
+    )
+    assert (
+        IMGT_REGION_END_POSITIONS_AA["cdr3"] + 1
+        == IMGT_REGION_START_POSITIONS_AA["fwr4"]
+    )
+
+
+def test_aa_nt_positions_consistent():
+    """Test that amino acid positions are consistent with nucleotide positions (nt pos = aa pos * 3)."""
+    regions = ["fwr1", "cdr1", "fwr2", "cdr2", "fwr3", "cdr3", "fwr4"]
+
+    for region in regions:
+        # Check if AA start position * 3 - 2 = NT start position
+        # This accounts for the 3 nucleotides per amino acid, where the first nucleotide
+        # of the codon corresponds to the amino acid position
+        assert (
+            IMGT_REGION_START_POSITIONS_NT[region]
+            == (IMGT_REGION_START_POSITIONS_AA[region] * 3) - 2
+        )
+
+        # For end positions, the relationship is not exact due to possible partial codons
+        # But the relationship should be approximately true
+        aa_end_nt_pos = IMGT_REGION_END_POSITIONS_AA[region] * 3
+        # End position should be within 2 nucleotides of the expected position
+        assert abs(IMGT_REGION_END_POSITIONS_NT[region] - aa_end_nt_pos) <= 2
+
+
+def test_edge_cases(antibody):
+    """Test edge cases for the get_region_sequence function."""
+    # Empty sequences
+    result = get_region_sequence(
+        region="fwr1",
+        aligned_sequence="",
+        aligned_germline="",
+        gapped_germline="",
+        germline_start=0,
+        ab=antibody,
+    )
+    assert result == ""
+
+    # Sequences with only gaps
+    result = get_region_sequence(
+        region="fwr1",
+        aligned_sequence="-----",
+        aligned_germline="-----",
+        gapped_germline=".....",
+        germline_start=0,
+        ab=antibody,
+    )
+    assert result == ""

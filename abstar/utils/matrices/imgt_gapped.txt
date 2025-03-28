@@ -1,0 +1,15 @@
+#
+# Any line starting with '#' is a comment.
+#
+# Needs a row for the alphabet.  First column is a repeat of the
+# alphabet and assumed to be identical in order to the first alphabet row.
+#
+# Last row and column *must* be a non-alphabet character to represent
+# any input sequence character that is outside of the alphabet.
+#
+    A   T   G   C   *
+A   3  -2  -2  -2  -3
+T  -2   3  -2  -2  -3
+G  -2  -2   3  -2  -3
+C  -2  -2  -2   3  -3
+*  -3  -3  -3  -3   0

@@ -1,0 +1,15 @@
+human germline gene database
+============================
+
+All V/D/J genes were obtained from OGRDB
+
+SOURCE: https://ogrdb.airr-community.org/germline_sets/Homo%20sapiens
+OGRDB RELEASE DATE: 
+  - IGH: 2024-10-12 (rev 9)
+  - IGK: 2024-10-12 (rev 4)
+  - IGL: 2024-10-12 (rev 3)
+
+
+All constant genes were obtained from IMGT GENE-DB
+
+SOURCE: https://www.imgt.org/genedb/

@@ -1,625 +1,371 @@
-from ..utils.indels import (
-    Indel,
-    Insertion,
-    Deletion,
-    find_insertions,
-    _annotate_insertion,
-    _fix_frameshift_insertion,
-    find_deletions,
-    _annotate_deletion,
-    _fix_frameshift_deletion,
-)
+# Copyright (c) 2024 Bryan Briney
+# Distributed under the terms of the MIT License.
+# SPDX-License-Identifier: MIT
+
+import pytest
+
+from ..annotation.indels import annotate_deletions, annotate_insertions
+
+# =============================================
+#                  FIXTURES
+# =============================================
 
 
-class GermlineSegment:
-    def __init__(
-        self,
-        realignment,
-        germline_start,
-        germline_end,
-        query_start,
-        query_end,
-        query_sequence,
-        germline_sequence,
-    ):
-        self.realignment = realignment
-        self.germline_start = germline_start
-        self.germline_end = germline_end
-        self.query_start = query_start
-        self.query_end = query_end
-        self.query_sequence = query_sequence
-        self.germline_sequence = germline_sequence
+@pytest.fixture
+def aligned_sequence_no_indels():
+    return "ATGCATGC"
 
 
-class Sequence:
-    def __init__(self, sequence):
-        self.sequence = sequence
+@pytest.fixture
+def aligned_germline_no_indels():
+    return "ATGCATGC"
 
 
-class Antibody:
-    def __init__(self, oriented_input_sequence):
-        self.oriented_input = Sequence(oriented_input_sequence)
+@pytest.fixture
+def gapped_germline_no_indels():
+    return "ATGCATGC"
 
 
-# ----------------------------
-#        Indel class
-# ----------------------------
+@pytest.fixture
+def aligned_sequence_single_insertion():
+    """Sequence with a single insertion (GGG) at position 4"""
+    return "ATGCGGGATGC"
 
 
-def test_init():
-    # test initialization with all fields
-    indel = Indel(
-        {
-            "len": 3,
-            "pos": 10,
-            "seq": "ATC",
-            "fixed": True,
-            "in frame": "yes",
-        }
-    )
-    assert indel.length == 3
-    assert indel.raw_position == 10
-    assert indel.sequence == "ATC"
-    assert indel.fixed is True
-    assert indel.in_frame == "yes"
-    assert indel.imgt_position is None
-    assert indel.imgt_codon is None
-
-    # test initialization with some fields missing
-    indel = Indel(
-        {
-            "len": 3,
-            "seq": "ATC",
-        }
-    )
-    assert indel.length == 3
-    assert indel.raw_position is None
-    assert indel.sequence == "ATC"
-    assert indel.fixed is None
-    assert indel.in_frame is None
-    assert indel.imgt_position is None
-    assert indel.imgt_codon is None
+@pytest.fixture
+def aligned_germline_single_insertion():
+    """Germline with a gap corresponding to the insertion in aligned_sequence_single_insertion"""
+    return "ATGC---ATGC"
 
 
-def test_contains():
-    indel = Indel(
-        {
-            "len": 3,
-            "pos": 10,
-            "seq": "ATC",
-            "fixed": True,
-            "in frame": "yes",
-        }
-    )
-    assert "len" in indel
-    assert "pos" in indel
-    assert "seq" in indel
-    assert "fixed" in indel
-    assert "in frame" in indel
-    assert "imgt_position" not in indel
-    assert "imgt_codon" not in indel
+@pytest.fixture
+def gapped_germline_single_insertion():
+    """IMGT-gapped germline with periods at positions 3, 4, and 5"""
+    return "AT.GCA...TGC"
 
 
-def test_getitem():
-    indel = Indel(
-        {
-            "len": 3,
-            "pos": 10,
-            "seq": "ATC",
-            "fixed": True,
-            "in frame": "yes",
-        }
-    )
-    assert indel["len"] == 3
-    assert indel["pos"] == 10
-    assert indel["seq"] == "ATC"
-    assert indel["fixed"] is True
-    assert indel["in frame"] == "yes"
-    assert indel["imgt_position"] is None
-    assert indel["imgt_codon"] is None
-
-    # test getting a non-existent key
-    assert indel["foo"] is None
+@pytest.fixture
+def aligned_sequence_multi_insertion():
+    """Sequence with multiple insertions: (GGG) at position 4 and (AA) at position 8"""
+    return "ATGCGGGATAAATGC"
 
 
-def test_get_frame():
-    # test getting in-frame status with "in frame" field
-    indel = Indel(
-        {
-            "len": 3,
-            "pos": 10,
-            "seq": "ATC",
-            "fixed": True,
-            "in frame": "yes",
-        }
-    )
-    assert indel._get_frame() == "yes"
-
-    # test getting in-frame status with boolean "in frame" field
-    indel = Indel(
-        {
-            "len": 3,
-            "pos": 10,
-            "seq": "ATC",
-            "fixed": True,
-            "in frame": True,
-        }
-    )
-    assert indel._get_frame() == "yes"
-
-    # test getting in-frame status with boolean "in frame" field
-    indel = Indel(
-        {
-            "len": 3,
-            "pos": 10,
-            "seq": "ATC",
-            "fixed": True,
-            "in frame": False,
-        }
-    )
-    assert indel._get_frame() == "no"
-
-    # test getting in-frame status with missing "in frame" field
-    indel = Indel(
-        {
-            "len": 3,
-            "pos": 10,
-            "seq": "ATC",
-            "fixed": True,
-        }
-    )
-    assert indel._get_frame() is None
+@pytest.fixture
+def aligned_germline_multi_insertion():
+    """Germline with gaps corresponding to the insertions in aligned_sequence_multi_insertion"""
+    return "ATGC---AT--ATGC"
 
 
-# ----------------------------
-#      Insertion class
-# ----------------------------
+@pytest.fixture
+def gapped_germline_multi_insertion():
+    """IMGT-gapped germline with appropriate gaps"""
+    return "AT.GCA...T..GATGC"
 
 
-def test_init():
-    # test initialization with all fields
-    indel = Insertion(
-        {
-            "len": 3,
-            "pos": 10,
-            "seq": "ATC",
-            "fixed": True,
-            "in frame": "yes",
-        }
-    )
-    assert indel.length == 3
-    assert indel.raw_position == 10
-    assert indel.sequence == "ATC"
-    assert indel.fixed is True
-    assert indel.in_frame == "yes"
-    assert indel.imgt_position is None
-    assert indel.imgt_codon is None
-    assert indel.type == "insertion"
-
-    # test initialization with some fields missing
-    indel = Insertion(
-        {
-            "len": 3,
-            "seq": "ATC",
-        }
-    )
-    assert indel.length == 3
-    assert indel.raw_position is None
-    assert indel.sequence == "ATC"
-    assert indel.fixed is None
-    assert indel.in_frame is None
-    assert indel.imgt_position is None
-    assert indel.imgt_codon is None
-    assert indel.type == "insertion"
+@pytest.fixture
+def aligned_sequence_frameshift_insertion():
+    """Sequence with a frameshift insertion (A) at position 4"""
+    return "ATGCAATGC"
 
 
-def test_imgt_formatted():
-    # test imgt_formatted property with in-frame insertion
-    indel = Insertion(
-        {
-            "len": 3,
-            "pos": 10,
-            "seq": "ATC",
-            "fixed": True,
-            "in frame": True,
-        }
-    )
-    assert indel.imgt_formatted == "11^12>ins^atc"
-
-    # test imgt_formatted property with out-of-frame insertion
-    indel = Insertion(
-        {
-            "len": 3,
-            "pos": 10,
-            "seq": "ATC",
-            "fixed": True,
-            "in frame": False,
-        }
-    )
-    assert indel.imgt_formatted == "11^12>ins^atc#"
+@pytest.fixture
+def aligned_germline_frameshift_insertion():
+    """Germline with a gap corresponding to the frameshift insertion"""
+    return "ATGC-ATGC"
 
 
-def test_abstar_formatted():
-    # test abstar_formatted property with in-frame insertion
-    indel = Insertion(
-        {
-            "len": 3,
-            "pos": 10,
-            "seq": "ATC",
-            "fixed": True,
-            "in frame": True,
-        }
-    )
-    assert indel.abstar_formatted == "11:3>ATC"
-
-    # test abstar_formatted property with out-of-frame insertion
-    indel = Insertion(
-        {
-            "len": 3,
-            "pos": 10,
-            "seq": "ATC",
-            "fixed": True,
-            "in frame": False,
-        }
-    )
-    assert indel.abstar_formatted == "11:3!>ATC"
+@pytest.fixture
+def gapped_germline_frameshift_insertion():
+    """IMGT-gapped germline with a period at position 5"""
+    return "AT.GCA.TGC"
 
 
-def test_json_formatted():
-    # test json_formatted property with in-frame insertion
-    indel = Insertion(
-        {
-            "len": 3,
-            "pos": 10,
-            "seq": "ATC",
-            "fixed": True,
-            "in frame": True,
-        }
-    )
-    assert indel.json_formatted == {
-        "in_frame": "yes",
-        "length": 3,
-        "sequence": "ATC",
-        "position": "11",
-        "codon": None,
-    }
-
-    # test json_formatted property with out-of-frame insertion
-    indel = Insertion(
-        {
-            "len": 3,
-            "pos": 10,
-            "seq": "ATC",
-            "fixed": True,
-            "in frame": False,
-        }
-    )
-    assert indel.json_formatted == {
-        "in_frame": "no",
-        "length": 3,
-        "sequence": "ATC",
-        "position": "11",
-        "codon": None,
-    }
+@pytest.fixture
+def aligned_sequence_single_deletion():
+    """Sequence with a single deletion at position 5 (deletion of T)"""
+    return "ATGCAGC"
 
 
-# ----------------------------
-#      Deletion class
-# ----------------------------
+@pytest.fixture
+def aligned_germline_single_deletion():
+    """Germline with a character at the deletion position"""
+    return "ATGCATGC"
 
 
-def test_init():
-    # test initialization with all fields
-    indel = Deletion(
-        {
-            "len": 3,
-            "pos": 10,
-            "seq": "ATC",
-            "fixed": True,
-            "in frame": "yes",
-        }
-    )
-    assert indel.length == 3
-    assert indel.raw_position == 10
-    assert indel.sequence == "ATC"
-    assert indel.fixed is True
-    assert indel.in_frame == "yes"
-    assert indel.imgt_position is None
-    assert indel.imgt_codon is None
-    assert indel.type == "deletion"
-
-    # test initialization with some fields missing
-    indel = Deletion(
-        {
-            "len": 3,
-            "seq": "ATC",
-        }
-    )
-    assert indel.length == 3
-    assert indel.raw_position is None
-    assert indel.sequence == "ATC"
-    assert indel.fixed is None
-    assert indel.in_frame is None
-    assert indel.imgt_position is None
-    assert indel.imgt_codon is None
-    assert indel.type == "deletion"
+@pytest.fixture
+def gapped_germline_single_deletion():
+    """IMGT-gapped germline"""
+    return "AT.GCATGC"
 
 
-def test_imgt_formatted():
-    # test imgt_formatted property with single nucleotide deletion
-    indel = Deletion(
-        {
-            "len": 1,
-            "pos": 10,
-            "seq": "A",
-            "fixed": True,
-            "in frame": True,
-        }
-    )
-    assert indel.imgt_formatted == "a10del#"
-
-    # test imgt_formatted property with multi-nucleotide deletion
-    indel = Deletion(
-        {
-            "len": 3,
-            "pos": 10,
-            "seq": "ATC",
-            "fixed": True,
-            "in frame": False,
-        }
-    )
-    assert indel.imgt_formatted == "a10-t12del(3nt)#"
+@pytest.fixture
+def aligned_sequence_multi_deletion():
+    """Sequence with multiple deletions: positions 5-6 (deletion of TG)"""
+    return "ATGCA--C"
 
 
-def test_abstar_formatted():
-    # test abstar_formatted property with single nucleotide deletion
-    indel = Deletion(
-        {
-            "len": 1,
-            "pos": 10,
-            "seq": "A",
-            "fixed": True,
-            "in frame": False,
-        }
-    )
-    assert indel.abstar_formatted == "10:1>!A"
-
-    # test abstar_formatted property with multi-nucleotide deletion
-    indel = Deletion(
-        {
-            "len": 3,
-            "pos": 10,
-            "seq": "ATC",
-            "fixed": True,
-            "in frame": True,
-        }
-    )
-    assert indel.abstar_formatted == "10-12:3>ATC"
+@pytest.fixture
+def aligned_germline_multi_deletion():
+    """Germline with characters at the deletion positions"""
+    return "ATGCATGC"
 
 
-def test_json_formatted():
-    # test json_formatted property with single nucleotide deletion
-    indel = Deletion(
-        {
-            "len": 1,
-            "pos": 10,
-            "seq": "A",
-            "fixed": True,
-            "in frame": True,
-        }
-    )
-    assert indel.json_formatted == {
-        "in_frame": "yes",
-        "length": 1,
-        "sequence": "A",
-        "position": "10",
-        "codon": None,
-    }
-
-    # test json_formatted property with multi-nucleotide deletion
-    indel = Deletion(
-        {
-            "len": 3,
-            "pos": 10,
-            "seq": "ATC",
-            "fixed": True,
-            "in frame": False,
-        }
-    )
-    assert indel.json_formatted == {
-        "in_frame": "no",
-        "length": 3,
-        "sequence": "ATC",
-        "position": "10-12",
-        "codon": None,
-    }
+@pytest.fixture
+def gapped_germline_multi_deletion():
+    """IMGT-gapped germline"""
+    return "AT.GCATGC"
 
 
-# ----------------------------
-#     find_insertions
-# ----------------------------
+@pytest.fixture
+def aligned_sequence_frameshift_deletion():
+    """Sequence with a frameshift deletion (single nucleotide)"""
+    return "ATGCA-GC"
 
 
-def test_find_insertions():
-    # test with no insertions
-    segment = GermlineSegment(
-        realignment=None,
+@pytest.fixture
+def aligned_germline_frameshift_deletion():
+    """Germline with character at the frameshift deletion position"""
+    return "ATGCATGC"
+
+
+@pytest.fixture
+def gapped_germline_frameshift_deletion():
+    """IMGT-gapped germline"""
+    return "AT.GCATGC"
+
+
+# =============================================
+#             INSERTION TESTS
+# =============================================
+
+
+def test_annotate_insertions_no_insertions(
+    aligned_sequence_no_indels,
+    aligned_germline_no_indels,
+    gapped_germline_no_indels,
+):
+    result = annotate_insertions(
+        aligned_sequence=aligned_sequence_no_indels,
+        aligned_germline=aligned_germline_no_indels,
+        gapped_germline=gapped_germline_no_indels,
         germline_start=0,
-        germline_end=4,
-        query_start=0,
-        query_end=4,
-        query_sequence="ATCG",
-        germline_sequence="ATCG",
     )
-    antibody = Antibody(segment.query_sequence)
-    insertions = find_insertions(antibody, segment)
-    assert insertions is None
+    assert result == ""
 
-    # test with a single codon-length insertion
-    segment = GermlineSegment(
-        realignment=None,
+
+def test_annotate_insertions_single_insertion(
+    aligned_sequence_single_insertion,
+    aligned_germline_single_insertion,
+    gapped_germline_single_insertion,
+):
+    result = annotate_insertions(
+        aligned_sequence=aligned_sequence_single_insertion,
+        aligned_germline=aligned_germline_single_insertion,
+        gapped_germline=gapped_germline_single_insertion,
         germline_start=0,
-        germline_end=4,
-        query_start=0,
-        query_end=7,
-        query_sequence="ATCGTCTA",
-        germline_sequence="ATCGA",
     )
-    antibody = Antibody(segment.query_sequence)
-    insertions = find_insertions(antibody, segment)
-    assert len(insertions) == 1
-    assert insertions[0].raw_position == 4
-    assert insertions[0].length == 3
-    assert insertions[0].sequence == "TCT"
-    assert insertions[0].fixed is False
-    assert insertions[0].in_frame == "yes"
+    assert result == "5:3>GGG"
 
-    # test with a single frameshift insertion
-    segment = GermlineSegment(
-        realignment=None,
+
+def test_annotate_insertions_multi_insertion(
+    aligned_sequence_multi_insertion,
+    aligned_germline_multi_insertion,
+    gapped_germline_multi_insertion,
+):
+    result = annotate_insertions(
+        aligned_sequence=aligned_sequence_multi_insertion,
+        aligned_germline=aligned_germline_multi_insertion,
+        gapped_germline=gapped_germline_multi_insertion,
         germline_start=0,
-        germline_end=4,
-        query_start=0,
-        query_end=8,
-        query_sequence="ATCGTCTGA",
-        germline_sequence="ATCGTTGA",
     )
-    antibody = Antibody(segment.query_sequence)
-    insertions = find_insertions(antibody, segment)
-    assert len(insertions) == 1
-    assert insertions[0].raw_position == 4
-    assert insertions[0].length == 3
-    assert insertions[0].sequence == "TCT"
-    assert insertions[0].fixed is True
-    assert insertions[0].in_frame == "no"
+    assert "5:3>GGG" in result
+    assert "10:2>AA" in result
+    assert "|" in result  # Separator for multiple insertions
+    assert result.count("|") == 1  # Only one separator
 
 
-def test_annotate_insertion():
-    # test with a codon-length insertion
-    insertion = _annotate_insertion(None, 4, 3, "TCT")
-    assert insertion.raw_position == 4
-    assert insertion.length == 3
-    assert insertion.sequence == "TCT"
-    assert insertion.fixed is False
-    assert insertion.in_frame == "yes"
-
-    # test with a non-codon-length insertion
-    insertion = _annotate_insertion(None, 4, 2, "TC")
-    assert insertion.raw_position == 4
-    assert insertion.length == 2
-    assert insertion.sequence == "TC"
-    assert insertion.fixed is False
-    assert insertion.in_frame == "no"
-
-
-def test_fix_frameshift_insertion():
-    # test with a frameshift deletion
-    segment = GermlineSegment(
-        realignment=None,
+def test_annotate_insertions_frameshift(
+    aligned_sequence_frameshift_insertion,
+    aligned_germline_frameshift_insertion,
+    gapped_germline_frameshift_insertion,
+):
+    result = annotate_insertions(
+        aligned_sequence=aligned_sequence_frameshift_insertion,
+        aligned_germline=aligned_germline_frameshift_insertion,
+        gapped_germline=gapped_germline_frameshift_insertion,
         germline_start=0,
-        germline_end=4,
-        query_start=0,
-        query_end=2,
-        query_sequence="ATACG",
-        germline_sequence="ATCG",
     )
-    antibody = Antibody(segment.query_sequence)
-    _fix_frameshift_insertion(antibody, segment, 2, 3)
-    assert segment.query_alignment == "ATCG"
-    assert segment.alignment_midline == "||||"
-    assert antibody.oriented_input.sequence == "ATCG"
+    assert result == "5:1>A!"  # Note the ! marking frameshift
 
 
-# ----------------------------
-#    find_deletions
-# ----------------------------
+def test_annotate_insertions_germline_offset(
+    aligned_sequence_single_insertion,
+    aligned_germline_single_insertion,
+    gapped_germline_single_insertion,
+):
+    """Test with non-zero germline_start parameter"""
+    result = annotate_insertions(
+        aligned_sequence=aligned_sequence_single_insertion,
+        aligned_germline=aligned_germline_single_insertion,
+        gapped_germline="AAAAAAAAAA" + gapped_germline_single_insertion,
+        germline_start=10,  # Offset the germline start
+    )
+    assert result == "15:3>GGG"  # Position should be offset by 10
 
 
-def test_find_deletions():
-    # test with no deletions
-    segment = GermlineSegment(
-        realignment=None,
+# =============================================
+#              DELETION TESTS
+# =============================================
+
+
+def test_annotate_deletions_no_deletions(
+    aligned_sequence_no_indels,
+    aligned_germline_no_indels,
+    gapped_germline_no_indels,
+):
+    result = annotate_deletions(
+        aligned_sequence=aligned_sequence_no_indels,
+        aligned_germline=aligned_germline_no_indels,
+        gapped_germline=gapped_germline_no_indels,
         germline_start=0,
-        germline_end=4,
-        query_start=0,
-        query_end=4,
-        query_sequence="ATCG",
-        germline_sequence="ATCG",
     )
-    antibody = Antibody(segment.query_sequence)
-    deletions = find_deletions(antibody, segment)
-    assert deletions is None
+    assert result == ""
 
-    # test with a single codon-length deletion
-    segment = GermlineSegment(
-        realignment=None,
+
+def test_annotate_deletions_single_deletion(
+    aligned_sequence_single_deletion,
+    aligned_germline_single_deletion,
+    gapped_germline_single_deletion,
+):
+    # Assuming the sequence has a deletion at position 5 (T)
+    result = annotate_deletions(
+        aligned_sequence="ATGCA-GC",  # Explicit dash to mark deletion
+        aligned_germline=aligned_germline_single_deletion,
+        gapped_germline=gapped_germline_single_deletion,
         germline_start=0,
-        germline_end=4,
-        query_start=0,
-        query_end=3,
-        query_sequence="ATC",
-        germline_sequence="ATCG",
     )
-    antibody = Antibody(segment.query_sequence)
-    deletions = find_deletions(antibody, segment)
-    assert len(deletions) == 1
-    assert deletions[0].raw_position == 3
-    assert deletions[0].length == 1
-    assert deletions[0].sequence == "G"
-    assert deletions[0].fixed is False
-    assert deletions[0].in_frame == "yes"
+    assert result == "7:1>T!"
 
-    # test with a single frameshift deletion
-    segment = GermlineSegment(
-        realignment=None,
+
+def test_annotate_deletions_multi_deletion(
+    aligned_germline_multi_deletion,
+    gapped_germline_multi_deletion,
+):
+    # Using explicit sequence with dashes to ensure proper alignment
+    result = annotate_deletions(
+        aligned_sequence="ATGCA--C",  # Two consecutive deletions
+        aligned_germline=aligned_germline_multi_deletion,
+        gapped_germline=gapped_germline_multi_deletion,
         germline_start=0,
-        germline_end=4,
-        query_start=0,
-        query_end=2,
-        query_sequence="AT",
-        germline_sequence="ATCG",
     )
-    antibody = Antibody(segment.query_sequence)
-    deletions = find_deletions(antibody, segment)
-    assert len(deletions) == 1
-    assert deletions[0].raw_position == 2
-    assert deletions[0].length == 2
-    assert deletions[0].sequence == "CG"
-    assert deletions[0].fixed is True
-    assert deletions[0].in_frame == "no"
+    assert result == "7-8:2>TG!"
 
 
-def test_annotate_deletion():
-    # test with a codon-length deletion
-    deletion = _annotate_deletion(None, 3, 1, "G")
-    assert deletion.raw_position == 3
-    assert deletion.length == 1
-    assert deletion.sequence == "G"
-    assert deletion.fixed is False
-    assert deletion.in_frame == "yes"
-
-    # test with a frameshift deletion
-    deletion = _annotate_deletion(None, 2, 2, "CG", fixed=True)
-    assert deletion.raw_position == 2
-    assert deletion.length == 2
-    assert deletion.sequence == "CG"
-    assert deletion.fixed is True
-    assert deletion.in_frame == "no"
-
-
-def test_fix_frameshift_deletion():
-    # test with a frameshift deletion
-    segment = GermlineSegment(
-        realignment=None,
+def test_annotate_deletions_frameshift(
+    aligned_germline_frameshift_deletion,
+    gapped_germline_frameshift_deletion,
+):
+    # Using explicit sequence with dashes to ensure proper alignment
+    result = annotate_deletions(
+        aligned_sequence="ATGCA-GC",  # Single deletion causing frameshift
+        aligned_germline=aligned_germline_frameshift_deletion,
+        gapped_germline=gapped_germline_frameshift_deletion,
         germline_start=0,
-        germline_end=4,
-        query_start=0,
-        query_end=2,
-        query_sequence="ATG",
-        germline_sequence="ATCG",
     )
-    antibody = Antibody(segment.query_sequence)
-    _fix_frameshift_deletion(antibody, segment, 2, 3)
-    assert segment.query_alignment == "ATCG"
-    assert segment.alignment_midline == "||||"
-    assert antibody.oriented_input.sequence == "ATCG"
+    assert result == "7:1>T!"  # Note the ! marking frameshift
+
+
+def test_annotate_deletions_germline_offset(
+    aligned_germline_single_deletion,
+    gapped_germline_single_deletion,
+):
+    """Test with non-zero germline_start parameter"""
+    result = annotate_deletions(
+        aligned_sequence="ATGCA-GC",  # Explicit dash to mark deletion
+        aligned_germline=aligned_germline_single_deletion,
+        gapped_germline="AAAAAAAAAA" + gapped_germline_single_deletion,
+        germline_start=10,  # Offset the germline start
+    )
+    assert result == "17:1>T!"  # Position should be offset by 10
+
+
+def test_annotate_deletions_in_frame_deletion(
+    aligned_germline_multi_deletion,
+    gapped_germline_multi_deletion,
+):
+    # Using a sequence with a 3-nucleotide deletion (in-frame)
+    result = annotate_deletions(
+        aligned_sequence="ATG---GC",  # 3-nucleotide deletion
+        aligned_germline="ATGCATGC",  # Original germline
+        gapped_germline=gapped_germline_multi_deletion,
+        germline_start=0,
+    )
+    assert result == "5-7:3>CAT"  # Should be in-frame (no ! mark)
+
+
+def test_annotate_multiple_scattered_deletions():
+    """Test multiple deletions that are not adjacent"""
+    result = annotate_deletions(
+        aligned_sequence="A-GC-TGC",  # Deletions at positions 1 and 4
+        aligned_germline="ATGCATGC",
+        gapped_germline="ATGCATGC",
+        germline_start=0,
+    )
+    assert "2:1>T!" in result  # First deletion
+    assert "5:1>A!" in result  # Second deletion
+    assert "|" in result  # Separator
+    assert result.count("|") == 1  # One separator for two deletions
+
+
+# =============================================
+#           COMBINED/EDGE CASE TESTS
+# =============================================
+
+
+def test_annotate_insertions_with_empty_strings():
+    """Test with empty strings to ensure graceful handling"""
+    result = annotate_insertions(
+        aligned_sequence="",
+        aligned_germline="",
+        gapped_germline="",
+        germline_start=0,
+    )
+    assert result == ""
+
+
+def test_annotate_deletions_with_empty_strings():
+    """Test with empty strings to ensure graceful handling"""
+    result = annotate_deletions(
+        aligned_sequence="",
+        aligned_germline="",
+        gapped_germline="",
+        germline_start=0,
+    )
+    assert result == ""
+
+
+def test_annotate_insertions_complex_case():
+    """Test a more complex case with multiple insertions of varying lengths"""
+    result = annotate_insertions(
+        aligned_sequence="ATGCAGGGCATAACC",
+        aligned_germline="ATGCA---CAT--CC",
+        gapped_germline="ATGCA...C..AT..CC",
+        germline_start=0,
+    )
+    assert "5:3>GGG" in result
+    assert "13:2>AA" in result
+    assert result.count("|") == 1  # One separator for two insertions
+
+
+def test_annotate_deletions_complex_case():
+    """Test a more complex case with multiple deletions of varying lengths"""
+    result = annotate_deletions(
+        aligned_sequence="AT--A-G--C",
+        aligned_germline="ATGCATGAGC",
+        gapped_germline="ATGCATGAGC",
+        germline_start=0,
+    )
+    assert "3-4:2>GC" in result  # First deletion (2 nucleotides)
+    assert "6:1>T" in result  # Second deletion (1 nucleotide)
+    assert "8-9:2>AG" in result  # Third deletion (2 nucleotides)
+    assert result.count("|") == 2  # Two separators for three deletions

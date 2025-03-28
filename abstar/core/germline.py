@@ -22,945 +22,834 @@
 #
 
 
-from __future__ import absolute_import, division, print_function, unicode_literals
-
-import math
+import datetime
+import difflib
+import json
 import os
-import traceback
+import shutil
+import subprocess as sp
+import sys
+from concurrent.futures import ThreadPoolExecutor
 from typing import Iterable, Optional, Union
 
+# from weakref import ref
+import abutils
 import parasail
-from abutils.core.sequence import Sequence
-from abutils.utils.alignment import global_alignment, local_alignment
-from abutils.utils.codons import codon_lookup
-from abutils.utils.decorators import lazy_property
-from Bio import SeqIO
-from Bio.Seq import Seq
+from abutils import Sequence
 
-from ..utils import indels
-from ..utils.mixins import LoggingMixin
+# import click
+# from natsort import natsorted
+# from networkx import max_flow_min_cost
+from tqdm.auto import tqdm
 
-# from .antibody import Antibody
+from ..gl import get_germline, get_germline_database_path
+from ..utils import MATRIX_PATH
+
+__all__ = ["build_germline_database"]
+
+# ===============================
+#
+#   CUSTOM GERMLINE DATABASES
+#
+# ===============================
 
 
-class GermlineSegment(LoggingMixin):
+#  TODO: inputs/returns
+#  --------------------
+#
+#  - inputs
+#    - one or more FASTA or JSON files containing VDJ gene segments
+#       - probably easiest to use a separate command-line flag for each file type that can be used multiple times -- "-f" for FASTA and "-j" for JSON
+#       - no requirement for homogeneity of gene segments in the input files -- it doesn't have to be one file for V, one for J, etc
+#       - combining heterogeneity with multiple JSON/FASTA files should make it much easier to build multi-species databases
+#    - separate FASTA file(s) containing constant regions (since D genes and IgD genes both start with "IGHD")
+#       - no need to support JSON at this point, because OGRDB doesn't have constant regions (yet)
+#       - should be able to use a single flag that can be used multiple times -- "-c"?
+#    - should also copy the unprocessed input data into a subdirectory ("raw"?) so that it's linked to the resulting germline database
+#
+
+
+#  TODO: overall workflow
+#  ----------------------
+#
+#  - set up directory structure
+#    - user provides a "project path" and we make tmp, log and output (airr and/or parquet) directories within it
+#
+#  - preprocessing steps
+#    - for now, just sequence merging for paired FASTQ inputsm but maybe primer/adapter trimming for FASTA inputs in the future?
+#    - all samples are processed before proceeding to assignment
+#    - results get deposited in project/merged
+#
+#  - VDJC assignment
+#    - processes an entire input/merged file in a single job (thanks, MMseqs!)
+#    - output is a single parquet file, deposited in project/tmp/assignment
+#    - log failed assignments in project/logs/assignment as a single txt file per sample
+#
+#  - split the assignment output into job files
+#    - deposited in project/tmp/assignment
+#    - once the splitting is done, should call cleanup() on the assigner to remove tmp files that are no longer needed
+#
+#  - annotation
+#    - annotation jobs run in parallel (multiprocessing)
+#    - outputs are deposited in project/tmp/annotation
+#    - log failed annotations (and successful annotations, if debug=True) as separate failed/succeeeded files in project/log/annotation
+#    - temporary output and log files are collected into separate lists so they can be merged and then deleted.
+#
+#  - create outputs
+#    - concat output files (using polars) and write to single tsv (AIRR) and/or parquet files in project/airr and project/parquet
+#    - concatenate log files into single failed/succeeded text files in project/logs/annotation
+#    - remove all of the temporary output and log files
+
+
+def build_germline_database(
+    name: str,
+    fastas: Optional[Union[str, Iterable[str]]] = None,
+    jsons: Optional[Union[str, Iterable[str]]] = None,
+    constants: Optional[Union[str, Iterable[str]]] = None,
+    receptor: str = "bcr",
+    manifest: Optional[str] = None,
+    include_species_in_name: bool = True,
+    location: Optional[str] = None,
+    reference: str = "human",
+    verbose: bool = True,
+    debug: bool = False,
+) -> None:
     """
-    docstring for Germline
+    Builds a custom germline database.
 
     Parameters
     ----------
-    raw : str
-        Raw germline assignment, which includes the species name.
+    name : str
+        The name of the germline database. This will be how the database can be invoked when running ``abstar``.
 
-    species : str
-        Species from which the germline gene was derived. Choices include
-        'human', 'macaque', mouse', rabbit'.
+        .. warning::
+            Although custom databases are stored in a different location than built-in databases (and thus will not actually
+            overwrite them on disk), custom databases are given priority over built-in databases when running ``abstar``.
+            This means that a custom database named ``human`` will be used instead of the built-in ``human`` database.
 
-    db_name : str
-        Name of the germline database, as a string.
+    fastas : str | Iterable[str], optional
+        The path to the FASTA file(s) containing the VDJ segments, either as a single file or a list of files.
+
+    jsons : str | Iterable[str], optional
+        The path to the JSON file(s) containing the VDJ segments, either as a single file or a list of files.
+
+    constants : str | Iterable[str], optional
+        The path to the FASTA file containing the constant regions, either as a single file or a list of files.
+
+    receptor : str, default: "bcr"
+        The type of receptor to build the database for.
+
+    manifest : str, optional
+        The path to the manifest file containing the metadata for the germline database.
+
+    include_species_in_name : bool, default: True
+        Whether to include the species name in the database name.
+
+    location : str, optional
+        The location of the germline database.
+
+    reference : str, default: "human"
+        The reference species to use for adding IMGT gaps. Only used if ungapped VDJ sequences are provided.
+
+    verbose : bool, default: True
+        Whether to print verbose output.
+
+    debug : bool, default: False
+        Whether to print debug output.
+
+    Returns
+    -------
+    None
+        The function does not return anything.
+
+    """
+    gapped_vdjs = []
+    gapped_constants = []
+
+    # set up database directory structure
+    database_dir = get_database_directory(location, receptor)
+    if check_for_existing_db(name, receptor, database_dir):
+        confirm_overwrite_existing_db(name)
+    database_dir = os.path.join(database_dir, name.lower())
+    sub_dirs = make_db_directories(database_dir)
+    raw_dir = sub_dirs["raw"]
+    gapped_dir = sub_dirs["imgt_gapped"]
+    ungapped_dir = sub_dirs["ungapped"]
+    mmseqs_dir = sub_dirs["mmseqs"]
+
+    # process FASTA-formatted VDJ segments
+    if fastas:
+        if verbose:
+            print("processing FASTA-formatted VDJ segments")
+        if isinstance(fastas, str):
+            fastas = [fastas]
+        for fasta in fastas:
+            if not os.path.isfile(fasta):
+                raise FileNotFoundError(f"The file {fasta} does not exist.")
+            copy_to_raw(fasta, raw_dir)
+            sequences = process_fasta(
+                fasta_file=fasta, include_species_in_name=include_species_in_name
+            )
+            gapped_vdjs.extend(sequences)
+
+    # process JSON-formatted VDJ segments
+    if jsons:
+        if verbose:
+            print("processing JSON-formatted VDJ segments")
+        if isinstance(jsons, str):
+            jsons = [jsons]
+        for _json in jsons:
+            if not os.path.isfile(_json):
+                raise FileNotFoundError(f"The file {_json} does not exist.")
+            copy_to_raw(_json, raw_dir)
+            sequences = process_json(
+                _json, include_species_in_name=include_species_in_name
+            )
+            gapped_vdjs.extend(sequences)
+
+    # add IMGT gapps (if they don't already exist)
+    gapped_vdjs = add_imgt_gaps(gapped_vdjs, reference=reference)
+
+    # process FASTA-formatted constant regions
+    if constants:
+        if verbose:
+            print("processing FASTA-formatted constant regions")
+        if isinstance(constants, str):
+            constants = [constants]
+        for constant in constants:
+            if not os.path.isfile(constant):
+                raise FileNotFoundError(f"The file {constant} does not exist.")
+            copy_to_raw(constant, raw_dir)
+            sequences = process_fasta(
+                fasta_file=constant, include_species_in_name=False
+            )
+            gapped_constants.extend(sequences)
+
+    # IMGT-gapped database
+    if verbose:
+        print("")
+        print("building IMGT-gapped database")
+    make_fasta_dbs(
+        vdjs=gapped_vdjs,
+        constants=gapped_constants,
+        database_dir=gapped_dir,
+        verbose=verbose,
+    )
+
+    # ungapped database
+    if verbose:
+        print("")
+        print("building ungapped database")
+    ungapped_vdjs = [
+        Sequence(s.sequence.replace(".", ""), id=s.id) for s in gapped_vdjs
+    ]
+    ungapped_constants = [
+        Sequence(s.sequence.replace(".", ""), id=s.id) for s in gapped_constants
+    ]
+    make_fasta_dbs(
+        vdjs=ungapped_vdjs,
+        constants=ungapped_constants,
+        database_dir=ungapped_dir,
+        verbose=verbose,
+    )
+
+    # MMseqs database
+    if verbose:
+        print("")
+        print("building MMseqs database")
+    make_mmseqs_dbs(
+        database_dir=mmseqs_dir,
+        ungapped_dir=ungapped_dir,
+        verbose=verbose,
+        debug=debug,
+    )
+
+    # manifest
+    if manifest is not None:
+        if verbose:
+            print("")
+            print("transferring manifest data")
+        transfer_manifest_data(manifest, database_dir)
+
+
+def add_imgt_gaps(
+    germlines: abutils.Sequence | Iterable[abutils.Sequence], reference: str = "human"
+) -> Iterable[abutils.Sequence]:
+    """
+    Add IMGT gaps to germline sequences.
+
+    Parameters
+    ----------
+    germlines : abutils.Sequence | Iterable[abutils.Sequence]
+        The germline sequences to add IMGT gaps to.
+
+        .. note::
+            Gaps are only added to V genes. D and J genes are always returned unchanged.
+
+    reference : str, default: "human"
+        The reference species to use for the IMGT gaps.
+
+    Returns
+    -------
+    Iterable[abutils.Sequence]
+        The germline sequences with IMGT gaps added. If any of the V gene sequences already
+        have gaps, all sequences are returned unchanged.
+
+    """
+    if isinstance(germlines, abutils.Sequence):
+        germlines = [germlines]
+    # check for gaps -- if they're present, return the gapped sequences
+    vgenes = [g for g in germlines if g.id[3] == "V"]
+    others = [g for g in germlines if g.id[3] != "V"]
+    if any(["." in v.sequence for v in vgenes]):
+        return germlines
+
+    # get IMGT-gapped germline V genes
+    germs = get_germline("IGHV", germdb_name=reference, imgt_gapped=True)
+
+    # build parasail matrix that more heavily penalizes mismatches to gaps
+    matrix_file = os.path.join(MATRIX_PATH, "imgt_gapped.txt")
+    matrix = parasail.Matrix(matrix_file)
+
+    # add IMGT gaps
+    gapped_vgenes = []
+    for ungapped in vgenes:
+        # find the best germline match
+        alns = abutils.tl.semiglobal_alignment(
+            ungapped, targets=germs, matrix=matrix, gap_open=-25
+        )
+        top_aln = alns[0]
+        # build the gapped sequence
+        gapped = ""
+        for q, t in zip(top_aln.aligned_query, top_aln.aligned_target):
+            if q == "-":
+                gapped += "."
+            else:
+                gapped += q
+        # remove trailing gaps, but keep any 5' gaps to preserve IMGT position information
+        while True:
+            if gapped[-1] == ".":
+                gapped = gapped[:-1]
+            else:
+                break
+        gapped_vgenes.append(abutils.Sequence(gapped, id=ungapped.id))
+    return gapped_vgenes + others
+
+
+# -------------------------
+#   GENERATING CUSTOM DATABASE FROM IgDiscover
+# -------------------------
+
+
+# def build_germdb_from_igdiscover(
+#     name: str,
+#     igdiscover_output: str,
+#     constants: Optional[str] = None,
+#     receptor: str = "bcr",
+#     species: str = "human",
+#     location: Optional[str] = None,
+#     verbose: bool = True,
+#     debug: bool = False,
+# ) -> None:
+#     """
+#     Builds a custom reference database using the output from IgDiscover
+
+#     """
+
+#     abutils.io.make_dir("/tmp/refs")
+
+#     origin = get_germline_database_path(receptor=receptor, germdb_name=species)
+#     shutil.copyfile(os.path.join(origin, "manifest.txt"), "/tmp/refs/manifest.txt")
+
+#     with open("/tmp/refs/manifest.txt", "a") as f:
+#         f.write("\n\n")
+#         f.write("/!\\ CUSTOMIZED REFERENCE SPECIFIC TO DONOR /!\\\n\n")
+#         f.write("Custom database modified with IgDiscover output\n")
+#         f.write(f"Donor identifier: {name}\n")
+#         f.write(f"Database created on {str(datetime.date.today())}\n")
+
+#     files = abutils.io.list_files(igdiscover_output, extension="fasta")
+#     for file_in in files:
+#         filename = os.path.basename(file_in).lower()
+#         file_out = os.path.join("/tmp/refs/", filename)
+
+#         if "v" in filename:  # We only need to gap the V gene file
+#             gapped_sequences = []
+#             sequences = abutils.io.read_fasta(file_in)
+#             v_refs = abutils.io.read_fasta(
+#                 os.path.join(origin, "imgt_gapped", "v.fasta")
+#             )
+#             v_refs_hyphen = [
+#                 Sequence(s.sequence.replace(".", "-"), id=s.id) for s in v_refs
+#             ]
+
+#             with ThreadPoolExecutor() as executor:
+#                 if verbose:
+#                     gapped_sequences = list(
+#                         tqdm(
+#                             executor.map(
+#                                 lambda seq: pairwise_gap_sequence(
+#                                     seq, v_refs_hyphen, verbose=verbose
+#                                 ),
+#                                 sequences,
+#                             ),
+#                             desc="Gapping new sequences...",
+#                             total=len(sequences),
+#                         )
+#                     )
+
+#                 else:
+#                     gapped_sequences = list(
+#                         executor.map(
+#                             lambda seq: pairwise_gap_sequence(
+#                                 seq, v_refs_hyphen, verbose=verbose
+#                             ),
+#                             sequences,
+#                         ),
+#                     )
+
+#             with open(file_out, "w") as f:
+#                 for s in gapped_sequences:
+#                     f.write(s.fasta)
+#                     f.write("\n")
+
+#         else:  # D and J gene fils don't need to be gapped
+#             shutil.copyfile(file_in, file_out)
+
+#     # Constant genes are never part of the IgDiscover output, hence they need to be imported
+#     if constants == None:
+#         shutil.copyfile(
+#             os.path.join(origin, "imgt_gapped", "c.fasta"), "/tmp/refs/c.fasta"
+#         )
+
+#     fastas = abutils.io.list_files("/tmp/refs/", extension="fasta")
+
+#     # Building the germline_database using prepared files
+#     build_germline_database(
+#         name=name,
+#         fastas=fastas,
+#         constants=constants,
+#         receptor=receptor,
+#         manifest="/tmp/refs/manifest.txt",
+#         include_species_in_name=False,
+#         location=location,
+#         verbose=verbose,
+#         debug=debug,
+#     )
+
+#     if not debug:
+#         shutil.rmtree("/tmp/refs")
+
+#     return
+
+
+# # def gap_sequence(sequence, reference, gaps='.'):
+# #     to_align = [sequence, ] + reference
+# #     aln = abutils.tools.alignment.mafft(sequences = to_align, mafft_bin='mafft')
+# #     gapped_seq = [s for s in aln if s.id == sequence.id][0].sequence.replace("-", gaps)
+# #     gapped = Sequence(gapped_seq, id=sequence.id)
+
+# #     return gapped
+
+
+# def pairwise_gap_sequence(sequence, references, gaps=".", verbose=False):
+#     gene_name = sequence.id.split("_")[0]
+
+#     # Getting the correct reference gene from IMGT to gap new sequence
+#     try:
+#         reference = [s for s in references if s.id == gene_name][0]
+#     except:
+#         match = difflib.get_close_matches(
+#             gene_name, [r.id for r in references], n=1, cutoff=0.6
+#         )[0]
+#         if verbose:
+#             print(
+#                 f"No exact match for {gene_name}. Using {match} to perform alignement..."
+#             )
+#         reference = [s for s in references if s.id == match][0]
+
+#     # Performing the alignment
+#     aln = abutils.aln.semiglobal_alignment(
+#         query=sequence, target=reference, mismatch=-5
+#     )
+#     gapped_seq = aln.aligned_query.replace("-", gaps)
+#     gapped = Sequence(gapped_seq, id=sequence.id)
+
+#     return gapped
+
+
+# -------------------------
+#   DATABASE DIRECTORIES
+# -------------------------
+
+
+def get_database_directory(receptor: str, db_location: Optional[str]) -> str:
+    """
+    Get the path to the receptor-level germline database directory.
+
+    Parameters
+    ----------
+    db_location : Optional[str]
+        The path to the addon directory. If not provided, the default location (~/.abstar/) will be used.
 
     receptor : str
-        Receptor name. Options are ``"bcr"`` and ``"tcr"``.
+        The receptor type.
 
-    score : int or float, default=None
-        Score of the top germline alignment. Optional. If ``score`` is not
-        provided, the realignment score will be used instead.
-
-    strand : str, default=None
-        Strand of the alignment. Options are ``'+'`` for the positive strand
-        (meaning the germline gene and the query sequence are in the same orientation)
-        or ``'-'`` for the negative strand (query sequence is the reverse complement of
-        the germline gene).
-
-    others : list(GermlineSegment), default=None
-        A list of additional high scoring germline genes. Each element of the list
-        should be a ``GermlineSegment``.
-
-    assigner_name : str, default=None
-        The assigner name. Will be converted to lowercase. If not provided,
-        `assigner_name` will be set to ``'unknown'``.
-
-    initialize_log : bool, default=True
-        Whether or not to initialize logging.
+    Returns
+    -------
+    str
+        The path to the addon directory.
 
     """
-
-    def __init__(
-        self,
-        raw: str,
-        species: str,
-        db_name: str,
-        receptor: str,
-        score: Optional[Union[float, int]] = None,
-        strand: Optional[str] = None,
-        others: Optional[Iterable] = None,
-        assigner_name: Optional[str] = None,
-        initialize_log: bool = True,
-    ):
-        super(GermlineSegment, self).__init__()
-        LoggingMixin.__init__(self)
-        self.raw_assignment = raw
-        self.full = raw.split("__")[0]
-        self.species = species.lower()
-        self.db_name = db_name
-        self.receptor = receptor.lower()
-        self.assigner_score = score
-        self.strand = strand
-        self.others = others
-        self.gene_type = self.full[3].upper()
-        self.assigner = (
-            assigner_name.lower() if assigner_name is not None else "unknown"
+    if db_location is not None:
+        print("")
+        print(
+            "NOTE: You have selected a non-default location for the germline directory."
         )
-        self._family = None
-        self._gene = None
-        self._chain = None
+        string = "abstar only looks in the default location (~/.abstar/) for user-created germline databases, "
+        string += "so this database will not be used by abstar. The custom database location option is primarily "
+        string += "provided so that users can test the database creation process without overwriting existing databases.\n"
+        print(string)
+        database_dir = db_location
+    else:
+        database_dir = os.path.expanduser("~/.abstar/germline_dbs")
+    database_dir = os.path.join(database_dir, receptor.lower())
+    abutils.io.make_dir(database_dir)
+    return database_dir
 
-        # Optional properties for assigners to populate.
-        # If populated by an assigner, they will be used to
-        # force realignment to these parameters.
-        #
-        # Note that the query_start/query_end positions should
-        # be 0-indexed and apply to the full query sequence. So if the sequence
-        # is truncated following V-gene assignment and the truncated
-        # sequence is submitted for J-gene assignment, make sure to
-        # adjust the positions for the J-gene so that the numberings apply to
-        # the complete input sequence, not the truncated sequence that was
-        # used to identify the J-gene.
-        #
-        # Also note that because the end position of Python's slicing operator
-        # is exclusive, to get the aligned sequence from the oriented_input, you
-        # need to add one to the query_end (so that the slice includes query_end)
-        self.query_start = None
-        self.query_end = None
-        self.germline_start = None
-        self.germline_end = None
 
-        # initialize log
-        if initialize_log:
-            self.initialize_log()
+def check_for_existing_db(
+    name: str, receptor: str, location: Optional[str] = None
+) -> bool:
+    """
+    Check if a germline database already exists in the addon directory.
 
-        # These properties are populated by abstar.
-        # Assigners don't need to populate these (and they'll be overwritten
-        # by abstar if an assigner does populate them).
-        self.score = None
-        self.realignment = None
-        self.raw_query = None
-        self.raw_germline = None
-        self.query_alignment = None
-        self.germline_alignment = None
-        self.alignment_midline = None
-        self.alignment_length = None
-        self.alignment_reading_frame = None  # 0-based, so if alignment start is the start of a codon, reading frame will be 0
-        self.imgt_germline = None
-        self.imgt_gapped_alignment = None
-        self.imgt_nt_positions = []
-        self.imgt_aa_positions = []
-        self._imgt_position_from_raw = {}
-        self._raw_position_from_imgt = {}
-        self._initial_correct_imgt_nt_position_from_imgt = None
-        self._initial_correct_imgt_aa_position_from_imgt = None
-        self._correct_imgt_nt_position_from_imgt = None
-        self._correct_imgt_aa_position_from_imgt = None
-        self.fs_indel_adjustment = 0
-        self.nfs_indel_adjustment = 0
-        self.has_insertion = "no"
-        self.has_deletion = "no"
-        self._insertions = None
-        self._deletions = None
-        self.coding_region = None
-        self.aa_sequence = None
-        self.regions = None
+    Parameters
+    ----------
+    name : str
+        The name of the germline database.
 
-    @property
-    def family(self) -> Optional[str]:
-        if self._family is None:
-            if "-" in self.full:
-                self._family = self.full.split("-")[0]
-        return self._family
+    receptor : str
+        The receptor type.
 
-    @family.setter
-    def family(self, family: str):
-        self._family = family
+    location : Optional[str], default: None
+        The path to a non-standard directory that may contain the germline database.
 
-    @property
-    def gene(self) -> Optional[str]:
-        if self._gene is None:
-            if "*" in self.full:
-                self._gene = self.full.split("*")[0]
-        return self._gene
+    Returns
+    -------
+    bool
+        True if the germline database already exists, False otherwise.
 
-    @gene.setter
-    def gene(self, gene: str):
-        self._gene = gene
-
-    @property
-    def chain(self) -> Optional[str]:
-        if self._chain is None:
-            c = {
-                "H": "heavy",
-                "K": "kappa",
-                "L": "lambda",
-                "A": "alpha",
-                "B": "beta",
-                "G": "gamma",
-                "D": "delta",
-            }
-            self._chain = c.get(self.full[2], None)
-        return self._chain
-
-    @property
-    def insertions(self) -> Optional[Iterable]:
-        if self._insertions is None:
-            return []
-        return self._insertions
-
-    @insertions.setter
-    def insertions(self, insertions: Iterable):
-        self._insertions = insertions
-
-    @property
-    def deletions(self) -> Optional[Iterable]:
-        if self._deletions is None:
-            return []
-        return self._deletions
-
-    @deletions.setter
-    def deletions(self, deletions: Iterable):
-        self._deletions = deletions
-
-    def correct_imgt_nt_position_from_imgt(self, position: int) -> Optional[int]:
-        if self._correct_imgt_nt_position_from_imgt is not None:
-            p = self._correct_imgt_nt_position_from_imgt.get(position, None)
-            if p is not None:
-                return p
-        if self._initial_correct_imgt_nt_position_from_imgt is not None:
-            p = self._initial_correct_imgt_nt_position_from_imgt.get(position, None)
-            if p is not None:
-                return p
-        return None
-
-    def correct_imgt_aa_position_from_imgt(self, position: int) -> Optional[int]:
-        if self._correct_imgt_aa_position_from_imgt is not None:
-            p = self._correct_imgt_aa_position_from_imgt.get(position, None)
-            if p is not None:
-                return p
-        if self._initial_correct_imgt_aa_position_from_imgt is not None:
-            p = self._initial_correct_imgt_aa_position_from_imgt.get(position, None)
-            if p is not None:
-                return p
-        return None
-
-    def initialize_log(self):
-        log = []
-        log.append("GERMLINE: {}".format(self.full))
-        self._log = log
-
-    def realign_germline(
-        self,
-        antibody,
-        query_start: Optional[int] = None,
-        query_end: Optional[int] = None,
-    ) -> None:
-        """
-        Due to restrictions on the available scoring parameters in BLASTn, incorrect truncation
-        of the v-gene alignment can occur. This function re-aligns the query sequence with
-        the identified germline variable gene using more appropriate alignment parameters.
-
-        Parameters
-        ----------
-        antibody : Antibody
-            The ``Antibody`` object to which this ``GermlineSegment`` object is attached.
-
-        query_start: int, default=None
-            Position in the input sequence at which the re-alignment should start. If not provided,
-            the start of the input sequence is used.
-
-        query_end: int, default=None
-            Position in the input sequence at which the re-alignment should end. If not provided,
-            the end of the input sequence is used.
-
-        Returns
-        -------
-        None
-            The realigned germline segment is stored in the ``realignment`` attribute of the
-            ``GermlineSegment`` object.
-        """
-        oriented_input = antibody.oriented_input
-        germline_seq = self._get_germline_sequence_for_realignment(antibody)
-        if germline_seq is None:
-            antibody.log("GET GERMLINE SEQUENCE ERROR")
-            antibody.log("RAW ASSIGNMENT:", self.raw_assignment)
-            antibody.log("GERMLINE GENE:", self.full)
-        aln_params = self._realignment_scoring_params(self.gene_type)
-        # if the alignment start/end positions have been annotated by the assigner,
-        # force re-alignment using those parameters
-        if all(
-            [
-                x is not None
-                for x in [
-                    self.query_start,
-                    self.query_end,
-                    self.germline_start,
-                    self.germline_end,
-                ]
-            ]
-        ):
-            query = oriented_input.sequence[self.query_start : self.query_end]
-            germline = germline_seq[self.germline_start : self.germline_end]
-            alignment = global_alignment(query, germline, **aln_params)
-        # use local alignment to determine alignment start/end positions if
-        # they haven't already been determined by the assigner
-        else:
-            query = oriented_input.sequence[query_start:query_end]
-            if len(query) == 0:
-                antibody.log("GERMLINE REALIGNMENT ERROR: query sequence is empty")
-                antibody.log("REALIGNMENT QUERY SEQUENCE:", query)
-                antibody.log("QUERY START:", query_start)
-                antibody.log("QUERY END:", query_end)
-                return
-            alignment = local_alignment(query, germline_seq, **aln_params)
-            # fix for a fairly rare edge case where coincidental matching to 2-3 residues at the extreme
-            # 3' end of K/L germline V genes can result in incorrect identification of the
-            # end of the V gene region (making the called V region too long and, in some cases,
-            # extending beyond the junction and into FR4). What we do here is drop the last 2 nucleotides
-            # of the aligned germline and re-align to see whether that substantialy truncates the resulting
-            # alignment (by at least 2 additional nucleotides). If so, we use the new alignment instead.
-            if self.gene_type == "V" and self.chain in ["kappa", "lambda"]:
-                germline_trunc = germline_seq[: alignment.target_end - 2]
-                alignment2 = local_alignment(query, germline_trunc, **aln_params)
-                if alignment.query_end - alignment2.query_end >= 4:
-                    alignment2.raw_target = (
-                        alignment.raw_target
-                    )  # swap the truncated germline with the full one
-                    alignment = alignment2
-            # occasionally, a small number of mismatches can cause a sequence which encodes a
-            # complete germline gene region to be incorrectly truncated at the 5' end (V genes) or 3' end (J genes)
-            # this can cause a problem when synthesizing mAbs for recombinant expression, as the annotated VDJ
-            # sequence is incomplete
-            #
-            # here we check to see if the alignment was truncated and whether there are additional bases in the
-            # input sequence that should be included in the alignment
-            # if so, we force the alignment to extend to the entire germline gene region
-            if self.gene_type == "V":
-                if alignment.target_begin > 0:
-                    # the input sequence should contain at least enough truncated 5' residues to reach the
-                    # start of the germline V gene segment
-                    if alignment.query_begin >= alignment.target_begin:
-                        antibody.log("\nFORCING FULL-LENGTH V-GENE REALIGNMENT")
-                        antibody.log("ORIGINAL RAW QUERY:", alignment.raw_query)
-                        antibody.log("ORIGINAL RAW GERMLINE:", alignment.raw_target)
-                        antibody.log(
-                            "ORIGINAL ALIGNED QUERY: ", alignment.aligned_query
-                        )
-                        antibody.log(
-                            "ORIGINAL ALIGNED GERMLINE:", alignment.aligned_target
-                        )
-                        antibody.log("ORIGINAL QUERY START: ", alignment.query_begin)
-                        antibody.log("ORIGINAL QUERY END: ", alignment.query_end)
-                        antibody.log("ORIGINAL GERMLINE START:", alignment.target_begin)
-                        antibody.log("ORIGINAL GERMLINE END: ", alignment.target_end)
-                        antibody.log(
-                            "NUMBER OF TRUNCATED RESIDUES:", alignment.target_begin
-                        )
-
-                        trunc_length = alignment.target_begin
-                        # get the truncated portion of the query sequence
-                        # and prepend to the aligned query sequence
-                        query_truncation = alignment.raw_query[
-                            alignment.query_begin - trunc_length : alignment.query_begin
-                        ]
-                        new_aligned_query = query_truncation + alignment.aligned_query
-                        alignment.aligned_query = new_aligned_query
-                        # update the query start position
-                        q_begin = alignment.query_begin - trunc_length
-                        alignment.query_begin = q_begin
-                        # get the truncated portion of the target (germline) sequence
-                        # and prepend to the aligned target sequence
-                        target_truncation = alignment.raw_target[
-                            alignment.target_begin
-                            - trunc_length : alignment.target_begin
-                        ]
-                        new_aligned_target = (
-                            target_truncation + alignment.aligned_target
-                        )
-                        alignment.aligned_target = new_aligned_target
-                        # update the target (germline) start position
-                        t_begin = 0
-                        alignment.target_begin = t_begin
-
-                        antibody.log("NEW ALIGNED QUERY: ", alignment.aligned_query)
-                        antibody.log("NEW ALIGNED GERMLINE:", alignment.aligned_target)
-
-            if self.gene_type == "J":
-                if alignment.target_end + 1 < len(alignment.raw_target):
-                    # the input sequence should contain at least enough truncated 3' residues to reach the
-                    # end of the germline J gene segment
-                    query_truncation_length = len(alignment.raw_query) - (
-                        alignment.query_end + 1
-                    )
-                    target_truncation_length = len(alignment.raw_target) - (
-                        alignment.target_end + 1
-                    )
-                    if query_truncation_length >= target_truncation_length:
-                        antibody.log("\nFORCING FULL-LENGTH V-GENE REALIGNMENT")
-                        antibody.log("ORIGINAL RAW QUERY:", alignment.raw_query)
-                        antibody.log("ORIGINAL RAW GERMLINE:", alignment.raw_target)
-                        antibody.log(
-                            "ORIGINAL ALIGNED QUERY: ", alignment.aligned_query
-                        )
-                        antibody.log(
-                            "ORIGINAL ALIGNED GERMLINE:", alignment.aligned_target
-                        )
-                        antibody.log("ORIGINAL QUERY START: ", alignment.query_begin)
-                        antibody.log("ORIGINAL QUERY END: ", alignment.query_end)
-                        antibody.log("ORIGINAL GERMLINE START:", alignment.target_begin)
-                        antibody.log("ORIGINAL GERMLINE END: ", alignment.target_end)
-                        antibody.log(
-                            "NUMBER OF TRUNCATED RESIDUES:", target_truncation_length
-                        )
-
-                        # get the truncated portion of the query sequence
-                        # and append to the aligned query sequence
-                        query_truncation = alignment.raw_query[
-                            alignment.query_end + 1 : alignment.query_end
-                            + target_truncation_length
-                            + 1
-                        ]
-                        new_aligned_query = alignment.aligned_query + query_truncation
-                        alignment.aligned_query = new_aligned_query
-                        # update the query end position
-                        q_end = alignment.query_end + target_truncation_length
-                        alignment.query_end = q_end
-                        # get the truncated portion of the target (germline) sequence
-                        # and append to the aligned target sequence
-                        target_truncation = alignment.raw_target[
-                            alignment.target_end + 1 : alignment.target_end
-                            + target_truncation_length
-                            + 1
-                        ]
-                        new_aligned_target = (
-                            alignment.aligned_target + target_truncation
-                        )
-                        alignment.aligned_target = new_aligned_target
-                        # update the target (germline) end position
-                        t_end = alignment.target_end + target_truncation_length
-                        alignment.target_end = t_end
-
-                        antibody.log("NEW ALIGNED QUERY: ", alignment.aligned_query)
-                        antibody.log("NEW ALIGNED GERMLINE:", alignment.aligned_target)
-        if alignment:
-            self._process_realignment(antibody, alignment, query_start)
-        else:
-            antibody.log("GERMLINE REALIGNMENT ERROR")
-            antibody.log("REALIGNMENT QUERY SEQUENCE:", query)
-            antibody.log("QUERY START:", query_start)
-            antibody.log("QUERY END:", query_end)
-
-    def gapped_imgt_realignment(self):
-        """
-        Aligns to gapped IMGT germline sequence. Used to determine
-        IMGT-formatted position numberings so that identifying
-        antibody regions is simplified.
-        """
-        self.imgt_germline = get_imgt_germlines(
-            self.db_name,
-            gene_type=self.gene_type,
-            receptor=self.receptor,
-            gene=self.full,
-        )
-        query = self.germline_alignment.replace("-", "")
-        aln_params = self._realignment_scoring_params(self.gene_type)
-        aln_params["gap_open"] = -11
-        # aln_matrix = self._get_gapped_imgt_substitution_matrix()
-        self.imgt_gapped_alignment = local_alignment(
-            query,
-            self.imgt_germline.gapped_nt_sequence,
-            # matrix=aln_matrix,
-            **aln_params,
-        )
-        self.alignment_reading_frame = (
-            (2 * (self.imgt_gapped_alignment.target_begin % 3)) % 3
-        ) + (self.imgt_germline.coding_start - 1)  # IMGT coding start is 1-based
-        self.coding_region = self._get_coding_region()
-        self.aa_sequence = self._get_aa_sequence()
-        try:
-            self._imgt_numbering()
-        except:
-            self.exception("IMGT NUMBERING", traceback.format_exc(), sep="\n")
-
-    def _get_gapped_imgt_substitution_matrix(self):
-        residues = "ACGTN."
-        m = parasail.matrix_create(residues, 3, -2)
-        for i in range(len(residues)):
-            m[5, i] = -3
-            m[i, 5] = -3
-        return m
-
-        # matrix = {}
-        # residues = ["A", "C", "G", "T", "N", "."]
-        # for r1 in residues:
-        #     matrix[r1] = {}
-        #     for r2 in residues:
-        #         if r1 == r2:
-        #             score = 3
-        #         elif any([r1 == ".", r2 == "."]):
-        #             score = -3
-        #         else:
-        #             score = -2
-        #         matrix[r1][r2] = score
-        # return matrix
-
-    def get_imgt_position_from_raw(self, raw):
-        return self._imgt_position_from_raw.get(raw, None)
-
-    def get_raw_position_from_imgt(self, imgt):
-        return self._raw_position_from_imgt.get(imgt, None)
-
-    def _process_realignment(self, antibody, aln, query_start):
-        self.realignment = aln
-        self.score = aln.score
-        self.raw_query = aln.raw_query
-        self.raw_germline = aln.raw_target
-        self.query_alignment = aln.aligned_query
-        self.germline_alignment = aln.aligned_target
-        self.alignment_midline = "".join(
-            [
-                "|" if q == g else " "
-                for q, g in zip(aln.aligned_query, aln.aligned_target)
-            ]
-        )
-        # only update alignment start/end positions if not already annotated by aligner
-        if any(
-            [
-                x is None
-                for x in [
-                    self.query_start,
-                    self.query_end,
-                    self.germline_start,
-                    self.germline_end,
-                ]
-            ]
-        ):
-            offset = query_start if query_start is not None else 0
-            self.query_start = aln.query_begin + offset
-            self.query_end = aln.query_end + offset
-            self.germline_start = aln.target_begin
-            self.germline_end = aln.target_end
-        self._fix_ambigs(antibody)
-        self._find_indels(antibody)
-
-    def _get_germline_sequence_for_realignment(self, antibody):
-        """
-        Identifies the appropriate germline variable gene from a database of all
-        germline variable genes.
-
-        Returns:
-        --------
-
-            str: Germline sequence, or ``None`` if the requested germline gene could not be found.
-        """
-        # mod_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        # db_file = os.path.join(mod_dir, 'assigners/germline_dbs/{}_{}.fasta'.format(self.species.lower(), self.gene_type))
-        germ_dir = get_germline_database_directory(self.db_name, self.receptor)
-        antibody.log("GERMLINE DIRECTORY: {}".format(germ_dir))
-        db_file = os.path.join(
-            germ_dir, "ungapped/{}.fasta".format(self.gene_type.lower())
-        )
-        antibody.log("GERMLINE DB FILE: {}".format(db_file))
-        try:
-            for s in SeqIO.parse(open(db_file), "fasta"):
-                if s.id == self.raw_assignment:
-                    return str(s.seq)
-            antibody.log(f"GERMLINE SEQUENCE NOT FOUND: {self.raw_assignment}")
-            return None
-        except Exception:
-            antibody.log(f"GERMLINE DB FILE NOT FOUND: {db_file}")
-            return None
-
-    def _imgt_numbering(self):
-        aln_start = self.query_start
-        aln_pos = 0
-        imgt_start = self.imgt_gapped_alignment.target_begin + 1  # 1-based
-        imgt_pos = imgt_start
-        imgt2raw = {}
-        raw2imgt = {}
-        # raw_position_from_imgt = {}
-        # imgt_position_from_raw = {}
-
-        # imgt_start_offset is for J-genes only. Since the first position of the gapped IMGT
-        # V-gene is the first position of the antibody seqeunce, IMGT numbering of the
-        # V-gene should start at position 1. Not true with J-genes.
-        # When processing V-genes, imgt_start_offset will always be 0.
-        imgt_start_offset = self._get_imgt_start_offset()
-
-        # Because we're iterating over the alignment but also want to track the raw (oriented_input)
-        # query position, we need to adjust the alignment numbering in case there's a deletion
-        # in the query sequence. With a deletion, the alignment position increases, but the raw
-        # position shouldn't. query_del_adjustment allows us to adjust the alignment position so that
-        # the raw query position is accurately tracked.
-        query_del_adjustment = 0
-
-        for gl in self.imgt_germline.gapped_nt_sequence[imgt_start:]:
-            # only compute IMGT AA position numbers for V-genes. J-gene numbering is dependent on the CDR3 length
-            # (due to IMGT's CDR3 naming conventions), so the junction must be annotated before J-gene AA position
-            # numbers can be assigned.
-            # if self.gene_type == 'V':
-
-            # check to see if the position we're looking at is the start of a codon
-            is_codon_start = (imgt_pos + imgt_start_offset) % 3 == 1
-
-            # start by adding the aa position number (only if we're at the start of a codon)
-            if is_codon_start:
-                codon = self.germline_alignment[aln_pos : aln_pos + 3]
-                if codon.count("-") >= 2:
-                    self.imgt_aa_positions.append(None)
-                else:
-                    self.imgt_aa_positions.append(
-                        (imgt_pos + imgt_start_offset + 2) / 3
-                    )
-
-            # If the gapped IMGT germline is '.' (indicating a gap introduced by IMGT for numbering purposes),
-            # we only need to increment the IMGT position and indicate the lack of sequence at the IMGT position.
-            if gl == ".":
-                imgt2raw[imgt_pos + imgt_start_offset] = None
-                imgt_pos += 1
-                continue
-
-            # If there's a gap in the query alignment (deletion in the query sequence)
-            # there's no equivalent IMGT position in the query.
-            if self.query_alignment[aln_pos] == "-":
-                imgt2raw[imgt_pos + imgt_start_offset] = None
-                aln_pos += 1
-                imgt_pos += 1
-                query_del_adjustment += 1
-                continue
-
-            # If there's a gap in the germline alignment (insertion in the query sequence)
-            # we need to increment the alignment position until the insertion is finished.
-            # Since there isn't a germline IMGT position that's equivalent to the query position,
-            # we don't want to increment the IMGT position or continue iterating through the IMGT
-            # germline sequence.
-            if self.germline_alignment[aln_pos] == "-":
-                self.log("INFO: Found an insertion in the query sequence!")
-                while self.germline_alignment[aln_pos] == "-":
-                    raw2imgt[aln_pos + self.query_start - query_del_adjustment] = None
-                    self.imgt_nt_positions.append(None)
-                    aln_pos += 1
-
-            # if the gapped IMGT germline isn't '.' and there's not an insertion in the query
-            # sequence (or we've already iterated past it), we record both the IMGT position
-            # and the raw (oriented_input) position and increment both the aligned and IMGt positions.
-            imgt2raw[imgt_pos + imgt_start_offset] = (
-                aln_pos + aln_start - query_del_adjustment
-            )
-            raw2imgt[aln_pos + aln_start - query_del_adjustment] = (
-                imgt_pos + imgt_start_offset
-            )
-            self.imgt_nt_positions.append(imgt_pos + imgt_start_offset)
-            aln_pos += 1
-            imgt_pos += 1
-            if aln_pos >= len(self.germline_alignment):
-                break
-        self._raw_position_from_imgt = imgt2raw
-        self._imgt_position_from_raw = raw2imgt
-        if self.insertions or self.deletions:
-            self._calculate_imgt_indel_positions()
-
-    def _get_imgt_start_offset(self):
-        if self.gene_type == "V":
-            return 0
-        # find the start of FR4 in the IMGT gapped germline gene
-        end_res = "W" if self.chain == "heavy" else "F"
-        for i, res in enumerate(self.imgt_germline.ungapped_aa_sequence):
-            if (
-                res == end_res
-                and end_res not in self.imgt_germline.ungapped_aa_sequence[i + 1 :]
-            ):
-                nts_from_start_to_fr4 = (self.imgt_germline.coding_start) + (i * 3)
-                break
-        # the IMGT start offset is the conserved FR4 start position (352)
-        # minus the number of nts from the start of the germline gene to FR4
-        return 352 - nts_from_start_to_fr4
-
-    def _get_coding_region(self):
-        coding_region = self.query_alignment[self.alignment_reading_frame :].replace(
-            "-", ""
-        )
-        truncation = len(coding_region) % 3
-        if truncation > 0:
-            coding_region = coding_region[:-truncation]
-        return coding_region
-
-    def _get_aa_sequence(self):
-        return Seq(self.coding_region).translate()
-
-    def _fix_ambigs(self, antibody):
-        """
-        Fixes ambiguous nucleotides by replacing them with the germline nucleotide.
-        """
-        self.query_alignment = "".join(
-            [
-                q if q.upper() != "N" else g
-                for q, g in zip(self.query_alignment, self.germline_alignment)
-            ]
-        )
-        # don't forget to also correct ambigs in the oriented_input sequence
-        antibody.oriented_input.sequence = (
-            antibody.oriented_input.sequence[: self.query_start]
-            + self.query_alignment.replace("-", "")
-            + antibody.oriented_input.sequence[self.query_end + 1 :]
-        )
-
-    def _indel_check(self):
-        if any(["-" in self.query_alignment, "-" in self.germline_alignment]):
-            return True
+    """
+    if location is None:
+        location = get_database_directory(receptor)
+    dbs = [os.path.basename(d[0]) for d in os.walk(location)]
+    if name.lower() in dbs:
+        return True
+    else:
         return False
 
-    def _find_indels(self, antibody):
-        """
-        Identifies and annotates indels in the query sequence.
-        """
-        if self._indel_check():
-            self.insertions = indels.find_insertions(antibody, self)
-            if self.insertions:
-                # only set self.has_insertion to 'yes' if the sequence has an in-frame insertion
-                if "yes" in [ins["in frame"] for ins in self.insertions]:
-                    self.has_insertion = "yes"
-            self.deletions = indels.find_deletions(antibody, self)
-            if self.deletions:
-                # only set self.has_deletion to 'yes' if the sequence has an in-frame deletion
-                if "yes" in [deletion["in frame"] for deletion in self.deletions]:
-                    self.has_deletion = "yes"
 
-    def _calculate_imgt_indel_positions(self):
-        if self.insertions:
-            for i in self.insertions:
-                # since there's possibly not a direct IMGT correlate to the position
-                # at the start of the insertion, need to find the closest IMGT correlate
-                raw_pos = i.raw_position
-                while self.get_imgt_position_from_raw(raw_pos) is None:
-                    raw_pos -= 1
-                i.imgt_position = self.get_imgt_position_from_raw(raw_pos)
-                i.imgt_codon = int(math.ceil(i.imgt_position / 3.0))
-        if self.deletions:
-            for d in self.deletions:
-                # since there's possibly not a direct IMGT correlate to the position
-                # at the start of the deletion, need to find the closest IMGT correlate
-                raw_pos = d.raw_position
-                while self.get_imgt_position_from_raw(raw_pos) is None:
-                    raw_pos -= 1
-                d.imgt_position = self.get_imgt_position_from_raw(raw_pos)
-                d.imgt_codon = int(math.ceil(d.imgt_position / 3.0))
-
-    @staticmethod
-    def _realignment_scoring_params(gene):
-        """
-        Returns realignment scoring paramaters for a given gene type.
-
-        Args:
-
-            gene (str): the gene type ('V', 'D', or 'J')
-
-
-        Returns:
-
-            dict: realignment scoring parameters
-        """
-        scores = {
-            "V": {"match": 3, "mismatch": -2, "gap_open": -22, "gap_extend": -1},
-            "D": {"match": 3, "mismatch": -2, "gap_open": -22, "gap_extend": -1},
-            "J": {"match": 3, "mismatch": -2, "gap_open": -22, "gap_extend": -1},
-        }
-        return scores[gene]
-
-
-def get_germline_database_directory(species, receptor="bcr"):
-    species = species.lower()
-    receptor = receptor.lower()
-    addon_dir = os.path.expanduser(f"~/.abstar/germline_dbs/{receptor}")
-    if os.path.isdir(addon_dir):
-        if species.lower() in [os.path.basename(d[0]) for d in os.walk(addon_dir)]:
-            return os.path.join(addon_dir, species.lower())
-    mod_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    return os.path.join(mod_dir, f"assigners/germline_dbs/{receptor}/{species}")
-
-
-def get_imgt_germlines(db_name, gene_type, receptor="bcr", gene=None):
+def confirm_overwrite_existing_db(name: str) -> bool:
     """
-    Returns one or more IMGTGermlineGene objects that each contain a single IMGT-gapped germline gene.
+    Confirm that the user wants to overwrite an existing germline database.
 
-    Args:
-    -----
+    Parameters
+    ----------
+    name : str
+        The name of the germline database.
 
-        species (str): Species for which the germline genes should be obtained.
-
-        gene_type (str): Options are 'V', 'D', and 'J'.
-
-        receptor (str): Options are ``'bcr'`` and ``'tcr'``.
-
-        gene (str): Full name of a germline gene (using IMGT-style names, like IGHV1-2*02).
-                    If provided, a single ``IMGTGermlineGene`` object will be returned, or None if the
-                    specified gene could not be found. If not provided, a list of ``IMGTGermlineGene``
-                    objects for all germline genes matching the ``species`` and ``gene_type`` will be returned.
-
-    Returns:
-    --------
-
-        IMGTGermlineGene: a single ``IMGTGermlineGene`` object (if ``gene`` is provided) or a list of
-                          ``IMGTGermlineGene`` objects. If no sequences match the criteria or if a germline
-                          database for the requested species is not found, ``None`` is returned.
+    Returns
+    -------
+    bool
+        True if the user wants to continue, False otherwise.
     """
-    # mod_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    # db_file = os.path.join(mod_dir, 'assigners/germline_dbs/imgt_gapped/{}_{}_imgt-gapped.fasta'.format(species, gene_type))
-    germ_dir = get_germline_database_directory(db_name, receptor.lower())
-    db_file = os.path.join(germ_dir, "imgt_gapped/{}.fasta".format(gene_type.lower()))
-    try:
-        germs = [IMGTGermlineGene(g) for g in SeqIO.parse(open(db_file, "r"), "fasta")]
-    except:
-        # TODO: log that the germline database file couldn't be found
-
-        # print('Could not locate the IMGT germline database file ({}).'.format(db_file))
-        # print(traceback.format_exc())
-
-        return None
-    if gene is None:
-        return germs
-    try:
-        return [g for g in germs if g.name == gene][0]
-    except IndexError:
-        # print('Could not locate the IMGT germline gene ({}).'.format(gene))
-        # print(traceback.format_exc())
-
-        return None
+    print("")
+    print(f"WARNING: A {name.lower()} germline database already exists.")
+    print("Creating a new database with that name will overwrite the old one.")
+    keep_going = input("Do you want to continue? [y/N]: ")
+    if keep_going.lower() not in ["y", "yes"]:
+        print("")
+        print("Aborting germline database creation.")
+        print("\n")
+        sys.exit()
+    else:
+        print("")
 
 
-def get_germlines(db_name, gene_type, receptor="bcr", chain=None, gene=None):
+def make_db_directories(database_dir: str) -> None:
     """
-    Returns one or more IMGTGermlineGene objects that each contain a single IMGT-gapped germline gene.
+    Make the main directory for the germline database and the subdirectories for each file type.
 
-    Args:
-    -----
+    Parameters
+    ----------
+    database_dir : str
+        The path to the database directory.
 
-        species (str): Species for which the germline genes should be obtained.
-
-        gene_type (str): Options are ``'V'``, ``'D'``, and ``'J'``.
-
-        receptor (str): Options are ``'bcr'`` and ``'tcr'``.
-
-        chain (str): Options are ``'heavy'``, ``'kappa'``, and ``'lambda'`` for BCRs and ``'alpha'``,
-        ``'beta'``, ``'gamma'``, and ``'delta'`` for TCRs. If not provided, germline sequences from
-        all chains are returned.
-
-        gene (str): Full name of a germline gene (using IMGT-style names, like ``'IGHV1-2*02'``).
-        If provided, a single ``IMGTGermlineGene`` object will be returned, or ``None`` if the
-        specified gene could not be found. If not provided, a list of ``IMGTGermlineGene`` objects
-        for all germline genes matching the ``species``, ``receptor`` and ``gene_type`` will be returned.
-
-    Returns:
-    --------
-
-        IMGTGermlineGene: a single ``IMGTGermlineGene`` object (if ``gene`` is provided) or a list of
-                          ``IMGTGermlineGene`` objects. If no sequences match the criteria or if a germline
-                          database for the requested species is not found, ``None`` is returned.
     """
-    germs = get_imgt_germlines(db_name, gene_type, receptor=receptor.lower(), gene=gene)
-    if germs is None:
-        return germs
-    if chain is not None:
-        c = chain[0].upper()
-        germs = [g for g in germs if g.name[2] == c]
-    if len(germs) == 1:
-        return germs[0]
-    return germs
+    # make the main DB directory
+    abutils.io.make_dir(database_dir)
+
+    # make subdirectories
+    subdirs = {}
+    subdir_names = ["raw", "imgt_gapped", "ungapped", "mmseqs"]
+    for subdir_name in subdir_names:
+        subdir = os.path.join(database_dir, subdir_name)
+        abutils.io.make_dir(subdir)
+        subdirs[subdir_name] = subdir
+    return subdirs
 
 
-class IMGTGermlineGene(object):
-    """docstring for IMGTGermlineGene"""
+def transfer_manifest_data(manifest_file: str, database_dir: str) -> None:
+    """
+    Transfer manifest data to the new germline database.
 
-    # species_lookup exists to translate IMGT names to AbStar germline DB names.
-    # if the IMGT species isn't in species_lookup, AbStar will try to use the IMGT
-    # species name directly.
-    species_lookup = {"homo sapiens": "human"}
+    Parameters
+    ----------
+    manifest : str
+        The path to the manifest file.
 
-    def __init__(self, sequence, species=None):
-        self.raw_sequence = Sequence(str(sequence.seq), id=sequence.description)
-        self._species = species
-        self.gapped_nt_sequence = self.raw_sequence.sequence
-        self.ungapped_nt_sequence = self.gapped_nt_sequence.replace(".", "")
+    addon_directory : str
+        The path to the addon directory.
 
-    @lazy_property
-    def accession(self):
-        return self.raw_sequence.id.split("|")[0].strip()
+    dbname : str
+        The name of the germline database.
 
-    @lazy_property
-    def name(self):
-        return self.raw_sequence.id.split("|")[1].strip()
+    Returns
+    -------
+    str
+        The path to the manifest file.
 
-    @property
-    def species(self):
-        if self._species is None:
-            species = self.raw_sequence.id.split("|")[2].strip().lower()
-            self._species = self.species_lookup.get(species, species)
-        return self._species
+    """
+    # read manifest data
+    with open(manifest_file, "r") as f:
+        manifest_data = f.read()
 
-    @lazy_property
-    def functionality(self):
-        return self.raw_sequence.id.split("|")[3].strip()
+    # write to manifest file
+    manifest_file = os.path.join(database_dir, "manifest.txt")
+    with open(manifest_file, "w") as f:
+        f.write(manifest_data)
 
-    @lazy_property
-    def gene_type(self):
-        return self.raw_sequence.id.split("|")[4].strip()[0].upper()
 
-    @lazy_property
-    def coding_start(self):
-        # NOTE: uses 1-based indexing, so need to adjust if using for slicing
-        return int(self.raw_sequence.id.split("|")[7].strip())
+def copy_to_raw(fasta: str, raw_dir: str) -> None:
+    """
+    Copy a FASTA file to the raw directory.
 
-    @lazy_property
-    def nt_length(self):
-        return int(self.raw_sequence.id.split("|")[12].strip().split("+")[0])
+    Parameters
+    ----------
+    fasta : str
+        The path to the input FASTA file.
 
-    @lazy_property
-    def gap_length(self):
-        return int(
-            self.raw_sequence.id.split("|")[12].strip().split("+")[1].split("=")[0]
-        )
+    raw_dir : str
+        The path to the raw directory.
+    """
+    shutil.copy(fasta, raw_dir)
 
-    @lazy_property
-    def total_length(self):
-        return int(self.raw_sequence.id.split("|")[12].strip().split("=")[1])
 
-    @lazy_property
-    def partial(self):
-        p = []
-        partial = self.raw_sequence.id.split("|")[13]
-        if "3'" in partial:
-            p.append("3'")
-        if "5'" in partial:
-            p.append("5'")
-        return p
+# -------------------------
+#   PROCESS INPUT FILES
+# -------------------------
 
-    @lazy_property
-    def is_rev_comp(self):
-        if self.raw_sequence.id.split("|")[14].strip() == "rev-compl":
-            is_rev_comp = True
+
+def process_fasta(
+    fasta_file: str, include_species_in_name: bool = True
+) -> Iterable[Sequence]:
+    """
+    Process a FASTA file and return a list of Sequence objects.
+    """
+    seqs = abutils.io.read_fasta(fasta_file)
+    if not include_species_in_name:
+        for s in seqs:
+            s.id = s.id.split("__")[0]
+    return seqs
+
+
+def process_json(
+    json_file: str, include_species_in_name: bool = True
+) -> Iterable[Sequence]:
+    """
+    Process a JSON file and return a list of Sequence objects.
+    """
+    seqs = []
+    with open(json_file, "r") as f:
+        jdata = json.load(f)
+    for entry in jdata["GermlineSet"][0]["allele_descriptions"]:
+        name = entry["label"]
+        if entry["sequence_type"] == "V":
+            # V-genes are the only ones with IMGT-gapped sequences,
+            # and it's in a different location than D/J sequences
+            gapped = [
+                d
+                for d in entry["v_gene_delineations"]
+                if d["delineation_scheme"] == "IMGT"
+            ][0]["aligned_sequence"]
         else:
-            is_rev_comp = False
-        return is_rev_comp
+            gapped = entry["coding_sequence"]
+        species = entry["species"]["label"].lower().replace(" ", "_")
+        if include_species_in_name:
+            name = f"{name}__{species}"
+        seqs.append(Sequence(gapped, id=name))
+    return seqs
 
-    @lazy_property
-    def gapped_aa_sequence(self):
-        res = []
-        coding = self.gapped_nt_sequence[self.coding_start - 1 :]
-        for codon in (coding[pos : pos + 3] for pos in range(0, len(coding), 3)):
-            if len(codon) != 3:
-                continue
-            if codon == "...":
-                res.append(".")
+
+# -------------------------
+#     MAKE DATABASES
+# -------------------------
+
+
+def make_fasta_dbs(
+    vdjs: Iterable[Sequence],
+    constants: Iterable[Sequence],
+    database_dir: str,
+    verbose: bool = False,
+) -> None:
+    """
+    Make the IMGT-gapped and ungapped FASTA databases.
+
+    Parameters
+    ----------
+    vdjs : Iterable[Sequence]
+        The VDJ genes.
+
+    constants : Iterable[Sequence]
+        The constant regions.
+
+    database_dir : str
+        The path to the database directory.
+
+    verbose : bool, default: False
+        Whether to print verbose output.
+    """
+    # VDJ genes
+    for segment in ["V", "D", "J"]:
+        if verbose:
+            if segment == "V":
+                print("  V", end="")
             else:
-                res.append(codon_lookup.get(codon, "X"))
-        return "".join(res)
+                print(f" | {segment}", end="")
+        seqs = [s for s in vdjs if s.id[3] == segment]
+        if seqs:
+            abutils.io.to_fasta(
+                seqs, os.path.join(database_dir, f"{segment.lower()}.fasta")
+            )
 
-    @lazy_property
-    def ungapped_aa_sequence(self):
-        return self.gapped_aa_sequence.replace(".", "")
+    # constant regions
+    if constants:
+        if verbose:
+            print(" | C")
+        abutils.io.to_fasta(constants, os.path.join(database_dir, "c.fasta"))
+
+
+def make_mmseqs_dbs(
+    database_dir: str,
+    ungapped_dir: str,
+    verbose: bool = False,
+    debug: bool = False,
+) -> None:
+    """
+    Make the MMseqs2 database for a given segment.
+
+    Parameters
+    ----------
+    input_file : str
+        The path to the input (ungapped) FASTA file.
+
+    addon_directory : str
+        The path to the addon directory.
+
+    segment : str
+        The segment type.
+
+    dbname : str
+        The name of the germline database.
+
+    verbose : bool, default: False
+        Whether to print verbose output.
+
+    debug : bool, default: False
+        Whether to print debug output.
+
+    """
+    # VDJ genes
+    for segment in ["V", "D", "J"]:
+        if verbose:
+            if segment == "V":
+                print("  V", end="")
+            else:
+                print(f" | {segment}", end="")
+        ungapped_file = os.path.join(ungapped_dir, f"{segment.lower()}.fasta")
+        output_file = os.path.join(database_dir, f"{segment.lower()}")
+        _make_mmseqs_db(ungapped_file, output_file, debug=debug)
+
+    # constant regions
+    segment = "C"
+    ungapped_file = os.path.join(ungapped_dir, f"{segment.lower()}.fasta")
+    if os.path.exists(ungapped_file):
+        if verbose:
+            print(f" | {segment}")
+        output_file = os.path.join(database_dir, f"{segment.lower()}")
+        _make_mmseqs_db(ungapped_file, output_file, debug=debug)
+    elif verbose:
+        print("")
+
+
+def _make_mmseqs_db(input_file: str, output_file: str, debug: bool = False) -> None:
+    """
+    Make an MMseqs2 database.
+
+    Parameters
+    ----------
+    input_file : str
+        The path to the input file.
+
+    output_file : str
+        The path to the output file.
+
+    debug : bool, default: False
+        Whether to print debug output.
+    """
+    # create MMseqs2 database
+    mmseqs_bin = abutils.bin.get_path("mmseqs")
+    createdb_cmd = f"{mmseqs_bin} createdb {input_file} {output_file}"
+    p = sp.Popen(createdb_cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+    stdout, stderr = p.communicate()
+    if debug:
+        print(createdb_cmd)
+        print(stdout)
+        print(stderr)
+
+    # create MMseqs2 index
+    createindex_cmd = f"{mmseqs_bin} createindex {output_file} /tmp"
+    p = sp.Popen(createindex_cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+    stdout, stderr = p.communicate()
+    if debug:
+        print(createindex_cmd)
+        print(stdout)
+        print(stderr)
+
+
+# def print_segment_info(segment: str, input_file: str) -> None:
+#     """
+#     Print information about the segment (variable, diversity, joining, constant).
+#     """
+#     seqs = abutils.io.read_fasta(input_file)
+#     seg_string = "  " + segment.upper() + "  "
+#     print("\n")
+#     print("-" * len(seg_string))
+#     print(seg_string)
+#     print("-" * len(seg_string))
+#     print(input_file)
+#     print("input file contains {} sequences".format(len(seqs)))
+#     print("")
+#     print("Building germline databases:")
+
+
+# def print_manifest_info(manifest: str) -> None:
+#     seg_string = "  MANIFEST  "
+#     print("\n")
+#     print("-" * len(seg_string))
+#     print(seg_string)
+#     print("-" * len(seg_string))
+#     print(manifest)
+#     print("")
+#     print("Transferring manifest data...")

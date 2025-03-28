@@ -1,2 +1,23 @@
-sphinx>=1.3.1
+sphinx
 sphinx_rtd_theme
+furo
+pydata-sphinx-theme
+sphinx-material
+sphinxawesome-theme
+sphinx_copybutton
+sphinx_togglebutton
+sphinx_design
+autodocsumm
+# dependencies
+abutils
+biopython
+click
+natsort
+numpy
+pandas
+parasail
+polars
+pyarrow
+pytest
+scipy
+tqdm
