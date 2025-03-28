@@ -172,6 +172,9 @@ def get_germline(
     germs = abutils.io.read_fasta(germdb_file)
     if exact_match:
         germs = [g for g in germs if germline_gene == g.id]
+        # in case the species is present in the germline database but not the query
+        if not germs:
+            germs = [g for g in germs if germline_gene == g.id.split("__")[0]]
     else:
         germs = [g for g in germs if germline_gene in g.id]
     if not germs:
