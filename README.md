@@ -14,7 +14,9 @@ VDJ assignment and antibody sequence annotation. Scalable from a single sequence
   - Docker: [hub.docker.com/r/brineylab/datascience/](https://hub.docker.com/r/brineylab/datascience/)  
   
 ### install  
-`pip install abstar`  
+``` bash
+pip install abstar
+```  
   
 ### use  
 
