@@ -47,13 +47,13 @@ pytest
 
   
 ### requirements  
-Python 3.8+   
-abutils
-click
-matplotlib
-numpy
-pandas
-parasail
-polars
-pyarrow
-pytest
+Python 3.10+   
+abutils  
+click  
+matplotlib  
+numpy  
+pandas  
+parasail  
+polars  
+pyarrow  
+pytest  

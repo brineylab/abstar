@@ -18,7 +18,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, ubuntu-22.04]
         # os: [ubuntu-latest, ubuntu-22.04, macos-latest] # -> macOS fails fasttree tests since I don't have a compiled x86_64 binary
-        python-version: ["3.8", "3.9", "3.10", "3.11"]
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
 
     steps:
     - uses: actions/checkout@v4
