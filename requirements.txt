@@ -7,4 +7,3 @@ parasail
 polars
 pyarrow
 pytest
-
