@@ -1,4 +1,4 @@
-abutils>=0.5.0
+abutils>=0.5.1
 click
 matplotlib
 numpy
