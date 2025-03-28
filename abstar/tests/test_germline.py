@@ -65,6 +65,29 @@ def test_get_multiple_germlines():
     assert all([germ.id.startswith("IGHV1-2") for germ in germs])
 
 
+def test_get_single_germline_tcr():
+    germ = get_germline(
+        germline_gene="TRAV1-1*01",
+        germdb_name="human",
+        receptor="tcr",
+        exact_match=True,
+    )
+    assert isinstance(germ, Sequence)
+    assert germ.id == "TRAV1-1*01"
+
+
+def test_get_multiple_germlines_tcr():
+    germs = get_germline(
+        germline_gene="TRAV1-1",
+        germdb_name="human",
+        receptor="tcr",
+        exact_match=False,
+    )
+    assert len(germs) >= 2
+    assert all([isinstance(germ, Sequence) for germ in germs])
+    assert all([germ.id.startswith("TRAV1-1") for germ in germs])
+
+
 @pytest.mark.xfail(
     reason="gene 'IGHV1-1*01' does not exist in the human bcr database",
     raises=ValueError,
