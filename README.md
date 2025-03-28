@@ -8,7 +8,7 @@
   
 VDJ assignment and antibody sequence annotation. Scalable from a single sequence to billions of sequences.  
   
-  - Source code: [github.com/briney/abstar](https://github.com/brineylab/abstar)  
+  - Source code: [github.com/brineylab/abstar](https://github.com/brineylab/abstar)  
   - Documentation: [abstar.readthedocs.org](http://abstar.readthedocs.org)  
   - Download: [pypi.python.org/pypi/abstar](https://pypi.python.org/pypi/abstar)  
   - Docker: [hub.docker.com/r/brineylab/datascience/](https://hub.docker.com/r/brineylab/datascience/)  
