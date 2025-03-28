@@ -228,11 +228,10 @@ def run(
             single_line_handler=True,
             debug=debug,
         )
-    elif verbose:
-        # global logger
+    elif verbose or concise_logging:
+        verbose = True
         logger = abutils.log.NotebookLogger(verbose=verbose, end="")
     else:
-        # global logger
         logger = abutils.log.null_logger()
 
     if started_from_cli:
@@ -317,6 +316,8 @@ def run(
         sample_name = ".".join(
             os.path.basename(sequence_file).rstrip(".gz").split(".")[:-1]
         )
+        if not sample_name:  # if the input was Sequence object(s), not file(s)
+            sample_name = "sequences"
         # log sample info
         if started_from_cli:
             logger.info("\n\n")
@@ -341,7 +342,7 @@ def run(
         succeeded_log_files = []
         # log annotation info
         if concise_logging:
-            logger.info("sequence annotation: ")
+            logger.info("\nsequence annotation: ")
         else:
             logger.info("\n")
             logger.info("sequence annotation:\n")
