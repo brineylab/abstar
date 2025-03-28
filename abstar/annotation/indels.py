@@ -19,7 +19,7 @@ def annotate_insertions(
     aligned_germline: str,
     gapped_germline: str,
     germline_start: int,
-) -> Antibody:
+) -> str:
     """
     Annotates non-templated insertions in the V gene region. The notation abstar uses for insertions is:
 
@@ -48,20 +48,10 @@ def annotate_insertions(
     germline_start : int
         The start position of the germline sequence in the alignment.
 
-    ab : Antibody
-        The ``Antibody`` object.
-
-        The following ``Antibody`` properties are updated:
-
-            - ``v_insertions``: a ``"|"``-separated string of non-templated insertions in the V gene region
-
-        This function does not require any ``Antibody`` properties to be set.
-
     Returns
     -------
-    Antibody
-        The updated ``Antibody`` object.
-
+    str
+        A ``"|"``-separated string of non-templated insertions in the V gene region.
     """
     # annotate insertions
     insertions = []
@@ -86,7 +76,7 @@ def annotate_deletions(
     aligned_germline: str,
     gapped_germline: str,
     germline_start: int,
-) -> Antibody:
+) -> str:
     """
     Annotates non-templated deletions in the V gene region. The notation abstar uses for deletions is:
 
@@ -118,9 +108,8 @@ def annotate_deletions(
 
     Returns
     -------
-    list[str]
-        A list of deletions in abstar notation.
-
+    str
+        A ``"|"``-separated string of non-templated deletions in the V gene region.
     """
     # annotate deletions
     deletions = []
