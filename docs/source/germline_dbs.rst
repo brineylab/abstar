@@ -4,13 +4,17 @@
 germline databases
 =========================
 
-``abstar`` comes pre-packaged with built-in germline databases for human, macaque, and mouse. 
+``abstar`` comes pre-packaged with built-in germline databases for human, macaque, and the C57/bl6 and BALB/c mouse strains. 
 The default germline database is human, but a different germline database can be specified with 
 ``--germline_database``:
 
 .. code-block:: bash
 
-    abstar run --germline_database mouse path/to/sequences.fasta path/to/output/
+    abstar run --germline_database balbc path/to/sequences.fasta path/to/output/
+
+.. note::
+    The C57/bl6 database is named ``c57bl6``, and the BALB/c database is named ``balbc``. Both use 
+    all lowercase letters and omit the slash (``/``) character.
 
 
 ``abstar`` can also create custom germline databases, either for a species that is not included in 
