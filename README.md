@@ -13,12 +13,12 @@ VDJ assignment and antibody sequence annotation. Scalable from a single sequence
   - Download: [pypi.python.org/pypi/abstar](https://pypi.python.org/pypi/abstar)  
   - Docker: [hub.docker.com/r/brineylab/datascience/](https://hub.docker.com/r/brineylab/datascience/)  
   
-### install  
+## install  
 ``` bash
 pip install abstar
 ```  
   
-### use  
+## use  
 
 To run abstar on a single FASTA or FASTQ file, you need to supply the input file and the project directory (into which output and logs will be written):  
 ``` bash
@@ -31,23 +31,34 @@ abstar path/to/input_directory path/to/project_directory
 ```
   
   
-### additional options  
-`abstar` contains a number of additional options and tools, including merging paired-end reads, parsing unique molecular identifiers (UMIs), and building custom germline databases. These are described in the `abstar` [documentation](http://abstar.readthedocs.org).  
+## additional options  
+`abstar` contains a number of additional options and tools, including merging paired-end reads, parsing unique molecular identifiers (UMIs), and building/using custom germline databases. These are described in the `abstar` [documentation](http://abstar.readthedocs.org).  
   
 
-### api  
+## api  
 Most core `abstar` functions are available through a Python API, making it easier to run `abstar` as a component of integrated analysis pipelines or to run `abstar` interactively (e.g. in a Jupyter notebook). See the `abstar` [documentation](http://abstar.readthedocs.org) for more detail about the API.  
   
 
-### testing  
-To run the test suite, clone or download the repository and run the following command from the top-level directory:
+## testing  
+You can run the complete `abstar` test suite by first installing `pytest`:
 ``` bash
+pip install pytest
+```
+
+followed by:
+
+``` bash
+git clone https://github.com/brineylab/abstar
+cd abstar
 pytest
 ```
 
+This test suite is automatically run after every commit, and is tested against all supported versions of Python.
+
   
-### requirements  
-Python 3.10+   
+## requirements  
+**Python 3.10+**   
+  
 abutils  
 click  
 matplotlib  
