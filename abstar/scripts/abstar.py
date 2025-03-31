@@ -182,7 +182,7 @@ def run(
     )
 
 
-@cli.command()
+@cli.command(name="build_germline_database")
 @click.argument(
     "name",
     type=str,
