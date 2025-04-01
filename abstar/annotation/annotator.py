@@ -271,32 +271,38 @@ def annotate_single_sequence(
     ab.log(f"  GERMLINE: {v_global_aa.aligned_target}")
 
     # gapped V-gene germline
-    gapped_v_germline = get_germline(
+    ab.v_germline_gapped = get_germline(
         ab.v_call, ab.germline_database, imgt_gapped=True, exact_match=True
     ).sequence
-    gapped_v_germline_aa = abutils.tl.translate(gapped_v_germline, allow_dots=True)
-    ab.log("GAPPED GERMLINE:", gapped_v_germline)
-    ab.log("GAPPED GERMLINE AA:", gapped_v_germline_aa)
+    ab.v_germline_gapped_aa = abutils.tl.translate(
+        ab.v_germline_gapped, allow_dots=True
+    )
+    ab.log("GAPPED GERMLINE:", ab.v_germline_gapped)
+    ab.log("GAPPED GERMLINE AA:", ab.v_germline_gapped_aa)
+    # ab.v_germline_gapped = ab.v_germline_gapped
+    # ab.v_germline_gapped_aa = ab.v_germline_gapped_aa
 
     # gapped V-gene sequence
-    gapped_v_sequence = get_gapped_sequence(
+    ab.v_sequence_gapped = get_gapped_sequence(
         aligned_sequence=v_global.aligned_query,
         aligned_germline=v_global.aligned_target,
-        gapped_germline=gapped_v_germline,
+        gapped_germline=ab.v_germline_gapped,
         germline_start=ab.v_germline_start,
     )
-    gapped_v_sequence_aa = abutils.tl.translate(
-        gapped_v_sequence, frame=ab.frame, allow_dots=True
+    ab.v_sequence_gapped_aa = abutils.tl.translate(
+        ab.v_sequence_gapped, frame=ab.frame, allow_dots=True
     )
-    ab.log("GAPPED SEQUENCE:", gapped_v_sequence)
-    ab.log("GAPPED SEQUENCE AA:", gapped_v_sequence_aa)
+    ab.log("GAPPED SEQUENCE:", ab.v_sequence_gapped)
+    ab.log("GAPPED SEQUENCE AA:", ab.v_sequence_gapped_aa)
+    # ab.v_sequence_gapped = ab.v_sequence_gapped
+    # ab.v_sequence_gapped_aa = ab.v_sequence_gapped_aa
 
     # insertions
     if "-" in v_loc.aligned_target:
         ab.v_insertions = annotate_insertions(
             aligned_sequence=v_global.aligned_query,
             aligned_germline=v_global.aligned_target,
-            gapped_germline=gapped_v_germline,
+            gapped_germline=ab.v_germline_gapped,
             germline_start=ab.v_germline_start,
         )
         ab.log("V INSERTIONS:", ab.v_insertions)
@@ -312,7 +318,7 @@ def annotate_single_sequence(
         ab.v_deletions = annotate_deletions(
             aligned_sequence=v_loc.aligned_query,
             aligned_germline=v_loc.aligned_target,
-            gapped_germline=gapped_v_germline,
+            gapped_germline=ab.v_germline_gapped,
             germline_start=ab.v_germline_start,
         )
         ab.log("V DELETIONS:", ab.v_deletions)
@@ -513,6 +519,33 @@ def annotate_single_sequence(
         ab.log(f"            {c_global_aa.alignment_midline}")
         ab.log(f"  GERMLINE: {c_global_aa.aligned_target}")
 
+        # gapped Constant region germline
+        ab.c_germline_gapped = get_germline(
+            ab.c_call,
+            ab.germline_database,
+            imgt_gapped=True,
+            exact_match=True,
+            force_constant=True,
+        ).sequence
+        ab.c_germline_gapped_aa = abutils.tl.translate(
+            ab.c_germline_gapped, allow_dots=True
+        )
+        ab.log("GAPPED GERMLINE:", ab.c_germline_gapped)
+        ab.log("GAPPED GERMLINE AA:", ab.c_germline_gapped_aa)
+        # ab.v_germline_gapped = ab.v_germline_gapped
+        # ab.v_germline_gapped_aa = ab.v_germline_gapped_aa
+
+        # gapped Constant region sequence
+        ab.c_sequence_gapped = get_gapped_sequence(
+            aligned_sequence=c_global.aligned_query,
+            aligned_germline=c_global.aligned_target,
+            gapped_germline=ab.c_germline_gapped,
+            germline_start=ab.c_germline_start,
+        )
+        ab.c_sequence_gapped_aa = abutils.tl.translate(
+            ab.c_sequence_gapped, frame=ab.frame, allow_dots=True
+        )
+
         # nucleotide mutations
         complete_c_germline = c_sg.target.sequence
         ab = annotate_c_mutations(
@@ -572,8 +605,8 @@ def annotate_single_sequence(
     # assemble the full V(D)J and germline sequences
     ab.sequence = ab.v_sequence + ab.np1
     ab.germline = ab.v_germline + ab.np1
-    ab.sequence_gapped = gapped_v_sequence + ab.np1
-    ab.germline_gapped = gapped_v_germline + ab.np1
+    ab.sequence_gapped = ab.v_sequence_gapped + ab.np1
+    ab.germline_gapped = ab.v_germline_gapped + ab.np1
     if ab.d_sequence is not None:
         ab.sequence += ab.d_sequence
         ab.germline += ab.d_germline
@@ -589,29 +622,51 @@ def annotate_single_sequence(
     ab.sequence_gapped += ab.j_sequence
     ab.germline_gapped += ab.j_germline
     if ab.c_sequence is not None:
-        ab.sequence += ab.c_sequence
-        ab.germline += ab.c_germline
-        ab.sequence_gapped += ab.c_sequence
-        ab.germline_gapped += ab.c_germline
+        # only compute VDJC sequences if there is a constant region
+        ab.sequence_vdjc = ab.sequence + ab.c_sequence
+        ab.germline_vdjc = ab.germline + ab.c_germline
+        ab.sequence_vdjc_gapped = ab.sequence_gapped + ab.c_sequence
+        ab.germline_vdjc_gapped = ab.germline_gapped + ab.c_germline
 
     ab.log("SEQUENCE:", ab.sequence)
     ab.log("GERMLINE:", ab.germline)
     ab.log("GAPPED SEQUENCE:", ab.sequence_gapped)
     ab.log("GAPPED GERMLINE:", ab.germline_gapped)
 
+    ab.log("VDJC SEQUENCE:", ab.sequence_vdjc)
+    ab.log("VDJC GERMLINE:", ab.germline_vdjc)
+    ab.log("GAPPED VDJC SEQUENCE:", ab.sequence_vdjc_gapped)
+    ab.log("GAPPED VDJC GERMLINE:", ab.germline_vdjc_gapped)
+
     # translated sequences
     ab.sequence_aa = abutils.tl.translate(ab.sequence, frame=ab.frame)
     ab.germline_aa = abutils.tl.translate(ab.germline, frame=ab.frame)
-    ab.sequence_gapped_aa = abutils.tl.translate(
-        ab.sequence_gapped, frame=ab.frame, allow_dots=True
-    )
-    ab.germline_gapped_aa = abutils.tl.translate(
-        ab.germline_gapped, frame=ab.frame, allow_dots=True
-    )
+    # ab.sequence_gapped_aa = abutils.tl.translate(
+    #     ab.sequence_gapped, frame=ab.frame, allow_dots=True
+    # )
+    # ab.germline_gapped_aa = abutils.tl.translate(
+    #     ab.germline_gapped, frame=ab.frame, allow_dots=True
+    # )
+
+    if ab.c_sequence is not None:
+        # only compute gapped VDJC sequences if there is a constant region
+        ab.sequence_vdjc_aa = abutils.tl.translate(ab.sequence_vdjc, frame=ab.frame)
+        ab.germline_vdjc_aa = abutils.tl.translate(ab.germline_vdjc, frame=ab.frame)
+        # ab.sequence_vdjc_gapped_aa = abutils.tl.translate(
+        #     ab.sequence_vdjc_gapped, frame=ab.frame, allow_dots=True
+        # )
+        # ab.germline_vdjc_gapped_aa = abutils.tl.translate(
+        #     ab.germline_vdjc_gapped, frame=ab.frame, allow_dots=True
+        # )
     ab.log("SEQUENCE AA:", ab.sequence_aa)
     ab.log("GERMLINE AA:", ab.germline_aa)
-    ab.log("GAPPED SEQUENCE AA:", ab.sequence_gapped_aa)
-    ab.log("GAPPED GERMLINE AA:", ab.germline_gapped_aa)
+    # ab.log("GAPPED SEQUENCE AA:", ab.sequence_gapped_aa)
+    # ab.log("GAPPED GERMLINE AA:", ab.germline_gapped_aa)
+
+    ab.log("VDJC SEQUENCE AA:", ab.sequence_vdjc_aa)
+    ab.log("VDJC GERMLINE AA:", ab.germline_vdjc_aa)
+    # ab.log("GAPPED VDJC SEQUENCE AA:", ab.sequence_vdjc_gapped_aa)
+    # ab.log("GAPPED VDJC GERMLINE AA:", ab.germline_vdjc_gapped_aa)
 
     # align assembled V(D)J and germline nucleotide sequences
     nt_aln = abutils.tl.global_alignment(
@@ -655,7 +710,7 @@ def annotate_single_sequence(
     ab.log("----------\n")
 
     # junction start
-    germ_fr3_sequence = gapped_v_germline[196:309].replace(".", "")
+    germ_fr3_sequence = ab.v_germline_gapped[196:309].replace(".", "")
     fr3_sg = abutils.tl.semiglobal_alignment(
         query=ab.sequence_oriented,
         target=germ_fr3_sequence,
@@ -697,7 +752,7 @@ def annotate_single_sequence(
     ab = annotate_v_mutations(
         aligned_sequence=v_global.aligned_query,
         aligned_germline=v_global.aligned_target,
-        gapped_germline=gapped_v_germline,
+        gapped_germline=ab.v_germline_gapped,
         germline_start=ab.v_germline_start,
         is_aa=False,
         ab=ab,
@@ -710,7 +765,7 @@ def annotate_single_sequence(
     ab = annotate_v_mutations(
         aligned_sequence=v_global_aa.aligned_query,
         aligned_germline=v_global_aa.aligned_target,
-        gapped_germline=gapped_v_germline_aa,
+        gapped_germline=ab.v_germline_gapped_aa,
         germline_start=ab.v_germline_start // 3,
         is_aa=True,
         ab=ab,
@@ -733,11 +788,11 @@ def annotate_single_sequence(
     v_regions = ["fwr1", "cdr1", "fwr2", "cdr2", "fwr3"]
     ab.log("ALIGNED SEQUENCE:", v_global.aligned_query)
     ab.log("ALIGNED GERMLINE:", v_global.aligned_target)
-    ab.log("GAPPED GERMLINE:", gapped_v_germline)
+    ab.log("GAPPED GERMLINE:", ab.v_germline_gapped)
     ab.log("GERMLINE START:", ab.v_germline_start + 1)
     ab.log("ALIGNED QUERY AA:", v_global_aa.aligned_query)
     ab.log("ALIGNED GERMLINE AA:", v_global_aa.aligned_target)
-    ab.log("GAPPED GERMLINE AA:", gapped_v_germline_aa)
+    ab.log("GAPPED GERMLINE AA:", ab.v_germline_gapped_aa)
     ab.log("GERMLINE START AA:", ab.v_germline_start // 3 + 1)
 
     for region in v_regions:
@@ -746,7 +801,7 @@ def annotate_single_sequence(
             region,
             aligned_sequence=v_global.aligned_query,
             aligned_germline=v_global.aligned_target,
-            gapped_germline=gapped_v_germline,
+            gapped_germline=ab.v_germline_gapped,
             ab=ab,
             germline_start=ab.v_germline_start + 1,  # needs to be 1-indexed
         )
@@ -757,7 +812,7 @@ def annotate_single_sequence(
             region,
             aligned_sequence=v_global_aa.aligned_query,
             aligned_germline=v_global_aa.aligned_target,
-            gapped_germline=gapped_v_germline_aa,
+            gapped_germline=ab.v_germline_gapped_aa,
             ab=ab,
             germline_start=ab.v_germline_start // 3 + 1,  # needs to be 1-indexed
             aa=True,
