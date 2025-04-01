@@ -480,6 +480,9 @@ class MMseqs(AssignerBase):
                     ocsv.write("sequence_id\tsequence_input\tquality\n")  # header
                     for seq in abutils.io.parse_fastx(sequence_file):
                         qual = seq.qual if seq.qual is not None else ""
+                        if qual:
+                            if qual[0] in ['"', "'"]:  # leading quotes cause issues
+                                qual = "#" + qual[1:]
                         ofasta.write(f">{seq.id}\n{seq.sequence}\n")
                         ocsv.write(f"{seq.id}\t{seq.sequence}\t{qual}\n")
             output_fastas.append(output_fasta)
