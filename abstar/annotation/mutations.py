@@ -171,6 +171,35 @@ def annotate_v_mutations(
     return ab
 
 
+def annotate_j_mutations(
+	aligned_sequence: str,
+    aligned_germline: str,
+    gapped_germline: str,
+    j_start_position: int,
+    is_aa: bool,
+    ab: Antibody,
+    debug: bool = False,
+) -> Antibody:
+    """
+    Docstring to be completed
+    """
+    mutations = annotate_mutations(
+        aligned_sequence=aligned_sequence,
+        aligned_germline=aligned_germline,
+        gapped_germline=gapped_germline,
+        germline_start=j_start_position,
+        ab=ab,
+        debug=debug
+    )
+    if is_aa:
+        ab.j_mutations_aa = "|".join(mutations)
+        ab.j_mutation_count_aa = len(mutations)
+    else:
+        ab.j_mutations = "|".join(mutations)
+        ab.j_mutation_count = "|".join(mutations)
+    return ab
+
+
 def annotate_c_mutations(
     aligned_sequence: str,
     aligned_germline: str,

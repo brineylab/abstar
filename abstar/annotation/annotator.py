@@ -11,6 +11,8 @@ import abutils
 # import pandas as pd
 import polars as pl
 
+from abstar.tests.test_regions import aligned_germline, aligned_sequence
+
 from .antibody import Antibody
 from .germline import (
     get_germline,
@@ -22,7 +24,7 @@ from .germline import (
     reassign_dgene,
 )
 from .indels import annotate_deletions, annotate_insertions
-from .mutations import annotate_c_mutations, annotate_v_mutations
+from .mutations import annotate_c_mutations, annotate_v_mutations, annotate_j_mutations
 from .positions import get_gapped_sequence
 from .productivity import assess_productivity
 from .regions import get_region_sequence
@@ -377,6 +379,18 @@ def annotate_single_sequence(
     ab.log("J GERMLINE END:", ab.j_germline_end)
     ab.log("J SEQUENCE:", ab.j_sequence)
     ab.log("J GERMLINE:", ab.j_germline)
+
+    j_global = abutils.tl.global_alignment(
+        ab.j_sequence,
+        ab.j_germline,
+        **ALIGNMENT_PARAMS,
+    )
+    ab.log("GLOBAL ALIGNMENT:")
+    ab.log(f"     QUERY: {j_global.aligned_query}")
+    ab.log(f"            {j_global.alignment_midline}")
+    ab.log(f"  GERMLINE: {j_global.aligned_target}")
+
+
 
     ab.log("\n--------")
     ab.log(" D GENE")
@@ -761,6 +775,18 @@ def annotate_single_sequence(
     ab.log("V MUTATIONS:", ab.v_mutations)
     ab.log("V MUTATION COUNT:", ab.v_mutation_count)
 
+    ab = annotate_j_mutations(
+        aligned_sequence=j_global.aligned_query,
+        aligned_germline=j_global.aligned_target,
+        gapped_germline=ab.j_germline,
+        j_start_position=ab.j_sequence_start,
+        is_aa=False,
+        ab=ab,
+        debug=debug,
+    )
+    ab.log("J MUTATIONS:", ab.j_mutations)
+    ab.log("J MUTATION COUNT:", ab.j_mutation_count)
+
     # amino acid mutations
     ab = annotate_v_mutations(
         aligned_sequence=v_global_aa.aligned_query,
@@ -779,6 +805,11 @@ def annotate_single_sequence(
     ab.v_identity_aa = 1 - ab.v_mutation_count_aa / len(ab.v_germline_aa)
     ab.log("V IDENTITY:", ab.v_identity)
     ab.log("V IDENTITY AA:", ab.v_identity_aa)
+
+    ab.j_identity = 1 - ab.j_mutation_count / len(ab.j_germline)
+    ab.log("J IDENTITY:", ab.j_identity)
+
+    
 
     ab.log("\n---------")
     ab.log(" REGIONS")

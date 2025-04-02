@@ -98,6 +98,8 @@ schema_dict = {
     "j_cigar": pl.String,
     "j_sequence": pl.String,
     "j_germline": pl.String,
+    "j_mutations": pl.String,
+    "j_mutation_count": pl.String,
     "c_call": pl.String,
     "c_score": pl.Float64,
     "c_support": pl.Float64,
