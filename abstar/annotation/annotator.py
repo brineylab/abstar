@@ -395,7 +395,7 @@ def annotate_single_sequence(
         ab.j_insertions = annotate_insertions(
             aligned_sequence=j_global.aligned_query,
             aligned_germline=j_global.aligned_target,
-            gapped_germline=ab.j_germline_gapped,
+            gapped_germline=ab.j_germline,
             germline_start=ab.j_germline_start,
         )
         ab.log("J INSERTIONS:", ab.j_insertions)
@@ -411,7 +411,7 @@ def annotate_single_sequence(
         ab.j_deletions = annotate_deletions(
             aligned_sequence=j_loc.aligned_query,
             aligned_germline=j_loc.aligned_target,
-            gapped_germline=ab.j_germline_gapped,
+            gapped_germline=ab.j_germline,
             germline_start=ab.j_germline_start,
         )
         ab.log("J DELETIONS:", ab.j_deletions)
