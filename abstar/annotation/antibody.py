@@ -162,6 +162,9 @@ class Antibody(LoggingMixin):
     j_mutations_aa: str = None
     j_mutation_count: int = None
     j_mutation_count_aa: int = None
+    j_insertions: str = None
+    j_deletions: str = None
+    j_frameshift: bool = False
 
 
     def __post_init__(self):

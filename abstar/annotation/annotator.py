@@ -334,7 +334,7 @@ def annotate_single_sequence(
     # only raise a productivity issue if the combination of all indels causes a frameshift
     # this avoids incorrectly flagging as non-productive a sequence with compensatory out-of-frame indels
     if (cumulative_ins_length - cumulative_del_length) % 3:
-        ab.productivity_issues.append("out-of-frame indel(s)")
+        ab.productivity_issues.append("out-of-frame indel(s) in v-gene")
         ab.v_frameshift = True
 
     ab.log("\n--------")
@@ -390,6 +390,43 @@ def annotate_single_sequence(
     ab.log(f"            {j_global.alignment_midline}")
     ab.log(f"  GERMLINE: {j_global.aligned_target}")
 
+    # j insertions
+    if "-" in j_loc.aligned_target:
+        ab.j_insertions = annotate_insertions(
+            aligned_sequence=j_global.aligned_query,
+            aligned_germline=j_global.aligned_target,
+            gapped_germline=ab.j_germline_gapped,
+            germline_start=ab.j_germline_start,
+        )
+        ab.log("J INSERTIONS:", ab.j_insertions)
+        insertions = ab.j_insertions.split("|")
+        j_cumulative_ins_length = sum(
+            [int(i.split(">")[0].split(":")[1]) for i in insertions]
+        )
+    else:
+        j_cumulative_ins_length = 0
+
+    # j deletions
+    if "-" in j_loc.aligned_query:
+        ab.j_deletions = annotate_deletions(
+            aligned_sequence=j_loc.aligned_query,
+            aligned_germline=j_loc.aligned_target,
+            gapped_germline=ab.j_germline_gapped,
+            germline_start=ab.j_germline_start,
+        )
+        ab.log("J DELETIONS:", ab.j_deletions)
+        deletions = ab.j_deletions.split("|")
+        j_cumulative_del_length = sum(
+            [int(d.split(">")[0].split(":")[1]) for d in deletions]
+        )
+    else:
+        j_cumulative_del_length = 0
+
+    # only raise a productivity issue if the combination of all indels causes a frameshift
+    # this avoids incorrectly flagging as non-productive a sequence with compensatory out-of-frame indels
+    if (j_cumulative_ins_length - j_cumulative_del_length) % 3:
+        ab.productivity_issues.append("out-of-frame indel(s) in j-gene")
+        ab.j_frameshift = True
 
 
     ab.log("\n--------")
