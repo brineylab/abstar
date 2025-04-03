@@ -806,9 +806,11 @@ def annotate_single_sequence(
     ab.log("V IDENTITY:", ab.v_identity)
     ab.log("V IDENTITY AA:", ab.v_identity_aa)
 
-    ab.j_identity = 1 - ab.j_mutation_count / len(ab.j_germline)
-    ab.log("J IDENTITY:", ab.j_identity)
-
+    try:
+        ab.j_identity = 1 - ab.j_mutation_count / len(ab.j_germline)
+        ab.log("J IDENTITY:", ab.j_identity)
+    except:
+        pass
     
 
     ab.log("\n---------")
