@@ -95,7 +95,8 @@ def annotate_mutations(
                 mutation = f"{imgt_position}:{g}>{s}"
             mutations.append(mutation)
             log_str += f"{raw_position}{' ' * (10 - len(str(raw_position)))}"
-            log_str += f"{imgt_position}{' ' * (10 - len(str(imgt_position)))}"
+            if not j_gene:
+                log_str += f"{imgt_position}{' ' * (10 - len(str(imgt_position)))}"
             log_str += f"{mutation}"
         if ab is not None:
             ab.log(log_str)
