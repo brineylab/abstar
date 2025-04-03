@@ -4,6 +4,7 @@
 
 
 import re
+from typing import Optional
 
 from .antibody import Antibody
 from .positions import get_gapped_position_from_raw
@@ -19,6 +20,7 @@ def annotate_insertions(
     aligned_germline: str,
     gapped_germline: str,
     germline_start: int,
+    j_gene: Optional[bool] = False,
 ) -> str:
     """
     Annotates non-templated insertions in the V gene region. The notation abstar uses for insertions is:
@@ -67,7 +69,10 @@ def annotate_insertions(
 
         # format the insertion
         oof = "!" if length % 3 else ""
-        insertions.append(f"{imgt_start}:{length}>{seq}{oof}")
+        if j_gene:
+            insertions.append(f"{start}:{length}>{seq}{oof}")
+        else:
+            insertions.append(f"{imgt_start}:{length}>{seq}{oof}")
     return "|".join(insertions)
 
 
@@ -76,6 +81,7 @@ def annotate_deletions(
     aligned_germline: str,
     gapped_germline: str,
     germline_start: int,
+    j_gene: Optional[bool] = False,
 ) -> str:
     """
     Annotates non-templated deletions in the V gene region. The notation abstar uses for deletions is:
@@ -130,10 +136,16 @@ def annotate_deletions(
 
         # format the deletion
         oof = "!" if length % 3 else ""
-        if length > 1:
-            pos_range = f"{imgt_start}-{imgt_end - 1}"  # end is inclusive
+        if j_gene:
+            if length > 1:
+                pos_range = f"{start}-{start + length - 1}"  # end is inclusive
+            else:
+                pos_range = f"{start}"
         else:
-            pos_range = f"{imgt_start}"
+            if length > 1:
+                pos_range = f"{imgt_start}-{imgt_end - 1}"  # end is inclusive
+            else:
+                pos_range = f"{imgt_start}"
         deletions.append(f"{pos_range}:{length}>{seq}{oof}")
     return "|".join(deletions)
 
