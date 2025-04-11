@@ -162,7 +162,7 @@ class MMseqs(AssignerBase):
             descending=True,
             nulls_last=True,
         )
-        vresult_df = vresult_df.unique(subset=["v_query"], keep="first")
+        vresult_df = vresult_df.unique(subset=["v_query"], keep="first").collect()
 
         # -----------
         #   J genes
@@ -207,9 +207,10 @@ class MMseqs(AssignerBase):
                 for _x in x
             ],
         )
+
         # keep only the highest scoring assignment for each sequence
         jresult_df = jresult_df.sort(by=["j_nident"], descending=True, nulls_last=True)
-        jresult_df = jresult_df.unique(subset=["j_query"], keep="first")
+        jresult_df = jresult_df.unique(subset=["j_query"], keep="first").collect()
         # join the V and J assignment results
         vjresult_df = vresult_df.join(
             jresult_df,
@@ -217,6 +218,13 @@ class MMseqs(AssignerBase):
             right_on="j_query",
             how="left",
         )
+
+        if self.debug:
+            vjresult_df.write_csv(
+                os.path.join(
+                    self.output_directory, f"{self.sample_name}.vjresult.{idx}.csv"
+                ),
+            )
 
         # -----------
         #   D genes
@@ -268,8 +276,8 @@ class MMseqs(AssignerBase):
             dresult_df = dresult_df.sort(
                 by=["d_nident"], descending=True, nulls_last=True
             )
-            dresult_df = dresult_df.unique(subset=["d_query"], keep="first")
-            if dresult_df.select(pl.len()).collect().item() > 0:
+            dresult_df = dresult_df.unique(subset=["d_query"], keep="first").collect()
+            if dresult_df.shape[0] > 0:
                 # join the D and VJ assignment results
                 vdjresult_df = vjresult_df.join(
                     dresult_df,
@@ -290,6 +298,13 @@ class MMseqs(AssignerBase):
             vdjresult_df = vjresult_df.with_columns(
                 pl.lit(None).alias("d_call"),
                 pl.lit(None).alias("d_support"),
+            )
+
+        if self.debug:
+            vdjresult_df.write_csv(
+                os.path.join(
+                    self.output_directory, f"{self.sample_name}.vdjresult.{idx}.csv"
+                ),
             )
 
         # -----------
@@ -341,8 +356,8 @@ class MMseqs(AssignerBase):
             cresult_df = cresult_df.sort(
                 by=["c_nident"], descending=True, nulls_last=True
             )
-            cresult_df = cresult_df.unique(subset=["c_query"], keep="first")
-            if cresult_df.select(pl.len()).collect().item() > 0:
+            cresult_df = cresult_df.unique(subset=["c_query"], keep="first").collect()
+            if cresult_df.shape[0] > 0:
                 # join the C and VDJ assignment results
                 vdjcresult_df = vdjresult_df.join(
                     cresult_df,
@@ -365,7 +380,7 @@ class MMseqs(AssignerBase):
                 pl.lit(None).alias("c_support"),
             )
 
-        input_df = pl.scan_csv(input_tsv, separator="\t")
+        input_df = pl.read_csv(input_tsv, separator="\t")
         vdjcresult_df = input_df.join(
             vdjcresult_df,
             left_on="sequence_id",
@@ -378,6 +393,13 @@ class MMseqs(AssignerBase):
             (pl.col("v_qstart") > pl.col("v_qend")).alias("rev_comp")
         )
 
+        if self.debug:
+            vdjcresult_df.write_csv(
+                os.path.join(
+                    self.output_directory, f"{self.sample_name}.vdjcresult.{idx}.csv"
+                ),
+            )
+
         # log "unassigned" sequences (no V or J gene assignment)
         unassigned_cols = ["sequence_id", "sequence_input"]
         unassigned = vdjcresult_df.filter(
@@ -387,7 +409,7 @@ class MMseqs(AssignerBase):
         unassigned_path = os.path.join(
             self.log_directory, f"{self.sample_name}.{idx}.unassigned.csv"
         )
-        unassigned.sink_csv(unassigned_path)
+        unassigned.write_csv(unassigned_path)
         if not self.debug:
             self.to_delete.append(unassigned_path)
 
@@ -413,7 +435,7 @@ class MMseqs(AssignerBase):
         assigned_path = os.path.join(
             self.output_directory, f"{self.sample_name}.{idx}.parquet"
         )
-        assigned.sink_parquet(assigned_path)
+        assigned.write_parquet(assigned_path)
         if not self.debug:
             self.to_delete.append(assigned_path)
 
@@ -487,6 +509,10 @@ class MMseqs(AssignerBase):
                         ocsv.write(f"{seq.id}\t{seq.sequence}\t{qual}\n")
             output_fastas.append(output_fasta)
             output_csvs.append(output_csv)
+
+        # delete chunked sequence files (if there's only one file, it hasn't been chunked)
+        if len(sequence_files) > 1:
+            abutils.io.delete_files(sequence_files)
 
         return output_fastas, output_csvs, sequence_count
 
