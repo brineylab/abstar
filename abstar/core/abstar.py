@@ -99,6 +99,7 @@ def run(
     interleaved_fastq: bool = False,
     chunksize: int = 500,
     mmseqs_chunksize: int = 1e6,
+    mmseqs_threads: Optional[int] = None,
     n_processes: Optional[int] = None,
     copy_inputs_to_project: bool = False,
     verbose: bool = False,
@@ -304,6 +305,7 @@ def run(
         logger=logger,
         concise_logging=concise_logging,
         chunksize=mmseqs_chunksize,
+        threads=mmseqs_threads,
         debug=debug,
     )
 

@@ -106,6 +106,13 @@ def cli():
     help="Number of sequences to process at a time for MMseqs2 searches (VDJC assignment)",
 )
 @click.option(
+    "--mmseqs_threads",
+    type=int,
+    show_default=True,
+    default=None,
+    help="Number of threads to use for MMseqs2 searches (VDJC assignment)",
+)
+@click.option(
     "--n_processes",
     type=int,
     default=None,
@@ -147,6 +154,7 @@ def run(
     interleaved_fastq: bool = False,
     chunksize: int = 500,
     mmseqs_chunksize: int = 1e6,
+    mmseqs_threads: Optional[int] = None,
     n_processes: Optional[int] = None,
     copy_inputs_to_project: bool = False,
     verbose: bool = False,
@@ -174,6 +182,7 @@ def run(
         interleaved_fastq=interleaved_fastq,
         chunksize=chunksize,
         mmseqs_chunksize=mmseqs_chunksize,
+        mmseqs_threads=mmseqs_threads,
         n_processes=n_processes,
         copy_inputs_to_project=copy_inputs_to_project,
         verbose=verbose,
