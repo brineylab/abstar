@@ -253,7 +253,7 @@ def merge_fastqs(
     quality_trim: bool = True,
     window_size: int = 4,
     quality_cutoff: int = 20,
-    interleaved: bool = True,
+    interleaved: bool = False,
     compress_output: bool = False,
     debug: bool = False,
     show_progress: bool = False,
@@ -331,7 +331,9 @@ def merge_fastqs(
     # input/output files and directories
     if isinstance(files, str):
         if os.path.isdir(files):
-            files = list_files(files, extension=[".fastq", ".fq", ".fastq.gz", ".fq.gz"])
+            files = list_files(
+                files, extension=[".fastq", ".fq", ".fastq.gz", ".fq.gz"]
+            )
         elif os.path.isfile(files):
             files = [files]
         else:
