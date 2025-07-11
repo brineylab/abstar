@@ -1,0 +1,55 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "abstar"
+dynamic = ["version"]
+authors = [
+    {name = "Bryan Briney", email = "briney@scripps.edu"},
+]
+description = "Germline assignment and annotation of adaptive immune receptor repertoire (AIRR) data. Scalable from a single sequence to billions of sequences."
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+]
+keywords = ["bioinformatics", "immunology", "antibody", "BCR", "TCR", "AIRR"]
+dependencies = [
+    "abutils>=0.5.1",
+    "click",
+    "matplotlib",
+    "numpy",
+    "pandas",
+    "parasail",
+    "polars",
+    "pyarrow",
+    "pytest",
+]
+
+[project.urls]
+Homepage = "https://github.com/brineylab/abstar"
+Repository = "https://github.com/brineylab/abstar"
+Issues = "https://github.com/brineylab/abstar/issues"
+
+[project.scripts]
+abstar = "abstar.scripts.abstar:cli"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.dynamic]
+version = {attr = "abstar.version.__version__"}
+
+[tool.setuptools.packages.find]
+include = ["abstar*"] 
