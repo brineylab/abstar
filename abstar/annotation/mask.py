@@ -71,24 +71,51 @@ def generate_nongermline_mask(
 ) -> str | list:
     """
     Create a mask for the non-germline regions of an antibody.
+
+    Parameters
+    ----------
+    ab : Antibody
+        The antibody to generate a mask for.
+    aa : bool, optional
+        Whether to generate a mask for the amino acid sequence.
+    as_string : bool, optional
+        Whether to return the mask as a string. If False, the mask will be returned as a list.
+
+    Returns
+    -------
+    str | list: The mask for the non-germline regions of the antibody.
     """
+    # need to use the aligned sequence/germline sequences
+    # because indels would cause problems on non-aligned sequences
     if aa:
         segment_mask = ab.gene_segment_mask_aa
-        sequence = ab.sequence_aa
-        germline = ab.germline_aa
+        sequence = ab.sequence_alignment_aa
+        germline = ab.germline_alignment_aa
     else:
         segment_mask = ab.gene_segment_mask
-        sequence = ab.sequence
-        germline = ab.germline
+        sequence = ab.sequence_alignment
+        germline = ab.germline_alignment
 
     nongermline_mask = []
-    for s, g, m in zip(sequence, germline, segment_mask):
+    mask_idx = 0
+    for i in range(len(sequence)):
+        s = sequence[i]
+        g = germline[i]
+        m = segment_mask[mask_idx]
+        # if there's a deletion, don't increment the segment mask index
+        # or add to the nongermline mask
+        if s == "-":
+            continue
+        # N-addition regions are (by definition) non-germline
         if m == "N":
             nongermline_mask.append(1)
+        # mutations are non-germline (insertions would be caught here too)
         elif s != g:
             nongermline_mask.append(1)
+        # everything else is germline
         else:
             nongermline_mask.append(0)
+        mask_idx += 1
 
     # return
     if as_string:
