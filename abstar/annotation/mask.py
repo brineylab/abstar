@@ -1,0 +1,178 @@
+# Copyright (c) 2025 Bryan Briney
+# Distributed under the terms of the MIT License.
+# SPDX-License-Identifier: MIT
+
+
+from .antibody import Antibody
+
+
+def generate_cdr_mask(
+    ab: Antibody,
+    aa: bool = False,
+    as_string: bool = True,
+) -> str | list:
+    """
+
+    Create a mask for the CDR regions of an antibody.
+    Regions are numbered 0-3, with 0 being any FWR, 1 being the CDR1, 2 being the CDR2, 3 being the CDR3, and 4 being the FWR4.
+    Regions are defined according to the `IMGT numbering scheme`_ .
+
+    Parameters:
+    ----------
+    ab : Antibody
+        The antibody to generate a mask for.
+    aa : bool, optional
+        Whether to generate a mask for the amino acid sequence.
+    as_string : bool, optional
+        Whether to return the mask as a string. If False, the mask will be returned as a list.
+
+    Returns:
+    --------
+    str | list: The mask for the CDR regions of the antibody.
+
+    .. _IMGT numbering scheme: https://www.imgt.org/IMGTindex/numbering.php
+
+    """
+    # compute the mask
+    if aa:
+        cdr_mask = _generate_cdr_mask_aa(ab)
+    else:
+        cdr_mask = _generate_cdr_mask_nt(ab)
+
+    # return
+    if as_string:
+        return "".join([str(m) for m in cdr_mask])
+    return cdr_mask
+
+
+def generate_gene_segment_mask(
+    ab: Antibody,
+    aa: bool = False,
+    as_string: bool = True,
+) -> str | list:
+    """
+    Create a mask for the gene segments of an antibody.
+    """
+    if aa:
+        segment_mask = _generate_gene_segment_mask_aa(ab)
+    else:
+        segment_mask = _generate_gene_segment_mask_nt(ab)
+
+    # return
+    if as_string:
+        return "".join([str(m) for m in segment_mask])
+    return segment_mask
+
+
+def generate_nongermline_mask(
+    ab: Antibody,
+    aa: bool = False,
+    as_string: bool = True,
+) -> str | list:
+    """
+    Create a mask for the non-germline regions of an antibody.
+    """
+    if aa:
+        segment_mask = ab.gene_segment_mask_aa
+        sequence = ab.sequence_aa
+        germline = ab.germline_aa
+    else:
+        segment_mask = ab.gene_segment_mask
+        sequence = ab.sequence
+        germline = ab.germline
+
+    nongermline_mask = []
+    for s, g, m in zip(sequence, germline, segment_mask):
+        if m == "N":
+            nongermline_mask.append(1)
+        elif s != g:
+            nongermline_mask.append(1)
+        else:
+            nongermline_mask.append(0)
+
+    # return
+    if as_string:
+        return "".join([str(m) for m in nongermline_mask])
+    return nongermline_mask
+
+
+def _generate_cdr_mask_nt(ab: Antibody) -> list:
+    """
+    Create a mask for the CDR regions of an antibody nucleotide sequence.
+
+    Parameters
+    ----------
+    ab : Antibody
+        The antibody to generate a mask for.
+
+    Returns
+    -------
+    list: The mask for the CDR regions of the antibody.
+    """
+    cdr_mask = []
+    cdr_mask.extend([0] * len(ab.fwr1))
+    cdr_mask.extend([1] * len(ab.cdr1))
+    cdr_mask.extend([0] * len(ab.fwr2))
+    cdr_mask.extend([2] * len(ab.cdr2))
+    cdr_mask.extend([0] * len(ab.fwr3))
+    cdr_mask.extend([3] * len(ab.cdr3))
+    cdr_mask.extend([0] * len(ab.fwr4))
+    return cdr_mask
+
+
+def _generate_cdr_mask_aa(ab: Antibody) -> list:
+    """
+    Create a mask for the CDR regions of an antibody amino acid sequence.
+
+    Parameters
+    ----------
+    ab : Antibody
+        The antibody to generate a mask for.
+
+    Returns
+    -------
+    list: The mask for the CDR regions of the antibody.
+    """
+    cdr_mask = []
+    cdr_mask.extend([0] * len(ab.fwr1_aa))
+    cdr_mask.extend([1] * len(ab.cdr1_aa))
+    cdr_mask.extend([0] * len(ab.fwr2_aa))
+    cdr_mask.extend([2] * len(ab.cdr2_aa))
+    cdr_mask.extend([0] * len(ab.fwr3_aa))
+    cdr_mask.extend([3] * len(ab.cdr3_aa))
+    cdr_mask.extend([0] * len(ab.fwr4_aa))
+    return cdr_mask
+
+
+def _generate_gene_segment_mask_nt(ab: Antibody) -> list:
+    """
+    Create a mask for the gene segments of an antibody nucleotide sequence.
+    """
+    segment_mask = []
+    cdr3_start = ab.sequence.find(ab.cdr3)
+    segment_mask.extend(["V"] * cdr3_start)
+    segment_mask.extend(["V"] * len(ab.cdr3_v))
+    segment_mask.extend(["N"] * len(ab.cdr3_n1))
+    if ab.d_call is not None:
+        segment_mask.extend(["D"] * len(ab.cdr3_d))
+        segment_mask.extend(["N"] * len(ab.cdr3_n2))
+    segment_mask.extend(["J"] * len(ab.cdr3_j))
+    segment_mask.extend(["J"] * len(ab.fwr4))
+    return segment_mask
+
+
+def _generate_gene_segment_mask_aa(ab: Antibody) -> list:
+    """
+    Create a mask for the gene segments of an antibody amino acid sequence.
+    """
+    segment_mask = []
+    cdr3_start = ab.sequence_aa.find(ab.cdr3_aa)
+    segment_mask.extend(["V"] * cdr3_start)
+    segment_mask.extend(["V"] * len(ab.cdr3_v_aa))
+    segment_mask.extend(["N"] * len(ab.cdr3_n1_aa))
+    if ab.d_call is not None:
+        segment_mask.extend(["D"] * len(ab.cdr3_d_aa))
+        segment_mask.extend(["N"] * len(ab.cdr3_n2_aa))
+    segment_mask.extend(["J"] * len(ab.cdr3_j_aa))
+    segment_mask.extend(["J"] * len(ab.fwr4_aa))
+    return segment_mask

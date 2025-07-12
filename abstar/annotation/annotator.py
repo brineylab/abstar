@@ -22,10 +22,15 @@ from .germline import (
     reassign_dgene,
 )
 from .indels import annotate_deletions, annotate_insertions
+from .mask import (
+    generate_cdr_mask,
+    generate_gene_segment_mask,
+    generate_nongermline_mask,
+)
 from .mutations import annotate_c_mutations, annotate_v_mutations
 from .positions import get_gapped_sequence
 from .productivity import assess_productivity
-from .regions import get_region_sequence
+from .regions import get_region_sequence, identify_cdr3_regions
 from .schema import OUTPUT_SCHEMA
 from .umi import parse_umis
 
@@ -395,11 +400,7 @@ def annotate_single_sequence(
             local_aln_params=ALIGNMENT_PARAMS,
         )
     # if not, we can try again using local pairwise alignment (for IGH/TRA/TRD chains only)
-    elif len(dquery) >= 5 and ab.locus in [
-        "IGH",
-        "TRA",
-        "TRD",
-    ]:  # TODO: make the minimum d-gene alignment length a user-controllable parameter?
+    elif len(dquery) >= 5 and ab.locus in ["IGH", "TRA", "TRD"]:
         d_loc = reassign_dgene(
             sequence=dquery,
             germdb_name=ab.germline_database,
@@ -828,6 +829,9 @@ def annotate_single_sequence(
     ab.log("FR4 SEQUENCE:", ab.fwr4)
     ab.log("FR4 SEQUENCE AA:", ab.fwr4_aa)
 
+    # CDR3 regions
+    ab = identify_cdr3_regions(ab)
+
     ab.log("\n--------------")
     ab.log(" PRODUCTIVITY")
     ab.log("--------------\n")
@@ -836,6 +840,26 @@ def annotate_single_sequence(
     ab.log("STOP CODON:", ab.stop_codon)
     ab.log("PRODUCTIVE:", ab.productive)
     ab.log("PRODUCTIVITY ISSUES:", ab.productivity_issues)
+
+    ab.log("\n------------")
+    ab.log(" MASKS")
+    ab.log("-----------\n")
+
+    ab.cdr_mask = generate_cdr_mask(ab)
+    ab.cdr_mask_aa = generate_cdr_mask(ab, aa=True)
+    ab.gene_segment_mask = generate_gene_segment_mask(ab)
+    ab.gene_segment_mask_aa = generate_gene_segment_mask(ab, aa=True)
+    ab.nongermline_mask = generate_nongermline_mask(ab)
+    ab.nongermline_mask_aa = generate_nongermline_mask(ab, aa=True)
+
+    ab.log("SEQUENCE:         ", ab.sequence)
+    ab.log("CDR MASK:         ", ab.cdr_mask)
+    ab.log("GENE SEGMENT MASK:", ab.gene_segment_mask)
+    ab.log("NON-GERMLINE MASK:", ab.nongermline_mask)
+    ab.log("SEQUENCE AA:         ", ab.sequence_aa)
+    ab.log("CDR MASK AA:         ", ab.cdr_mask_aa)
+    ab.log("GENE SEGMENT MASK AA:", ab.gene_segment_mask_aa)
+    ab.log("NON-GERMLINE MASK AA:", ab.nongermline_mask_aa)
 
     return ab
 
