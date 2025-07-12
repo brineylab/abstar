@@ -116,6 +116,8 @@ def generate_nongermline_mask(
         else:
             nongermline_mask.append(0)
         mask_idx += 1
+        if mask_idx >= len(segment_mask):
+            break
 
     # return
     if as_string:
