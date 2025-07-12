@@ -194,6 +194,8 @@ def identify_cdr3_regions(ab: Antibody) -> Antibody:
         ab.cdr3_n1 = ab.sequence[cdr3_n1_start:cdr3_n1_end]
         ab.cdr3_n1_aa = abutils.tl.translate(ab.cdr3_n1)
 
+    return ab
+
 
 # NOTE: these are the the actual IMGT end positions which are 1-indexed and
 # not suitable for slicing in Python. To use these end points in a slice, subtract 1
