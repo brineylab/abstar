@@ -519,6 +519,8 @@ def process_dgene_alignment(
 
         The following ``Antibody`` properties are updated:
 
+        - ``d_call``: the D gene call (only updated if the D gene was found during a secondary search, not by the original MMseqs search)
+        - ``d_gene``: the D gene name (only updated if the D gene was found during a secondary search, not by the original MMseqs search)
         - ``d_sequence``: the D gene region of the query sequence
         - ``d_score``: the score of the local alignment
         - ``d_sequence_start``: start position of the D gene in the query sequence, in positions corresponding to the ``sequence_oriented`` property
@@ -531,6 +533,11 @@ def process_dgene_alignment(
         Does not require any ``Antibody`` properties to be set.
 
     """
+    # if the D gene was found during a secondary search, not by the original MMseqs search,
+    # we need to update the D gene call and name (since it hasn't already been set)
+    if ab.d_call is None:
+        ab.d_call = local_aln.target.id
+        ab.d_gene = local_aln.target.id.split("*")[0]
     ab.d_score = local_aln.score
     # AIRR-C wants 1-based indexing, but 0-based is better so we'll do that instead
     ab.d_sequence_start = v_sequence_end + local_aln.query_begin
