@@ -90,27 +90,31 @@ def get_region_sequence(
 
     # positions in the unaligned sequence
     start = get_raw_position_from_aligned(
-        position=aligned_start + 1,  # needs to be 1-indexed
+        # position=aligned_start + 1,  # needs to be 1-indexed
+        position=aligned_start,  # zero-indexed
         aligned_sequence=aligned_sequence,
         aligned_reference=aligned_germline,
     )
     end = get_raw_position_from_aligned(
-        position=aligned_end + 1,  # needs to be 1-indexed
+        # position=aligned_end + 1,  # needs to be 1-indexed
+        position=aligned_end,  # zero-indexed
         aligned_sequence=aligned_sequence,
         aligned_reference=aligned_germline,
     )
     if start is not None:
-        ab.log(f"{region.upper()} RAW START:", start - 1)  # actual slicing start
+        # ab.log(f"{region.upper()} RAW START:", start - 1)  # actual slicing start
+        ab.log(f"{region.upper()} RAW START:", start)  # start is already zero-indexed
     else:
         ab.log(f"{region.upper()} RAW START: not found")
     if end is not None:
-        ab.log(f"{region.upper()} RAW END:", end)
+        ab.log(f"{region.upper()} RAW END:", end + 1)  # actual slicing end
     else:
         ab.log(f"{region.upper()} RAW END: not found")
 
     # collect the sequence
     if start is not None and end is not None:
-        region_sequence = aligned_sequence[start - 1 : end].replace("-", "")
+        # region_sequence = aligned_sequence[start - 1 : end].replace("-", "")
+        region_sequence = aligned_sequence[start : end + 1].replace("-", "")
     else:
         region_sequence = ""
     return region_sequence
