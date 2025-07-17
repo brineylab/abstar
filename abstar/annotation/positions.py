@@ -92,7 +92,7 @@ def get_raw_position_from_aligned(
     aligned_reference: str,
 ) -> int:
     """
-    Gets the raw (ungapped) position in a sequence, given an aligned reference.
+    Gets the aligned position in a sequence, given an aligned reference.
 
     Parameters
     ----------
@@ -112,17 +112,14 @@ def get_raw_position_from_aligned(
     """
     aligned_position = 0
     raw_position = 0
-    # for s, r in zip(aligned_sequence, aligned_reference):
-    for s in aligned_sequence:
-        if s == "-":
+    for s, r in zip(aligned_sequence, aligned_reference):
+        if r == "-":
             aligned_position += 1
         else:
             aligned_position += 1
             raw_position += 1
-        # if raw_position == position:
-        #     return aligned_position
-        if aligned_position == position:
-            return raw_position
+        if raw_position == position:
+            return aligned_position
 
 
 def get_gapped_sequence(
