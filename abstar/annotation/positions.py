@@ -86,6 +86,32 @@ def get_raw_position_from_gapped(
     return max([0, raw])
 
 
+def get_position_from_aligned_reference(
+    position: int,
+    aligned_sequence: str,
+    aligned_reference: str,
+) -> int:
+    """
+    Get the query position from an aligned reference.
+    """
+    query_position = 0
+    reference_position = 0
+
+    for s, r in zip(aligned_sequence, aligned_reference):
+        # this has to come first, since we might have an alignment
+        # where we want position 0 of the reference, but there are
+        # leading gaps for which we need to increment the query first
+        if r == "-":
+            query_position += 1
+        elif reference_position == position:
+            return query_position
+        elif s == "-":
+            reference_position += 1
+        else:
+            query_position += 1
+            reference_position += 1
+
+
 def get_raw_position_from_aligned(
     position: int,
     aligned_sequence: str,
