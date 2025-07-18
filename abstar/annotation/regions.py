@@ -2,8 +2,6 @@
 # Distributed under the terms of the MIT License.
 # SPDX-License-Identifier: MIT
 
-from abutils.tools.alignment import PairwiseAlignment
-
 import abutils
 
 from .antibody import Antibody
@@ -16,7 +14,7 @@ from .positions import (
 
 def get_region_sequence(
     region: str,
-    aln: PairwiseAlignment,
+    aln: abutils.tl.PairwiseAlignment,
     gapped_germline: str,
     germline_start: int,
     ab: Antibody,
@@ -127,7 +125,6 @@ def get_region_sequence(
     return region_sequence
 
 
-
 # def get_region_sequence(
 #     region: str,
 #     aligned_sequence: str,
@@ -230,6 +227,7 @@ def get_region_sequence(
 #         region_sequence = ""
 #     return region_sequence
 
+
 def identify_cdr3_regions(ab: Antibody) -> Antibody:
     """
     Identify the CDR3 regions of an antibody.
@@ -309,7 +307,6 @@ def identify_cdr3_regions(ab: Antibody) -> Antibody:
         ab.cdr3_n1_aa = abutils.tl.translate(ab.cdr3_n1)
 
     return ab
-
 
 
 # NOTE: these are the the actual IMGT end positions which are 1-indexed and
