@@ -468,22 +468,102 @@ def process_jgene_alignment(
 
     """
     ab.j_score = local_aln.score
+
+    # parse the J sequence and germline start position
+    # sequence start is relative to the oriented input sequence
+    # germline start is relative to the full (ungapped) germline gene sequence
     # AIRR-C wants 1-based indexing, but 0-based is better so we'll do that instead
     ab.j_sequence_start = (
         v_sequence_end + semiglobal_aln.query_begin + local_aln.query_begin
     )
-    ab.j_sequence_end = (
-        ab.j_sequence_start + (local_aln.query_end - local_aln.query_begin) + 1
-    )
-    # germline start/stop positions
     ab.j_germline_start = semiglobal_aln.target_begin + local_aln.target_begin
-    ab.j_germline_end = (
-        ab.j_germline_start + (local_aln.target_end - local_aln.target_begin) + 1
-    )
+
+    # like V genes, we need to check whether the local alignment was incorrectly truncated
+    # (on the 5' end for J genes) due to mutations at or near the end of the J gene
+    # if the local alignment ends before the end of the germline J gene but the full query
+    # sequence extends beyond the end of the full germline gene, we extend the alignment
+    # to the end of the germline gene
+    residual_germ = len(local_aln.target) - local_aln.target_end
+    residual_seq = len(local_aln.query) - local_aln.query_end
+    if residual_germ >= 1 and residual_seq >= residual_germ:
+        ab.j_sequence_end = v_sequence_end + semiglobal_aln.query_end + 1
+        ab.j_germline_end = ab.j_germline_start + semiglobal_aln.target_end + 1
+    else:
+        ab.j_sequence_end = (
+            ab.j_sequence_start + (local_aln.query_end - local_aln.query_begin) + 1
+        )
+        ab.j_germline_end = (
+            ab.j_germline_start + (local_aln.target_end - local_aln.target_begin) + 1
+        )
+
     # j-region sequence and germline
     ab.j_sequence = oriented_input[ab.j_sequence_start : ab.j_sequence_end]
     ab.j_germline = semiglobal_aln.target[ab.j_germline_start : ab.j_germline_end]
     return ab
+
+
+# def process_jgene_alignment(
+#     oriented_input: str,
+#     v_sequence_end: int,
+#     semiglobal_aln: abutils.tl.PairwiseAlignment,
+#     local_aln: abutils.tl.PairwiseAlignment,
+#     ab: Antibody,
+# ) -> Antibody:
+#     """
+#     Processes a J gene alignment and updates ``Antibody`` annotations accordingly.
+
+#     .. note:
+#         all start/end positions are 0-indexed and end postions are
+#         exclusive, which aligns with Python slicing. This means that
+#         ``sequence[start : end]`` will work as expected
+
+#     Parameters:
+#     -----------
+#     oriented_input: str
+#         The oriented input sequence.
+
+#     v_sequence_end: int
+#         The end position of the V gene in the `oriented_input` sequence.
+
+#     semiglobal_aln: abutils.tl.PairwiseAlignment
+#         Semiglobal alignment of a query sequence to the J gene germline.
+
+#     local_aln: abutils.tl.PairwiseAlignment
+#         Local alignment of a query sequence to the J gene germline.
+
+#     ab: Antibody
+#         Antibody object to update with annotation information.
+
+#         The following ``Antibody`` properties are updated:
+
+#         - ``j_sequence``: the J gene region of the query sequence
+#         - ``j_score``: the score of the local alignment
+#         - ``j_sequence_start``: start position of the J gene in the query sequence, in positions corresponding to the ``sequence_oriented`` property
+#         - ``j_sequence_end``: end position of the J gene in the query sequence, in positions corresponding to the ``sequence_oriented`` property
+#         - ``j_germline``: the J gene region of the assigned germline sequence
+#         - ``j_germline_start``: start position of the J gene in the assigned germline sequence
+#         - ``j_germline_end``: end position of the J gene in the assigned germline sequence
+
+#         Does not require any ``Antibody`` properties to be set.
+
+#     """
+#     ab.j_score = local_aln.score
+#     # AIRR-C wants 1-based indexing, but 0-based is better so we'll do that instead
+#     ab.j_sequence_start = (
+#         v_sequence_end + semiglobal_aln.query_begin + local_aln.query_begin
+#     )
+#     ab.j_sequence_end = (
+#         ab.j_sequence_start + (local_aln.query_end - local_aln.query_begin) + 1
+#     )
+#     # germline start/stop positions
+#     ab.j_germline_start = semiglobal_aln.target_begin + local_aln.target_begin
+#     ab.j_germline_end = (
+#         ab.j_germline_start + (local_aln.target_end - local_aln.target_begin) + 1
+#     )
+#     # j-region sequence and germline
+#     ab.j_sequence = oriented_input[ab.j_sequence_start : ab.j_sequence_end]
+#     ab.j_germline = semiglobal_aln.target[ab.j_germline_start : ab.j_germline_end]
+#     return ab
 
 
 def process_dgene_alignment(
