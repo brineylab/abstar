@@ -4,6 +4,8 @@
 
 from abutils.tools.alignment import PairwiseAlignment
 
+import abutils
+
 from .antibody import Antibody
 from .positions import (
     get_gapped_position_from_raw,
@@ -125,6 +127,7 @@ def get_region_sequence(
     return region_sequence
 
 
+
 # def get_region_sequence(
 #     region: str,
 #     aligned_sequence: str,
@@ -226,6 +229,87 @@ def get_region_sequence(
 #     else:
 #         region_sequence = ""
 #     return region_sequence
+
+def identify_cdr3_regions(ab: Antibody) -> Antibody:
+    """
+    Identify the CDR3 regions of an antibody.
+
+    Parameters
+    ----------
+    ab : Antibody
+        The ``Antibody`` object. Used only for logging. No ``Antibody`` paremeters
+        are required or updated.
+
+    Returns
+    -------
+    Antibody
+        The ``Antibody`` object with the CDR3 regions identified.
+
+        The following ``Antibody`` properties are updated:
+
+        - ``cdr3_v``: the V gene region of the CDR3
+        - ``cdr3_v_aa``: the V gene region of the CDR3 in amino acids
+        - ``cdr3_n1``: the N1 region of the CDR3
+        - ``cdr3_n1_aa``: the N1 region of the CDR3 in amino acids
+        - ``cdr3_d``: the D region of the CDR3 (only for IGH/TRA/TRD chains with a D-gene call)
+        - ``cdr3_d_aa``: the D region of the CDR3 in amino acids (only for IGH/TRA/TRD chains with a D-gene call)
+        - ``cdr3_n2``: the N2 region of the CDR3 (only for IGH/TRA/TRD chains with a D-gene call)
+        - ``cdr3_n2_aa``: the N2 region of the CDR3 in amino acids (only for IGH/TRA/TRD chains with a D-gene call)
+        - ``cdr3_j``: the J gene region of the CDR3
+        - ``cdr3_j_aa``: the J gene region of the CDR3 in amino acids
+
+    """
+    cdr3_start = ab.sequence.find(ab.fwr3) + len(ab.fwr3)
+    cdr3_end = cdr3_start + len(ab.cdr3)
+
+    # V gene region of the CDR3
+    cdr3_v_length = len(ab.v_sequence) - cdr3_start
+    adjusted_cdr3_v_length = cdr3_v_length - (cdr3_v_length % 3)
+    cdr3_v_start = cdr3_start
+    cdr3_v_end = cdr3_v_start + adjusted_cdr3_v_length
+    ab.cdr3_v = ab.sequence[cdr3_v_start:cdr3_v_end]
+    ab.cdr3_v_aa = abutils.tl.translate(ab.cdr3_v)
+
+    # J gene region of the CDR3
+    cdr3_j_start = ab.sequence.find(ab.j_sequence)
+    cdr3_j_end = cdr3_end
+    j_frame = (cdr3_j_start - cdr3_start) % 3
+    j_trunc_5 = (-j_frame) % 3  # "wrap-around" modulo for trimming the front of the J
+    adjusted_cdr3_j_start = cdr3_j_start + j_trunc_5
+    ab.cdr3_j = ab.sequence[adjusted_cdr3_j_start:cdr3_j_end]
+    ab.cdr3_j_aa = abutils.tl.translate(ab.cdr3_j)
+
+    # chains with a D-gene call
+    if ab.d_call is not None:
+        cdr3_d_start = ab.sequence.find(ab.d_sequence)
+        cdr3_d_end = cdr3_d_start + len(ab.d_sequence)
+        d_start_frame = (cdr3_d_start - cdr3_start) % 3
+        d_trunc_5 = (-d_start_frame) % 3  # "wrap-around" modulo
+        d_trunc_3 = (cdr3_d_end - cdr3_start) % 3
+        adjusted_cdr3_d_start = cdr3_d_start + d_trunc_5
+        adjusted_cdr3_d_end = cdr3_d_end - d_trunc_3
+        ab.cdr3_d = ab.sequence[adjusted_cdr3_d_start:adjusted_cdr3_d_end]
+        ab.cdr3_d_aa = abutils.tl.translate(ab.cdr3_d)
+
+        cdr3_n1_start = cdr3_v_end
+        cdr3_n1_end = adjusted_cdr3_d_start
+        ab.cdr3_n1 = ab.sequence[cdr3_n1_start:cdr3_n1_end]
+        ab.cdr3_n1_aa = abutils.tl.translate(ab.cdr3_n1)
+
+        cdr3_n2_start = adjusted_cdr3_d_end
+        cdr3_n2_end = adjusted_cdr3_j_start
+        ab.cdr3_n2 = ab.sequence[cdr3_n2_start:cdr3_n2_end]
+        ab.cdr3_n2_aa = abutils.tl.translate(ab.cdr3_n2)
+
+    # chains without a D-gene call
+    else:
+        cdr3_n1_start = cdr3_v_end
+        cdr3_n1_end = adjusted_cdr3_j_start
+        ab.cdr3_n1 = ab.sequence[cdr3_n1_start:cdr3_n1_end]
+        ab.cdr3_n1_aa = abutils.tl.translate(ab.cdr3_n1)
+
+    return ab
+
 
 
 # NOTE: these are the the actual IMGT end positions which are 1-indexed and
