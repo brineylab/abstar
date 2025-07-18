@@ -2,6 +2,7 @@
 # Distributed under the terms of the MIT License.
 # SPDX-License-Identifier: MIT
 
+from abutils.tools.alignment import PairwiseAlignment
 
 import abutils
 from abutils.tools.alignment import PairwiseAlignment
@@ -127,6 +128,109 @@ def get_region_sequence(
     return region_sequence
 
 
+
+# def get_region_sequence(
+#     region: str,
+#     aligned_sequence: str,
+#     aligned_germline: str,
+#     gapped_germline: str,
+#     germline_start: int,
+#     ab: Antibody,
+#     aa: bool = False,
+# ) -> str:
+#     """
+#     Get the sequence of a region from the aligned sequence.
+
+#     Parameters
+#     ----------
+#     region : str
+#         The region to get the sequence of.
+
+#     aligned_sequence : str
+#         The aligned sequence to get the region from.
+
+#     aligned_germline : str
+#         The aligned germline sequence to get the region from.
+
+#     gapped_germline : str
+#         The gapped germline sequence to get the region from.
+
+#     germline_start : int
+#         The start position of the germline sequence.
+
+#     ab : Antibody
+#         The ``Antibody`` object. Used only for logging. No ``Antibody`` paremeters
+#         are required or updated.
+
+#     aa : bool, default False
+#         Whether to get the region in amino acids or nucleotides.
+
+#     Returns
+#     -------
+#     str
+#         The sequence of the region.
+
+#     """
+#     # IMGT start/end positions for the region
+#     if aa:
+#         imgt_start = IMGT_REGION_START_POSITIONS_AA[region]
+#         imgt_end = IMGT_REGION_END_POSITIONS_AA[region]
+#     else:
+#         imgt_start = IMGT_REGION_START_POSITIONS_NT[region]
+#         imgt_end = IMGT_REGION_END_POSITIONS_NT[region]
+#     ab.log(f"{region.upper()} IMGT START:", imgt_start)
+#     ab.log(f"{region.upper()} IMGT END:", imgt_end)
+
+#     # if the input sequence is sufficiently truncated at
+#     # the 5' end that the region is entirely missing...
+#     gapped_germline_start = get_gapped_position_from_raw(
+#         position=germline_start + 1,  # needs to be 1-indexed
+#         gapped_germline=gapped_germline,
+#     )
+#     if gapped_germline_start > imgt_end:
+#         return ""
+
+#     # positions in the aligned germline
+#     aligned_start = get_raw_position_from_gapped(
+#         position=imgt_start,
+#         gapped_germline=gapped_germline,
+#         germline_start=germline_start,
+#     )
+#     aligned_end = get_raw_position_from_gapped(
+#         position=imgt_end,
+#         gapped_germline=gapped_germline,
+#         germline_start=germline_start,
+#     )
+#     ab.log(f"{region.upper()} ALIGNED START:", aligned_start)
+#     ab.log(f"{region.upper()} ALIGNED END:", aligned_end)
+
+#     # positions in the unaligned sequence
+#     start = get_raw_position_from_aligned(
+#         position=aligned_start + 1,  # needs to be 1-indexed
+#         aligned_sequence=aligned_sequence,
+#         aligned_reference=aligned_germline,
+#     )
+#     end = get_raw_position_from_aligned(
+#         position=aligned_end + 1,  # needs to be 1-indexed
+#         aligned_sequence=aligned_sequence,
+#         aligned_reference=aligned_germline,
+#     )
+#     if start is not None:
+#         ab.log(f"{region.upper()} RAW START:", start - 1)  # actual slicing start
+#     else:
+#         ab.log(f"{region.upper()} RAW START: not found")
+#     if end is not None:
+#         ab.log(f"{region.upper()} RAW END:", end)
+#     else:
+#         ab.log(f"{region.upper()} RAW END: not found")
+
+#     # collect the sequence
+#     if start is not None and end is not None:
+#         region_sequence = aligned_sequence[start - 1 : end].replace("-", "")
+#     else:
+#         region_sequence = ""
+#     return region_sequence
+
 def identify_cdr3_regions(ab: Antibody) -> Antibody:
     """
     Identify the CDR3 regions of an antibody.
@@ -206,6 +310,7 @@ def identify_cdr3_regions(ab: Antibody) -> Antibody:
         ab.cdr3_n1_aa = abutils.tl.translate(ab.cdr3_n1)
 
     return ab
+
 
 
 # NOTE: these are the the actual IMGT end positions which are 1-indexed and
