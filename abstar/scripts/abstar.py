@@ -119,6 +119,13 @@ def cli():
     help="Number of processes to use for annotation",
 )
 @click.option(
+    "--copy-inputs/--no-copy-inputs",
+    "copy_inputs_to_project",
+    is_flag=True,
+    default=True,
+    help="Whether to copy input files to the project directory."
+)
+@click.option(
     "--verbose/--quiet",
     default=True,
     help="Whether to print verbose output",
@@ -128,12 +135,6 @@ def cli():
     is_flag=True,
     default=False,
     help="Whether to run in debug mode, which results in temporary files being retained and additional logging.",
-)
-@click.option(
-    "--copy_inputs_to_project",
-    cls=HiddenClickOption,
-    is_flag=True,
-    default=True,
 )
 @click.option(
     "--started_from_cli",
