@@ -148,6 +148,8 @@ class Antibody(LoggingMixin):
     fwr4: str = None
     fwr4_aa: str = None
     junction: str = None
+    junction_start: int = None
+    junction_end: int = None
     cdr3_v: str = None
     cdr3_v_aa: str = None
     cdr3_n1: str = None
@@ -166,6 +168,13 @@ class Antibody(LoggingMixin):
     j_sequence_end: int = None
     j_germline_start: int = None
     j_germline_end: int = None
+    j_mutations: str = None
+    j_mutations_aa: str = None
+    j_mutation_count: int = None
+    j_mutation_count_aa: int = None
+    j_insertions: str = None
+    j_deletions: str = None
+    j_frameshift: bool = False
     cdr_mask: str = None
     cdr_mask_aa: str = None
     gene_segment_mask: str = None
