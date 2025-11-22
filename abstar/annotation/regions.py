@@ -119,6 +119,10 @@ def get_region_sequence(
     ab.log(f"{region.upper()} REGION START:", region_start)
     ab.log(f"{region.upper()} REGION END:", region_end)
 
+    # if we couldn't determine start/end (eg., empty inputs), return empty string
+    if region_start is None or region_end is None:
+        return ""
+
     # NOTE: alignment numbering is inclusive, so we +1 the end position for Python slicing
     region_sequence = aln.query[region_start : region_end + 1]
 
