@@ -1,0 +1,24 @@
+Human + C57BL/6 germline gene database
+=============================
+
+All V/D/J genes were obtained from OGRDB
+
+SOURCE: https://ogrdb.airr-community.org/germline_sets/Homo%20sapiens
+OGRDB RELEASE DATE: 
+  - IGH: 2024-10-12 (rev 9)
+  - IGK: 2024-10-12 (rev 4)
+  - IGL: 2024-10-12 (rev 3)
+
+SOURCE: https://ogrdb.airr-community.org/germline_sets/Mus%20musculus
+OGRDB RELEASE DATE:
+  - IGH: 2022-06-02 (rev 3)
+  - IGKV: 2022-05-03 (rev1)
+  - IGLV: 2022-05-03 (rev1)
+  - IGKJ: 2022-05-31 (rev 1)
+  - IGLJ: 2022-05-31 (rev 1)
+
+
+All constant genes were obtained from IMGT GENE-DB
+
+SOURCE: https://www.imgt.org/genedb/
+DOWNLOAD DATE: 2024-08-19
