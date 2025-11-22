@@ -283,6 +283,7 @@ def realign_germline(
         imgt_gapped=imgt_gapped,
         exact_match=True,
         force_constant=force_constant,
+        truncate_species=False,
     )
     if truncate_query is not None:
         sequence = sequence[: -int(truncate_query)]
@@ -331,7 +332,7 @@ def reassign_dgene(
 
     """
     # fetch all d-genes
-    germs = get_germline("IGHD", germdb_name)
+    germs = get_germline("IGHD", germdb_name, truncate_species=False)
     aln_params = aln_params if aln_params is not None else {}
     # align the query sequence to all d-genes
     alns = abutils.tl.local_alignment(sequence, targets=germs, **aln_params)

@@ -190,6 +190,11 @@ def annotate_single_sequence(
 
     # check germline calls for species name
     # (mainly for mixed species databases like humouse)
+    # need to keep the raw call for calls to get_germline(), which must include the species name if it's present
+    raw_v_call = ab.v_call
+    raw_j_call = ab.j_call
+    raw_d_call = ab.d_call
+    raw_c_call = ab.c_call
     if len(vsplit := ab.v_call.split("__")) > 1:
         ab.v_call, ab.species = vsplit
     else:
@@ -219,7 +224,7 @@ def annotate_single_sequence(
     # v-gene realignment
     v_sg, v_loc = realign_germline(
         sequence=ab.sequence_oriented,
-        germline_name=ab.v_call,
+        germline_name=raw_v_call,  # must include species annotation if it's present in the germline database
         germdb_name=ab.germline_database,
         imgt_gapped=False,
         semiglobal_aln_params=ALIGNMENT_PARAMS,
@@ -291,7 +296,11 @@ def annotate_single_sequence(
 
     # gapped V-gene germline
     ab.v_germline_gapped = get_germline(
-        ab.v_call, ab.germline_database, imgt_gapped=True, exact_match=True
+        raw_v_call,
+        ab.germline_database,
+        imgt_gapped=True,
+        exact_match=True,
+        truncate_species=False,
     ).sequence
     ab.v_germline_gapped_aa = abutils.tl.translate(
         ab.v_germline_gapped, allow_dots=True
@@ -366,7 +375,7 @@ def annotate_single_sequence(
         )
     j_sg, j_loc = realign_germline(
         sequence=jquery,
-        germline_name=ab.j_call,
+        germline_name=raw_j_call,  # must include species annotation if it's present in the germline database
         germdb_name=ab.germline_database,
         imgt_gapped=False,
         semiglobal_aln_params=ALIGNMENT_PARAMS,
@@ -407,7 +416,7 @@ def annotate_single_sequence(
     if dquery and ab.d_call is not None:
         _, d_loc = realign_germline(
             sequence=dquery,
-            germline_name=ab.d_call,
+            germline_name=raw_d_call,  # must include species annotation if it's present in the germline database
             germdb_name=ab.germline_database,
             imgt_gapped=False,
             skip_semiglobal=True,
@@ -471,7 +480,7 @@ def annotate_single_sequence(
     if cquery and ab.c_call is not None:
         c_sg, c_loc = realign_germline(
             sequence=cquery,
-            germline_name=ab.c_call,
+            germline_name=raw_c_call,  # must include species annotation if it's present in the germline database
             germdb_name=ab.germline_database,
             imgt_gapped=False,
             semiglobal_aln_params=ALIGNMENT_PARAMS,
@@ -536,11 +545,12 @@ def annotate_single_sequence(
 
         # gapped Constant region germline
         ab.c_germline_gapped = get_germline(
-            ab.c_call,
+            raw_c_call,
             ab.germline_database,
             imgt_gapped=True,
             exact_match=True,
             force_constant=True,
+            truncate_species=False,
         ).sequence
         ab.c_germline_gapped_aa = abutils.tl.translate(
             ab.c_germline_gapped, allow_dots=True
