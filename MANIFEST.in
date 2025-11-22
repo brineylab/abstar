@@ -33,6 +33,12 @@ include abstar/germline_dbs/bcr/balbc/mmseqs/*
 include abstar/germline_dbs/bcr/balbc/ungapped/*
 include abstar/germline_dbs/bcr/balbc/imgt_gapped/*
 
+include abstar/germline_dbs/bcr/*
+include abstar/germline_dbs/bcr/human+c57bl6/*
+include abstar/germline_dbs/bcr/human+c57bl6/mmseqs/*
+include abstar/germline_dbs/bcr/human+c57bl6/ungapped/*
+include abstar/germline_dbs/bcr/human+c57bl6/imgt_gapped/*
+
 include abstar/germline_dbs/tcr/*
 include abstar/germline_dbs/tcr/human/*
 include abstar/germline_dbs/tcr/human/mmseqs/*
