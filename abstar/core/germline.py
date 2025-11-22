@@ -221,7 +221,7 @@ def build_germline_database(
                 raise FileNotFoundError(f"The file {constant} does not exist.")
             copy_to_raw(constant, raw_dir)
             sequences = process_fasta(
-                fasta_file=constant, include_species_in_name=False
+                fasta_file=constant, include_species_in_name=include_species_in_name
             )
             gapped_constants.extend(sequences)
 
