@@ -19,6 +19,7 @@ def get_region_sequence(
     germline_start: int,
     ab: Antibody,
     aa: bool = False,
+    nt_region_start: int | None = None,
 ) -> str:
     """
     Get the sequence of an antibody region (e.g., CDR1).
@@ -64,6 +65,11 @@ def get_region_sequence(
 
     aa : bool, default False
         Whether to get the region in amino acids or nucleotides.
+
+    nt_region_start: int | None, default None
+        The start position of the nucleotide region. If provided, the start of the AA region
+        will be compared to this position to ensure consistency and avoid edge cases in which
+        the AA alignment incorrectly truncates the leading amino acid(s).
 
     Returns
     -------
@@ -120,6 +126,26 @@ def get_region_sequence(
     ab.log(f"{region.upper()} REGION START:", region_start)
     ab.log(f"{region.upper()} REGION END:", region_end)
 
+    # there's a potential edge case in which the AA alignment incorrectly truncates the leading amino acid(s)
+    # for the FWR1 region -- 1-2 mutations in the first 2 AAs can cause erroneous alignment gaps in the AA alignment
+    # but not the NT alignment, because the NT alignment is more robust to small numbers of changes.
+    # for example:
+    #    QUERY:    GACGTGGAGGTGGTGGAGTC
+    #              || ||| || ||||||||||
+    #    GERMLINE: GAGGTGCAGCTGGTGGAGTC
+    # and
+    #    QUERY:    DVEV--VESGGGLVQPGGSLRLSC
+    #                ||  ||||||||||||||||||
+    #    GERMLINE: --EVQLVESGGGLVQPGGSLRLSC
+    #
+    if nt_region_start is not None:
+        if all([aa, nt_region_start == 0, region_start > 0]):
+            region_start = 0
+        ab.log(
+            f"WARNING: The nt region start is 0 but the aa region is {region_start} - this is likely due to a small number of mutations in the first few AAs that caused erroneous alignment gaps in the AA alignment. Adjusting the AA region start to 0."
+        )
+        ab.log(f"{region.upper()} ADJUSTED REGION START:", region_start)
+
     # if we couldn't determine start/end (eg., empty inputs), return empty string
     if region_start is None or region_end is None:
         return ""
@@ -127,7 +153,7 @@ def get_region_sequence(
     # NOTE: alignment numbering is inclusive, so we +1 the end position for Python slicing
     region_sequence = aln.query[region_start : region_end + 1]
 
-    return region_sequence
+    return region_start, region_end, region_sequence
 
 
 # def get_region_sequence(
