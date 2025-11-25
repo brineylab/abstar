@@ -148,7 +148,7 @@ def get_region_sequence(
 
     # if we couldn't determine start/end (eg., empty inputs), return empty string
     if region_start is None or region_end is None:
-        return ""
+        return region_start, region_end, ""
 
     # NOTE: alignment numbering is inclusive, so we +1 the end position for Python slicing
     region_sequence = aln.query[region_start : region_end + 1]
