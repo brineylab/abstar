@@ -87,6 +87,7 @@ def get_region_sequence(
         position=germline_start + 1,  # needs to be 1-indexed
         gapped_germline=gapped_germline,
     )
+    ab.log(f"{region.upper()} GAPPED GERMLINE START:", gapped_germline_start)
     if gapped_germline_start > imgt_end:
         return ""
 
@@ -298,7 +299,12 @@ def identify_cdr3_regions(ab: Antibody) -> Antibody:
 
     # chains with a D-gene call
     if ab.d_call is not None:
-        cdr3_d_start = ab.sequence.find(ab.d_sequence)
+        # limit the D-gene search region to the sequence between CDR3 V and CDR3 J
+        # if we don't, we may find a D-gene match elsewhere (in the middle of the V-gene, for example) and throw off the positional numbering
+        cdr3_d_start = (
+            ab.sequence[cdr3_v_end:adjusted_cdr3_j_start].find(ab.d_sequence)
+            + cdr3_v_end  # add back the CDR3 V start position to get the absolute start position
+        )
         cdr3_d_end = cdr3_d_start + len(ab.d_sequence)
         d_start_frame = (cdr3_d_start - cdr3_start) % 3
         d_trunc_5 = (-d_start_frame) % 3  # "wrap-around" modulo
