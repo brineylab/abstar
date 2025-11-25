@@ -263,14 +263,22 @@ def identify_cdr3_regions(ab: Antibody) -> Antibody:
     """
     cdr3_start = ab.sequence.find(ab.fwr3) + len(ab.fwr3)
     cdr3_end = cdr3_start + len(ab.cdr3)
+    ab.log("CDR3 START:", cdr3_start)
+    ab.log("CDR3 END:", cdr3_end)
 
     # V gene region of the CDR3
     cdr3_v_length = len(ab.v_sequence) - cdr3_start
-    adjusted_cdr3_v_length = cdr3_v_length - (cdr3_v_length % 3)
+    adjusted_cdr3_v_length = cdr3_v_length - cdr3_v_length % 3  # trim partial 3' codon
+    ab.log("CDR3 V LENGTH:", cdr3_v_length)
+    ab.log("ADJUSTED CDR3 V LENGTH:", adjusted_cdr3_v_length)
     cdr3_v_start = cdr3_start
     cdr3_v_end = cdr3_v_start + adjusted_cdr3_v_length
     ab.cdr3_v = ab.sequence[cdr3_v_start:cdr3_v_end]
     ab.cdr3_v_aa = abutils.tl.translate(ab.cdr3_v)
+    ab.log("CDR3 V START:", cdr3_v_start)
+    ab.log("CDR3 V END:", cdr3_v_end)
+    ab.log("CDR3 V SEQUENCE:", ab.cdr3_v)
+    ab.log("CDR3 V SEQUENCE AA:", ab.cdr3_v_aa)
 
     # J gene region of the CDR3
     cdr3_j_start = ab.sequence.find(ab.j_sequence)
@@ -280,6 +288,13 @@ def identify_cdr3_regions(ab: Antibody) -> Antibody:
     adjusted_cdr3_j_start = cdr3_j_start + j_trunc_5
     ab.cdr3_j = ab.sequence[adjusted_cdr3_j_start:cdr3_j_end]
     ab.cdr3_j_aa = abutils.tl.translate(ab.cdr3_j)
+    ab.log("CDR3 J START:", adjusted_cdr3_j_start)
+    ab.log("CDR3 J END:", cdr3_j_end)
+    ab.log("J FRAME:", j_frame)
+    ab.log("J TRUNC 5 (wrapped-around modulo):", j_trunc_5)
+    ab.log("ADJUSTED CDR3 J START:", adjusted_cdr3_j_start)
+    ab.log("CDR3 J SEQUENCE:", ab.cdr3_j)
+    ab.log("CDR3 J SEQUENCE AA:", ab.cdr3_j_aa)
 
     # chains with a D-gene call
     if ab.d_call is not None:
@@ -292,16 +307,33 @@ def identify_cdr3_regions(ab: Antibody) -> Antibody:
         adjusted_cdr3_d_end = cdr3_d_end - d_trunc_3
         ab.cdr3_d = ab.sequence[adjusted_cdr3_d_start:adjusted_cdr3_d_end]
         ab.cdr3_d_aa = abutils.tl.translate(ab.cdr3_d)
+        ab.log("CDR3 D START:", adjusted_cdr3_d_start)
+        ab.log("CDR3 D END:", adjusted_cdr3_d_end)
+        ab.log("D START FRAME:", d_start_frame)
+        ab.log("D TRUNC 5 (wrapped-around modulo):", d_trunc_5)
+        ab.log("D TRUNC 3 (wrapped-around modulo):", d_trunc_3)
+        ab.log("ADJUSTED CDR3 D START:", adjusted_cdr3_d_start)
+        ab.log("ADJUSTED CDR3 D END:", adjusted_cdr3_d_end)
+        ab.log("CDR3 D SEQUENCE:", ab.cdr3_d)
+        ab.log("CDR3 D SEQUENCE AA:", ab.cdr3_d_aa)
 
         cdr3_n1_start = cdr3_v_end
         cdr3_n1_end = adjusted_cdr3_d_start
         ab.cdr3_n1 = ab.sequence[cdr3_n1_start:cdr3_n1_end]
         ab.cdr3_n1_aa = abutils.tl.translate(ab.cdr3_n1)
+        ab.log("CDR3 N1 START:", cdr3_n1_start)
+        ab.log("CDR3 N1 END:", cdr3_n1_end)
+        ab.log("CDR3 N1 SEQUENCE:", ab.cdr3_n1)
+        ab.log("CDR3 N1 SEQUENCE AA:", ab.cdr3_n1_aa)
 
         cdr3_n2_start = adjusted_cdr3_d_end
         cdr3_n2_end = adjusted_cdr3_j_start
         ab.cdr3_n2 = ab.sequence[cdr3_n2_start:cdr3_n2_end]
         ab.cdr3_n2_aa = abutils.tl.translate(ab.cdr3_n2)
+        ab.log("CDR3 N2 START:", cdr3_n2_start)
+        ab.log("CDR3 N2 END:", cdr3_n2_end)
+        ab.log("CDR3 N2 SEQUENCE:", ab.cdr3_n2)
+        ab.log("CDR3 N2 SEQUENCE AA:", ab.cdr3_n2_aa)
 
     # chains without a D-gene call
     else:
@@ -309,6 +341,10 @@ def identify_cdr3_regions(ab: Antibody) -> Antibody:
         cdr3_n1_end = adjusted_cdr3_j_start
         ab.cdr3_n1 = ab.sequence[cdr3_n1_start:cdr3_n1_end]
         ab.cdr3_n1_aa = abutils.tl.translate(ab.cdr3_n1)
+        ab.log("CDR3 N1 START:", cdr3_n1_start)
+        ab.log("CDR3 N1 END:", cdr3_n1_end)
+        ab.log("CDR3 N1 SEQUENCE:", ab.cdr3_n1)
+        ab.log("CDR3 N1 SEQUENCE AA:", ab.cdr3_n1_aa)
 
     return ab
 
