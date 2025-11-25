@@ -822,7 +822,7 @@ def annotate_single_sequence(
 
     for region in v_regions:
         # nucleotide region
-        region_sequence = get_region_sequence(
+        region_start, region_end, region_sequence = get_region_sequence(
             region,
             aln=v_sg,
             gapped_germline=ab.v_germline_gapped,
@@ -840,13 +840,14 @@ def annotate_single_sequence(
         setattr(ab, f"{region}", region_sequence)
         ab.log(f"{region.upper()} SEQUENCE:", region_sequence)
         # amino acid region
-        region_sequence_aa = get_region_sequence(
+        _, _, region_sequence_aa = get_region_sequence(
             region,
             aln=v_sg_aa,
             gapped_germline=ab.v_germline_gapped_aa,
             germline_start=ab.v_germline_start // 3 + 1,  # needs to be 1-indexed
             ab=ab,
             aa=True,
+            nt_region_start=region_start,
         )
         # region_sequence_aa = get_region_sequence(
         #     region,
