@@ -862,7 +862,7 @@ def annotate_single_sequence(
 
     # J regions
     fwr4_start = fr4_sg.query_begin
-    fwr4_end = fr4_sg.query_end
+    fwr4_end = fr4_sg.query_end + 1  # python end-slicing is exclusive
     ab.fwr4 = fr4_sg.aligned_query[fwr4_start:fwr4_end]
     ab.fwr4_aa = abutils.tl.translate(ab.fwr4)
     ab.log("FR4 SEQUENCE:", ab.fwr4)
