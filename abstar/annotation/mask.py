@@ -180,8 +180,12 @@ def _generate_gene_segment_mask_nt(ab: Antibody) -> list:
     segment_mask = []
     cdr3_start = ab.sequence.find(ab.cdr3)
     # there's an edge case in which the V gene is truncated so much that doesn't even contribute the full FWR3 region
-    # to fix, we check the lengths of the V-gene region and the start position of the CDR3, and use the minimum of the two
-    segment_mask.extend(["V"] * min(len(ab.v_sequence), cdr3_start))
+    # to fix, we check the lengths of the V-gene region and the start position of the CDR3, and use the minimum of the two, then fill the rest of the FWR3 region with Ns
+    if len(ab.v_sequence) < cdr3_start:
+        segment_mask.extend(["V"] * len(ab.v_sequence))
+        segment_mask.extend(["N"] * (cdr3_start - len(ab.v_sequence)))
+    else:
+        segment_mask.extend(["V"] * cdr3_start)
     segment_mask.extend(["V"] * len(ab.cdr3_v))
     segment_mask.extend(["N"] * len(ab.cdr3_n1))
     if ab.d_call is not None:
@@ -202,8 +206,12 @@ def _generate_gene_segment_mask_aa(ab: Antibody) -> list:
     segment_mask = []
     cdr3_start = ab.sequence_aa.find(ab.cdr3_aa)
     # there's an edge case in which the V gene is truncated so much that doesn't even contribute the full FWR3 region
-    # to fix, we check the lengths of the V-gene region and the start position of the CDR3, and use the minimum of the two
-    segment_mask.extend(["V"] * min(len(ab.v_sequence_aa), cdr3_start))
+    # to fix, we check the lengths of the V-gene region and the start position of the CDR3, and use the minimum of the two, then fill the rest of the FWR3 region with Ns
+    if len(ab.v_sequence_aa) < cdr3_start:
+        segment_mask.extend(["V"] * len(ab.v_sequence_aa))
+        segment_mask.extend(["N"] * (cdr3_start - len(ab.v_sequence_aa)))
+    else:
+        segment_mask.extend(["V"] * cdr3_start)
     segment_mask.extend(["V"] * len(ab.cdr3_v_aa))
     segment_mask.extend(["N"] * len(ab.cdr3_n1_aa))
     if ab.d_call is not None:
