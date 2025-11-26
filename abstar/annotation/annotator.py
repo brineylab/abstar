@@ -742,6 +742,12 @@ def annotate_single_sequence(
         **ALIGNMENT_PARAMS,
     )
     ab.junction_start = fr3_sg.query_end + 1
+    ab.log("FWR3 SG ALIGNMENT")
+    ab.log("ALIGNED QUERY        :", fr3_sg.aligned_query)
+    ab.log("                      ", fr3_sg.alignment_midline)
+    ab.log("ALIGNED FWR3 GERMLINE:", fr3_sg.aligned_target)
+    ab.log("FWR3 ALIGNMENT END:", fr3_sg.query_end)
+    ab.log("JUNCTION START:", ab.junction_start)
 
     # junction end
     if ab.locus in ["IGH", "TRA", "TRD"]:
@@ -754,7 +760,12 @@ def annotate_single_sequence(
         **ALIGNMENT_PARAMS,
     )
     ab.junction_end = fr4_sg.query_begin + 3  # germ_fr4_sequence includes the W/F
-
+    ab.log("FWR4 SG ALIGNMENT")
+    ab.log("ALIGNED QUERY        :", fr4_sg.aligned_query)
+    ab.log("                      ", fr4_sg.alignment_midline)
+    ab.log("ALIGNED FWR4 GERMLINE:", fr4_sg.aligned_target)
+    ab.log("FWR4 ALIGNMENT BEGIN:", fr4_sg.query_begin)
+    ab.log("JUNCTION END:", ab.junction_end)
     # junction sequence
     ab.junction = ab.sequence_oriented[ab.junction_start : ab.junction_end]
     ab.junction_aa = abutils.tl.translate(ab.junction)
