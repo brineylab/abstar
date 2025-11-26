@@ -141,10 +141,10 @@ def get_region_sequence(
     if nt_region_start is not None:
         if all([aa, nt_region_start == 0, region_start > 0]):
             region_start = 0
-        ab.log(
-            f"WARNING: The nt region start is 0 but the aa region is {region_start} - this is likely due to a small number of mutations in the first few AAs that caused erroneous alignment gaps in the AA alignment. Adjusting the AA region start to 0."
-        )
-        ab.log(f"{region.upper()} ADJUSTED REGION START:", region_start)
+            ab.log(
+                f"WARNING: The nt region start is 0 but the aa region is {region_start} - this is likely due to a small number of mutations in the first few AAs that caused erroneous alignment gaps in the AA alignment. Adjusting the AA region start to 0."
+            )
+            ab.log(f"{region.upper()} ADJUSTED REGION START:", region_start)
 
     # if we couldn't determine start/end (eg., empty inputs), return empty string
     if region_start is None or region_end is None:
