@@ -179,14 +179,19 @@ def _generate_gene_segment_mask_nt(ab: Antibody) -> list:
     """
     segment_mask = []
     cdr3_start = ab.sequence.find(ab.cdr3)
-    segment_mask.extend(["V"] * cdr3_start)
+    # there's an edge case in which the V gene is truncated so much that doesn't even contribute the full FWR3 region
+    # to fix, we check the lengths of the V-gene region and the start position of the CDR3, and use the minimum of the two
+    segment_mask.extend(["V"] * min(len(ab.v_sequence), cdr3_start))
     segment_mask.extend(["V"] * len(ab.cdr3_v))
     segment_mask.extend(["N"] * len(ab.cdr3_n1))
     if ab.d_call is not None:
         segment_mask.extend(["D"] * len(ab.cdr3_d))
         segment_mask.extend(["N"] * len(ab.cdr3_n2))
     segment_mask.extend(["J"] * len(ab.cdr3_j))
-    segment_mask.extend(["J"] * len(ab.fwr4))
+    # there's an edge case in which the J gene is truncated so much that the FWR4 isn't entirely contained in the J gene
+    # this usually happens because of overlap between the V and J gene assignments in light chains, resulting in part of the first FWR4 codon being assigned to the V gene
+    # to fix, we extend the mask by the smaller of the J gene and FWR4 lengths
+    segment_mask.extend(["J"] * min(len(ab.j_sequence), len(ab.fwr4)))
     return segment_mask
 
 
@@ -196,12 +201,24 @@ def _generate_gene_segment_mask_aa(ab: Antibody) -> list:
     """
     segment_mask = []
     cdr3_start = ab.sequence_aa.find(ab.cdr3_aa)
-    segment_mask.extend(["V"] * cdr3_start)
+    # there's an edge case in which the V gene is truncated so much that doesn't even contribute the full FWR3 region
+    # to fix, we check the lengths of the V-gene region and the start position of the CDR3, and use the minimum of the two
+    segment_mask.extend(["V"] * min(len(ab.v_sequence_aa), cdr3_start))
     segment_mask.extend(["V"] * len(ab.cdr3_v_aa))
     segment_mask.extend(["N"] * len(ab.cdr3_n1_aa))
     if ab.d_call is not None:
         segment_mask.extend(["D"] * len(ab.cdr3_d_aa))
         segment_mask.extend(["N"] * len(ab.cdr3_n2_aa))
     segment_mask.extend(["J"] * len(ab.cdr3_j_aa))
-    segment_mask.extend(["J"] * len(ab.fwr4_aa))
+    # there's an edge case in which the J gene is truncated so much that the FWR4 isn't entirely contained in the J gene
+    # this usually happens because of overlap between the V and J gene assignments in light chains, resulting in part of the first FWR4 codon being assigned to the V gene
+    # to fix, we check to see whether the existing segment_mask is longer than the antibody sequence (up to the end of the CDR3)
+    # if so, we reduce the length of the J-gene portion of the segment_mask accordingly
+    if len(segment_mask) > (cdr3_start + len(ab.cdr3_aa)):
+        j_mask_length = len(ab.fwr4_aa) - (
+            len(segment_mask) - (cdr3_start + len(ab.cdr3_aa))
+        )
+        segment_mask.extend(["J"] * j_mask_length)
+    else:
+        segment_mask.extend(["J"] * len(ab.fwr4_aa))
     return segment_mask

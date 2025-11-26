@@ -300,6 +300,10 @@ def identify_cdr3_regions(ab: Antibody) -> Antibody:
     ab.log("ADJUSTED CDR3 V LENGTH:", adjusted_cdr3_v_length)
     cdr3_v_start = cdr3_start
     cdr3_v_end = cdr3_v_start + adjusted_cdr3_v_length
+    # somewhat rare edge case in which the V gene is truncated so much
+    # that it does not contribute to the CDR3 at all (usually just the first C of the junction)
+    if cdr3_v_end < cdr3_v_start:
+        cdr3_v_end = cdr3_v_start
     ab.cdr3_v = ab.sequence[cdr3_v_start:cdr3_v_end]
     ab.cdr3_v_aa = abutils.tl.translate(ab.cdr3_v)
     ab.log("CDR3 V START:", cdr3_v_start)
@@ -313,6 +317,10 @@ def identify_cdr3_regions(ab: Antibody) -> Antibody:
     j_frame = (cdr3_j_start - cdr3_start) % 3
     j_trunc_5 = (-j_frame) % 3  # "wrap-around" modulo for trimming the front of the J
     adjusted_cdr3_j_start = cdr3_j_start + j_trunc_5
+    if cdr3_j_end < adjusted_cdr3_j_start:
+        # somewhat rare edge case in which the J gene is truncated so much
+        # that it does not contribute to the CDR3 at all (usually juse the final W/F of the junction)
+        cdr3_j_end = adjusted_cdr3_j_start
     ab.cdr3_j = ab.sequence[adjusted_cdr3_j_start:cdr3_j_end]
     ab.cdr3_j_aa = abutils.tl.translate(ab.cdr3_j)
     ab.log("CDR3 J START:", adjusted_cdr3_j_start)
