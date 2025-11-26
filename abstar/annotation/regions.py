@@ -77,7 +77,7 @@ def get_region_sequence(
         The sequence of the region.
 
     """
-    # IMGT start/end positions for the region
+    # IMGT start/end positions for the region (they're 1-indexed and not suitable for slicing in Python)
     if aa:
         imgt_start = IMGT_REGION_START_POSITIONS_AA[region]
         imgt_end = IMGT_REGION_END_POSITIONS_AA[region]
@@ -151,7 +151,8 @@ def get_region_sequence(
         return region_start, region_end, ""
 
     # NOTE: alignment numbering is inclusive, so we +1 the end position for Python slicing
-    region_sequence = aln.query[region_start : region_end + 1]
+    region_sequence = aln.aligned_query[region_start : region_end + 1]
+    region_sequence = region_sequence.replace("-", "")
 
     return region_start, region_end, region_sequence
 
