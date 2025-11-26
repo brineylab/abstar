@@ -151,9 +151,37 @@ def get_region_sequence(
         return region_start, region_end, ""
 
     # NOTE: alignment numbering is inclusive, so we +1 the end position for Python slicing
-    region_sequence = aln.aligned_query[region_start : region_end + 1]
-    region_sequence = region_sequence.replace("-", "")
+    if not aa:
+        # edge case in which a codon-length deletion spans a region boundary, like so:
+        #
+        #              FWR1-----><----CDR1
+        #    QUERY:    GACGTGGA---GGTGGAGTC
+        #              || ||| |   |||||||||
+        #    GERMLINE: GAGGTGCAGCTGGTGGAGTC
+        #
+        # this causes the slicing of the aligned query sequence to produce non-codon length region sequences (not good)
+        # to fix, we'll add the residual portion of the codon to the preceding region (FWR1 in this case; generalizably, any region with a non-codon length number of 3' gaps)
+        # that means we'll also need to remove the same amount from the second region (CDR1 in this case; generalizably, any region with a non-codon length number of 5' gaps)
+        # the rationale is that if a codon starts in a particular region, it "belongs" to that region, even though a portion of the codon is technically located in the next region
+        region_sequence = aln.aligned_query[region_start : region_end + 1]
+        gap_length_5p = len(region_sequence) - len(region_sequence.rstrip("-"))
+        gap_length_3p = len(region_sequence) - len(region_sequence.lstrip("-"))
+        # only extend the 3' end of the region if there are non-codon length 3' gaps
+        if gap_length_5p > 0 and gap_length_5p % 3 != 0:
+            while gap_length_5p % 3 != 0:
+                region_end += 3  # steal the residual portion of the codon from the start of the next region
+                region_sequence = aln.aligned_query[region_start : region_end + 1]
+                gap_length_5p = len(region_sequence) - len(region_sequence.rstrip("-"))
+        # only truncate the 5' end of the region if there are non-codon length 5' gaps
+        if gap_length_3p > 0 and gap_length_3p % 3 != 0:
+            while gap_length_3p % 3 != 0:
+                region_start += 3  # increase the start position, since the preceding region took part of the first codon
+                region_sequence = aln.aligned_query[region_start : region_end + 1]
+                gap_length_3p = len(region_sequence) - len(region_sequence.lstrip("-"))
+    else:
+        region_sequence = aln.aligned_query[region_start : region_end + 1]
 
+    region_sequence = region_sequence.replace("-", "")
     return region_start, region_end, region_sequence
 
 
