@@ -822,12 +822,16 @@ def annotate_single_sequence(
 
     # V regions
     v_regions = ["fwr1", "cdr1", "fwr2", "cdr2", "fwr3"]
-    ab.log("ALIGNED SEQUENCE:", v_global.aligned_query)
-    ab.log("ALIGNED GERMLINE:", v_global.aligned_target)
+    ab.log("ALIGNED SEQUENCE (GLOBAL):", v_global.aligned_query)
+    ab.log("ALIGNED GERMLINE (GLOBAL):", v_global.aligned_target)
+    ab.log("ALIGNED SEQUENCE (SEMI-GLOBAL):", v_sg.aligned_query)
+    ab.log("ALIGNED GERMLINE (SEMI-GLOBAL):", v_sg.aligned_target)
     ab.log("GAPPED GERMLINE:", ab.v_germline_gapped)
     ab.log("GERMLINE START:", ab.v_germline_start + 1)
-    ab.log("ALIGNED QUERY AA:", v_global_aa.aligned_query)
-    ab.log("ALIGNED GERMLINE AA:", v_global_aa.aligned_target)
+    ab.log("ALIGNED QUERY AA (GLOBAL):", v_global_aa.aligned_query)
+    ab.log("ALIGNED GERMLINE AA (GLOBAL):", v_global_aa.aligned_target)
+    ab.log("ALIGNED QUERY AA (SEMI-GLOBAL):", v_sg_aa.aligned_query)
+    ab.log("ALIGNED GERMLINE AA (SEMI-GLOBAL):", v_sg_aa.aligned_target)
     ab.log("GAPPED GERMLINE AA:", ab.v_germline_gapped_aa)
     ab.log("GERMLINE START AA:", ab.v_germline_start // 3 + 1)
 
@@ -840,16 +844,9 @@ def annotate_single_sequence(
             germline_start=ab.v_germline_start + 1,  # needs to be 1-indexed
             ab=ab,
         )
-        # region_sequence = get_region_sequence(
-        #     region,
-        #     aligned_sequence=v_global.aligned_query,
-        #     aligned_germline=v_global.aligned_target,
-        #     gapped_germline=ab.v_germline_gapped,
-        #     ab=ab,
-        #     germline_start=ab.v_germline_start + 1,  # needs to be 1-indexed
-        # )
         setattr(ab, f"{region}", region_sequence)
         ab.log(f"{region.upper()} SEQUENCE:", region_sequence)
+
         # amino acid region
         _, _, region_sequence_aa = get_region_sequence(
             region,
@@ -860,15 +857,6 @@ def annotate_single_sequence(
             aa=True,
             nt_region_start=region_start,
         )
-        # region_sequence_aa = get_region_sequence(
-        #     region,
-        #     aligned_sequence=v_global_aa.aligned_query,
-        #     aligned_germline=v_global_aa.aligned_target,
-        #     gapped_germline=ab.v_germline_gapped_aa,
-        #     ab=ab,
-        #     germline_start=ab.v_germline_start // 3 + 1,  # needs to be 1-indexed
-        #     aa=True,
-        # )
         setattr(ab, f"{region}_aa", region_sequence_aa)
         ab.log(f"{region.upper()} SEQUENCE AA:", region_sequence_aa)
 
