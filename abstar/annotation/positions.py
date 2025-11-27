@@ -86,6 +86,34 @@ def get_raw_position_from_gapped(
     return max([0, raw])
 
 
+def get_aligned_position_from_ungapped(
+    position: int,
+    aligned_sequence: str,
+) -> int:
+    """
+    Get the aligned position from an ungapped position and an aligned reference sequence.
+    """
+    ungapped_position = 0
+    for aligned_position, s in enumerate(aligned_sequence):
+        # this has to come first, since we might have an alignment
+        # where we want position 0 of the aligned sequence, but there are
+        # leading gaps for which we need to increment the aligned_position first
+        if s == "-":
+            continue
+        elif ungapped_position == position:
+            # edge case where an insertion happens between regions, which would cause both regions to ignore it --
+            # the preceding region will end at the position before the insertion, and the subsequent region will skip it as a leading gap
+            # our solution is to include insertions (gaps in the aligned_sequence, since this is the germline) in the preceding region
+            if aligned_sequence[aligned_position + 1] != "-":
+                # no insertion, so we can return the aligned position
+                return aligned_position
+            while aligned_sequence[aligned_position + 1] == "-":
+                aligned_position += 1
+            return aligned_position
+        else:
+            ungapped_position += 1
+
+
 def get_position_from_aligned_reference(
     position: int,
     aligned_sequence: str,

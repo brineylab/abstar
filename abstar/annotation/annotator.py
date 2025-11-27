@@ -263,7 +263,9 @@ def annotate_single_sequence(
     # translated and used for alignment.
     query_aa_sg = abutils.tl.translate(v_sg.query[v_sg.query_begin :], frame=ab.frame)
     germline_aa_sg = abutils.tl.translate(v_sg.target)
-    v_sg_aa = abutils.tl.semiglobal_alignment(query=query_aa_sg, target=germline_aa_sg)
+    v_sg_aa = abutils.tl.semiglobal_alignment(
+        query=query_aa_sg, target=germline_aa_sg, **ALIGNMENT_PARAMS
+    )
 
     ab.log("SEMIGLOBAL ALIGNMENT AA:")
     ab.log(f"     QUERY: {v_sg_aa.aligned_query}")

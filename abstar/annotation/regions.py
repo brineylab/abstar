@@ -6,6 +6,7 @@ import abutils
 
 from .antibody import Antibody
 from .positions import (
+    get_aligned_position_from_ungapped,
     get_gapped_position_from_raw,
     get_position_from_aligned_reference,
     get_raw_position_from_gapped,
@@ -113,16 +114,32 @@ def get_region_sequence(
 
     # get the region start/end using the sequence aligned to germline
     # and the ungapped germline start/end positions
-    region_start = get_position_from_aligned_reference(
+    # region_start = get_position_from_aligned_reference(
+    #     position=ungapped_germline_start,
+    #     aligned_sequence=aln.aligned_query,
+    #     aligned_reference=aln.aligned_target,
+    # )
+    # region_end = get_position_from_aligned_reference(
+    #     position=ungapped_germline_end,
+    #     aligned_sequence=aln.aligned_query,
+    #     aligned_reference=aln.aligned_target,
+    # )
+
+    # region_start = ungapped_germline_start + aln.query_begin
+    # region_end = ungapped_germline_end + aln.query_begin
+
+    region_start = get_aligned_position_from_ungapped(
         position=ungapped_germline_start,
-        aligned_sequence=aln.aligned_query,
-        aligned_reference=aln.aligned_target,
+        aligned_sequence=aln.aligned_target,
     )
-    region_end = get_position_from_aligned_reference(
+    region_end = get_aligned_position_from_ungapped(
         position=ungapped_germline_end,
-        aligned_sequence=aln.aligned_query,
-        aligned_reference=aln.aligned_target,
+        aligned_sequence=aln.aligned_target,
     )
+
+    # region_start = region_start + aln.query_begin
+    # region_end = region_end + aln.query_begin
+
     ab.log(f"{region.upper()} REGION START:", region_start)
     ab.log(f"{region.upper()} REGION END:", region_end)
 
