@@ -517,113 +517,121 @@ def annotate_single_sequence(
         ab.log("C SEQUENCE AA:", ab.c_sequence_aa)
         ab.log("C GERMLINE AA:", ab.c_germline_aa)
 
-        # global nucleotide alignment
-        c_global = abutils.tl.global_alignment(
-            ab.c_sequence,
-            ab.c_germline,
-            **ALIGNMENT_PARAMS,
-        )
-        ab.log("GLOBAL ALIGNMENT:")
-        ab.log(f"     QUERY: {c_global.aligned_query}")
-        ab.log(f"            {c_global.alignment_midline}")
-        ab.log(f"  GERMLINE: {c_global.aligned_target}")
+        if all(
+            [
+                ab.c_sequence,
+                ab.c_germline,
+                ab.c_sequence_aa,
+                ab.c_germline_aa,
+            ]
+        ):
+            # global nucleotide alignment
+            c_global = abutils.tl.global_alignment(
+                ab.c_sequence,
+                ab.c_germline,
+                **ALIGNMENT_PARAMS,
+            )
+            ab.log("GLOBAL ALIGNMENT:")
+            ab.log(f"     QUERY: {c_global.aligned_query}")
+            ab.log(f"            {c_global.alignment_midline}")
+            ab.log(f"  GERMLINE: {c_global.aligned_target}")
 
-        # # verify that the AA sequences are not empty
-        # if len(ab.v_sequence_aa) == 0:
-        #     raise ValueError(f"V-gene AA sequence is empty for {ab.sequence_id}")
-        # if len(ab.v_germline_aa) == 0:
-        #     raise ValueError(f"V-gene germline AA sequence is empty for {ab.sequence_id}")
+            # # verify that the AA sequences are not empty
+            # if len(ab.v_sequence_aa) == 0:
+            #     raise ValueError(f"V-gene AA sequence is empty for {ab.sequence_id}")
+            # if len(ab.v_germline_aa) == 0:
+            #     raise ValueError(f"V-gene germline AA sequence is empty for {ab.sequence_id}")
 
-        # global alignment of the AA sequences
-        c_global_aa = abutils.tl.global_alignment(
-            ab.c_sequence_aa,
-            ab.c_germline_aa,
-            **ALIGNMENT_PARAMS,
-        )
-        ab.log("GLOBAL ALIGNMENT AA:")
-        ab.log(f"     QUERY: {c_global_aa.aligned_query}")
-        ab.log(f"            {c_global_aa.alignment_midline}")
-        ab.log(f"  GERMLINE: {c_global_aa.aligned_target}")
+            # global alignment of the AA sequences
+            c_global_aa = abutils.tl.global_alignment(
+                ab.c_sequence_aa,
+                ab.c_germline_aa,
+                **ALIGNMENT_PARAMS,
+            )
+            ab.log("GLOBAL ALIGNMENT AA:")
+            ab.log(f"     QUERY: {c_global_aa.aligned_query}")
+            ab.log(f"            {c_global_aa.alignment_midline}")
+            ab.log(f"  GERMLINE: {c_global_aa.aligned_target}")
 
-        # gapped Constant region germline
-        ab.c_germline_gapped = get_germline(
-            raw_c_call,
-            ab.germline_database,
-            imgt_gapped=True,
-            exact_match=True,
-            force_constant=True,
-            truncate_species=False,
-        ).sequence
-        ab.c_germline_gapped_aa = abutils.tl.translate(
-            ab.c_germline_gapped, allow_dots=True
-        )
-        ab.log("GAPPED GERMLINE:", ab.c_germline_gapped)
-        ab.log("GAPPED GERMLINE AA:", ab.c_germline_gapped_aa)
-        # ab.v_germline_gapped = ab.v_germline_gapped
-        # ab.v_germline_gapped_aa = ab.v_germline_gapped_aa
+            # gapped Constant region germline
+            ab.c_germline_gapped = get_germline(
+                raw_c_call,
+                ab.germline_database,
+                imgt_gapped=True,
+                exact_match=True,
+                force_constant=True,
+                truncate_species=False,
+            ).sequence
+            ab.c_germline_gapped_aa = abutils.tl.translate(
+                ab.c_germline_gapped, allow_dots=True
+            )
+            ab.log("GAPPED GERMLINE:", ab.c_germline_gapped)
+            ab.log("GAPPED GERMLINE AA:", ab.c_germline_gapped_aa)
+            # ab.v_germline_gapped = ab.v_germline_gapped
+            # ab.v_germline_gapped_aa = ab.v_germline_gapped_aa
 
-        # gapped Constant region sequence
-        ab.c_sequence_gapped = get_gapped_sequence(
-            aligned_sequence=c_global.aligned_query,
-            aligned_germline=c_global.aligned_target,
-            gapped_germline=ab.c_germline_gapped,
-            germline_start=ab.c_germline_start,
-        )
-        ab.c_sequence_gapped_aa = abutils.tl.translate(
-            ab.c_sequence_gapped, frame=ab.frame, allow_dots=True
-        )
+            # gapped Constant region sequence
+            ab.c_sequence_gapped = get_gapped_sequence(
+                aligned_sequence=c_global.aligned_query,
+                aligned_germline=c_global.aligned_target,
+                gapped_germline=ab.c_germline_gapped,
+                germline_start=ab.c_germline_start,
+            )
+            ab.c_sequence_gapped_aa = abutils.tl.translate(
+                ab.c_sequence_gapped, frame=ab.frame, allow_dots=True
+            )
 
-        # nucleotide mutations
-        complete_c_germline = c_sg.target.sequence
-        ab = annotate_c_mutations(
-            aligned_sequence=c_global.aligned_query,
-            aligned_germline=c_global.aligned_target,
-            gapped_germline=complete_c_germline,
-            germline_start=ab.c_germline_start,
-            is_aa=False,
-            ab=ab,
-        )
-        ab.log("CONSTANT REGION MUTATIONS:", ab.c_mutations)
-        ab.log("CONSTANT REGION MUTATION COUNT:", ab.c_mutation_count)
-
-        # amino acid mutations
-        complete_c_germline_aa = abutils.tl.translate(complete_c_germline)
-        ab = annotate_c_mutations(
-            aligned_sequence=c_global_aa.aligned_query,
-            aligned_germline=c_global_aa.aligned_target,
-            gapped_germline=complete_c_germline_aa,
-            germline_start=ab.c_germline_start // 3,
-            is_aa=True,
-            ab=ab,
-        )
-        ab.log("CONSTANT REGION MUTATIONS AA:", ab.c_mutations_aa)
-        ab.log("CONSTANT REGION MUTATION COUNT AA:", ab.c_mutation_count_aa)
-
-        # calculate identify (nt and aa)
-        ab.c_identity = 1 - ab.c_mutation_count / len(ab.c_germline)
-        ab.c_identity_aa = 1 - ab.c_mutation_count_aa / len(ab.c_germline_aa)
-        ab.log("CONSTANT REGION IDENTITY:", ab.c_identity)
-        ab.log("CONSTANT REGION IDENTITY AA:", ab.c_identity_aa)
-
-        # insertions
-        if "-" in c_loc.aligned_target:
-            ab.c_insertions = annotate_insertions(
+            # nucleotide mutations
+            complete_c_germline = c_sg.target.sequence
+            ab = annotate_c_mutations(
                 aligned_sequence=c_global.aligned_query,
                 aligned_germline=c_global.aligned_target,
                 gapped_germline=complete_c_germline,
                 germline_start=ab.c_germline_start,
+                is_aa=False,
+                ab=ab,
             )
-            ab.log("CONSTANT REGION INSERTIONS:", ab.c_insertions)
+            ab.log("CONSTANT REGION MUTATIONS:", ab.c_mutations)
+            ab.log("CONSTANT REGION MUTATION COUNT:", ab.c_mutation_count)
 
-        # deletions
-        if "-" in c_loc.aligned_query:
-            ab.c_deletions = annotate_deletions(
-                aligned_sequence=c_loc.aligned_query,
-                aligned_germline=c_loc.aligned_target,
-                gapped_germline=complete_c_germline,
-                germline_start=ab.c_germline_start,
+            # amino acid mutations
+            complete_c_germline_aa = abutils.tl.translate(complete_c_germline)
+            ab = annotate_c_mutations(
+                aligned_sequence=c_global_aa.aligned_query,
+                aligned_germline=c_global_aa.aligned_target,
+                gapped_germline=complete_c_germline_aa,
+                germline_start=ab.c_germline_start // 3,
+                is_aa=True,
+                ab=ab,
             )
-            ab.log("CONSTANT REGION DELETIONS:", ab.c_deletions)
+            ab.log("CONSTANT REGION MUTATIONS AA:", ab.c_mutations_aa)
+            ab.log("CONSTANT REGION MUTATION COUNT AA:", ab.c_mutation_count_aa)
+
+            # calculate identify (nt and aa)
+            ab.c_identity = 1 - ab.c_mutation_count / len(ab.c_germline)
+            ab.c_identity_aa = 1 - ab.c_mutation_count_aa / len(ab.c_germline_aa)
+            ab.log("CONSTANT REGION IDENTITY:", ab.c_identity)
+            ab.log("CONSTANT REGION IDENTITY AA:", ab.c_identity_aa)
+
+            # insertions
+            if "-" in c_loc.aligned_target:
+                ab.c_insertions = annotate_insertions(
+                    aligned_sequence=c_global.aligned_query,
+                    aligned_germline=c_global.aligned_target,
+                    gapped_germline=complete_c_germline,
+                    germline_start=ab.c_germline_start,
+                )
+                ab.log("CONSTANT REGION INSERTIONS:", ab.c_insertions)
+
+            # deletions
+            if "-" in c_loc.aligned_query:
+                ab.c_deletions = annotate_deletions(
+                    aligned_sequence=c_loc.aligned_query,
+                    aligned_germline=c_loc.aligned_target,
+                    gapped_germline=complete_c_germline,
+                    germline_start=ab.c_germline_start,
+                )
+                ab.log("CONSTANT REGION DELETIONS:", ab.c_deletions)
 
     ab.log("\n--------------")
     ab.log(" VDJ ASSEMBLY")
