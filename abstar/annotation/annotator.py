@@ -28,7 +28,7 @@ from .mask import (
     generate_nongermline_mask,
 )
 from .mutations import annotate_c_mutations, annotate_v_mutations
-from .positions import get_gapped_sequence
+from .positions import get_gapped_sequence, get_ungapped_position_from_aligned
 from .productivity import assess_productivity
 from .regions import get_region_sequence, identify_cdr3_regions
 from .schema import OUTPUT_SCHEMA
@@ -230,7 +230,7 @@ def annotate_single_sequence(
         semiglobal_aln_params=ALIGNMENT_PARAMS,
         local_aln_params=ALIGNMENT_PARAMS,
     )
-    ab.log("V GERMLINE:", v_sg.query.sequence)
+    ab.log("V GERMLINE:", v_sg.target.sequence)
 
     ab.log("SEMIGLOBAL ALIGNMENT:")
     ab.log(f"     QUERY: {v_sg.aligned_query}")
@@ -745,15 +745,70 @@ def annotate_single_sequence(
     ab.log("----------\n")
 
     # junction start
-    germ_fr3_sequence = ab.v_germline_gapped[196:309].replace(".", "")
+    # the IMGT start position for FR3 is 196, but 1-indexed so we need to subtract 1 to slice correctly
+    # also, since we're trying to identify the junction, we drop the last codon of FR3 (since the last codon is part of the junction)
+    germ_fr3_sequence = ab.v_germline_gapped[196 - 1 : 309].replace(".", "")
+
+    # edge case where there's an insertion (gaps in the germline when aligned to the query) near the end of the FWR3, which can cause a misalignment.
+    # if the region 3' of the indel isn't not long enough to overcome the gap penalty, the sequences can be aligned like so:
+    #
+    #    QUERY:    ACCGGGACTCTGGGGTCCCAGATAGATTCAGCGGCAGTGGGTCAGGCACTGATTTCACACTGAAAATCAGCAGGGTGGAGGCTGAAGATGTTGTTGGGGTTTATTAC
+    #              |||||||||||||||||||||| |||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||| |||||||  |    |||
+    #    GERMLINE: ACCGGGACTCTGGGGTCCCAGACAGATTCAGCGGCAGTGGGTCAGGCACTGATTTCACACTGAAAATCAGCAGGGTGGAGGCTGAGGATGTTGGGGTTTATTAC
+    #
+    # which should actually be:
+    #
+    #    QUERY:    ACCGGGACTCTGGGGTCCCAGATAGATTCAGCGGCAGTGGGTCAGGCACTGATTTCACACTGAAAATCAGCAGGGTGGAGGCTGAAGATGTTGTTGGGGTTTATTAC
+    #              |||||||||||||||||||||| |||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||| ||   ||||||||||||||||
+    #    GERMLINE: ACCGGGACTCTGGGGTCCCAGACAGATTCAGCGGCAGTGGGTCAGGCACTGATTTCACACTGAAAATCAGCAGGGTGGAGGCTGAGGA---TGTTGGGGTTTATTAC
+    #
+    # to fix, we'll first align the germline region to the pre-aligned germline sequence (from the V-gene semiglobal alignment),
+    # which will give us the correct gapped alignment (since the full germline alignment presumably has enough 3' sequence to  overcome the gap penalty)
+    # then we can use the re-aligned (and pre-gapped, if necessary) germline for alignment with the query sequence to correctly identify the FWR3 region.
+
+    # realign germline FWR3 region to the aligned germline sequence and extract the aligned region sequence
+    fr3_germ_realign = abutils.tl.semiglobal_alignment(
+        query=germ_fr3_sequence,
+        target=v_sg.aligned_target,
+        match=ALIGNMENT_PARAMS["match"],
+        mismatch=ALIGNMENT_PARAMS["mismatch"],
+        gap_extend=ALIGNMENT_PARAMS["gap_extend"],
+        gap_open=-5,
+    )
+    # semiglobal alignment is with the full oriented sequence, so there will typically be gaps on both ends of the aligned query (FR3 region)
+    realigned_germ_fr3_sequence = fr3_germ_realign.aligned_query.lstrip("-").rstrip("-")
+
+    # the same edge case (but in reverse) can happen with a deletion (gaps in the query when aligned to the germline)
+    # near the end of the FR3, which causes incorrect identification of the start of the junction.
+    # to fix, we'll use the aligned version of the query sequence (from the V-gene semiglobal alignment) and align that to the re-aligned germline FWR3 region.
+    # then we need to convert the aligned position of the junction start to the raw (unaligned) position
+    # TODO: grab the aligned version of ab.sequence_oriented (from ab.v_sg.aligned_query) and use that for the fr3_sg alignment
+    # this sequence should be pre-gapped and will hopefully avoid this issue.
+
+    # fr3_sg = abutils.tl.semiglobal_alignment(
+    #     query=ab.sequence_oriented,
+    #     target=realigned_germ_fr3_sequence,
+    #     **ALIGNMENT_PARAMS,
+    # )
+    # ab.junction_start = fr3_sg.query_end + 1
+
     fr3_sg = abutils.tl.semiglobal_alignment(
-        query=ab.sequence_oriented,
-        target=germ_fr3_sequence,
+        query=v_sg.aligned_query,
+        target=realigned_germ_fr3_sequence,
         **ALIGNMENT_PARAMS,
     )
-    ab.junction_start = fr3_sg.query_end + 1
+    ab.junction_start = (
+        get_ungapped_position_from_aligned(
+            position=fr3_sg.query_end,
+            aligned_sequence=v_sg.aligned_query,
+        )
+        + 1  # junction start is the position after the end of the FR3 alignment
+    )
+
     ab.log("FWR3 SG ALIGNMENT")
-    ab.log("ALIGNED QUERY        :", fr3_sg.aligned_query)
+    ab.log("FR3 GERMLINE SEQUENCE:", germ_fr3_sequence)
+    ab.log("REALIGNED FR3 GERMLINE SEQUENCE:", realigned_germ_fr3_sequence)
+    ab.log("ALIGNED QUERY:        ", fr3_sg.aligned_query)
     ab.log("                      ", fr3_sg.alignment_midline)
     ab.log("ALIGNED FWR3 GERMLINE:", fr3_sg.aligned_target)
     ab.log("FWR3 ALIGNMENT END:", fr3_sg.query_end)
@@ -849,7 +904,8 @@ def annotate_single_sequence(
         # nucleotide region
         region_start, region_end, region_sequence = get_region_sequence(
             region,
-            aln=v_sg,
+            # aln=v_sg,
+            aln=v_global,
             gapped_germline=ab.v_germline_gapped,
             germline_start=ab.v_germline_start + 1,  # needs to be 1-indexed
             ab=ab,
@@ -860,7 +916,8 @@ def annotate_single_sequence(
         # amino acid region
         _, _, region_sequence_aa = get_region_sequence(
             region,
-            aln=v_sg_aa,
+            # aln=v_sg_aa,
+            aln=v_global_aa,
             gapped_germline=ab.v_germline_gapped_aa,
             germline_start=ab.v_germline_start // 3 + 1,  # needs to be 1-indexed
             ab=ab,

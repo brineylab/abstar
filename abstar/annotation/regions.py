@@ -135,6 +135,7 @@ def get_region_sequence(
     region_end = get_aligned_position_from_ungapped(
         position=ungapped_germline_end,
         aligned_sequence=aln.aligned_target,
+        is_end_position=True,
     )
 
     # region_start = region_start + aln.query_begin
@@ -142,6 +143,8 @@ def get_region_sequence(
 
     ab.log(f"{region.upper()} REGION START:", region_start)
     ab.log(f"{region.upper()} REGION END:", region_end)
+    # if potential_indel_length > 0:
+    #     ab.log(f"{region.upper()} POTENTIAL INDEL LENGTH:", potential_indel_length)
 
     # there's a potential edge case in which the AA alignment incorrectly truncates the leading amino acid(s)
     # for the FWR1 region -- 1-2 mutations in the first 2 AAs can cause erroneous alignment gaps in the AA alignment
@@ -346,8 +349,8 @@ def identify_cdr3_regions(ab: Antibody) -> Antibody:
     ab.log("ADJUSTED CDR3 V LENGTH:", adjusted_cdr3_v_length)
     cdr3_v_start = cdr3_start
     cdr3_v_end = cdr3_v_start + adjusted_cdr3_v_length
-    # somewhat rare edge case in which the V gene is truncated so much
-    # that it does not contribute to the CDR3 at all (usually just the first C of the junction)
+    # edge case in which the V gene is truncated so much that it does not contribute to
+    # the CDR3 at all (usually just contributes the first C of the junction but nothing more)
     if cdr3_v_end < cdr3_v_start:
         cdr3_v_end = cdr3_v_start
     ab.cdr3_v = ab.sequence[cdr3_v_start:cdr3_v_end]
