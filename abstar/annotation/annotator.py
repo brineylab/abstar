@@ -375,18 +375,22 @@ def annotate_single_sequence(
         raise ValueError(
             f"Query sequence for J-gene realignment is empty for {ab.sequence_id}"
         )
+    # use a smaller gap open penalty for the J-gene alignment than we use for others (V-gene and constant region)
     j_sg, j_loc = realign_germline(
         sequence=jquery,
         germline_name=raw_j_call,  # must include species annotation if it's present in the germline database
         germdb_name=ab.germline_database,
         imgt_gapped=False,
-        semiglobal_aln_params=ALIGNMENT_PARAMS,
-        local_aln_params=ALIGNMENT_PARAMS,
+        semiglobal_aln_params=ALIGNMENT_PARAMS | {"gap_open": -20},
+        local_aln_params=ALIGNMENT_PARAMS | {"gap_open": -15},
     )
     ab.log("SEMIGLOBAL ALIGNMENT:")
     ab.log(f"     QUERY: {j_sg.aligned_query}")
     ab.log(f"            {j_sg.alignment_midline}")
     ab.log(f"  GERMLINE: {j_sg.aligned_target}")
+    ab.log("")
+    ab.log("LOCAL QUERY:", j_loc.query.sequence)
+    ab.log("LOCAL GERMLINE:", j_loc.target.sequence)
     ab.log("LOCAL ALIGNMENT:")
     ab.log(f"     QUERY: {j_loc.aligned_query}")
     ab.log(f"            {j_loc.alignment_midline}")
@@ -766,14 +770,15 @@ def annotate_single_sequence(
     # which will give us the correct gapped alignment (since the full germline alignment presumably has enough 3' sequence to  overcome the gap penalty)
     # then we can use the re-aligned (and pre-gapped, if necessary) germline for alignment with the query sequence to correctly identify the FWR3 region.
 
+    # since the sequences for alignment shoud be identical (aside from any pre-existing alignment gaps), we can use a smaller gap open penalty
+    # this helps us capture gaps very close to the end of the sequence, for which there aren't enough matches on one side of the gap to overcome a high gap penalty.
+    REALIGNMENT_PARAMS = ALIGNMENT_PARAMS | {"gap_open": -2}
+
     # realign germline FWR3 region to the aligned germline sequence and extract the aligned region sequence
     fr3_germ_realign = abutils.tl.semiglobal_alignment(
         query=germ_fr3_sequence,
         target=v_sg.aligned_target,
-        match=ALIGNMENT_PARAMS["match"],
-        mismatch=ALIGNMENT_PARAMS["mismatch"],
-        gap_extend=ALIGNMENT_PARAMS["gap_extend"],
-        gap_open=-5,
+        **REALIGNMENT_PARAMS,
     )
     # semiglobal alignment is with the full oriented sequence, so there will typically be gaps on both ends of the aligned query (FR3 region)
     realigned_germ_fr3_sequence = fr3_germ_realign.aligned_query.lstrip("-").rstrip("-")
@@ -782,8 +787,6 @@ def annotate_single_sequence(
     # near the end of the FR3, which causes incorrect identification of the start of the junction.
     # to fix, we'll use the aligned version of the query sequence (from the V-gene semiglobal alignment) and align that to the re-aligned germline FWR3 region.
     # then we need to convert the aligned position of the junction start to the raw (unaligned) position
-    # TODO: grab the aligned version of ab.sequence_oriented (from ab.v_sg.aligned_query) and use that for the fr3_sg alignment
-    # this sequence should be pre-gapped and will hopefully avoid this issue.
 
     # fr3_sg = abutils.tl.semiglobal_alignment(
     #     query=ab.sequence_oriented,
@@ -795,7 +798,7 @@ def annotate_single_sequence(
     fr3_sg = abutils.tl.semiglobal_alignment(
         query=v_sg.aligned_query,
         target=realigned_germ_fr3_sequence,
-        **ALIGNMENT_PARAMS,
+        **ALIGNMENT_PARAMS,  # normal params are fine, since we already put in any gaps we want
     )
     ab.junction_start = (
         get_ungapped_position_from_aligned(
@@ -805,9 +808,9 @@ def annotate_single_sequence(
         + 1  # junction start is the position after the end of the FR3 alignment
     )
 
-    ab.log("FWR3 SG ALIGNMENT")
     ab.log("FR3 GERMLINE SEQUENCE:", germ_fr3_sequence)
     ab.log("REALIGNED FR3 GERMLINE SEQUENCE:", realigned_germ_fr3_sequence)
+    ab.log("FWR3 SG ALIGNMENT")
     ab.log("ALIGNED QUERY:        ", fr3_sg.aligned_query)
     ab.log("                      ", fr3_sg.alignment_midline)
     ab.log("ALIGNED FWR3 GERMLINE:", fr3_sg.aligned_target)
@@ -815,16 +818,34 @@ def annotate_single_sequence(
     ab.log("JUNCTION START:", ab.junction_start)
 
     # junction end
+    # we need to do similar re-alignment gymnastics with the FR4 region as we did with the FR3 above to ensure that
+    # FR4 indels near the start of the J gene don't cause misalignment and incorrect identification of the junction end.
+    # TODO:
+
     if ab.locus in ["IGH", "TRA", "TRD"]:
         germ_fr4_sequence = j_sg.target[-34:]
     else:
         germ_fr4_sequence = j_sg.target[-31:]
+
+    fr4_germ_realign = abutils.tl.semiglobal_alignment(
+        query=germ_fr4_sequence,
+        target=j_sg.aligned_target,
+        **REALIGNMENT_PARAMS,
+    )
+    realigned_germ_fr4_sequence = fr4_germ_realign.aligned_query.lstrip("-").rstrip("-")
+
+    # to prevent possible misalignments, which we can sometimes get when an insertion duplicates a portion of the J-gene,
+    # we align the re-aligned germline with just the portion of the query sequence contains the FR4
     fr4_sg = abutils.tl.semiglobal_alignment(
-        query=ab.sequence_oriented,
-        target=germ_fr4_sequence,
+        query=ab.sequence_oriented[ab.junction_start : ab.j_sequence_end],
+        # target=germ_fr4_sequence,
+        target=realigned_germ_fr4_sequence,
         **ALIGNMENT_PARAMS,
     )
-    ab.junction_end = fr4_sg.query_begin + 3  # germ_fr4_sequence includes the W/F
+    # junction sequence includes the W/F, so we need to add 3 because the germline FR4 sequence used for alignment also contains the W/F codon
+    ab.junction_end = fr4_sg.query_begin + ab.junction_start + 3
+    ab.log("FR4 GERMLINE SEQUENCE:", germ_fr4_sequence)
+    ab.log("REALIGNED FR4 GERMLINE SEQUENCE:", realigned_germ_fr4_sequence)
     ab.log("FWR4 SG ALIGNMENT")
     ab.log("ALIGNED QUERY        :", fr4_sg.aligned_query)
     ab.log("                      ", fr4_sg.alignment_midline)

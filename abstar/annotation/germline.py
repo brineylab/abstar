@@ -470,6 +470,17 @@ def process_jgene_alignment(
     """
     ab.j_score = local_aln.score
 
+    ab.log("SEMIGLOBAL ALIGNMENT QUERY START:", semiglobal_aln.query_begin)
+    ab.log("SEMIGLOBAL ALIGNMENT QUERY END:", semiglobal_aln.query_end)
+    ab.log("LOCAL ALIGNMENT QUERY START:", local_aln.query_begin)
+    ab.log("LOCAL ALIGNMENT QUERY END:", local_aln.query_end)
+    ab.log("SEMIGLOBAL ALIGNMENT GERMLINE START:", semiglobal_aln.target_begin)
+    ab.log("SEMIGLOBAL ALIGNMENT GERMLINE END:", semiglobal_aln.target_end)
+    ab.log("LOCAL ALIGNMENT GERMLINE START:", local_aln.target_begin)
+    ab.log("LOCAL ALIGNMENT GERMLINE END:", local_aln.target_end)
+    ab.log("LOCAL ALIGNMENT QUERY LENGTH:", len(local_aln.query))
+    ab.log("LOCAL ALIGNMENT GERMLINE LENGTH:", len(local_aln.target))
+
     # parse the J sequence and germline start position
     # sequence start is relative to the oriented input sequence
     # germline start is relative to the full (ungapped) germline gene sequence
@@ -484,9 +495,13 @@ def process_jgene_alignment(
     # if the local alignment ends before the end of the germline J gene but the full query
     # sequence extends beyond the end of the full germline gene, we extend the alignment
     # to the end of the germline gene
-    residual_germ = len(local_aln.target) - local_aln.target_end
-    residual_seq = len(local_aln.query) - local_aln.query_end
+    residual_germ = len(local_aln.target) - (local_aln.target_end + 1)
+    residual_seq = len(local_aln.query) - (local_aln.query_end + 1)
     if residual_germ >= 1 and residual_seq >= residual_germ:
+        plural = "S" if residual_germ > 1 else ""
+        ab.log(
+            f"USING SEMIGLOBAL ALIGNMENT END POSITION BECAUSE LOCAL ALIGNMENT WAS TRUNCATED BY {residual_germ} NUCLEOTIDE{plural}"
+        )
         ab.j_sequence_end = v_sequence_end + semiglobal_aln.query_end + 1
         ab.j_germline_end = ab.j_germline_start + semiglobal_aln.target_end + 1
     else:
