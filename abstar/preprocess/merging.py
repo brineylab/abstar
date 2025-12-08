@@ -460,6 +460,9 @@ def group_paired_fastqs(
     else:
         raise ValueError(f"Invalid schema: {schema}. Must be 'illumina' or 'element'.")
 
+    # ignore index read files (I1/I2) so only R1/R2 pairs are processed
+    files = [f for f in files if f.read in {"R1", "R2"}]
+
     # group files by sample
     group_dict = {}
     for f in files:
