@@ -751,7 +751,13 @@ def annotate_single_sequence(
     # junction start
     # the IMGT start position for FR3 is 196, but 1-indexed so we need to subtract 1 to slice correctly
     # also, since we're trying to identify the junction, we drop the last codon of FR3 (since the last codon is part of the junction)
-    germ_fr3_sequence = ab.v_germline_gapped[196 - 1 : 309].replace(".", "")
+    # germ_fr3_sequence = ab.v_germline_gapped[196 - 1 : 309].replace(".", "")
+
+    # we include the conserved C codon (which forms the start of the junction) to avoid an edge case
+    # in which a sequence has a deletion at the position immediately preceding the conserved C codon
+    # because the C is so highly conserved, it's basically impossible for a sequence to have a deletion at that position
+    germ_fr3_sequence = ab.v_germline_gapped[196 - 1 : 312].replace(".", "")
+    ab.log("FR3 GERMLINE SEQUENCE:", germ_fr3_sequence)
 
     # edge case where there's an insertion (gaps in the germline when aligned to the query) near the end of the FWR3, which can cause a misalignment.
     # if the region 3' of the indel isn't not long enough to overcome the gap penalty, the sequences can be aligned like so:
@@ -782,6 +788,7 @@ def annotate_single_sequence(
     )
     # semiglobal alignment is with the full oriented sequence, so there will typically be gaps on both ends of the aligned query (FR3 region)
     realigned_germ_fr3_sequence = fr3_germ_realign.aligned_query.lstrip("-").rstrip("-")
+    ab.log("REALIGNED FR3 GERMLINE SEQUENCE:", realigned_germ_fr3_sequence)
 
     # the same edge case (but in reverse) can happen with a deletion (gaps in the query when aligned to the germline)
     # near the end of the FR3, which causes incorrect identification of the start of the junction.
@@ -800,21 +807,20 @@ def annotate_single_sequence(
         target=realigned_germ_fr3_sequence,
         **ALIGNMENT_PARAMS,  # normal params are fine, since we already put in any gaps we want
     )
-    ab.junction_start = (
-        get_ungapped_position_from_aligned(
-            position=fr3_sg.query_end,
-            aligned_sequence=v_sg.aligned_query,
-        )
-        + 1  # junction start is the position after the end of the FR3 alignment
-    )
-
-    ab.log("FR3 GERMLINE SEQUENCE:", germ_fr3_sequence)
-    ab.log("REALIGNED FR3 GERMLINE SEQUENCE:", realigned_germ_fr3_sequence)
     ab.log("FWR3 SG ALIGNMENT")
     ab.log("ALIGNED QUERY:        ", fr3_sg.aligned_query)
     ab.log("                      ", fr3_sg.alignment_midline)
     ab.log("ALIGNED FWR3 GERMLINE:", fr3_sg.aligned_target)
     ab.log("FWR3 ALIGNMENT END:", fr3_sg.query_end)
+
+    ab.junction_start = (
+        get_ungapped_position_from_aligned(
+            position=fr3_sg.query_end,
+            aligned_sequence=v_sg.aligned_query,
+        )
+        # + 1  # junction start is the position after the end of the FR3 alignment
+        - 2  # back up to the start of the conserved C codon (start of the junction)
+    )
     ab.log("JUNCTION START:", ab.junction_start)
 
     # junction end
