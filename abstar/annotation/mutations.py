@@ -14,6 +14,7 @@ def annotate_mutations(
     gapped_germline: str,
     germline_start: int,
     ab: Optional[Antibody] = None,
+    j_gene: Optional[bool] = False,
     debug: bool = False,
 ) -> Antibody:
     """
@@ -87,11 +88,15 @@ def annotate_mutations(
         else:
             # yay, we found a mutation!
             raw_position += 1
-            imgt_position = get_gapped_position_from_raw(raw_position, gapped_germline)
-            mutation = f"{imgt_position}:{g}>{s}"
+            if j_gene:
+                mutation = f"{raw_position}:{g}>{s}"
+            else:
+                imgt_position = get_gapped_position_from_raw(raw_position, gapped_germline)
+                mutation = f"{imgt_position}:{g}>{s}"
             mutations.append(mutation)
             log_str += f"{raw_position}{' ' * (10 - len(str(raw_position)))}"
-            log_str += f"{imgt_position}{' ' * (10 - len(str(imgt_position)))}"
+            if not j_gene:
+                log_str += f"{imgt_position}{' ' * (10 - len(str(imgt_position)))}"
             log_str += f"{mutation}"
         if ab is not None:
             ab.log(log_str)
@@ -168,6 +173,36 @@ def annotate_v_mutations(
     else:
         ab.v_mutations = "|".join(mutations)
         ab.v_mutation_count = len(mutations)
+    return ab
+
+
+def annotate_j_mutations(
+	aligned_sequence: str,
+    aligned_germline: str,
+    gapped_germline: str,
+    j_start_position: int,
+    is_aa: bool,
+    ab: Antibody,
+    debug: bool = False,
+) -> Antibody:
+    """
+    Docstring to be completed
+    """
+    mutations = annotate_mutations(
+        aligned_sequence=aligned_sequence,
+        aligned_germline=aligned_germline,
+        gapped_germline=gapped_germline,
+        germline_start=j_start_position,
+        ab=ab,
+        j_gene=True,
+        debug=debug
+    )
+    if is_aa:
+        ab.j_mutations_aa = "|".join(mutations)
+        ab.j_mutation_count_aa = len(mutations)
+    else:
+        ab.j_mutations = "|".join(mutations)
+        ab.j_mutation_count = len(mutations)
     return ab
 
 

@@ -11,6 +11,8 @@ import abutils
 # import pandas as pd
 import polars as pl
 
+from abstar.tests.test_regions import aligned_germline, aligned_sequence
+
 from .antibody import Antibody
 from .germline import (
     get_germline,
@@ -22,7 +24,7 @@ from .germline import (
     reassign_dgene,
 )
 from .indels import annotate_deletions, annotate_insertions
-from .mutations import annotate_c_mutations, annotate_v_mutations
+from .mutations import annotate_c_mutations, annotate_v_mutations, annotate_j_mutations
 from .positions import get_gapped_sequence
 from .productivity import assess_productivity
 from .regions import get_region_sequence
@@ -332,7 +334,7 @@ def annotate_single_sequence(
     # only raise a productivity issue if the combination of all indels causes a frameshift
     # this avoids incorrectly flagging as non-productive a sequence with compensatory out-of-frame indels
     if (cumulative_ins_length - cumulative_del_length) % 3:
-        ab.productivity_issues.append("out-of-frame indel(s)")
+        ab.productivity_issues.append("out-of-frame indel(s) in v-gene")
         ab.v_frameshift = True
 
     ab.log("\n--------")
@@ -377,6 +379,57 @@ def annotate_single_sequence(
     ab.log("J GERMLINE END:", ab.j_germline_end)
     ab.log("J SEQUENCE:", ab.j_sequence)
     ab.log("J GERMLINE:", ab.j_germline)
+
+    j_global = abutils.tl.global_alignment(
+        ab.j_sequence,
+        ab.j_germline,
+        **ALIGNMENT_PARAMS,
+    )
+    ab.log("GLOBAL ALIGNMENT:")
+    ab.log(f"     QUERY: {j_global.aligned_query}")
+    ab.log(f"            {j_global.alignment_midline}")
+    ab.log(f"  GERMLINE: {j_global.aligned_target}")
+
+    # j insertions
+    if "-" in j_loc.aligned_target:
+        ab.j_insertions = annotate_insertions(
+            aligned_sequence=j_global.aligned_query,
+            aligned_germline=j_global.aligned_target,
+            gapped_germline=ab.j_germline,
+            germline_start=ab.j_sequence_start,
+            j_gene=True,
+        )
+        ab.log("J INSERTIONS:", ab.j_insertions)
+        insertions = ab.j_insertions.split("|")
+        j_cumulative_ins_length = sum(
+            [int(i.split(">")[0].split(":")[1]) for i in insertions]
+        )
+    else:
+        j_cumulative_ins_length = 0
+
+    # j deletions
+    if "-" in j_loc.aligned_query:
+        ab.j_deletions = annotate_deletions(
+            aligned_sequence=j_loc.aligned_query,
+            aligned_germline=j_loc.aligned_target,
+            gapped_germline=ab.j_germline,
+            germline_start=ab.j_sequence_start,
+            j_gene=True,
+        )
+        ab.log("J DELETIONS:", ab.j_deletions)
+        deletions = ab.j_deletions.split("|")
+        j_cumulative_del_length = sum(
+            [int(d.split(">")[0].split(":")[1]) for d in deletions]
+        )
+    else:
+        j_cumulative_del_length = 0
+
+    # only raise a productivity issue if the combination of all indels causes a frameshift
+    # this avoids incorrectly flagging as non-productive a sequence with compensatory out-of-frame indels
+    if (j_cumulative_ins_length - j_cumulative_del_length) % 3:
+        ab.productivity_issues.append("out-of-frame indel(s) in j-gene")
+        ab.j_frameshift = True
+
 
     ab.log("\n--------")
     ab.log(" D GENE")
@@ -761,6 +814,18 @@ def annotate_single_sequence(
     ab.log("V MUTATIONS:", ab.v_mutations)
     ab.log("V MUTATION COUNT:", ab.v_mutation_count)
 
+    ab = annotate_j_mutations(
+        aligned_sequence=j_global.aligned_query,
+        aligned_germline=j_global.aligned_target,
+        gapped_germline=ab.j_germline,
+        j_start_position=ab.j_sequence_start,
+        is_aa=False,
+        ab=ab,
+        debug=debug,
+    )
+    ab.log("J MUTATIONS:", ab.j_mutations)
+    ab.log("J MUTATION COUNT:", ab.j_mutation_count)
+
     # amino acid mutations
     ab = annotate_v_mutations(
         aligned_sequence=v_global_aa.aligned_query,
@@ -779,6 +844,10 @@ def annotate_single_sequence(
     ab.v_identity_aa = 1 - ab.v_mutation_count_aa / len(ab.v_germline_aa)
     ab.log("V IDENTITY:", ab.v_identity)
     ab.log("V IDENTITY AA:", ab.v_identity_aa)
+
+    ab.j_identity = 1 - ab.j_mutation_count / len(ab.j_germline)
+    ab.log("J IDENTITY:", ab.j_identity)
+    
 
     ab.log("\n---------")
     ab.log(" REGIONS")
