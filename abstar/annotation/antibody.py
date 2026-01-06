@@ -64,6 +64,7 @@ class Antibody(LoggingMixin):
     umi: str = None
     quality: str = None
     locus: str = None
+    frame: str = None
     species: str = None
     germline_database: str = None
     sequence_input: str = None
@@ -90,7 +91,7 @@ class Antibody(LoggingMixin):
     v_insertions: str = None
     v_deletions: str = None
     v_frameshift: bool = False
-    frame: str = None
+    v_frame: str = None
     d_call: str = None
     d_score: float = None
     d_support: float = None
@@ -148,6 +149,16 @@ class Antibody(LoggingMixin):
     fwr4: str = None
     fwr4_aa: str = None
     junction: str = None
+    cdr3_v: str = None
+    cdr3_v_aa: str = None
+    cdr3_n1: str = None
+    cdr3_n1_aa: str = None
+    cdr3_d: str = None
+    cdr3_d_aa: str = None
+    cdr3_n2: str = None
+    cdr3_n2_aa: str = None
+    cdr3_j: str = None
+    cdr3_j_aa: str = None
     v_sequence_start: int = None
     v_sequence_end: int = None
     v_germline_start: int = None
@@ -156,6 +167,12 @@ class Antibody(LoggingMixin):
     j_sequence_end: int = None
     j_germline_start: int = None
     j_germline_end: int = None
+    cdr_mask: str = None
+    cdr_mask_aa: str = None
+    gene_segment_mask: str = None
+    gene_segment_mask_aa: str = None
+    nongermline_mask: str = None
+    nongermline_mask_aa: str = None
 
     def __post_init__(self):
         # establish the list of AIRR output fields

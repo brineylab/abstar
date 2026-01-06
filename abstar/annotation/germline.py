@@ -283,6 +283,7 @@ def realign_germline(
         imgt_gapped=imgt_gapped,
         exact_match=True,
         force_constant=force_constant,
+        truncate_species=False,
     )
     if truncate_query is not None:
         sequence = sequence[: -int(truncate_query)]
@@ -331,7 +332,7 @@ def reassign_dgene(
 
     """
     # fetch all d-genes
-    germs = get_germline("IGHD", germdb_name)
+    germs = get_germline("IGHD", germdb_name, truncate_species=False)
     aln_params = aln_params if aln_params is not None else {}
     # align the query sequence to all d-genes
     alns = abutils.tl.local_alignment(sequence, targets=germs, **aln_params)
@@ -415,7 +416,8 @@ def process_vgene_alignment(
     ab.v_sequence = semiglobal_aln.query[ab.v_sequence_start : ab.v_sequence_end]
     ab.v_germline = semiglobal_aln.target[ab.v_germline_start : ab.v_germline_end]
     # frame -- 1-indexed, which works with abutils.tl.translate()
-    ab.frame = (3 - (ab.v_germline_start % 3)) % 3 + 1
+    ab.v_frame = (3 - (ab.v_germline_start % 3)) % 3 + 1
+    ab.frame = ab.v_frame
     # AA sequence and germline
     ab.v_sequence_aa = abutils.tl.translate(ab.v_sequence, frame=ab.frame)
     ab.v_germline_aa = abutils.tl.translate(ab.v_germline, frame=ab.frame)
@@ -468,22 +470,117 @@ def process_jgene_alignment(
 
     """
     ab.j_score = local_aln.score
+
+    ab.log("SEMIGLOBAL ALIGNMENT QUERY START:", semiglobal_aln.query_begin)
+    ab.log("SEMIGLOBAL ALIGNMENT QUERY END:", semiglobal_aln.query_end)
+    ab.log("LOCAL ALIGNMENT QUERY START:", local_aln.query_begin)
+    ab.log("LOCAL ALIGNMENT QUERY END:", local_aln.query_end)
+    ab.log("SEMIGLOBAL ALIGNMENT GERMLINE START:", semiglobal_aln.target_begin)
+    ab.log("SEMIGLOBAL ALIGNMENT GERMLINE END:", semiglobal_aln.target_end)
+    ab.log("LOCAL ALIGNMENT GERMLINE START:", local_aln.target_begin)
+    ab.log("LOCAL ALIGNMENT GERMLINE END:", local_aln.target_end)
+    ab.log("LOCAL ALIGNMENT QUERY LENGTH:", len(local_aln.query))
+    ab.log("LOCAL ALIGNMENT GERMLINE LENGTH:", len(local_aln.target))
+
+    # parse the J sequence and germline start position
+    # sequence start is relative to the oriented input sequence
+    # germline start is relative to the full (ungapped) germline gene sequence
     # AIRR-C wants 1-based indexing, but 0-based is better so we'll do that instead
     ab.j_sequence_start = (
         v_sequence_end + semiglobal_aln.query_begin + local_aln.query_begin
     )
-    ab.j_sequence_end = (
-        ab.j_sequence_start + (local_aln.query_end - local_aln.query_begin) + 1
-    )
-    # germline start/stop positions
     ab.j_germline_start = semiglobal_aln.target_begin + local_aln.target_begin
-    ab.j_germline_end = (
-        ab.j_germline_start + (local_aln.target_end - local_aln.target_begin) + 1
-    )
+
+    # like V genes, we need to check whether the local alignment was incorrectly truncated
+    # (on the 5' end for J genes) due to mutations at or near the end of the J gene
+    # if the local alignment ends before the end of the germline J gene but the full query
+    # sequence extends beyond the end of the full germline gene, we extend the alignment
+    # to the end of the germline gene
+    residual_germ = len(local_aln.target) - (local_aln.target_end + 1)
+    residual_seq = len(local_aln.query) - (local_aln.query_end + 1)
+    if residual_germ >= 1 and residual_seq >= residual_germ:
+        plural = "S" if residual_germ > 1 else ""
+        ab.log(
+            f"USING SEMIGLOBAL ALIGNMENT END POSITION BECAUSE LOCAL ALIGNMENT WAS TRUNCATED BY {residual_germ} NUCLEOTIDE{plural}"
+        )
+        ab.j_sequence_end = v_sequence_end + semiglobal_aln.query_end + 1
+        ab.j_germline_end = ab.j_germline_start + semiglobal_aln.target_end + 1
+    else:
+        ab.j_sequence_end = (
+            ab.j_sequence_start + (local_aln.query_end - local_aln.query_begin) + 1
+        )
+        ab.j_germline_end = (
+            ab.j_germline_start + (local_aln.target_end - local_aln.target_begin) + 1
+        )
+
     # j-region sequence and germline
     ab.j_sequence = oriented_input[ab.j_sequence_start : ab.j_sequence_end]
     ab.j_germline = semiglobal_aln.target[ab.j_germline_start : ab.j_germline_end]
     return ab
+
+
+# def process_jgene_alignment(
+#     oriented_input: str,
+#     v_sequence_end: int,
+#     semiglobal_aln: abutils.tl.PairwiseAlignment,
+#     local_aln: abutils.tl.PairwiseAlignment,
+#     ab: Antibody,
+# ) -> Antibody:
+#     """
+#     Processes a J gene alignment and updates ``Antibody`` annotations accordingly.
+
+#     .. note:
+#         all start/end positions are 0-indexed and end postions are
+#         exclusive, which aligns with Python slicing. This means that
+#         ``sequence[start : end]`` will work as expected
+
+#     Parameters:
+#     -----------
+#     oriented_input: str
+#         The oriented input sequence.
+
+#     v_sequence_end: int
+#         The end position of the V gene in the `oriented_input` sequence.
+
+#     semiglobal_aln: abutils.tl.PairwiseAlignment
+#         Semiglobal alignment of a query sequence to the J gene germline.
+
+#     local_aln: abutils.tl.PairwiseAlignment
+#         Local alignment of a query sequence to the J gene germline.
+
+#     ab: Antibody
+#         Antibody object to update with annotation information.
+
+#         The following ``Antibody`` properties are updated:
+
+#         - ``j_sequence``: the J gene region of the query sequence
+#         - ``j_score``: the score of the local alignment
+#         - ``j_sequence_start``: start position of the J gene in the query sequence, in positions corresponding to the ``sequence_oriented`` property
+#         - ``j_sequence_end``: end position of the J gene in the query sequence, in positions corresponding to the ``sequence_oriented`` property
+#         - ``j_germline``: the J gene region of the assigned germline sequence
+#         - ``j_germline_start``: start position of the J gene in the assigned germline sequence
+#         - ``j_germline_end``: end position of the J gene in the assigned germline sequence
+
+#         Does not require any ``Antibody`` properties to be set.
+
+#     """
+#     ab.j_score = local_aln.score
+#     # AIRR-C wants 1-based indexing, but 0-based is better so we'll do that instead
+#     ab.j_sequence_start = (
+#         v_sequence_end + semiglobal_aln.query_begin + local_aln.query_begin
+#     )
+#     ab.j_sequence_end = (
+#         ab.j_sequence_start + (local_aln.query_end - local_aln.query_begin) + 1
+#     )
+#     # germline start/stop positions
+#     ab.j_germline_start = semiglobal_aln.target_begin + local_aln.target_begin
+#     ab.j_germline_end = (
+#         ab.j_germline_start + (local_aln.target_end - local_aln.target_begin) + 1
+#     )
+#     # j-region sequence and germline
+#     ab.j_sequence = oriented_input[ab.j_sequence_start : ab.j_sequence_end]
+#     ab.j_germline = semiglobal_aln.target[ab.j_germline_start : ab.j_germline_end]
+#     return ab
 
 
 def process_dgene_alignment(
@@ -519,6 +616,8 @@ def process_dgene_alignment(
 
         The following ``Antibody`` properties are updated:
 
+        - ``d_call``: the D gene call (only updated if the D gene was found during a secondary search, not by the original MMseqs search)
+        - ``d_gene``: the D gene name (only updated if the D gene was found during a secondary search, not by the original MMseqs search)
         - ``d_sequence``: the D gene region of the query sequence
         - ``d_score``: the score of the local alignment
         - ``d_sequence_start``: start position of the D gene in the query sequence, in positions corresponding to the ``sequence_oriented`` property
@@ -531,6 +630,11 @@ def process_dgene_alignment(
         Does not require any ``Antibody`` properties to be set.
 
     """
+    # if the D gene was found during a secondary search, not by the original MMseqs search,
+    # we need to update the D gene call and name (since it hasn't already been set)
+    if ab.d_call is None:
+        ab.d_call = local_aln.target.id
+        ab.d_gene = local_aln.target.id.split("*")[0]
     ab.d_score = local_aln.score
     # AIRR-C wants 1-based indexing, but 0-based is better so we'll do that instead
     ab.d_sequence_start = v_sequence_end + local_aln.query_begin

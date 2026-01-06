@@ -22,10 +22,15 @@ from .germline import (
     reassign_dgene,
 )
 from .indels import annotate_deletions, annotate_insertions
+from .mask import (
+    generate_cdr_mask,
+    generate_gene_segment_mask,
+    generate_nongermline_mask,
+)
 from .mutations import annotate_c_mutations, annotate_v_mutations
-from .positions import get_gapped_sequence
+from .positions import get_gapped_sequence, get_ungapped_position_from_aligned
 from .productivity import assess_productivity
-from .regions import get_region_sequence
+from .regions import get_region_sequence, identify_cdr3_regions
 from .schema import OUTPUT_SCHEMA
 from .umi import parse_umis
 
@@ -185,6 +190,11 @@ def annotate_single_sequence(
 
     # check germline calls for species name
     # (mainly for mixed species databases like humouse)
+    # need to keep the raw call for calls to get_germline(), which must include the species name if it's present
+    raw_v_call = ab.v_call
+    raw_j_call = ab.j_call
+    raw_d_call = ab.d_call
+    raw_c_call = ab.c_call
     if len(vsplit := ab.v_call.split("__")) > 1:
         ab.v_call, ab.species = vsplit
     else:
@@ -214,13 +224,13 @@ def annotate_single_sequence(
     # v-gene realignment
     v_sg, v_loc = realign_germline(
         sequence=ab.sequence_oriented,
-        germline_name=ab.v_call,
+        germline_name=raw_v_call,  # must include species annotation if it's present in the germline database
         germdb_name=ab.germline_database,
         imgt_gapped=False,
         semiglobal_aln_params=ALIGNMENT_PARAMS,
         local_aln_params=ALIGNMENT_PARAMS,
     )
-    ab.log("V GERMLINE:", v_sg.query.sequence)
+    ab.log("V GERMLINE:", v_sg.target.sequence)
 
     ab.log("SEMIGLOBAL ALIGNMENT:")
     ab.log(f"     QUERY: {v_sg.aligned_query}")
@@ -245,6 +255,22 @@ def annotate_single_sequence(
     ab.log("V GERMLINE:", ab.v_germline)
     ab.log("V SEQUENCE AA:", ab.v_sequence_aa)
     ab.log("V GERMLINE AA:", ab.v_germline_aa)
+
+    # semiglobal alignment of AA sequences
+    # first need to translate the query and germline sequences
+    # query gets truncated at the start of the germline alignment
+    # and gets translated in its frame. The full germline is
+    # translated and used for alignment.
+    query_aa_sg = abutils.tl.translate(v_sg.query[v_sg.query_begin :], frame=ab.frame)
+    germline_aa_sg = abutils.tl.translate(v_sg.target)
+    v_sg_aa = abutils.tl.semiglobal_alignment(
+        query=query_aa_sg, target=germline_aa_sg, **ALIGNMENT_PARAMS
+    )
+
+    ab.log("SEMIGLOBAL ALIGNMENT AA:")
+    ab.log(f"     QUERY: {v_sg_aa.aligned_query}")
+    ab.log(f"            {v_sg_aa.alignment_midline}")
+    ab.log(f"  GERMLINE: {v_sg_aa.aligned_target}")
 
     # global alignment of sequence and germline
     # using the start/end positions determined parsed from the
@@ -272,7 +298,11 @@ def annotate_single_sequence(
 
     # gapped V-gene germline
     ab.v_germline_gapped = get_germline(
-        ab.v_call, ab.germline_database, imgt_gapped=True, exact_match=True
+        raw_v_call,
+        ab.germline_database,
+        imgt_gapped=True,
+        exact_match=True,
+        truncate_species=False,
     ).sequence
     ab.v_germline_gapped_aa = abutils.tl.translate(
         ab.v_germline_gapped, allow_dots=True
@@ -345,18 +375,22 @@ def annotate_single_sequence(
         raise ValueError(
             f"Query sequence for J-gene realignment is empty for {ab.sequence_id}"
         )
+    # use a smaller gap open penalty for the J-gene alignment than we use for others (V-gene and constant region)
     j_sg, j_loc = realign_germline(
         sequence=jquery,
-        germline_name=ab.j_call,
+        germline_name=raw_j_call,  # must include species annotation if it's present in the germline database
         germdb_name=ab.germline_database,
         imgt_gapped=False,
-        semiglobal_aln_params=ALIGNMENT_PARAMS,
-        local_aln_params=ALIGNMENT_PARAMS,
+        semiglobal_aln_params=ALIGNMENT_PARAMS | {"gap_open": -20},
+        local_aln_params=ALIGNMENT_PARAMS | {"gap_open": -15},
     )
     ab.log("SEMIGLOBAL ALIGNMENT:")
     ab.log(f"     QUERY: {j_sg.aligned_query}")
     ab.log(f"            {j_sg.alignment_midline}")
     ab.log(f"  GERMLINE: {j_sg.aligned_target}")
+    ab.log("")
+    ab.log("LOCAL QUERY:", j_loc.query.sequence)
+    ab.log("LOCAL GERMLINE:", j_loc.target.sequence)
     ab.log("LOCAL ALIGNMENT:")
     ab.log(f"     QUERY: {j_loc.aligned_query}")
     ab.log(f"            {j_loc.alignment_midline}")
@@ -388,18 +422,14 @@ def annotate_single_sequence(
     if dquery and ab.d_call is not None:
         _, d_loc = realign_germline(
             sequence=dquery,
-            germline_name=ab.d_call,
+            germline_name=raw_d_call,  # must include species annotation if it's present in the germline database
             germdb_name=ab.germline_database,
             imgt_gapped=False,
             skip_semiglobal=True,
             local_aln_params=ALIGNMENT_PARAMS,
         )
     # if not, we can try again using local pairwise alignment (for IGH/TRA/TRD chains only)
-    elif len(dquery) >= 5 and ab.locus in [
-        "IGH",
-        "TRA",
-        "TRD",
-    ]:  # TODO: make the minimum d-gene alignment length a user-controllable parameter?
+    elif len(dquery) >= 5 and ab.locus in ["IGH", "TRA", "TRD"]:
         d_loc = reassign_dgene(
             sequence=dquery,
             germdb_name=ab.germline_database,
@@ -456,7 +486,7 @@ def annotate_single_sequence(
     if cquery and ab.c_call is not None:
         c_sg, c_loc = realign_germline(
             sequence=cquery,
-            germline_name=ab.c_call,
+            germline_name=raw_c_call,  # must include species annotation if it's present in the germline database
             germdb_name=ab.germline_database,
             imgt_gapped=False,
             semiglobal_aln_params=ALIGNMENT_PARAMS,
@@ -491,112 +521,121 @@ def annotate_single_sequence(
         ab.log("C SEQUENCE AA:", ab.c_sequence_aa)
         ab.log("C GERMLINE AA:", ab.c_germline_aa)
 
-        # global nucleotide alignment
-        c_global = abutils.tl.global_alignment(
-            ab.c_sequence,
-            ab.c_germline,
-            **ALIGNMENT_PARAMS,
-        )
-        ab.log("GLOBAL ALIGNMENT:")
-        ab.log(f"     QUERY: {c_global.aligned_query}")
-        ab.log(f"            {c_global.alignment_midline}")
-        ab.log(f"  GERMLINE: {c_global.aligned_target}")
+        if all(
+            [
+                ab.c_sequence,
+                ab.c_germline,
+                ab.c_sequence_aa,
+                ab.c_germline_aa,
+            ]
+        ):
+            # global nucleotide alignment
+            c_global = abutils.tl.global_alignment(
+                ab.c_sequence,
+                ab.c_germline,
+                **ALIGNMENT_PARAMS,
+            )
+            ab.log("GLOBAL ALIGNMENT:")
+            ab.log(f"     QUERY: {c_global.aligned_query}")
+            ab.log(f"            {c_global.alignment_midline}")
+            ab.log(f"  GERMLINE: {c_global.aligned_target}")
 
-        # # verify that the AA sequences are not empty
-        # if len(ab.v_sequence_aa) == 0:
-        #     raise ValueError(f"V-gene AA sequence is empty for {ab.sequence_id}")
-        # if len(ab.v_germline_aa) == 0:
-        #     raise ValueError(f"V-gene germline AA sequence is empty for {ab.sequence_id}")
+            # # verify that the AA sequences are not empty
+            # if len(ab.v_sequence_aa) == 0:
+            #     raise ValueError(f"V-gene AA sequence is empty for {ab.sequence_id}")
+            # if len(ab.v_germline_aa) == 0:
+            #     raise ValueError(f"V-gene germline AA sequence is empty for {ab.sequence_id}")
 
-        # global alignment of the AA sequences
-        c_global_aa = abutils.tl.global_alignment(
-            ab.c_sequence_aa,
-            ab.c_germline_aa,
-            **ALIGNMENT_PARAMS,
-        )
-        ab.log("GLOBAL ALIGNMENT AA:")
-        ab.log(f"     QUERY: {c_global_aa.aligned_query}")
-        ab.log(f"            {c_global_aa.alignment_midline}")
-        ab.log(f"  GERMLINE: {c_global_aa.aligned_target}")
+            # global alignment of the AA sequences
+            c_global_aa = abutils.tl.global_alignment(
+                ab.c_sequence_aa,
+                ab.c_germline_aa,
+                **ALIGNMENT_PARAMS,
+            )
+            ab.log("GLOBAL ALIGNMENT AA:")
+            ab.log(f"     QUERY: {c_global_aa.aligned_query}")
+            ab.log(f"            {c_global_aa.alignment_midline}")
+            ab.log(f"  GERMLINE: {c_global_aa.aligned_target}")
 
-        # gapped Constant region germline
-        ab.c_germline_gapped = get_germline(
-            ab.c_call,
-            ab.germline_database,
-            imgt_gapped=True,
-            exact_match=True,
-            force_constant=True,
-        ).sequence
-        ab.c_germline_gapped_aa = abutils.tl.translate(
-            ab.c_germline_gapped, allow_dots=True
-        )
-        ab.log("GAPPED GERMLINE:", ab.c_germline_gapped)
-        ab.log("GAPPED GERMLINE AA:", ab.c_germline_gapped_aa)
-        # ab.v_germline_gapped = ab.v_germline_gapped
-        # ab.v_germline_gapped_aa = ab.v_germline_gapped_aa
+            # gapped Constant region germline
+            ab.c_germline_gapped = get_germline(
+                raw_c_call,
+                ab.germline_database,
+                imgt_gapped=True,
+                exact_match=True,
+                force_constant=True,
+                truncate_species=False,
+            ).sequence
+            ab.c_germline_gapped_aa = abutils.tl.translate(
+                ab.c_germline_gapped, allow_dots=True
+            )
+            ab.log("GAPPED GERMLINE:", ab.c_germline_gapped)
+            ab.log("GAPPED GERMLINE AA:", ab.c_germline_gapped_aa)
+            # ab.v_germline_gapped = ab.v_germline_gapped
+            # ab.v_germline_gapped_aa = ab.v_germline_gapped_aa
 
-        # gapped Constant region sequence
-        ab.c_sequence_gapped = get_gapped_sequence(
-            aligned_sequence=c_global.aligned_query,
-            aligned_germline=c_global.aligned_target,
-            gapped_germline=ab.c_germline_gapped,
-            germline_start=ab.c_germline_start,
-        )
-        ab.c_sequence_gapped_aa = abutils.tl.translate(
-            ab.c_sequence_gapped, frame=ab.frame, allow_dots=True
-        )
+            # gapped Constant region sequence
+            ab.c_sequence_gapped = get_gapped_sequence(
+                aligned_sequence=c_global.aligned_query,
+                aligned_germline=c_global.aligned_target,
+                gapped_germline=ab.c_germline_gapped,
+                germline_start=ab.c_germline_start,
+            )
+            ab.c_sequence_gapped_aa = abutils.tl.translate(
+                ab.c_sequence_gapped, frame=ab.frame, allow_dots=True
+            )
 
-        # nucleotide mutations
-        complete_c_germline = c_sg.target.sequence
-        ab = annotate_c_mutations(
-            aligned_sequence=c_global.aligned_query,
-            aligned_germline=c_global.aligned_target,
-            gapped_germline=complete_c_germline,
-            germline_start=ab.c_germline_start,
-            is_aa=False,
-            ab=ab,
-        )
-        ab.log("CONSTANT REGION MUTATIONS:", ab.c_mutations)
-        ab.log("CONSTANT REGION MUTATION COUNT:", ab.c_mutation_count)
-
-        # amino acid mutations
-        complete_c_germline_aa = abutils.tl.translate(complete_c_germline)
-        ab = annotate_c_mutations(
-            aligned_sequence=c_global_aa.aligned_query,
-            aligned_germline=c_global_aa.aligned_target,
-            gapped_germline=complete_c_germline_aa,
-            germline_start=ab.c_germline_start // 3,
-            is_aa=True,
-            ab=ab,
-        )
-        ab.log("CONSTANT REGION MUTATIONS AA:", ab.c_mutations_aa)
-        ab.log("CONSTANT REGION MUTATION COUNT AA:", ab.c_mutation_count_aa)
-
-        # calculate identify (nt and aa)
-        ab.c_identity = 1 - ab.c_mutation_count / len(ab.c_germline)
-        ab.c_identity_aa = 1 - ab.c_mutation_count_aa / len(ab.c_germline_aa)
-        ab.log("CONSTANT REGION IDENTITY:", ab.c_identity)
-        ab.log("CONSTANT REGION IDENTITY AA:", ab.c_identity_aa)
-
-        # insertions
-        if "-" in c_loc.aligned_target:
-            ab.c_insertions = annotate_insertions(
+            # nucleotide mutations
+            complete_c_germline = c_sg.target.sequence
+            ab = annotate_c_mutations(
                 aligned_sequence=c_global.aligned_query,
                 aligned_germline=c_global.aligned_target,
                 gapped_germline=complete_c_germline,
                 germline_start=ab.c_germline_start,
+                is_aa=False,
+                ab=ab,
             )
-            ab.log("CONSTANT REGION INSERTIONS:", ab.c_insertions)
+            ab.log("CONSTANT REGION MUTATIONS:", ab.c_mutations)
+            ab.log("CONSTANT REGION MUTATION COUNT:", ab.c_mutation_count)
 
-        # deletions
-        if "-" in c_loc.aligned_query:
-            ab.c_deletions = annotate_deletions(
-                aligned_sequence=c_loc.aligned_query,
-                aligned_germline=c_loc.aligned_target,
-                gapped_germline=complete_c_germline,
-                germline_start=ab.c_germline_start,
+            # amino acid mutations
+            complete_c_germline_aa = abutils.tl.translate(complete_c_germline)
+            ab = annotate_c_mutations(
+                aligned_sequence=c_global_aa.aligned_query,
+                aligned_germline=c_global_aa.aligned_target,
+                gapped_germline=complete_c_germline_aa,
+                germline_start=ab.c_germline_start // 3,
+                is_aa=True,
+                ab=ab,
             )
-            ab.log("CONSTANT REGION DELETIONS:", ab.c_deletions)
+            ab.log("CONSTANT REGION MUTATIONS AA:", ab.c_mutations_aa)
+            ab.log("CONSTANT REGION MUTATION COUNT AA:", ab.c_mutation_count_aa)
+
+            # calculate identify (nt and aa)
+            ab.c_identity = 1 - ab.c_mutation_count / len(ab.c_germline)
+            ab.c_identity_aa = 1 - ab.c_mutation_count_aa / len(ab.c_germline_aa)
+            ab.log("CONSTANT REGION IDENTITY:", ab.c_identity)
+            ab.log("CONSTANT REGION IDENTITY AA:", ab.c_identity_aa)
+
+            # insertions
+            if "-" in c_loc.aligned_target:
+                ab.c_insertions = annotate_insertions(
+                    aligned_sequence=c_global.aligned_query,
+                    aligned_germline=c_global.aligned_target,
+                    gapped_germline=complete_c_germline,
+                    germline_start=ab.c_germline_start,
+                )
+                ab.log("CONSTANT REGION INSERTIONS:", ab.c_insertions)
+
+            # deletions
+            if "-" in c_loc.aligned_query:
+                ab.c_deletions = annotate_deletions(
+                    aligned_sequence=c_loc.aligned_query,
+                    aligned_germline=c_loc.aligned_target,
+                    gapped_germline=complete_c_germline,
+                    germline_start=ab.c_germline_start,
+                )
+                ab.log("CONSTANT REGION DELETIONS:", ab.c_deletions)
 
     ab.log("\n--------------")
     ab.log(" VDJ ASSEMBLY")
@@ -710,26 +749,115 @@ def annotate_single_sequence(
     ab.log("----------\n")
 
     # junction start
-    germ_fr3_sequence = ab.v_germline_gapped[196:309].replace(".", "")
-    fr3_sg = abutils.tl.semiglobal_alignment(
-        query=ab.sequence_oriented,
-        target=germ_fr3_sequence,
-        **ALIGNMENT_PARAMS,
+    # the IMGT start position for FR3 is 196, but 1-indexed so we need to subtract 1 to slice correctly
+    # also, since we're trying to identify the junction, we drop the last codon of FR3 (since the last codon is part of the junction)
+    # germ_fr3_sequence = ab.v_germline_gapped[196 - 1 : 309].replace(".", "")
+
+    # we include the conserved C codon (which forms the start of the junction) to avoid an edge case
+    # in which a sequence has a deletion at the position immediately preceding the conserved C codon
+    # because the C is so highly conserved, it's basically impossible for a sequence to have a deletion at that position
+    germ_fr3_sequence = ab.v_germline_gapped[196 - 1 : 312].replace(".", "")
+    ab.log("FR3 GERMLINE SEQUENCE:", germ_fr3_sequence)
+
+    # edge case where there's an insertion (gaps in the germline when aligned to the query) near the end of the FWR3, which can cause a misalignment.
+    # if the region 3' of the indel isn't not long enough to overcome the gap penalty, the sequences can be aligned like so:
+    #
+    #    QUERY:    ACCGGGACTCTGGGGTCCCAGATAGATTCAGCGGCAGTGGGTCAGGCACTGATTTCACACTGAAAATCAGCAGGGTGGAGGCTGAAGATGTTGTTGGGGTTTATTAC
+    #              |||||||||||||||||||||| |||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||| |||||||  |    |||
+    #    GERMLINE: ACCGGGACTCTGGGGTCCCAGACAGATTCAGCGGCAGTGGGTCAGGCACTGATTTCACACTGAAAATCAGCAGGGTGGAGGCTGAGGATGTTGGGGTTTATTAC
+    #
+    # which should actually be:
+    #
+    #    QUERY:    ACCGGGACTCTGGGGTCCCAGATAGATTCAGCGGCAGTGGGTCAGGCACTGATTTCACACTGAAAATCAGCAGGGTGGAGGCTGAAGATGTTGTTGGGGTTTATTAC
+    #              |||||||||||||||||||||| |||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||| ||   ||||||||||||||||
+    #    GERMLINE: ACCGGGACTCTGGGGTCCCAGACAGATTCAGCGGCAGTGGGTCAGGCACTGATTTCACACTGAAAATCAGCAGGGTGGAGGCTGAGGA---TGTTGGGGTTTATTAC
+    #
+    # to fix, we'll first align the germline region to the pre-aligned germline sequence (from the V-gene semiglobal alignment),
+    # which will give us the correct gapped alignment (since the full germline alignment presumably has enough 3' sequence to  overcome the gap penalty)
+    # then we can use the re-aligned (and pre-gapped, if necessary) germline for alignment with the query sequence to correctly identify the FWR3 region.
+
+    # since the sequences for alignment shoud be identical (aside from any pre-existing alignment gaps), we can use a smaller gap open penalty
+    # this helps us capture gaps very close to the end of the sequence, for which there aren't enough matches on one side of the gap to overcome a high gap penalty.
+    REALIGNMENT_PARAMS = ALIGNMENT_PARAMS | {"gap_open": -2}
+
+    # realign germline FWR3 region to the aligned germline sequence and extract the aligned region sequence
+    fr3_germ_realign = abutils.tl.semiglobal_alignment(
+        query=germ_fr3_sequence,
+        target=v_sg.aligned_target,
+        **REALIGNMENT_PARAMS,
     )
-    ab.junction_start = fr3_sg.query_end + 1
+    # semiglobal alignment is with the full oriented sequence, so there will typically be gaps on both ends of the aligned query (FR3 region)
+    realigned_germ_fr3_sequence = fr3_germ_realign.aligned_query.lstrip("-").rstrip("-")
+    ab.log("REALIGNED FR3 GERMLINE SEQUENCE:", realigned_germ_fr3_sequence)
+
+    # the same edge case (but in reverse) can happen with a deletion (gaps in the query when aligned to the germline)
+    # near the end of the FR3, which causes incorrect identification of the start of the junction.
+    # to fix, we'll use the aligned version of the query sequence (from the V-gene semiglobal alignment) and align that to the re-aligned germline FWR3 region.
+    # then we need to convert the aligned position of the junction start to the raw (unaligned) position
+
+    # fr3_sg = abutils.tl.semiglobal_alignment(
+    #     query=ab.sequence_oriented,
+    #     target=realigned_germ_fr3_sequence,
+    #     **ALIGNMENT_PARAMS,
+    # )
+    # ab.junction_start = fr3_sg.query_end + 1
+
+    fr3_sg = abutils.tl.semiglobal_alignment(
+        query=v_sg.aligned_query,
+        target=realigned_germ_fr3_sequence,
+        **ALIGNMENT_PARAMS,  # normal params are fine, since we already put in any gaps we want
+    )
+    ab.log("FWR3 SG ALIGNMENT")
+    ab.log("ALIGNED QUERY:        ", fr3_sg.aligned_query)
+    ab.log("                      ", fr3_sg.alignment_midline)
+    ab.log("ALIGNED FWR3 GERMLINE:", fr3_sg.aligned_target)
+    ab.log("FWR3 ALIGNMENT END:", fr3_sg.query_end)
+
+    ab.junction_start = (
+        get_ungapped_position_from_aligned(
+            position=fr3_sg.query_end,
+            aligned_sequence=v_sg.aligned_query,
+        )
+        # + 1  # junction start is the position after the end of the FR3 alignment
+        - 2  # back up to the start of the conserved C codon (start of the junction)
+    )
+    ab.log("JUNCTION START:", ab.junction_start)
 
     # junction end
+    # we need to do similar re-alignment gymnastics with the FR4 region as we did with the FR3 above to ensure that
+    # FR4 indels near the start of the J gene don't cause misalignment and incorrect identification of the junction end.
+    # TODO:
+
     if ab.locus in ["IGH", "TRA", "TRD"]:
         germ_fr4_sequence = j_sg.target[-34:]
     else:
         germ_fr4_sequence = j_sg.target[-31:]
+
+    fr4_germ_realign = abutils.tl.semiglobal_alignment(
+        query=germ_fr4_sequence,
+        target=j_sg.aligned_target,
+        **REALIGNMENT_PARAMS,
+    )
+    realigned_germ_fr4_sequence = fr4_germ_realign.aligned_query.lstrip("-").rstrip("-")
+
+    # to prevent possible misalignments, which we can sometimes get when an insertion duplicates a portion of the J-gene,
+    # we align the re-aligned germline with just the portion of the query sequence contains the FR4
     fr4_sg = abutils.tl.semiglobal_alignment(
-        query=ab.sequence_oriented,
-        target=germ_fr4_sequence,
+        query=ab.sequence_oriented[ab.junction_start : ab.j_sequence_end],
+        # target=germ_fr4_sequence,
+        target=realigned_germ_fr4_sequence,
         **ALIGNMENT_PARAMS,
     )
-    ab.junction_end = fr4_sg.query_begin + 3  # germ_fr4_sequence includes the W/F
-
+    # junction sequence includes the W/F, so we need to add 3 because the germline FR4 sequence used for alignment also contains the W/F codon
+    ab.junction_end = fr4_sg.query_begin + ab.junction_start + 3
+    ab.log("FR4 GERMLINE SEQUENCE:", germ_fr4_sequence)
+    ab.log("REALIGNED FR4 GERMLINE SEQUENCE:", realigned_germ_fr4_sequence)
+    ab.log("FWR4 SG ALIGNMENT")
+    ab.log("ALIGNED QUERY        :", fr4_sg.aligned_query)
+    ab.log("                      ", fr4_sg.alignment_midline)
+    ab.log("ALIGNED FWR4 GERMLINE:", fr4_sg.aligned_target)
+    ab.log("FWR4 ALIGNMENT BEGIN:", fr4_sg.query_begin)
+    ab.log("JUNCTION END:", ab.junction_end)
     # junction sequence
     ab.junction = ab.sequence_oriented[ab.junction_start : ab.junction_end]
     ab.junction_aa = abutils.tl.translate(ab.junction)
@@ -786,47 +914,56 @@ def annotate_single_sequence(
 
     # V regions
     v_regions = ["fwr1", "cdr1", "fwr2", "cdr2", "fwr3"]
-    ab.log("ALIGNED SEQUENCE:", v_global.aligned_query)
-    ab.log("ALIGNED GERMLINE:", v_global.aligned_target)
+    ab.log("ALIGNED SEQUENCE (GLOBAL):", v_global.aligned_query)
+    ab.log("ALIGNED GERMLINE (GLOBAL):", v_global.aligned_target)
+    ab.log("ALIGNED SEQUENCE (SEMI-GLOBAL):", v_sg.aligned_query)
+    ab.log("ALIGNED GERMLINE (SEMI-GLOBAL):", v_sg.aligned_target)
     ab.log("GAPPED GERMLINE:", ab.v_germline_gapped)
     ab.log("GERMLINE START:", ab.v_germline_start + 1)
-    ab.log("ALIGNED QUERY AA:", v_global_aa.aligned_query)
-    ab.log("ALIGNED GERMLINE AA:", v_global_aa.aligned_target)
+    ab.log("ALIGNED QUERY AA (GLOBAL):", v_global_aa.aligned_query)
+    ab.log("ALIGNED GERMLINE AA (GLOBAL):", v_global_aa.aligned_target)
+    ab.log("ALIGNED QUERY AA (SEMI-GLOBAL):", v_sg_aa.aligned_query)
+    ab.log("ALIGNED GERMLINE AA (SEMI-GLOBAL):", v_sg_aa.aligned_target)
     ab.log("GAPPED GERMLINE AA:", ab.v_germline_gapped_aa)
     ab.log("GERMLINE START AA:", ab.v_germline_start // 3 + 1)
 
     for region in v_regions:
         # nucleotide region
-        region_sequence = get_region_sequence(
+        region_start, region_end, region_sequence = get_region_sequence(
             region,
-            aligned_sequence=v_global.aligned_query,
-            aligned_germline=v_global.aligned_target,
+            # aln=v_sg,
+            aln=v_global,
             gapped_germline=ab.v_germline_gapped,
-            ab=ab,
             germline_start=ab.v_germline_start + 1,  # needs to be 1-indexed
+            ab=ab,
         )
         setattr(ab, f"{region}", region_sequence)
         ab.log(f"{region.upper()} SEQUENCE:", region_sequence)
+
         # amino acid region
-        region_sequence_aa = get_region_sequence(
+        _, _, region_sequence_aa = get_region_sequence(
             region,
-            aligned_sequence=v_global_aa.aligned_query,
-            aligned_germline=v_global_aa.aligned_target,
+            # aln=v_sg_aa,
+            aln=v_global_aa,
             gapped_germline=ab.v_germline_gapped_aa,
-            ab=ab,
             germline_start=ab.v_germline_start // 3 + 1,  # needs to be 1-indexed
+            ab=ab,
             aa=True,
+            nt_region_start=region_start,
         )
         setattr(ab, f"{region}_aa", region_sequence_aa)
         ab.log(f"{region.upper()} SEQUENCE AA:", region_sequence_aa)
 
     # J regions
     fwr4_start = fr4_sg.query_begin
-    fwr4_end = fr4_sg.query_end
+    fwr4_end = fr4_sg.query_end + 1  # python end-slicing is exclusive
     ab.fwr4 = fr4_sg.aligned_query[fwr4_start:fwr4_end]
     ab.fwr4_aa = abutils.tl.translate(ab.fwr4)
     ab.log("FR4 SEQUENCE:", ab.fwr4)
     ab.log("FR4 SEQUENCE AA:", ab.fwr4_aa)
+
+    # CDR3 regions
+    ab = identify_cdr3_regions(ab)
 
     ab.log("\n--------------")
     ab.log(" PRODUCTIVITY")
@@ -836,6 +973,26 @@ def annotate_single_sequence(
     ab.log("STOP CODON:", ab.stop_codon)
     ab.log("PRODUCTIVE:", ab.productive)
     ab.log("PRODUCTIVITY ISSUES:", ab.productivity_issues)
+
+    ab.log("\n------------")
+    ab.log(" MASKS")
+    ab.log("-----------\n")
+
+    ab.cdr_mask = generate_cdr_mask(ab)
+    ab.cdr_mask_aa = generate_cdr_mask(ab, aa=True)
+    ab.gene_segment_mask = generate_gene_segment_mask(ab)
+    ab.gene_segment_mask_aa = generate_gene_segment_mask(ab, aa=True)
+    ab.nongermline_mask = generate_nongermline_mask(ab)
+    ab.nongermline_mask_aa = generate_nongermline_mask(ab, aa=True)
+
+    ab.log("SEQUENCE:         ", ab.sequence)
+    ab.log("CDR MASK:         ", ab.cdr_mask)
+    ab.log("GENE SEGMENT MASK:", ab.gene_segment_mask)
+    ab.log("NON-GERMLINE MASK:", ab.nongermline_mask)
+    ab.log("SEQUENCE AA:         ", ab.sequence_aa)
+    ab.log("CDR MASK AA:         ", ab.cdr_mask_aa)
+    ab.log("GENE SEGMENT MASK AA:", ab.gene_segment_mask_aa)
+    ab.log("NON-GERMLINE MASK AA:", ab.nongermline_mask_aa)
 
     return ab
 

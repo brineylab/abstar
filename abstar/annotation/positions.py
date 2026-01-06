@@ -3,6 +3,8 @@
 # SPDX-License-Identifier: MIT
 
 
+from .antibody import Antibody
+
 __all__ = [
     "get_gapped_position_from_raw",
     "get_raw_position_from_gapped",
@@ -84,6 +86,102 @@ def get_raw_position_from_gapped(
     raw -= germline_start
     raw -= sequence_start
     return max([0, raw])
+
+
+def get_aligned_position_from_ungapped(
+    position: int,
+    aligned_sequence: str,
+    ab: Antibody | None = None,
+    is_end_position: bool = False,
+) -> int:
+    """
+    Get the aligned position from an ungapped position and an aligned reference sequence.
+
+    Parameters
+    ----------
+    position : int
+        The ungapped position to convert to an aligned position.
+
+    aligned_sequence : str
+        The aligned sequence to convert the ungapped position to an aligned position.
+
+    ab : Antibody | None, optional
+        The ``Antibody`` object. Used only for logging. No ``Antibody`` paremeters
+        are required or updated. If not provided, no logging is done.
+
+    is_end_position : bool, default False
+        Whether the position is the end position of the region. If True, the function will search for indels immediately following the end position
+        and will include them in the region position range.
+
+    Returns
+    -------
+    int
+        The aligned position.
+    """
+    ungapped_position = 0
+    for aligned_position, s in enumerate(aligned_sequence):
+        if s == "-":
+            # ungapped_position += 1  # this might need to be removed if a semiglobal alignment is used (which may have leading gaps)
+            continue
+        if ungapped_position == position:
+            if is_end_position:
+                # edge case where an insertion happens between regions, which would cause both regions to ignore it --
+                # the preceding region will end at the position before the insertion, and the subsequent region will skip it as a leading gap
+                # our solution is to include insertions (gaps in the aligned_sequence, since this is the germline) in the preceding region
+                if (
+                    len(aligned_sequence) <= aligned_position + 1
+                    or aligned_sequence[aligned_position + 1] != "-"
+                ):
+                    # no insertion, so we can return the aligned position
+                    return aligned_position
+                # former_aligned_position = aligned_position
+                while aligned_sequence[aligned_position + 1] == "-":
+                    aligned_position += 1
+            return aligned_position
+        else:
+            ungapped_position += 1
+
+
+def get_ungapped_position_from_aligned(
+    position: int,
+    aligned_sequence: str,
+) -> int:
+    """
+    Get the ungapped position from an aligned position and an aligned sequence.
+    """
+    ungapped_position = 0
+    for aligned_position, s in enumerate(aligned_sequence):
+        if s == "-":
+            continue
+        if aligned_position == position:
+            return ungapped_position
+        ungapped_position += 1
+
+
+def get_position_from_aligned_reference(
+    position: int,
+    aligned_sequence: str,
+    aligned_reference: str,
+) -> int:
+    """
+    Get the query position from an aligned reference.
+    """
+    query_position = 0
+    reference_position = 0
+
+    for s, r in zip(aligned_sequence, aligned_reference):
+        # this has to come first, since we might have an alignment
+        # where we want position 0 of the reference, but there are
+        # leading gaps for which we need to increment the query first
+        if r == "-":
+            query_position += 1
+        elif reference_position == position:
+            return query_position
+        elif s == "-":
+            reference_position += 1
+        else:
+            query_position += 1
+            reference_position += 1
 
 
 def get_raw_position_from_aligned(
