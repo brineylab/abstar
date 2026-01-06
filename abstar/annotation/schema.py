@@ -58,6 +58,7 @@ schema_dict = {
     "umi": pl.String,
     "quality": pl.String,
     "locus": pl.String,
+    "frame": pl.Int64,
     "species": pl.String,
     "germline_database": pl.String,
     "sequence_input": pl.String,

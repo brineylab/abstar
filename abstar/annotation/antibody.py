@@ -64,6 +64,7 @@ class Antibody(LoggingMixin):
     umi: str = None
     quality: str = None
     locus: str = None
+    frame: str = None
     species: str = None
     germline_database: str = None
     sequence_input: str = None
@@ -90,7 +91,7 @@ class Antibody(LoggingMixin):
     v_insertions: str = None
     v_deletions: str = None
     v_frameshift: bool = False
-    frame: str = None
+    v_frame: str = None
     d_call: str = None
     d_score: float = None
     d_support: float = None

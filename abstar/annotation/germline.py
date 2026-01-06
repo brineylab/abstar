@@ -416,7 +416,8 @@ def process_vgene_alignment(
     ab.v_sequence = semiglobal_aln.query[ab.v_sequence_start : ab.v_sequence_end]
     ab.v_germline = semiglobal_aln.target[ab.v_germline_start : ab.v_germline_end]
     # frame -- 1-indexed, which works with abutils.tl.translate()
-    ab.frame = (3 - (ab.v_germline_start % 3)) % 3 + 1
+    ab.v_frame = (3 - (ab.v_germline_start % 3)) % 3 + 1
+    ab.frame = ab.v_frame
     # AA sequence and germline
     ab.v_sequence_aa = abutils.tl.translate(ab.v_sequence, frame=ab.frame)
     ab.v_germline_aa = abutils.tl.translate(ab.v_germline, frame=ab.frame)
