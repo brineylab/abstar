@@ -183,7 +183,7 @@ def test_get_region_sequence_fwr1(seq_string, germ_string, gapped_germline, anti
     """Test getting FWR1 region sequence."""
     region = "fwr1"
     aln = make_semiglobal_alignment(seq_string, germ_string)
-    result = get_region_sequence(
+    _, _, result = get_region_sequence(
         region=region,
         aln=aln,
         gapped_germline=gapped_germline,
@@ -208,7 +208,7 @@ def test_get_region_sequence_aa(seq_string, germ_string, gapped_germline, antibo
     seq_aa = abutils.tl.translate(aln_nt.query[aln_nt.query_begin :], frame=1)
     germ_aa = abutils.tl.translate(aln_nt.target, frame=1)
     aln_aa = abutils.tl.semiglobal_alignment(seq_aa, germ_aa)
-    result = get_region_sequence(
+    _, _, result = get_region_sequence(
         region=region,
         aln=aln_aa,
         gapped_germline=abutils.tl.translate(gapped_germline, allow_dots=True),
@@ -230,7 +230,7 @@ def test_get_region_sequence_truncated(
     """Test getting a region sequence from a truncated sequence."""
     region = "fwr1"
     aln = make_semiglobal_alignment(truncated_seq_string, truncated_germ_string)
-    result = get_region_sequence(
+    _, _, result = get_region_sequence(
         region=region,
         aln=aln,
         gapped_germline=gapped_germline,
@@ -282,7 +282,7 @@ def test_all_regions(
 
     aln = make_semiglobal_alignment(seq_string, germ_string)
     for region in regions:
-        result = get_region_sequence(
+        _, _, result = get_region_sequence(
             region=region,
             aln=aln,
             gapped_germline=gapped_germline,
@@ -438,6 +438,9 @@ def test_edge_cases(antibody):
         germline_start=400,
         ab=antibody,
     )
+    # Result may be empty string directly or tuple with empty string
+    if isinstance(result, tuple):
+        _, _, result = result
     assert isinstance(result, str)
     assert "-" not in result
 
@@ -450,5 +453,8 @@ def test_edge_cases(antibody):
         germline_start=400,
         ab=antibody,
     )
+    # Result may be empty string directly or tuple with empty string
+    if isinstance(result, tuple):
+        _, _, result = result
     assert isinstance(result, str)
     assert "-" not in result

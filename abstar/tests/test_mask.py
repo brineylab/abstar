@@ -55,6 +55,10 @@ def minimal_ab():
     ab.cdr3_n2_aa = None
     ab.cdr3_j_aa = ab.cdr3_j
     # Gene segment mask requires these
+    ab.v_sequence = ab.fwr1 + ab.cdr1 + ab.fwr2 + ab.cdr2 + ab.fwr3
+    ab.v_sequence_aa = ab.fwr1_aa + ab.cdr1_aa + ab.fwr2_aa + ab.cdr2_aa + ab.fwr3_aa
+    ab.j_sequence = ab.cdr3_j + ab.fwr4
+    ab.j_sequence_aa = ab.cdr3_j_aa + ab.fwr4_aa
     return ab
 
 
