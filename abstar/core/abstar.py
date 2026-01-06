@@ -104,6 +104,7 @@ def run(
     copy_inputs_to_project: bool = False,
     verbose: bool = False,
     concise_logging: bool = False,
+    as_dataframe: bool = False,
     started_from_cli: bool = False,
     debug: bool = False,
 ) -> Optional[Union[Iterable[Sequence], Sequence]]:
@@ -181,6 +182,10 @@ def run(
 
     copy_inputs_to_project : bool = False,
         Whether to copy input sequences to the project directory.
+
+    as_dataframe : bool = False,
+        Whether to return the output as a polars DataFrame. If ``True``, the output will be returned as a polars DataFrame.
+        Note that this option is only available when running interactively (via the API) and when the `project_path` is not provided.
 
     concise_logging : bool = False,
         Whether to use concise logging. If ``True``, the logging is more concise, more suitable for running
@@ -376,11 +381,15 @@ def run(
 
         # get output Sequences
         if return_sequences:
-            annotated_sequences = abutils.io.read_parquet(annotated_files)
-            sequences_to_return.extend(annotated_sequences)
+            if as_dataframe:
+                sequence_df = pl.read_parquet(annotated_files)
+                sequence_count = sequence_df.height
+            else:
+                annotated_sequences = abutils.io.read_parquet(annotated_files)
+                sequences_to_return.extend(annotated_sequences)
+                sequence_count = len(annotated_sequences)
 
             # log results summary
-            sequence_count = len(annotated_sequences)
             duration = datetime.now() - start_time
             _log_results_summary(
                 sequence_count=sequence_count,
@@ -430,6 +439,8 @@ def run(
             _delete_files(to_delete)
 
     if return_sequences:
+        if as_dataframe:
+            return sequence_df
         if len(sequences_to_return) == 1:
             return sequences_to_return[0]
         return sequences_to_return
