@@ -14,6 +14,22 @@ import polars as pl
 from .assigner import AssignerBase
 
 
+ASSIGNMENT_SCHEMA = {
+    "sequence_id": pl.String,
+    "sequence_input": pl.String,
+    "quality": pl.String,
+    "rev_comp": pl.Boolean,
+    "v_call": pl.String,
+    "v_support": pl.Float64,
+    "d_call": pl.String,
+    "d_support": pl.Float64,
+    "j_call": pl.String,
+    "j_support": pl.Float64,
+    "c_call": pl.String,
+    "c_support": pl.Float64,
+}
+
+
 class MMseqs(AssignerBase):
     def __init__(
         self,
@@ -435,7 +451,7 @@ class MMseqs(AssignerBase):
         assigned_path = os.path.join(
             self.output_directory, f"{self.sample_name}.{idx}.parquet"
         )
-        assigned.write_parquet(assigned_path)
+        assigned.cast(ASSIGNMENT_SCHEMA).write_parquet(assigned_path)
         if not self.debug:
             self.to_delete.append(assigned_path)
 
