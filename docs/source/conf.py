@@ -13,6 +13,7 @@
 # serve to show the default.
 
 import os
+import re
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -89,13 +90,10 @@ author = "Bryan Briney"
 # |version| and |release|, also used in various other places throughout the
 # built documents.
 #
-# The short X.Y version.
-try:
-    from abstar.version import __version__
-    version = __version__
-except ImportError:
-    # Fallback for ReadTheDocs where abstar may not be fully importable
-    version = "0.7"
+# Read version from file to avoid importing abstar (which pulls in compiled deps)
+version_file = HERE.parent.parent / "abstar" / "version.py"
+version_match = re.search(r'__version__\s*=\s*["\']([^"\']+)["\']', version_file.read_text())
+version = version_match.group(1) if version_match else "unknown"
 # The full version, including alpha/beta/rc tags.
 release = version
 
