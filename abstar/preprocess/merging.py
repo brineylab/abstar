@@ -6,7 +6,7 @@
 import os
 import subprocess as sp
 import tempfile
-from typing import Iterable, Optional, Union
+from typing import Iterable
 
 from abutils.bin import get_path as get_binary_path
 from abutils.io import (
@@ -140,19 +140,19 @@ class MergeGroup:
     def merge(
         self,
         merged_directory: str,
-        log_directory: Optional[str] = None,
+        log_directory: str | None = None,
         format: str = "fastq",
         algo: str = "fastp",
-        binary_path: Optional[str] = None,
+        binary_path: str | None = None,
         minimum_overlap: int = 30,
         allowed_mismatches: int = 5,
         allowed_mismatch_percent: float = 20.0,
         trim_adapters: bool = True,
-        adapter_file: Optional[str] = None,
+        adapter_file: str | None = None,
         quality_trim: bool = True,
         window_size: int = 4,
         quality_cutoff: int = 20,
-        merge_args: Optional[str] = None,
+        merge_args: str | None = None,
         compress_output: bool = False,
         # show_progress: bool = False,
         debug: bool = False,
@@ -237,19 +237,19 @@ class MergeGroup:
 
 
 def merge_fastqs(
-    files: Union[str, Iterable],
+    files: str | Iterable,
     output_directory: str,
     output_format: str = "fastq",
-    log_directory: Optional[str] = None,
+    log_directory: str | None = None,
     schema: str = "illumina",
     algo: str = "fastp",
-    binary_path: Optional[str] = None,
-    merge_args: Optional[str] = None,
+    binary_path: str | None = None,
+    merge_args: str | None = None,
     minimum_overlap: int = 30,
     allowed_mismatches: int = 5,
     allowed_mismatch_percent: float = 20.0,
     trim_adapters: bool = True,
-    adapter_file: Optional[str] = None,
+    adapter_file: str | None = None,
     quality_trim: bool = True,
     window_size: int = 4,
     quality_cutoff: int = 20,
@@ -263,7 +263,7 @@ def merge_fastqs(
 
     Parameters
     ----------
-    files : Union[str, Iterable]
+    files : str | Iterable
         Path to a directory containing paired-end fastq files, or an iterable of paired-end fastq files.
 
     output_directory : str
@@ -425,14 +425,14 @@ def merge_fastqs(
 
 
 def group_paired_fastqs(
-    files: Union[str, Iterable], schema: str = "illumina"
+    files: str | Iterable, schema: str = "illumina"
 ) -> Iterable[MergeGroup]:
     """
     Group paired-end fastq files by sample name. If a sample has multiple lanes, the files will be combined.
 
     Parameters
     ----------
-    files : Union[str, Iterable]
+    files : str | Iterable
         Path to a directory containing paired-end fastq files, or an iterable of paired-end fastq files.
 
     schema : str, optional
@@ -475,14 +475,14 @@ def group_paired_fastqs(
 
 def merge_fastqs_vsearch(
     forward: str,
-    reverse: Optional[str],
+    reverse: str | None,
     merged_file: str,
     output_format: str = "fasta",
-    binary_path: Optional[str] = None,
+    binary_path: str | None = None,
     minimum_overlap: int = 30,
     allowed_mismatches: int = 5,
     allowed_mismatch_percent: float = 20.0,
-    additional_args: Optional[str] = None,
+    additional_args: str | None = None,
     interleaved: bool = False,
     debug: bool = False,
 ) -> str:
@@ -559,22 +559,22 @@ def merge_fastqs_vsearch(
 
 def merge_fastqs_fastp(
     forward: str,
-    reverse: Optional[str] = None,
-    merged: Optional[str] = None,
-    binary_path: Optional[str] = None,
+    reverse: str | None = None,
+    merged: str | None = None,
+    binary_path: str | None = None,
     minimum_overlap: int = 30,
     allowed_mismatches: int = 5,
     allowed_mismatch_percent: int = 20,
     correct_overlap_region: bool = False,
     trim_adapters: bool = True,
-    adapter_file: Optional[str] = None,
+    adapter_file: str | None = None,
     quality_trim: bool = True,
     window_size: int = 4,
     quality_cutoff: int = 20,
-    name: Optional[str] = None,
-    log_directory: Optional[str] = None,
+    name: str | None = None,
+    log_directory: str | None = None,
     interleaved: bool = False,
-    additional_args: Optional[str] = None,
+    additional_args: str | None = None,
     debug: bool = False,
 ) -> str:
     """

@@ -4,7 +4,7 @@
 
 
 import os
-from typing import Optional, Tuple, Union
+from typing import Tuple
 
 import abutils
 from abutils import Sequence
@@ -95,7 +95,7 @@ def get_germline(
     exact_match: bool = False,
     force_constant: bool = False,
     truncate_species: bool = True,
-) -> Union[list, Sequence]:
+) -> list | Sequence:
     """
     Get the germline sequence for a given germline gene.
 
@@ -204,14 +204,14 @@ def realign_germline(
     germline_name: str,
     germdb_name: str,
     imgt_gapped: bool = False,
-    semiglobal_aln_params: Optional[dict] = None,
-    local_aln_params: Optional[dict] = None,
+    semiglobal_aln_params: dict | None = None,
+    local_aln_params: dict | None = None,
     skip_semiglobal: bool = False,
     skip_local: bool = False,
-    truncate_query: Optional[int] = None,
-    truncate_target: Optional[int] = None,
+    truncate_query: int | None = None,
+    truncate_target: int | None = None,
     force_constant: bool = False,
-) -> Tuple[Optional[abutils.tl.PairwiseAlignment]]:
+) -> Tuple[abutils.tl.PairwiseAlignment | None]:
     """
     Performs an (optionally) two-step realignment of an assigned germline gene to a query sequence.
 
@@ -308,7 +308,7 @@ def realign_germline(
 
 
 def reassign_dgene(
-    sequence: str, germdb_name: str, aln_params: Optional[dict] = None
+    sequence: str, germdb_name: str, aln_params: dict | None = None
 ) -> abutils.tl.PairwiseAlignment:
     """
     Assigns a D gene to a query sequence using local alignment.

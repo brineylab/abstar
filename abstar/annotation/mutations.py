@@ -2,8 +2,6 @@
 # Distributed under the terms of the MIT License.
 # SPDX-License-Identifier: MIT
 
-from typing import Optional
-
 from .antibody import Antibody
 from .positions import get_gapped_position_from_raw
 
@@ -13,7 +11,7 @@ def annotate_mutations(
     aligned_germline: str,
     gapped_germline: str,
     germline_start: int,
-    ab: Optional[Antibody] = None,
+    ab: Antibody | None = None,
     debug: bool = False,
 ) -> Antibody:
     """

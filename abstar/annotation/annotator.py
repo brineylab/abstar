@@ -4,7 +4,7 @@
 
 import os
 import traceback
-from typing import Iterable, Optional, Union
+from typing import Iterable
 
 import abutils
 
@@ -39,11 +39,11 @@ def annotate(
     input_file: str,
     output_directory: str,
     germline_database: str,
-    log_directory: Optional[str] = None,
-    umi_pattern: Optional[str] = None,
-    umi_length: Optional[int] = None,
+    log_directory: str | None = None,
+    umi_pattern: str | None = None,
+    umi_length: int | None = None,
     debug: bool = False,
-) -> Iterable[Union[str, Optional[str], Optional[str]]]:
+) -> Iterable[str | None]:
     """
     Annotates a Parquet file of V(D)J-assigned antibody sequences.
 
@@ -154,8 +154,8 @@ def annotate(
 def annotate_single_sequence(
     ab: Antibody,
     germline_database: str,
-    umi_pattern: Optional[str] = None,
-    umi_length: Optional[int] = None,
+    umi_pattern: str | None = None,
+    umi_length: int | None = None,
     debug: bool = False,
 ):
     # log information from the assigner

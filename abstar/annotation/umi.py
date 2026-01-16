@@ -5,7 +5,7 @@
 import os
 import shutil
 import tempfile
-from typing import Iterable, Optional, Union
+from typing import Iterable
 
 import abutils
 from abutils import Sequence
@@ -23,7 +23,7 @@ class UMI:
         self,
         sequence: Sequence,
         pattern: str,
-        length: Optional[int] = None,
+        length: int | None = None,
         ignore_strand: bool = False,
         # extra_length_for_alignment: int = 25,
     ):
@@ -58,7 +58,7 @@ class UMI:
         self._num_mismatches = None
 
     @property
-    def leading(self) -> Optional[str]:
+    def leading(self) -> str | None:
         """
         Returns the leading conserved region of the pattern, if present.
         """
@@ -67,7 +67,7 @@ class UMI:
             return leading if leading else None
 
     @property
-    def trailing(self) -> Optional[str]:
+    def trailing(self) -> str | None:
         """
         Returns the trailing conserved region of the pattern, if present.
         """
@@ -76,7 +76,7 @@ class UMI:
             return trailing if trailing else None
 
     @property
-    def leading_aln(self) -> Optional[PairwiseAlignment]:
+    def leading_aln(self) -> PairwiseAlignment | None:
         """
         Returns the leading conserved region of the pattern, if present.
         """
@@ -87,7 +87,7 @@ class UMI:
             return self._leading_aln
 
     @property
-    def trailing_aln(self) -> Optional[PairwiseAlignment]:
+    def trailing_aln(self) -> PairwiseAlignment | None:
         """
         Returns the trailing conserved region of the pattern, if present.
         """
@@ -98,7 +98,7 @@ class UMI:
             return self._trailing_aln
 
     @property
-    def umi(self) -> Optional[str]:
+    def umi(self) -> str | None:
         """
         Returns the UMI, if present.
         """
@@ -107,7 +107,7 @@ class UMI:
         return self._umi
 
     @property
-    def num_mismatches(self) -> Optional[int]:
+    def num_mismatches(self) -> int | None:
         """
         Returns the number of mismatches between the pattern and sequence.
         """
@@ -149,7 +149,7 @@ class UMI:
         )
         return aln
 
-    def get_mismatches(self) -> Optional[int]:
+    def get_mismatches(self) -> int | None:
         """
         Returns the total number of mismatches between the pattern(s)
         and the input sequence.
@@ -163,7 +163,7 @@ class UMI:
                 matches += aln.alignment_midline.count("|")
         return total - matches
 
-    def get_umi(self) -> Optional[str]:
+    def get_umi(self) -> str | None:
         """
         Parses UMI from the input sequence using the UMI pattern(s).
         """
@@ -199,10 +199,10 @@ class UMI:
 
 
 def parse_umis(
-    sequences: Union[str, Sequence, Iterable, dict],
-    output_file: Optional[str] = None,
-    pattern: Union[str, Iterable, None] = None,
-    length: Union[int, Iterable, None] = None,
+    sequences: str | Sequence | Iterable | dict,
+    output_file: str | None = None,
+    pattern: str | Iterable | None = None,
+    length: int | Iterable | None = None,
     allowed_mismatches: int = 1,
     # extra_length_for_alignment: int = 25,
     ignore_strand: bool = False,
@@ -407,7 +407,7 @@ def _parse_umis_from_file(
     input_file: str,
     patterns: Iterable,
     lengths: Iterable,
-    output_file: Optional[str] = None,
+    output_file: str | None = None,
     allowed_mismatches: int = 1,
     # extra_length_for_alignment: int = 25,
     ignore_strand: bool = False,
@@ -517,7 +517,7 @@ def _parse_umis_from_sequences(
 
 
 def _parse_umis_from_single_sequence(
-    sequence: Union[str, Sequence, Iterable, dict],
+    sequence: str | Sequence | Iterable | dict,
     patterns: Iterable,
     lengths: Iterable,
     allowed_mismatches: int = 1,
@@ -633,12 +633,12 @@ BUILTIN_PATTERNS = {
 #         self._num_mismatches = None
 
 #     @property
-#     def leading(self) -> Optional[str]:
+#     def leading(self) -> str | None:
 #         leading = self.pattern.split("[UMI]")[0]
 #         return leading if leading else None
 
 #     @property
-#     def trailing(self) -> Optional[str]:
+#     def trailing(self) -> str | None:
 #         trailing = self.pattern.split("[UMI]")[-1]
 #         return trailing if trailing else None
 
@@ -657,7 +657,7 @@ BUILTIN_PATTERNS = {
 #         return self._trailing_aln
 
 #     @property
-#     def umi(self) -> Optional[str]:
+#     def umi(self) -> str | None:
 #         if self._umi is None:
 #             self._umi = self.get_umi()
 #         return self._umi
@@ -708,7 +708,7 @@ BUILTIN_PATTERNS = {
 #         )
 #         return aln
 
-#     def get_mismatches(self) -> Optional[int]:
+#     def get_mismatches(self) -> int | None:
 #         """
 #         Returns the total number of mismatches between the pattern(s)
 #         and the input sequence.
@@ -720,7 +720,7 @@ BUILTIN_PATTERNS = {
 #                 matches += aln.alignment_midline.count("|")
 #         return total - matches
 
-#     def get_umi(self) -> Optional[str]:
+#     def get_umi(self) -> str | None:
 #         """
 #         Parses UMI from the input sequence using the UMI pattern(s).
 #         """

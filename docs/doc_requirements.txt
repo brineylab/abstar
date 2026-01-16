@@ -8,16 +8,13 @@ sphinx_copybutton
 sphinx_togglebutton
 sphinx_design
 autodocsumm
-# dependencies
-abutils
+# pure python dependencies (compiled deps are mocked in conf.py)
 biopython
 click
 natsort
 numpy
 pandas
-parasail
 polars
 pyarrow
-pytest
 scipy
 tqdm

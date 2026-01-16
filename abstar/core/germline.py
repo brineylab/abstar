@@ -30,7 +30,7 @@ import shutil
 import subprocess as sp
 import sys
 from concurrent.futures import ThreadPoolExecutor
-from typing import Iterable, Optional, Union
+from typing import Iterable
 
 # from weakref import ref
 import abutils
@@ -103,13 +103,13 @@ __all__ = ["build_germline_database"]
 
 def build_germline_database(
     name: str,
-    fastas: Optional[Union[str, Iterable[str]]] = None,
-    jsons: Optional[Union[str, Iterable[str]]] = None,
-    constants: Optional[Union[str, Iterable[str]]] = None,
+    fastas: str | Iterable[str] | None = None,
+    jsons: str | Iterable[str] | None = None,
+    constants: str | Iterable[str] | None = None,
     receptor: str = "bcr",
-    manifest: Optional[str] = None,
+    manifest: str | None = None,
     include_species_in_name: bool = True,
-    location: Optional[str] = None,
+    location: str | None = None,
     reference: str = "human",
     verbose: bool = True,
     debug: bool = False,
@@ -483,7 +483,7 @@ def add_imgt_gaps(
 # -------------------------
 
 
-def get_database_directory(receptor: str, db_location: Optional[str]) -> str:
+def get_database_directory(receptor: str, db_location: str | None) -> str:
     """
     Get the path to the receptor-level germline database directory.
 
@@ -519,7 +519,7 @@ def get_database_directory(receptor: str, db_location: Optional[str]) -> str:
 
 
 def check_for_existing_db(
-    name: str, receptor: str, location: Optional[str] = None
+    name: str, receptor: str, location: str | None = None
 ) -> bool:
     """
     Check if a germline database already exists in the addon directory.

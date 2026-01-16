@@ -2,13 +2,11 @@
 # Distributed under the terms of the MIT License.
 # SPDX-License-Identifier: MIT
 
-from typing import Optional
-
 import click
 
 
 def parse_dict_from_string(
-    ctx: click.Context, param: click.Parameter, value: Optional[str]
+    ctx: click.Context, param: click.Parameter, value: str | None
 ) -> dict:
     """
     Parse a string of key-value pairs into a dictionary. Used as a ``click`` callback function

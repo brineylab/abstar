@@ -5,7 +5,6 @@
 
 import logging
 import os
-from typing import Optional
 
 import abutils
 
@@ -23,7 +22,7 @@ class AssignerBase:
         germdb_name: str,
         receptor: str,
         log_directory: str,
-        logger: Optional[logging.Logger] = None,
+        logger: logging.Logger | None = None,
         concise_logging: bool = False,
         debug: bool = False,
     ):

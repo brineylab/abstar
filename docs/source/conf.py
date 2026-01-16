@@ -13,23 +13,22 @@
 # serve to show the default.
 
 import os
+import re
 import sys
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import MagicMock
-
-# from abstar.version import __version__
 
 HERE = Path(__file__).parent
 
-
-if os.environ.get("READTHEDOCS", None) == "True":
-    MOCK_MODULES = [
-        "pygtk",
-        "gtk",
-        "gobject",
-    ]
-    sys.modules.update((mod_name, MagicMock()) for mod_name in MOCK_MODULES)
+# Mock modules that require compilation or have compiled dependencies
+# These fail to build on ReadTheDocs
+autodoc_mock_imports = [
+    "abutils",
+    "pyfamsa",
+    "parasail",
+    "pyhmmer",
+    "mmseqs",
+]
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
@@ -91,10 +90,10 @@ author = "Bryan Briney"
 # |version| and |release|, also used in various other places throughout the
 # built documents.
 #
-# The short X.Y version.
-from abstar.version import __version__
-
-version = __version__
+# Read version from file to avoid importing abstar (which pulls in compiled deps)
+version_file = HERE.parent.parent / "abstar" / "version.py"
+version_match = re.search(r'__version__\s*=\s*["\']([^"\']+)["\']', version_file.read_text())
+version = version_match.group(1) if version_match else "unknown"
 # The full version, including alpha/beta/rc tags.
 release = version
 
