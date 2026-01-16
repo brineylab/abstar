@@ -1,76 +1,115 @@
 abstar: scalable AIRR annotation
-===================================================================
+=================================
+
+abstar is a tool for VDJ germline gene assignment and antibody/TCR sequence
+annotation. It performs germline gene assignment using MMseqs2 and detailed
+sequence annotation including mutations, indels, regions (CDR/FWR), and
+productivity assessment. Scalable from single sequences to billions.
 
 
-Continuous improvements in the throughput of next-generation sequencing platforms 
-have made adaptive immune receptor repertoire (AIRR) sequencing an increasingly 
-important tool for detailed characterization of the immune response to infection 
-and immunization. Accordingly, there is a need for open, scalable software for 
-the genetic analysis of repertoire-scale antibody sequence data.
+Key Features
+------------
 
-``abstar`` is a core component of the ab[x] toolkit for antibody sequence analysis. 
-``abstar`` performs V(D)J germline gene assignment and antibody sequence annotation, and can readily scale
-from a single sequence to billions of sequences. ``abstar`` is fully compliant with `AIRR <https://docs.airr-community.org/en/latest/>`_
-data standards and produces annotated sequence data in `AIRR <https://docs.airr-community.org/en/latest/>`_ format.
+- **Fast**: MMseqs2-powered germline assignment scales to billions of sequences
+- **AIRR-compliant**: Full compatibility with `AIRR data standards`_
+- **BCR and TCR**: Support for both B-cell and T-cell receptor sequences
+- **Flexible output**: AIRR TSV or Parquet formats
+- **UMI support**: Built-in UMI extraction and parsing
+- **Read merging**: Automatic paired-end read merging with fastp
+- **Custom databases**: Build databases from OGRDB, IgDiscover, Digger, or FASTA
 
-
-usage
---------
-
-``abstar`` can be used both as a command-line tool and as a Python API. The command-line interface 
-provides a straightforward way to process files containing antibody sequences, while the Python API 
-allows for integration of ``abstar``'s annotation capabilities into custom analysis pipelines. For large 
-datasets, ``abstar`` offers distributed processing capabilities to accelerate annotation of many sequences 
-in parallel. Detailed usage instructions are available in the CLI and API documentation sections.
+.. _AIRR data standards: https://docs.airr-community.org/en/latest/
 
 
-file formats
----------------
+Quick Example
+-------------
 
-**Input Formats**: ``abstar`` accepts antibody sequences in FASTA and FASTQ formats, which are standard 
-formats for storing nucleotide sequences. These can be raw sequencing output files (for example, paired-end reads
-from Illumina or Element sequencing platforms) or pre-processed sequence data.
+**Command Line:**
 
-**Output Formats**: by default, ``abstar`` generates annotation results in AIRR-compliant TSV format. We 
-also offer the ability to generate output in Parquet format, which is a columnar storage format that 
-is more space-efficient for large datasets and can be faster for certain types of analysis. In either
-case (TSV or Parquet), all output adheres to the standardized AIRR schema, ensuring interoperability 
-with other tools in the immunoinformatics ecosystem.
+.. code-block:: bash
+
+    # Install
+    pip install abstar
+
+    # Annotate human BCR sequences
+    abstar run sequences.fasta output_dir/
+
+    # TCR sequences
+    abstar run tcr.fasta output_dir/ --receptor tcr
+
+**Python:**
+
+.. code-block:: python
+
+    import abstar
+
+    # Return annotated Sequence objects
+    sequences = abstar.run("sequences.fasta")
+
+    # Return as polars DataFrame
+    df = abstar.run("sequences.fasta", as_dataframe=True)
 
 
-germline databases
--------------------
+Input and Output
+----------------
 
-``abstar`` comes pre-packaged with built-in germline databases for human, macaque, and mouse. The human and mouse databases
-are based on the `Open Germline Receptor Database  (OGRDB) <https://ogrdb.airr-community.org/>`_ germline 
-reference sets. ``abstar`` also supports the use and creation of custom germline databases, which can 
-be used to annotate sequences from species that are not included in the built-in databases or to use
-donor-specific databases created using tools like `IgDiscover <https://www.nature.com/articles/ncomms13642>`_ 
-or `Digger <https://academic.oup.com/bioinformatics/article/40/3/btae144/7628126>`_.
+**Input**: FASTA or FASTQ files (gzip-compressed supported)
 
+**Output**: AIRR-compliant TSV or Parquet files containing:
+
+- V(D)J gene assignments
+- CDR/FWR region sequences
+- Mutation and indel annotations
+- Productivity assessment
+- Junction/CDR3 analysis
+
+
+Germline Databases
+------------------
+
+Built-in databases: ``human``, ``mouse``, ``macaque``, ``humouse``
+
+Human and mouse databases are based on the `OGRDB`_ germline reference sets.
+Custom databases can be built from FASTA/JSON files.
+
+.. _OGRDB: https://ogrdb.airr-community.org/
 
 
 .. toctree::
    :maxdepth: 1
    :hidden:
-   :caption: getting started
+   :caption: Getting Started
 
    installation
+   quickstart
 
-
-.. toctree::
-   :maxdepth: 2
-   :hidden:
-   :caption: usage
-
-   cli
-   api
-   
 
 .. toctree::
    :maxdepth: 1
    :hidden:
-   :caption: about
+   :caption: User Guide
+
+   cli
+   python_api
+   output_formats
+   umis
+   read_merging
+   germline_dbs
+   tcr
+
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+   :caption: API Reference
+
+   api
+
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+   :caption: About
 
    license
 
@@ -78,16 +117,14 @@ or `Digger <https://academic.oup.com/bioinformatics/article/40/3/btae144/7628126
 .. toctree::
    :maxdepth: 1
    :hidden:
-   :caption: related projects
+   :caption: Related Projects
 
    abutils <https://github.com/brineylab/abutils>
    scab <https://github.com/brineylab/scab>
 
 
-index
+Index
 -----
 
 * :ref:`genindex`
 * :ref:`modindex`
-
-

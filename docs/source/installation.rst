@@ -1,31 +1,91 @@
-install
-=======
+Installation
+============
 
-The easiest way to install ``abstar`` locally (on macOS or Linux) is to use pip:
+Requirements
+------------
+
+abstar requires:
+
+- Python 3.9 or later
+- MMseqs2_ (external binary for germline gene assignment)
+
+Install abstar
+--------------
+
+The easiest way to install abstar is via pip:
 
 .. code-block:: bash
 
     pip install abstar
 
-``abstar`` does not run natively on Windows, but Windows users can use Docker_ 
-(the brineylab datascience_ Docker container contains the entire ab[x] toolkit,
-which includes ``abstar``):
+
+Install MMseqs2
+---------------
+
+MMseqs2 must be installed separately and available in your PATH.
+
+**Using conda (recommended):**
+
+.. code-block:: bash
+
+    conda install -c conda-forge -c bioconda mmseqs2
+
+**On Ubuntu/Debian:**
+
+.. code-block:: bash
+
+    sudo apt install mmseqs2
+
+**On macOS with Homebrew:**
+
+.. code-block:: bash
+
+    brew install mmseqs2
+
+**From source:**
+
+See the `MMseqs2 installation guide`_ for additional options.
+
+
+Docker
+------
+
+abstar is included in the brineylab datascience_ Docker container:
 
 .. code-block:: bash
 
     docker pull brineylab/datascience
     docker run -it brineylab/datascience
 
-Stable and development versions of ``abstar`` can also be downloaded from GitHub_. 
-You can manually install the latest version of ``abstar`` with:
+This container includes MMseqs2 and all other dependencies pre-configured.
+
+
+Development Installation
+------------------------
+
+To install from source for development:
 
 .. code-block:: bash
 
     git clone https://github.com/briney/abstar
     cd abstar/
-    python setup.py install
+    pip install -e .
 
 
-.. _Docker: https://www.docker.com/
+Verify Installation
+-------------------
+
+To verify that abstar is installed correctly:
+
+.. code-block:: bash
+
+    # Check abstar version
+    python -c "import abstar; print(abstar.__version__)"
+
+    # Check MMseqs2 is available
+    mmseqs --help
+
+
+.. _MMseqs2: https://github.com/soedinglab/MMseqs2
+.. _MMseqs2 installation guide: https://github.com/soedinglab/MMseqs2#installation
 .. _datascience: https://hub.docker.com/repository/docker/brineylab/datascience/general
-.. _GitHub: https://github.com/briney/abstar
