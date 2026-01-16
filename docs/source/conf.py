@@ -16,20 +16,18 @@ import os
 import sys
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import MagicMock
-
-# from abstar.version import __version__
 
 HERE = Path(__file__).parent
 
-
-if os.environ.get("READTHEDOCS", None) == "True":
-    MOCK_MODULES = [
-        "pygtk",
-        "gtk",
-        "gobject",
-    ]
-    sys.modules.update((mod_name, MagicMock()) for mod_name in MOCK_MODULES)
+# Mock modules that require compilation or have compiled dependencies
+# These fail to build on ReadTheDocs
+autodoc_mock_imports = [
+    "abutils",
+    "pyfamsa",
+    "parasail",
+    "pyhmmer",
+    "mmseqs",
+]
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
@@ -92,9 +90,12 @@ author = "Bryan Briney"
 # built documents.
 #
 # The short X.Y version.
-from abstar.version import __version__
-
-version = __version__
+try:
+    from abstar.version import __version__
+    version = __version__
+except ImportError:
+    # Fallback for ReadTheDocs where abstar may not be fully importable
+    version = "0.7"
 # The full version, including alpha/beta/rc tags.
 release = version
 
