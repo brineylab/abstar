@@ -4,7 +4,7 @@
 
 
 from dataclasses import dataclass, field
-from typing import Iterable, Optional, Union
+from typing import Iterable
 
 # from ..utils.mixins import LoggingMixin
 from abutils.tools.log import LoggingMixin
@@ -183,8 +183,8 @@ class Antibody(LoggingMixin):
 
     def to_dict(
         self,
-        include: Optional[Union[Iterable, str]] = None,
-        exclude: Optional[Union[Iterable, str]] = None,
+        include: Iterable | str | None = None,
+        exclude: Iterable | str | None = None,
     ) -> dict:
         """
         Convert the Antibody object to a dictionary of annotations.

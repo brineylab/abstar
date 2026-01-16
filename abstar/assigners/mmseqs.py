@@ -6,7 +6,7 @@
 import logging
 import os
 import sys
-from typing import Iterable, Optional, Union
+from typing import Iterable
 
 import abutils
 import polars as pl
@@ -37,10 +37,10 @@ class MMseqs(AssignerBase):
         log_directory: str,
         germdb_name: str,
         receptor: str,
-        logger: Optional[logging.Logger] = None,
+        logger: logging.Logger | None = None,
         concise_logging: bool = False,
         chunksize: int = 1e6,
-        threads: Optional[int] = None,
+        threads: int | None = None,
         debug: bool = False,
     ) -> None:
         """
@@ -579,7 +579,7 @@ class MMseqs(AssignerBase):
 
     def build_jquery_fasta(
         self,
-        vresult_df: Union[pl.LazyFrame, pl.DataFrame],
+        vresult_df: pl.LazyFrame | pl.DataFrame,
         fasta_path: str,
     ) -> None:
         """
@@ -626,7 +626,7 @@ class MMseqs(AssignerBase):
 
     def build_dquery_fasta(
         self,
-        vjresult_df: Union[pl.LazyFrame, pl.DataFrame],
+        vjresult_df: pl.LazyFrame | pl.DataFrame,
         fasta_path: str,
         minimum_length: int = 5,
     ) -> None:
@@ -678,7 +678,7 @@ class MMseqs(AssignerBase):
 
     def build_cquery_fasta(
         self,
-        vjresult_df: Union[pl.LazyFrame, pl.DataFrame],
+        vjresult_df: pl.LazyFrame | pl.DataFrame,
         fasta_path: str,
     ) -> None:
         """
@@ -730,7 +730,7 @@ class MMseqs(AssignerBase):
 #         log_directory: str,
 #         germdb_name: str,
 #         receptor: str,
-#         logger: Optional[logging.Logger] = None,
+#         logger: logging.Logger | None = None,
 #         concise_logging: bool = False,
 #         debug: bool = False,
 #     ) -> None:
@@ -1130,7 +1130,7 @@ class MMseqs(AssignerBase):
 
 #     def build_jquery_fasta(
 #         self,
-#         vresult_df: Union[pl.LazyFrame, pl.DataFrame],
+#         vresult_df: pl.LazyFrame | pl.DataFrame,
 #         fasta_path: str,
 #     ) -> None:
 #         """
@@ -1177,7 +1177,7 @@ class MMseqs(AssignerBase):
 
 #     def build_dquery_fasta(
 #         self,
-#         vjresult_df: Union[pl.LazyFrame, pl.DataFrame],
+#         vjresult_df: pl.LazyFrame | pl.DataFrame,
 #         fasta_path: str,
 #         minimum_length: int = 5,
 #     ) -> None:
@@ -1229,7 +1229,7 @@ class MMseqs(AssignerBase):
 
 #     def build_cquery_fasta(
 #         self,
-#         vjresult_df: Union[pl.LazyFrame, pl.DataFrame],
+#         vjresult_df: pl.LazyFrame | pl.DataFrame,
 #         fasta_path: str,
 #     ) -> None:
 #         """
@@ -1572,7 +1572,7 @@ class MMseqs(AssignerBase):
 
 #     def build_jquery_fasta(
 #         self,
-#         vresult_df: Union[pl.LazyFrame, pl.DataFrame],
+#         vresult_df: pl.LazyFrame | pl.DataFrame,
 #         fasta_path: str,
 #     ) -> None:
 #         """ """
@@ -1599,7 +1599,7 @@ class MMseqs(AssignerBase):
 
 #     def build_dquery_fasta(
 #         self,
-#         vjresult_df: Union[pl.LazyFrame, pl.DataFrame],
+#         vjresult_df: pl.LazyFrame | pl.DataFrame,
 #         fasta_path: str,
 #     ) -> None:
 #         """ """

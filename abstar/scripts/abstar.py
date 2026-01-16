@@ -2,7 +2,7 @@
 # Distributed under the terms of the MIT License.
 # SPDX-License-Identifier: MIT
 
-from typing import Iterable, Optional, Union
+from typing import Iterable
 
 import click
 from abutils import Sequence
@@ -143,25 +143,25 @@ def cli():
     default=True,
 )
 def run(
-    input_path: Union[str, Sequence, Iterable[Sequence]],
-    project_path: Optional[str] = None,
+    input_path: str | Sequence | Iterable[Sequence],
+    project_path: str | None = None,
     germline_database: str = "human",
     receptor: str = "bcr",
-    output_format: Union[str, Iterable[str]] = "airr",
-    umi_pattern: Optional[str] = None,
-    umi_length: Optional[int] = None,
+    output_format: str | Iterable[str] = "airr",
+    umi_pattern: str | None = None,
+    umi_length: int | None = None,
     merge: bool = False,
-    merge_kwargs: Optional[dict] = None,
+    merge_kwargs: dict | None = None,
     interleaved_fastq: bool = False,
     chunksize: int = 500,
     mmseqs_chunksize: int = 1e6,
-    mmseqs_threads: Optional[int] = None,
-    n_processes: Optional[int] = None,
+    mmseqs_threads: int | None = None,
+    n_processes: int | None = None,
     copy_inputs_to_project: bool = False,
     verbose: bool = False,
     started_from_cli: bool = False,
     debug: bool = False,
-) -> Optional[Union[Iterable[Sequence], Sequence]]:
+) -> Iterable[Sequence] | Sequence | None:
     """
     Annotate antibody or TCR sequences.
 
@@ -272,13 +272,13 @@ def run(
 )
 def build_germline_database(
     name: str,
-    fasta_files: Optional[Union[str, Iterable[str]]] = None,
-    json_files: Optional[Union[str, Iterable[str]]] = None,
-    constant_files: Optional[Union[str, Iterable[str]]] = None,
+    fasta_files: str | Iterable[str] | None = None,
+    json_files: str | Iterable[str] | None = None,
+    constant_files: str | Iterable[str] | None = None,
     receptor: str = "bcr",
-    manifest: Optional[str] = None,
+    manifest: str | None = None,
     include_species_in_name: bool = True,
-    location: Optional[str] = None,
+    location: str | None = None,
     reference: str = "human",
     verbose: bool = True,
     debug: bool = False,
