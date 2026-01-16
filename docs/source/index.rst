@@ -16,7 +16,7 @@ Key Features
 - **Flexible output**: AIRR TSV or Parquet formats
 - **UMI support**: Built-in UMI extraction and parsing
 - **Read merging**: Automatic paired-end read merging with fastp
-- **Custom databases**: Build databases from OGRDB, IgDiscover, Digger, or FASTA
+- **Custom germline databases**: Build databases from OGRDB, IgDiscover, Digger, or FASTA
 
 .. _AIRR data standards: https://docs.airr-community.org/en/latest/
 
@@ -85,16 +85,12 @@ Custom databases can be built from FASTA/JSON files.
 
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
    :hidden:
    :caption: User Guide
 
    cli
    python_api
-   output_formats
-   umis
-   read_merging
-   germline_dbs
    tcr
 
 

@@ -232,14 +232,9 @@ Related Topics
 --------------
 
 .. toctree::
-    :hidden:
+    :maxdepth: 1
 
-    outputs <output_formats>
-    read merging <read_merging>
-    umis <umis>
-    germline databases <germline_dbs>
-
-- :doc:`output_formats` - Output file formats and fields
-- :doc:`read_merging` - Paired-end read merging details
-- :doc:`umis` - UMI detection and parsing
-- :doc:`germline_dbs` - Custom germline database creation
+    output_formats
+    read_merging
+    umis
+    germline_dbs

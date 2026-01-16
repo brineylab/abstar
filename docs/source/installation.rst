@@ -4,10 +4,11 @@ Installation
 Requirements
 ------------
 
-abstar requires:
+abstar requires Python 3.9 or later.
 
-- Python 3.9 or later
-- MMseqs2_ (external binary for germline gene assignment)
+MMseqs2_ is used internally for germline gene assignment, but it is bundled with
+abutils_ (a dependency of abstar), so no separate installation is required.
+
 
 Install abstar
 --------------
@@ -19,32 +20,19 @@ The easiest way to install abstar is via pip:
     pip install abstar
 
 
-Install MMseqs2
----------------
+Using a Custom MMseqs2 Binary
+-----------------------------
 
-MMseqs2 must be installed separately and available in your PATH.
+If you prefer to use a specific version of MMseqs2 rather than the bundled binary,
+you can specify the path to your custom binary using the ``mmseqs_binary`` parameter:
 
-**Using conda (recommended):**
+.. code-block:: python
 
-.. code-block:: bash
+    import abstar
 
-    conda install -c conda-forge -c bioconda mmseqs2
+    sequences = abstar.run("sequences.fasta", mmseqs_binary="/path/to/mmseqs")
 
-**On Ubuntu/Debian:**
-
-.. code-block:: bash
-
-    sudo apt install mmseqs2
-
-**On macOS with Homebrew:**
-
-.. code-block:: bash
-
-    brew install mmseqs2
-
-**From source:**
-
-See the `MMseqs2 installation guide`_ for additional options.
+See the `MMseqs2 installation guide`_ for information on installing MMseqs2.
 
 
 Docker
@@ -57,7 +45,7 @@ abstar is included in the brineylab datascience_ Docker container:
     docker pull brineylab/datascience
     docker run -it brineylab/datascience
 
-This container includes MMseqs2 and all other dependencies pre-configured.
+This container includes abstar and all dependencies pre-configured.
 
 
 Development Installation
@@ -79,13 +67,10 @@ To verify that abstar is installed correctly:
 
 .. code-block:: bash
 
-    # Check abstar version
     python -c "import abstar; print(abstar.__version__)"
-
-    # Check MMseqs2 is available
-    mmseqs --help
 
 
 .. _MMseqs2: https://github.com/soedinglab/MMseqs2
+.. _abutils: https://github.com/briney/abutils
 .. _MMseqs2 installation guide: https://github.com/soedinglab/MMseqs2#installation
 .. _datascience: https://hub.docker.com/repository/docker/brineylab/datascience/general
