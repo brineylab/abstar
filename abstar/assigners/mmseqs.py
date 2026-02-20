@@ -112,6 +112,44 @@ class MMseqs(AssignerBase):
 
         return assigned_path, sequence_count
 
+    @staticmethod
+    def _mmseqs_result_schema(prefix: str) -> dict:
+        return {
+            f"{prefix}_query": pl.String,
+            f"{prefix}_call": pl.String,
+            f"{prefix}_support": pl.Float64,
+            f"{prefix}_qstart": pl.Int64,
+            f"{prefix}_qend": pl.Int64,
+            f"{prefix}_qseq": pl.String,
+            f"{prefix}_nident": pl.Float64,
+        }
+
+    def _read_mmseqs_results(self, result_path: str, prefix: str) -> pl.DataFrame:
+        schema_overrides = self._mmseqs_result_schema(prefix)
+        if not os.path.exists(result_path) or os.path.getsize(result_path) == 0:
+            return pl.DataFrame(schema=schema_overrides)
+
+        result_df = pl.scan_csv(
+            result_path,
+            separator="\t",
+            schema_overrides=schema_overrides,
+            with_column_names=lambda x: [
+                f"{prefix}_{_x}".replace("target", "call").replace("evalue", "support")
+                for _x in x
+            ],
+        ).collect()
+
+        if result_df.is_empty():
+            return pl.DataFrame(schema=schema_overrides)
+
+        query_col = f"{prefix}_query"
+        result_df = result_df.with_columns(pl.col(query_col).cast(pl.String))
+        result_df = result_df.sort(
+            by=[f"{prefix}_nident"], descending=True, nulls_last=True
+        )
+        result_df = result_df.unique(subset=[query_col], keep="first")
+        return result_df
+
     def assign_germlines(self, input_fasta: str, input_tsv: str) -> str:
         """
         V, D, J, and C germline gene segment assignment.
@@ -163,22 +201,8 @@ class MMseqs(AssignerBase):
             threads=self.threads,
             debug=self.debug,
         )
-        # read the results
-        vresult_df = pl.scan_csv(  # vresult_df is a LazyFrame
-            vresult_path,
-            separator="\t",
-            with_column_names=lambda x: [
-                f"v_{_x}".replace("target", "call").replace("evalue", "support")
-                for _x in x
-            ],
-        )
-        # keep only the highest scoring assignment for each sequence
-        vresult_df = vresult_df.sort(
-            by=["v_nident"],
-            descending=True,
-            nulls_last=True,
-        )
-        vresult_df = vresult_df.unique(subset=["v_query"], keep="first").collect()
+        # read and deduplicate assignment results
+        vresult_df = self._read_mmseqs_results(vresult_path, prefix="v")
 
         # -----------
         #   J genes
@@ -214,22 +238,11 @@ class MMseqs(AssignerBase):
             threads=self.threads,
             debug=self.debug,
         )
-        # read the results
-        jresult_df = pl.scan_csv(
-            jresult_path,
-            separator="\t",
-            with_column_names=lambda x: [
-                f"j_{_x}".replace("target", "call").replace("evalue", "support")
-                for _x in x
-            ],
-        )
-
-        # keep only the highest scoring assignment for each sequence
-        jresult_df = jresult_df.sort(by=["j_nident"], descending=True, nulls_last=True)
-        jresult_df = jresult_df.unique(subset=["j_query"], keep="first").collect()
+        # read and deduplicate assignment results
+        jresult_df = self._read_mmseqs_results(jresult_path, prefix="j")
         # join the V and J assignment results
-        vjresult_df = vresult_df.join(
-            jresult_df,
+        vjresult_df = vresult_df.with_columns(pl.col("v_query").cast(pl.String)).join(
+            jresult_df.with_columns(pl.col("j_query").cast(pl.String)),
             left_on="v_query",
             right_on="j_query",
             how="left",
@@ -279,24 +292,13 @@ class MMseqs(AssignerBase):
                 threads=self.threads,
                 debug=self.debug,
             )
-            # read the results
-            dresult_df = pl.scan_csv(
-                dresult_path,
-                separator="\t",
-                with_column_names=lambda x: [
-                    f"d_{_x}".replace("target", "call").replace("evalue", "support")
-                    for _x in x
-                ],
-            )
-            # keep only the highest scoring assignment for each sequence
-            dresult_df = dresult_df.sort(
-                by=["d_nident"], descending=True, nulls_last=True
-            )
-            dresult_df = dresult_df.unique(subset=["d_query"], keep="first").collect()
+            dresult_df = self._read_mmseqs_results(dresult_path, prefix="d")
             if dresult_df.shape[0] > 0:
                 # join the D and VJ assignment results
-                vdjresult_df = vjresult_df.join(
-                    dresult_df,
+                vdjresult_df = vjresult_df.with_columns(
+                    pl.col("v_query").cast(pl.String)
+                ).join(
+                    dresult_df.with_columns(pl.col("d_query").cast(pl.String)),
                     left_on="v_query",
                     right_on="d_query",
                     how="left",
@@ -359,24 +361,13 @@ class MMseqs(AssignerBase):
                 threads=self.threads,
                 debug=self.debug,
             )
-            # read the results
-            cresult_df = pl.scan_csv(
-                cresult_path,
-                separator="\t",
-                with_column_names=lambda x: [
-                    f"c_{_x}".replace("target", "call").replace("evalue", "support")
-                    for _x in x
-                ],
-            )
-            # keep only the highest scoring assignment for each sequence
-            cresult_df = cresult_df.sort(
-                by=["c_nident"], descending=True, nulls_last=True
-            )
-            cresult_df = cresult_df.unique(subset=["c_query"], keep="first").collect()
+            cresult_df = self._read_mmseqs_results(cresult_path, prefix="c")
             if cresult_df.shape[0] > 0:
                 # join the C and VDJ assignment results
-                vdjcresult_df = vdjresult_df.join(
-                    cresult_df,
+                vdjcresult_df = vdjresult_df.with_columns(
+                    pl.col("v_query").cast(pl.String)
+                ).join(
+                    cresult_df.with_columns(pl.col("c_query").cast(pl.String)),
                     left_on="v_query",
                     right_on="c_query",
                     how="left",
@@ -396,7 +387,10 @@ class MMseqs(AssignerBase):
                 pl.lit(None).alias("c_support"),
             )
 
-        input_df = pl.read_csv(input_tsv, separator="\t")
+        input_df = pl.read_csv(input_tsv, separator="\t").with_columns(
+            pl.col("sequence_id").cast(pl.String)
+        )
+        vdjcresult_df = vdjcresult_df.with_columns(pl.col("v_query").cast(pl.String))
         vdjcresult_df = input_df.join(
             vdjcresult_df,
             left_on="sequence_id",

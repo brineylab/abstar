@@ -60,6 +60,26 @@ def test_process_inputs_sequence_list(tmp_path, multiple_hc_sequences):
             assert seq.id in content
 
 
+def test_process_inputs_sequence_generator(tmp_path, multiple_hc_sequences):
+    """Test processing a generator of Sequence objects."""
+    sequence_generator = (seq for seq in multiple_hc_sequences)
+    sequence_files = _process_inputs(sequence_generator, str(tmp_path))
+
+    assert len(sequence_files) == 1
+
+    with open(sequence_files[0]) as f:
+        content = f.read()
+        for seq in multiple_hc_sequences:
+            assert seq.id in content
+
+
+def test_process_inputs_empty_sequence_generator_raises_error(tmp_path):
+    """Test that empty iterables raise a clear ValueError."""
+    empty_sequence_generator = (seq for seq in [])
+    with pytest.raises(ValueError, match="empty"):
+        _process_inputs(empty_sequence_generator, str(tmp_path))
+
+
 def test_process_inputs_raw_string(tmp_path):
     """Test processing a raw sequence string (not file path)."""
     raw_sequence = "ATGCATGCATGCATGCATGCATGCATGC"
@@ -87,10 +107,6 @@ def test_run_returns_sequence_object(single_hc_sequence):
     assert isinstance(result, Sequence)
 
 
-@pytest.mark.xfail(
-    reason="Known issue: Polars schema error in mmseqs.py when D gene assignment is missing",
-    strict=False,
-)
 def test_run_returns_sequence_list(multiple_hc_sequences):
     """Test run() returns list of Sequences for multiple inputs."""
     result = run(multiple_hc_sequences)

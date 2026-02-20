@@ -75,7 +75,7 @@ def get_germline_database_path(germdb_name: str, receptor: str = "bcr") -> str:
     addon_dir = os.path.expanduser(f"~/.abstar/germline_dbs/{receptor}")
     if os.path.isdir(addon_dir):
         if germdb_name.lower() in [os.path.basename(d[0]) for d in os.walk(addon_dir)]:
-            return os.path.join(addon_dir, f"{receptor}/{germdb_name}")
+            return os.path.join(addon_dir, germdb_name)
     # if a user-generated DB isn't found, use the built-in DB
     core_dir = os.path.dirname(os.path.abspath(__file__))  # "abstar/core" directory
     abstar_dir = os.path.dirname(core_dir)  # "abstar" directory
@@ -714,9 +714,8 @@ def process_cgene_alignment(
         ab.c_sequence_start = j_sequence_end + semiglobal_aln.query_begin
         ab.c_germline_start = semiglobal_aln.target_begin
     # sequence/germline stop positions
-    ab.c_sequence_end = (
-        ab.c_sequence_start + semiglobal_aln.query_begin + local_aln.query_end + 1
-    )
+    c_length = local_aln.query_end - local_aln.query_begin
+    ab.c_sequence_end = ab.c_sequence_start + c_length + 1
     ab.c_germline_end = semiglobal_aln.target_begin + local_aln.target_end + 1
     # j-region sequence and germline
     ab.c_sequence = oriented_input[ab.c_sequence_start : ab.c_sequence_end]

@@ -2,10 +2,18 @@
 # Distributed under the terms of the MIT License.
 # SPDX-License-Identifier: MIT
 
+import os
+from types import SimpleNamespace
+
 import pytest
 from abutils import Sequence
 
-from ..annotation.germline import get_germline, get_germline_database_path
+from ..annotation.antibody import Antibody
+from ..annotation.germline import (
+    get_germline,
+    get_germline_database_path,
+    process_cgene_alignment,
+)
 
 # ----------------------------
 #      DATABASE PATHS
@@ -15,6 +23,19 @@ from ..annotation.germline import get_germline, get_germline_database_path
 def test_get_germline_database_path():
     path = get_germline_database_path(germdb_name="human", receptor="bcr")
     assert path
+
+
+@pytest.mark.parametrize("receptor", ["bcr", "tcr"])
+def test_get_germline_database_path_prefers_custom_database(tmp_path, monkeypatch, receptor):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    custom_db_path = (
+        tmp_path / ".abstar" / "germline_dbs" / receptor / "custom_germdb"
+    )
+    custom_db_path.mkdir(parents=True)
+
+    path = get_germline_database_path(germdb_name="custom_germdb", receptor=receptor)
+
+    assert path == os.fspath(custom_db_path)
 
 
 @pytest.mark.xfail(
@@ -35,6 +56,52 @@ def test_get_germline_database_name_invalid():
 def test_get_germline_database_receptor_invalid():
     path = get_germline_database_path(germdb_name="human", receptor="abc")
     assert path
+
+
+# ----------------------------
+#      ALIGNMENT HELPERS
+# ----------------------------
+
+
+@pytest.mark.parametrize(
+    "semiglobal_query_begin,semiglobal_target_begin,local_query_begin,local_query_end",
+    [
+        (6, 2, 3, 11),
+        (2, 5, 4, 10),
+    ],
+)
+def test_process_cgene_alignment_uses_local_query_span_for_end(
+    semiglobal_query_begin,
+    semiglobal_target_begin,
+    local_query_begin,
+    local_query_end,
+):
+    oriented_input = "A" * 200
+    semiglobal_aln = SimpleNamespace(
+        query_begin=semiglobal_query_begin,
+        target_begin=semiglobal_target_begin,
+        target="A" * 200,
+    )
+    local_aln = SimpleNamespace(
+        score=10.0,
+        query_begin=local_query_begin,
+        query_end=local_query_end,
+        target_begin=1,
+        target_end=20,
+    )
+    ab = Antibody()
+
+    process_cgene_alignment(
+        oriented_input=oriented_input,
+        j_sequence_end=10,
+        semiglobal_aln=semiglobal_aln,
+        local_aln=local_aln,
+        ab=ab,
+    )
+
+    expected_span = (local_query_end - local_query_begin) + 1
+    assert ab.c_sequence_end - ab.c_sequence_start == expected_span
+    assert len(ab.c_sequence) == expected_span
 
 
 # ----------------------------

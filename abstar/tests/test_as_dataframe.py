@@ -125,10 +125,6 @@ def test_dataframe_row_count_single_sequence(single_sequence):
     assert result.height == 1, "Expected DataFrame to have 1 row for single sequence input"
 
 
-@pytest.mark.xfail(
-    reason="Known issue: Polars schema error in mmseqs.py when D gene assignment is missing",
-    strict=False,
-)
 def test_dataframe_row_count_multiple_sequences(multiple_sequences):
     """Test that DataFrame has correct row count for multiple sequences."""
     result = run(multiple_sequences, as_dataframe=True)
@@ -140,10 +136,6 @@ def test_dataframe_row_count_multiple_sequences(multiple_sequences):
 # =============================================
 
 
-@pytest.mark.xfail(
-    reason="Known issue: Polars schema error in mmseqs.py when D gene assignment is missing",
-    strict=False,
-)
 def test_multiple_sequences_as_dataframe(multiple_sequences):
     """Test that multiple sequences return a single DataFrame with multiple rows."""
     result = run(multiple_sequences, as_dataframe=True)
@@ -156,10 +148,6 @@ def test_multiple_sequences_as_dataframe(multiple_sequences):
     assert len(sequence_ids) == 3, "Expected 3 sequence IDs"
 
 
-@pytest.mark.xfail(
-    reason="Known issue: Polars schema error in mmseqs.py when D gene assignment is missing",
-    strict=False,
-)
 def test_multiple_sequences_default_returns_list(multiple_sequences):
     """Test that multiple sequences return a list of Sequence objects by default."""
     result = run(multiple_sequences, as_dataframe=False)
@@ -190,4 +178,3 @@ def test_dataframe_contains_annotation_data(single_sequence):
     # locus should be IGH for heavy chain
     locus = result["locus"][0]
     assert locus == "IGH", "locus should be IGH for heavy chain sequence"
-

@@ -481,13 +481,17 @@ def _process_inputs(
             )
         else:
             sequences = Sequence(sequences)
-    if isinstance(sequences, Sequence) or (
-        isinstance(sequences, Iterable)
-        and all(isinstance(s, Sequence) for s in sequences)
-    ):
-        # input is a Sequence or an iterable of Sequences
-        if isinstance(sequences, Sequence):
-            sequences = [sequences]
+    if isinstance(sequences, Sequence):
+        # input is a single Sequence
+        sequences = [sequences]
+    elif isinstance(sequences, Iterable) and not isinstance(sequences, (str, bytes)):
+        # materialize iterables once so generators are not exhausted during validation
+        sequences = list(sequences)
+        if not sequences:
+            raise ValueError("Input iterable of Sequence objects is empty.")
+
+    if isinstance(sequences, list) and all(isinstance(s, Sequence) for s in sequences):
+        # input is a list/iterable of Sequence objects
         temp_file = tempfile.NamedTemporaryFile(delete=False, dir=temp_dir, mode="w")
         fastas = [seq.fasta for seq in sequences]
         temp_file.write("\n".join(fastas))

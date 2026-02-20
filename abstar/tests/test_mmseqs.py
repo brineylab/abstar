@@ -287,6 +287,48 @@ def test_build_cquery_fasta(mmseqs_instance, tmp_path):
 
 
 # =============================================
+#      MMSEQS RESULT PARSING TESTS
+# =============================================
+
+
+def test_read_mmseqs_results_empty_file_has_stable_schema(mmseqs_instance, tmp_path):
+    """Test empty MMseqs outputs produce an empty frame with expected schema."""
+    dresult_path = tmp_path / "empty_dresult.tsv"
+    dresult_path.write_text("")
+
+    dresult_df = mmseqs_instance._read_mmseqs_results(str(dresult_path), prefix="d")
+
+    assert dresult_df.is_empty()
+    assert dresult_df.schema["d_query"] == pl.String
+    assert dresult_df.schema["d_call"] == pl.String
+    assert dresult_df.schema["d_support"] == pl.Float64
+
+
+def test_read_mmseqs_results_keeps_best_hit_per_query(mmseqs_instance, tmp_path):
+    """Test MMseqs parser keeps highest nident assignment for duplicate queries."""
+    dresult_path = tmp_path / "dresult.tsv"
+    dresult_path.write_text(
+        "\n".join(
+            [
+                "query\ttarget\tevalue\tqstart\tqend\tqseq\tnident",
+                "seq1\tIGHD1-1*01\t1e-5\t1\t10\tACGTACGTAA\t8",
+                "seq1\tIGHD2-2*01\t1e-5\t1\t10\tACGTACGTAA\t10",
+                "seq2\tIGHD3-3*01\t1e-5\t2\t11\tCGTACGTAAC\t9",
+            ]
+        )
+    )
+
+    dresult_df = mmseqs_instance._read_mmseqs_results(str(dresult_path), prefix="d")
+
+    assert dresult_df.height == 2
+    assert dresult_df.schema["d_query"] == pl.String
+    assert (
+        dresult_df.filter(pl.col("d_query") == "seq1").select("d_call").item()
+        == "IGHD2-2*01"
+    )
+
+
+# =============================================
 #        FULL ASSIGNMENT TESTS
 # =============================================
 
@@ -354,10 +396,6 @@ def test_mmseqs_assigns_j_gene(mmseqs_instance, small_fasta_file):
     assert "IGHJ" in j_calls[0]
 
 
-@pytest.mark.xfail(
-    reason="Known issue: Polars schema error in mmseqs.py when D gene assignment is missing",
-    strict=False,
-)
 def test_mmseqs_multiple_sequences(mmseqs_instance, multi_sequence_fasta_file):
     """Test assignment of multiple sequences."""
     assigned_path, sequence_count = mmseqs_instance(multi_sequence_fasta_file)
