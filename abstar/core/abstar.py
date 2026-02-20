@@ -8,6 +8,7 @@ import shutil
 import tempfile
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from datetime import datetime
+from pathlib import Path
 from typing import Iterable
 
 import abutils
@@ -216,6 +217,7 @@ def run(
     else:
         return_sequences = True
         sequences_to_return = []
+        sequence_dfs = []
         output_format = ["parquet"]
         project_path = tempfile.TemporaryDirectory(prefix="abstar", dir="/tmp").name
     log_dir = os.path.join(project_path, "logs")
@@ -382,10 +384,17 @@ def run(
         # get output Sequences
         if return_sequences:
             if as_dataframe:
-                sequence_df = pl.read_parquet(annotated_files)
-                sequence_count = sequence_df.height
+                if annotated_files:
+                    current_df = pl.read_parquet(annotated_files)
+                else:
+                    current_df = pl.DataFrame()
+                sequence_dfs.append(current_df)
+                sequence_count = current_df.height
             else:
-                annotated_sequences = abutils.io.read_parquet(annotated_files)
+                if annotated_files:
+                    annotated_sequences = abutils.io.read_parquet(annotated_files)
+                else:
+                    annotated_sequences = []
                 sequences_to_return.extend(annotated_sequences)
                 sequence_count = len(annotated_sequences)
 
@@ -440,7 +449,11 @@ def run(
 
     if return_sequences:
         if as_dataframe:
-            return sequence_df
+            if not sequence_dfs:
+                return pl.DataFrame()
+            if len(sequence_dfs) == 1:
+                return sequence_dfs[0]
+            return pl.concat(sequence_dfs, how="vertical")
         if len(sequences_to_return) == 1:
             return sequences_to_return[0]
         return sequences_to_return
@@ -469,6 +482,16 @@ def _process_inputs(
         A list of one or more sequence files.
     """
     sequence_files = None
+    supported_extensions = [
+        "fasta",
+        "fa",
+        "fastq",
+        "fq",
+        "fasta.gz",
+        "fa.gz",
+        "fastq.gz",
+        "fq.gz",
+    ]
     if isinstance(sequences, str):
         # input is a string -- either a file/directory path or a raw sequence string
         if os.path.isfile(sequences):
@@ -477,7 +500,12 @@ def _process_inputs(
             sequence_files = abutils.io.list_files(
                 sequences,
                 recursive=True,
-                extension=["fasta", "fa", "fastq", "fq", "fasta.gz", "fastq.gz"],
+                extension=supported_extensions,
+            )
+            _log_unsupported_extensions(
+                directory=sequences,
+                included_files=sequence_files,
+                supported_extensions=supported_extensions,
             )
         else:
             sequences = Sequence(sequences)
@@ -502,6 +530,46 @@ def _process_inputs(
             "Invalid input sequences. Must be a path to a file or directory, a single sequence, or an iterable of sequences."
         )
     return natsorted(sequence_files)
+
+
+def _log_unsupported_extensions(
+    directory: str, included_files: Iterable[str], supported_extensions: Iterable[str]
+) -> None:
+    """
+    Logs a summary of files skipped due to unsupported extensions.
+    """
+    logger_obj = globals().get("logger", None)
+    if logger_obj is None:
+        return
+
+    included = {os.path.abspath(f) for f in included_files}
+    skipped_extension_counts = {}
+    for root, _, files in os.walk(directory):
+        for file_name in files:
+            file_path = os.path.abspath(os.path.join(root, file_name))
+            if file_path in included:
+                continue
+            ext = _normalize_extension(file_name, supported_extensions)
+            skipped_extension_counts[ext] = skipped_extension_counts.get(ext, 0) + 1
+
+    for ext, count in sorted(skipped_extension_counts.items()):
+        plural = "s" if count != 1 else ""
+        logger_obj.info(
+            f"skipping {count} file{plural} with unsupported extension '{ext}' in '{directory}'"
+        )
+
+
+def _normalize_extension(file_name: str, supported_extensions: Iterable[str]) -> str:
+    """
+    Normalizes file suffixes for extension logging.
+    """
+    lowered = file_name.lower()
+    for ext in supported_extensions:
+        dotted = f".{ext}"
+        if lowered.endswith(dotted):
+            return dotted
+    suffixes = "".join(Path(lowered).suffixes)
+    return suffixes if suffixes else "<none>"
 
 
 def _copy_inputs_to_project(sequence_files: Iterable[str], project_path: str) -> None:

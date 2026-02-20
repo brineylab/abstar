@@ -38,6 +38,47 @@ def test_process_inputs_directory(tmp_path, test_data_path):
         assert os.path.exists(f)
 
 
+def test_process_inputs_directory_accepts_short_gz_extensions(tmp_path):
+    """Test that .fa.gz and .fq.gz files are included during directory scans."""
+    input_dir = tmp_path / "compressed_inputs"
+    input_dir.mkdir()
+    (input_dir / "sample.fa.gz").touch()
+    (input_dir / "sample.fq.gz").touch()
+
+    sequence_files = _process_inputs(str(input_dir), str(tmp_path))
+
+    assert {os.path.basename(f) for f in sequence_files} == {
+        "sample.fa.gz",
+        "sample.fq.gz",
+    }
+
+
+def test_process_inputs_logs_unsupported_extensions(tmp_path, monkeypatch):
+    """Test unsupported file extensions are reported when scanning directories."""
+    import abstar.core.abstar as abstar_module
+
+    input_dir = tmp_path / "mixed_inputs"
+    input_dir.mkdir()
+    with open(input_dir / "sample.fasta", "w") as f:
+        f.write(">s1\nATGC\n")
+    with open(input_dir / "notes.txt", "w") as f:
+        f.write("unsupported")
+
+    logged_messages = []
+
+    class _TestLogger:
+        def info(self, message):
+            logged_messages.append(message)
+
+    monkeypatch.setattr(abstar_module, "logger", _TestLogger(), raising=False)
+
+    _process_inputs(str(input_dir), str(tmp_path))
+
+    assert any(
+        "unsupported extension '.txt'" in message for message in logged_messages
+    )
+
+
 def test_process_inputs_sequence_object(tmp_path, single_hc_sequence):
     """Test processing a single Sequence object."""
     sequence_files = _process_inputs(single_hc_sequence, str(tmp_path))
@@ -361,9 +402,9 @@ def test_run_preserves_sequence_id(single_hc_sequence):
     """Test that original sequence ID is preserved or reasonably handled."""
     result = run(single_hc_sequence)
 
-    # Sequence ID should be present (may be transformed by internal processing)
+    # Sequence ID should be preserved exactly.
     assert result["sequence_id"] is not None
-    assert len(result["sequence_id"]) > 0
+    assert result["sequence_id"] == single_hc_sequence.id
 
 
 def test_run_with_debug_mode(single_hc_sequence, tmp_path):

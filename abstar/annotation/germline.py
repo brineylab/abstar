@@ -642,7 +642,7 @@ def process_dgene_alignment(
     ab.d_sequence_end = ab.d_sequence_start + d_length + 1
     # germline start/stop positions
     ab.d_germline_start = local_aln.target_begin
-    d_germline_length = local_aln.query_end - local_aln.query_begin
+    d_germline_length = local_aln.target_end - local_aln.target_begin
     ab.d_germline_end = ab.d_germline_start + d_germline_length + 1
     # d-region sequence and germline
     ab.d_sequence = oriented_input[ab.d_sequence_start : ab.d_sequence_end]

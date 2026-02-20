@@ -136,7 +136,7 @@ class UMI:
             # )
             # length_for_aln += self.length if self.length is not None else 16
             # sequence = sequence[:length_for_aln]
-            if self.length < 0 and not self.ignore_strand:
+            if self.length is not None and self.length < 0 and not self.ignore_strand:
                 sequence = abutils.tl.reverse_complement(sequence)
         return sequence
 
@@ -203,7 +203,7 @@ def parse_umis(
     output_file: str | None = None,
     pattern: str | Iterable | None = None,
     length: int | Iterable | None = None,
-    allowed_mismatches: int = 1,
+    allowed_mismatches: int | None = None,
     # extra_length_for_alignment: int = 25,
     ignore_strand: bool = False,
     fmt: str = "fasta",
@@ -360,6 +360,8 @@ def parse_umis(
             err += f"  - pattern has {len(patterns)} elements: {', '.join(patterns)}\n"
             err += f"  - length has {len(lengths)} elements: {', '.join(lengths)}\n"
             raise ValueError(err)
+    if allowed_mismatches is None:
+        allowed_mismatches = 1
     # validate format
     fmt = fmt.lower()
     if fmt not in ["fasta", "fastq"]:

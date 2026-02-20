@@ -12,6 +12,7 @@ from ..annotation.regions import (
     IMGT_REGION_START_POSITIONS_AA,
     IMGT_REGION_START_POSITIONS_NT,
     get_region_sequence,
+    identify_cdr3_regions,
 )
 
 # =============================================
@@ -306,6 +307,81 @@ def test_all_regions(
         # Basic validation - result should be a string and shouldn't contain gaps
         assert isinstance(result, str)
         assert "-" not in result
+
+
+def test_identify_cdr3_regions_uses_j_alignment_coordinates():
+    """Repeated J motifs should not shift CDR3-J parsing when coordinates are available."""
+    fwr3 = "AAACCCGGGTTT"
+    cdr3_v = "TGT"
+    n1 = "AAATTT"
+    decoy_j = "TTTGGGCCCAAATTT"
+    n2 = "CCC"
+    true_j = "TTTGGGCCCAAATTT"
+    fwr4 = "GGGCCC"
+    sequence = fwr3 + cdr3_v + n1 + decoy_j + n2 + true_j + fwr4
+
+    cdr3_start = len(fwr3)
+    cdr3_end = cdr3_start + len(cdr3_v + n1 + decoy_j + n2 + true_j[:6])
+    cdr3 = sequence[cdr3_start:cdr3_end]
+    true_j_start = len(fwr3 + cdr3_v + n1 + decoy_j + n2)
+    v_sequence_start = 5
+    ab = Antibody(
+        sequence=sequence,
+        fwr3=fwr3,
+        cdr3=cdr3,
+        v_sequence=fwr3 + cdr3_v,
+        j_sequence=true_j,
+        v_sequence_start=v_sequence_start,
+        v_sequence_end=v_sequence_start + len(fwr3 + cdr3_v),
+        j_sequence_start=v_sequence_start + true_j_start,
+    )
+    ab.junction_start = v_sequence_start + (cdr3_start - 3)
+
+    identify_cdr3_regions(ab)
+
+    assert ab.cdr3_j == true_j[:6]
+
+
+def test_identify_cdr3_regions_uses_d_alignment_coordinates():
+    """Repeated D motifs should not shift CDR3-D/N1/N2 parsing when coordinates are available."""
+    fwr3 = "AAACCCGGGTTT"
+    cdr3_v = "TGT"
+    n1 = "AAA"
+    d_decoy = "GATGAT"
+    spacer = "CCC"
+    true_d = "GATGAT"
+    n2 = "TTT"
+    j_part = "CCCAAAGGG"
+    fwr4 = "GGGCCC"
+    sequence = fwr3 + cdr3_v + n1 + d_decoy + spacer + true_d + n2 + j_part + fwr4
+
+    cdr3 = cdr3_v + n1 + d_decoy + spacer + true_d + n2 + j_part
+    d_start = len(fwr3 + cdr3_v + n1 + d_decoy + spacer)
+    d_end = d_start + len(true_d)
+    j_start = len(fwr3 + cdr3_v + n1 + d_decoy + spacer + true_d + n2)
+    v_sequence_start = 11
+    ab = Antibody(
+        sequence=sequence,
+        fwr3=fwr3,
+        cdr3=cdr3,
+        v_sequence=fwr3 + cdr3_v,
+        j_sequence=j_part + fwr4,
+        d_call="IGHD1-1*01",
+        d_sequence=true_d,
+        v_sequence_start=v_sequence_start,
+        v_sequence_end=v_sequence_start + len(fwr3 + cdr3_v),
+        j_sequence_start=v_sequence_start + j_start,
+    )
+    ab.d_sequence_start = v_sequence_start + d_start
+    ab.d_sequence_end = v_sequence_start + d_end
+    ab.junction_start = v_sequence_start + (len(fwr3) - 3)
+
+    identify_cdr3_regions(ab)
+
+    assert ab.cdr3_d == true_d
+    assert ab.cdr3_n1 == n1 + d_decoy + spacer
+    assert ab.cdr3_n2 == n2
+    assert ab.cdr3_j == j_part
 
 
 # =============================================

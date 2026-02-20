@@ -337,8 +337,41 @@ def identify_cdr3_regions(ab: Antibody) -> Antibody:
         - ``cdr3_j_aa``: the J gene region of the CDR3 in amino acids
 
     """
-    cdr3_start = ab.sequence.find(ab.fwr3) + len(ab.fwr3)
-    cdr3_end = cdr3_start + len(ab.cdr3)
+    def _absolute_to_sequence_position(position: int | None) -> int | None:
+        v_sequence_start = getattr(ab, "v_sequence_start", None)
+        if position is None or v_sequence_start is None:
+            return None
+        return position - v_sequence_start
+
+    def _fallback_find(label: str, needle: str | None) -> int | None:
+        if needle is None:
+            return None
+        idx = ab.sequence.find(needle)
+        if idx < 0:
+            ab.log(f"WARNING: fallback string matching could not locate {label}.")
+            return None
+        ab.log(f"WARNING: using fallback string matching to locate {label}.")
+        return idx
+
+    cdr3_start = _absolute_to_sequence_position(getattr(ab, "junction_start", None))
+    if cdr3_start is not None:
+        cdr3_start += 3
+    elif all(
+        [
+            getattr(ab, "v_sequence_start", None) is not None,
+            getattr(ab, "v_sequence_end", None) is not None,
+        ]
+    ):
+        # V-gene alignment ends at the conserved C codon at the start of the junction.
+        cdr3_start = (ab.v_sequence_end - ab.v_sequence_start) - 3
+    else:
+        cdr3_start = _fallback_find("CDR3 start", ab.fwr3)
+        if cdr3_start is None:
+            cdr3_start = 0
+        else:
+            cdr3_start += len(ab.fwr3)
+    cdr3_start = max(0, min(cdr3_start, len(ab.sequence)))
+    cdr3_end = min(len(ab.sequence), cdr3_start + len(ab.cdr3))
     ab.log("CDR3 START:", cdr3_start)
     ab.log("CDR3 END:", cdr3_end)
 
@@ -361,11 +394,17 @@ def identify_cdr3_regions(ab: Antibody) -> Antibody:
     ab.log("CDR3 V SEQUENCE AA:", ab.cdr3_v_aa)
 
     # J gene region of the CDR3
-    cdr3_j_start = ab.sequence.find(ab.j_sequence)
+    cdr3_j_start = _absolute_to_sequence_position(getattr(ab, "j_sequence_start", None))
+    if cdr3_j_start is None:
+        cdr3_j_start = _fallback_find("J sequence", ab.j_sequence)
+    if cdr3_j_start is None:
+        cdr3_j_start = cdr3_end
+    cdr3_j_start = max(cdr3_start, min(cdr3_j_start, cdr3_end))
     cdr3_j_end = cdr3_end
     j_frame = (cdr3_j_start - cdr3_start) % 3
     j_trunc_5 = (-j_frame) % 3  # "wrap-around" modulo for trimming the front of the J
     adjusted_cdr3_j_start = cdr3_j_start + j_trunc_5
+    adjusted_cdr3_j_start = max(cdr3_v_end, adjusted_cdr3_j_start)
     if cdr3_j_end < adjusted_cdr3_j_start:
         # somewhat rare edge case in which the J gene is truncated so much
         # that it does not contribute to the CDR3 at all (usually juse the final W/F of the junction)
@@ -382,18 +421,42 @@ def identify_cdr3_regions(ab: Antibody) -> Antibody:
 
     # chains with a D-gene call
     if ab.d_call is not None:
-        # limit the D-gene search region to the sequence between CDR3 V and CDR3 J
-        # if we don't, we may find a D-gene match elsewhere (in the middle of the V-gene, for example) and throw off the positional numbering
-        cdr3_d_start = (
-            ab.sequence[cdr3_v_end:adjusted_cdr3_j_start].find(ab.d_sequence)
-            + cdr3_v_end  # add back the CDR3 V start position to get the absolute start position
-        )
-        cdr3_d_end = cdr3_d_start + len(ab.d_sequence)
+        cdr3_d_start = _absolute_to_sequence_position(getattr(ab, "d_sequence_start", None))
+        cdr3_d_end = _absolute_to_sequence_position(getattr(ab, "d_sequence_end", None))
+
+        if cdr3_d_start is None or cdr3_d_end is None:
+            # limit the D-gene search region to the sequence between CDR3 V and CDR3 J
+            # if we don't, we may find a D-gene match elsewhere (in the middle of the V-gene, for example) and throw off the positional numbering
+            d_match_start = _fallback_find(
+                "D sequence",
+                ab.d_sequence,
+            )
+            if d_match_start is None:
+                cdr3_d_start = cdr3_v_end
+                cdr3_d_end = cdr3_v_end
+            else:
+                d_search_start = ab.sequence[cdr3_v_end:adjusted_cdr3_j_start].find(
+                    ab.d_sequence
+                )
+                if d_search_start < 0:
+                    ab.log(
+                        "WARNING: fallback D-sequence match was outside the CDR3 search window."
+                    )
+                    cdr3_d_start = cdr3_v_end
+                    cdr3_d_end = cdr3_v_end
+                else:
+                    cdr3_d_start = d_search_start + cdr3_v_end
+                    cdr3_d_end = cdr3_d_start + len(ab.d_sequence)
+
+        cdr3_d_start = max(cdr3_v_end, min(cdr3_d_start, adjusted_cdr3_j_start))
+        cdr3_d_end = max(cdr3_d_start, min(cdr3_d_end, adjusted_cdr3_j_start))
         d_start_frame = (cdr3_d_start - cdr3_start) % 3
         d_trunc_5 = (-d_start_frame) % 3  # "wrap-around" modulo
         d_trunc_3 = (cdr3_d_end - cdr3_start) % 3
         adjusted_cdr3_d_start = cdr3_d_start + d_trunc_5
         adjusted_cdr3_d_end = cdr3_d_end - d_trunc_3
+        adjusted_cdr3_d_start = min(adjusted_cdr3_d_start, adjusted_cdr3_j_start)
+        adjusted_cdr3_d_end = max(adjusted_cdr3_d_start, adjusted_cdr3_d_end)
         ab.cdr3_d = ab.sequence[adjusted_cdr3_d_start:adjusted_cdr3_d_end]
         ab.cdr3_d_aa = abutils.tl.translate(ab.cdr3_d)
         ab.log("CDR3 D START:", adjusted_cdr3_d_start)

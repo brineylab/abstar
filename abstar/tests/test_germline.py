@@ -13,6 +13,7 @@ from ..annotation.germline import (
     get_germline,
     get_germline_database_path,
     process_cgene_alignment,
+    process_dgene_alignment,
 )
 
 # ----------------------------
@@ -102,6 +103,32 @@ def test_process_cgene_alignment_uses_local_query_span_for_end(
     expected_span = (local_query_end - local_query_begin) + 1
     assert ab.c_sequence_end - ab.c_sequence_start == expected_span
     assert len(ab.c_sequence) == expected_span
+
+
+def test_process_dgene_alignment_uses_target_span_for_germline_end():
+    oriented_input = "A" * 200
+    local_aln = SimpleNamespace(
+        score=10.0,
+        query_begin=2,
+        query_end=7,
+        target_begin=1,
+        target_end=12,
+        target="ACGTACGTACGTACGTACGT",
+    )
+    ab = Antibody(d_call="IGHD1-1*01")
+
+    process_dgene_alignment(
+        oriented_input=oriented_input,
+        v_sequence_end=10,
+        local_aln=local_aln,
+        ab=ab,
+    )
+
+    expected_query_span = (local_aln.query_end - local_aln.query_begin) + 1
+    expected_target_span = (local_aln.target_end - local_aln.target_begin) + 1
+    assert ab.d_sequence_end - ab.d_sequence_start == expected_query_span
+    assert ab.d_germline_end - ab.d_germline_start == expected_target_span
+    assert len(ab.d_germline) == expected_target_span
 
 
 # ----------------------------

@@ -387,9 +387,15 @@ class MMseqs(AssignerBase):
                 pl.lit(None).alias("c_support"),
             )
 
-        input_df = pl.read_csv(input_tsv, separator="\t").with_columns(
-            pl.col("sequence_id").cast(pl.String)
-        )
+        input_df = pl.read_csv(
+            input_tsv,
+            separator="\t",
+            schema_overrides={
+                "sequence_id": pl.String,
+                "sequence_input": pl.String,
+                "quality": pl.String,
+            },
+        ).with_columns(pl.col("sequence_id").cast(pl.String))
         vdjcresult_df = vdjcresult_df.with_columns(pl.col("v_query").cast(pl.String))
         vdjcresult_df = input_df.join(
             vdjcresult_df,

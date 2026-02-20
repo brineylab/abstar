@@ -178,3 +178,22 @@ def test_dataframe_contains_annotation_data(single_sequence):
     # locus should be IGH for heavy chain
     locus = result["locus"][0]
     assert locus == "IGH", "locus should be IGH for heavy chain sequence"
+
+
+def test_as_dataframe_directory_input_includes_all_files(tmp_path, single_sequence):
+    """Directory input should include rows from every input file when as_dataframe=True."""
+    input_dir = tmp_path / "multi_file_inputs"
+    input_dir.mkdir()
+    file_a = input_dir / "a.fasta"
+    file_b = input_dir / "b.fasta"
+
+    with open(file_a, "w") as f:
+        f.write(f">seq_a\n{single_sequence.sequence}\n")
+
+    with open(file_b, "w") as f:
+        f.write(f">seq_b\n{single_sequence.sequence}\n")
+
+    result = run(str(input_dir), as_dataframe=True)
+
+    assert result.height == 2
+    assert set(result["sequence_id"].to_list()) == {"seq_a", "seq_b"}

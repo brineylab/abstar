@@ -396,6 +396,23 @@ def test_mmseqs_assigns_j_gene(mmseqs_instance, small_fasta_file):
     assert "IGHJ" in j_calls[0]
 
 
+def test_mmseqs_preserves_scientific_notation_like_sequence_ids(
+    mmseqs_instance, single_hc_sequence, tmp_path
+):
+    """Sequence IDs like 10E8 should be preserved exactly through assignment joins."""
+    input_fasta = tmp_path / "scientific_like_id.fasta"
+    with open(input_fasta, "w") as f:
+        f.write(f">{single_hc_sequence.id}\n{single_hc_sequence.sequence}\n")
+
+    assigned_path, _ = mmseqs_instance(str(input_fasta))
+    df = pl.read_parquet(assigned_path)
+
+    assert df.height >= 1
+    sequence_ids = df["sequence_id"].to_list()
+    assert single_hc_sequence.id in sequence_ids
+    assert "1000000000.0" not in sequence_ids
+
+
 def test_mmseqs_multiple_sequences(mmseqs_instance, multi_sequence_fasta_file):
     """Test assignment of multiple sequences."""
     assigned_path, sequence_count = mmseqs_instance(multi_sequence_fasta_file)

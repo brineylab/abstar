@@ -88,3 +88,23 @@ def test_parse_umis_builtin_pattern_defaults():
     umi = parse_umis(sequences=seq, pattern="smartseq-human-bcr", length=None)
     # UMI may be empty if align fails with default mismatch, but should be str or None
     assert umi is None or isinstance(umi, str)
+
+
+def test_parse_umis_builtin_uses_builtin_mismatch_default():
+    seq = Sequence("ACGTACGTACGT" + "TCAGCGGGAAGTCGTT")
+    umi_default = parse_umis(sequences=seq, pattern="smartseq-human-bcr", length=None)
+    umi_strict = parse_umis(
+        sequences=seq,
+        pattern="smartseq-human-bcr",
+        length=None,
+        allowed_mismatches=1,
+    )
+
+    assert umi_default == "ACGTACGTACGT"
+    assert umi_strict is None
+
+
+def test_umi_flanked_pattern_without_length_does_not_error():
+    seq = Sequence("ATGC" + "NNNN" + "TTTT")
+    u = UMI(sequence=seq, pattern="ATGC[UMI]TTTT", length=None)
+    assert u.umi == "NNNN"
