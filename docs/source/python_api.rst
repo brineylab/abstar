@@ -28,8 +28,8 @@ The main entry point for annotation:
     # TCR annotation
     sequences = abstar.run("tcr.fasta", receptor="tcr")
 
-    # Mouse sequences with custom germline database
-    sequences = abstar.run("sequences.fasta", germline_database="mouse")
+    # C57BL/6 mouse sequences with built-in germline database
+    sequences = abstar.run("sequences.fasta", germline_database="c57bl6")
 
 
 Parameters
@@ -51,7 +51,10 @@ Parameters
 ``germline_database``
     Germline database name. Default: ``"human"``
 
-    Built-in options: ``human``, ``mouse``, ``macaque``, ``humouse``
+    Built-in options for ``receptor="bcr"``:
+    ``human``, ``macaque``, ``c57bl6``, ``balbc``, ``human+c57bl6``
+
+    Built-in option for ``receptor="tcr"``: ``human``
 
 ``receptor``
     Receptor type: ``"bcr"`` (default) or ``"tcr"``

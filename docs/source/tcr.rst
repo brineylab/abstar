@@ -19,9 +19,6 @@ Basic Usage
     # Human TCR (default germline database)
     abstar run tcr.fasta output/ --receptor tcr --germline_database human
 
-    # Mouse TCR
-    abstar run tcr.fasta output/ --receptor tcr --germline_database mouse
-
 **Python:**
 
 .. code-block:: python
@@ -54,7 +51,6 @@ Available Germline Databases
 TCR germline databases are available for:
 
 - ``human``: Human TCR (alpha, beta, gamma, delta)
-- ``mouse``: Mouse TCR (alpha, beta, gamma, delta)
 
 
 Output Fields

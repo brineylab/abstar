@@ -22,12 +22,12 @@ pip install abstar
 
 To run abstar on a single FASTA or FASTQ file, you need to supply the input file and the project directory (into which output and logs will be written):  
 ``` bash
-abstar path/to/sequences.fasta path/to/project_directory
+abstar run path/to/sequences.fasta path/to/project_directory
 ```
 
 To iteratively run abstar on all files in an input directory, pass a directory containing FASTA or FASTQ files instead of the path to a single file:  
 ``` bash
-abstar path/to/input_directory path/to/project_directory
+abstar run path/to/input_directory path/to/project_directory
 ```
   
   

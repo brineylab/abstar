@@ -67,9 +67,10 @@ Input and Output
 Germline Databases
 ------------------
 
-Built-in databases: ``human``, ``mouse``, ``macaque``, ``humouse``
+Built-in BCR databases: ``human``, ``macaque``, ``c57bl6``, ``balbc``, ``human+c57bl6``
+Built-in TCR database: ``human``
 
-Human and mouse databases are based on the `OGRDB`_ germline reference sets.
+Human, macaque, and mouse-strain BCR databases are based on the `OGRDB`_ germline reference sets.
 Custom databases can be built from FASTA/JSON files.
 
 .. _OGRDB: https://ogrdb.airr-community.org/

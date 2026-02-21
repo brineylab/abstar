@@ -40,8 +40,8 @@ Different Species
 
 .. code-block:: bash
 
-    # Mouse sequences
-    abstar run sequences.fasta output_dir/ --germline_database mouse
+    # C57BL/6 mouse sequences
+    abstar run sequences.fasta output_dir/ --germline_database c57bl6
 
     # Macaque sequences
     abstar run sequences.fasta output_dir/ --germline_database macaque
@@ -50,7 +50,7 @@ Different Species
 
 .. code-block:: python
 
-    sequences = abstar.run("sequences.fasta", germline_database="mouse")
+    sequences = abstar.run("sequences.fasta", germline_database="c57bl6")
 
 
 TCR Annotation
@@ -121,7 +121,7 @@ Common Options
    * - Option
      - Description
    * - ``--germline_database``
-     - Species database: ``human``, ``mouse``, ``macaque``
+     - Species database (BCR): ``human``, ``macaque``, ``c57bl6``, ``balbc``, ``human+c57bl6``
    * - ``--receptor``
      - ``bcr`` (default) or ``tcr``
    * - ``-o``, ``--output_format``

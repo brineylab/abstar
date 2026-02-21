@@ -31,7 +31,7 @@ FASTA-formatted files can be supplied using ``--fasta`` (or ``-f``), which can b
 multiple times to specify multiple files. JSON-formatted files can be supplied using  ``--json`` 
 (or ``-j``), which can also be used multiple times to specify multiple files. The files can contain
 a mix of V, D or J gene sequences. Constant region sequences can be supplied as FASTA-formatted file(s) 
-using ``--constants`` (or ``-c``), which can also be used multiple times to specify multiple files. 
+using ``--constant`` (or ``-c``), which can also be used multiple times to specify multiple files. 
 An example command for creating a database named ``my_germline_db`` might look like this:
 
 .. code-block:: bash
@@ -95,7 +95,6 @@ with ``homo_sapiens``. For example:
 .. code-block:: bash
 
     abstar build_germline_database my_germline_db -j human.json -j mouse.json --include_species_in_name
-
 
 
 

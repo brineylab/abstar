@@ -38,8 +38,8 @@ Annotate antibody or TCR sequences.
     # Directory of files
     abstar run fastq_directory/ output_dir/
 
-    # Mouse sequences
-    abstar run sequences.fasta output_dir/ --germline_database mouse
+    # C57BL/6 mouse sequences
+    abstar run sequences.fasta output_dir/ --germline_database c57bl6
 
     # TCR sequences
     abstar run tcr.fasta output_dir/ --receptor tcr
@@ -51,13 +51,16 @@ Germline and Receptor Options
 ``--germline_database TEXT``
     Name of the germline database for assignment.
 
-    Built-in options: ``human`` (default), ``mouse``, ``macaque``, ``humouse``
+    Built-in options for ``--receptor bcr``:
+    ``human`` (default), ``macaque``, ``c57bl6``, ``balbc``, ``human+c57bl6``
+
+    Built-in option for ``--receptor tcr``: ``human``
 
     Custom databases in ``~/.abstar/germline_dbs/`` are also available.
 
     .. code-block:: bash
 
-        abstar run seqs.fasta out/ --germline_database mouse
+        abstar run seqs.fasta out/ --germline_database c57bl6
 
 ``--receptor [bcr|tcr]``
     Receptor type. Default: ``bcr``
