@@ -21,3 +21,10 @@ def test_output_schema_is_polars_schema_like():
         schema=NoneDict(subset),
     )
     assert df.shape == (1, 3)
+
+
+def test_output_schema_includes_indel_aware_identity_fields():
+    assert OUTPUT_SCHEMA["v_identity_indel"] == pl.Float64
+    assert OUTPUT_SCHEMA["v_identity_aa_indel"] == pl.Float64
+    assert OUTPUT_SCHEMA["c_identity_indel"] == pl.Float64
+    assert OUTPUT_SCHEMA["c_identity_aa_indel"] == pl.Float64

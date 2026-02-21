@@ -29,6 +29,8 @@ class Antibody(LoggingMixin):
     junction_aa: str = None
     v_identity: float = None
     v_identity_aa: float = None
+    v_identity_indel: float = None
+    v_identity_aa_indel: float = None
     d_identity: float = None
     d_identity_aa: float = None
     j_identity: float = None
@@ -110,6 +112,8 @@ class Antibody(LoggingMixin):
     c_support: float = None
     c_identity: float = None
     c_identity_aa: float = None
+    c_identity_indel: float = None
+    c_identity_aa_indel: float = None
     c_cigar: str = None
     c_sequence: str = None
     c_germline: str = None

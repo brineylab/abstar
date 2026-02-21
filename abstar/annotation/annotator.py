@@ -151,6 +151,29 @@ def annotate(
         return output_file, None, None
 
 
+def _calculate_identity_with_indels(
+    aligned_query: str, aligned_target: str
+) -> float | None:
+    """
+    Computes identity across all aligned columns, including indel penalties.
+    """
+    if len(aligned_query) != len(aligned_target):
+        raise ValueError("Aligned query and target must have the same length.")
+
+    comparable_positions = 0
+    matches = 0
+    for query_nt, target_nt in zip(aligned_query, aligned_target):
+        if query_nt == "-" and target_nt == "-":
+            continue
+        comparable_positions += 1
+        if query_nt == target_nt:
+            matches += 1
+
+    if comparable_positions == 0:
+        return None
+    return matches / comparable_positions
+
+
 def annotate_single_sequence(
     ab: Antibody,
     germline_database: str,
@@ -614,8 +637,18 @@ def annotate_single_sequence(
             # calculate identify (nt and aa)
             ab.c_identity = 1 - ab.c_mutation_count / len(ab.c_germline)
             ab.c_identity_aa = 1 - ab.c_mutation_count_aa / len(ab.c_germline_aa)
+            ab.c_identity_indel = _calculate_identity_with_indels(
+                c_global.aligned_query, c_global.aligned_target
+            )
+            ab.c_identity_aa_indel = _calculate_identity_with_indels(
+                c_global_aa.aligned_query, c_global_aa.aligned_target
+            )
             ab.log("CONSTANT REGION IDENTITY:", ab.c_identity)
             ab.log("CONSTANT REGION IDENTITY AA:", ab.c_identity_aa)
+            ab.log("CONSTANT REGION INDEL-AWARE IDENTITY:", ab.c_identity_indel)
+            ab.log(
+                "CONSTANT REGION INDEL-AWARE IDENTITY AA:", ab.c_identity_aa_indel
+            )
 
             # insertions
             if "-" in c_loc.aligned_target:
@@ -905,8 +938,16 @@ def annotate_single_sequence(
     # calculate identify (nt and aa)
     ab.v_identity = 1 - ab.v_mutation_count / len(ab.v_germline)
     ab.v_identity_aa = 1 - ab.v_mutation_count_aa / len(ab.v_germline_aa)
+    ab.v_identity_indel = _calculate_identity_with_indels(
+        v_global.aligned_query, v_global.aligned_target
+    )
+    ab.v_identity_aa_indel = _calculate_identity_with_indels(
+        v_global_aa.aligned_query, v_global_aa.aligned_target
+    )
     ab.log("V IDENTITY:", ab.v_identity)
     ab.log("V IDENTITY AA:", ab.v_identity_aa)
+    ab.log("V INDEL-AWARE IDENTITY:", ab.v_identity_indel)
+    ab.log("V INDEL-AWARE IDENTITY AA:", ab.v_identity_aa_indel)
 
     ab.log("\n---------")
     ab.log(" REGIONS")

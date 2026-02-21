@@ -11,7 +11,11 @@ import os
 import polars as pl
 import pytest
 
-from ..annotation.annotator import annotate, annotate_single_sequence
+from ..annotation.annotator import (
+    annotate,
+    annotate_single_sequence,
+    _calculate_identity_with_indels,
+)
 from ..annotation.antibody import Antibody
 from ..core.abstar import run
 
@@ -356,6 +360,30 @@ def test_v_identity_calculation(annotated_heavy_chain_result):
     # Identity should be between 0 and 1
     assert 0 <= v_identity <= 1
     assert 0 <= v_identity_aa <= 1
+
+
+def test_v_indel_aware_identity_calculation(annotated_heavy_chain_result):
+    """Test indel-aware V identity fields are populated and bounded."""
+    result = annotated_heavy_chain_result
+
+    v_identity_indel = result["v_identity_indel"]
+    v_identity_aa_indel = result["v_identity_aa_indel"]
+
+    assert v_identity_indel is not None
+    assert v_identity_aa_indel is not None
+    assert 0 <= v_identity_indel <= 1
+    assert 0 <= v_identity_aa_indel <= 1
+    assert v_identity_indel <= result["v_identity"]
+    assert v_identity_aa_indel <= result["v_identity_aa"]
+
+
+def test_calculate_identity_with_indels_penalizes_gaps():
+    """Test utility identity calculation includes gap penalties."""
+    no_gap_identity = _calculate_identity_with_indels("ACGT", "ACGT")
+    gapped_identity = _calculate_identity_with_indels("ACG-T", "ACGTT")
+
+    assert no_gap_identity == 1.0
+    assert gapped_identity == 0.8
 
 
 # =============================================

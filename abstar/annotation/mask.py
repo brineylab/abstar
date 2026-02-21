@@ -119,6 +119,11 @@ def generate_nongermline_mask(
         if mask_idx >= len(segment_mask):
             break
 
+    if len(nongermline_mask) != len(segment_mask):
+        raise ValueError(
+            "Non-germline mask length does not match gene segment mask length."
+        )
+
     # return
     if as_string:
         return "".join([str(m) for m in nongermline_mask])
@@ -179,6 +184,10 @@ def _generate_gene_segment_mask_nt(ab: Antibody) -> list:
     """
     segment_mask = []
     cdr3_start = ab.sequence.find(ab.cdr3)
+    if cdr3_start < 0:
+        raise ValueError(
+            "Unable to locate CDR3 sequence while generating nucleotide gene segment mask."
+        )
     # there's an edge case in which the V gene is truncated so much that doesn't even contribute the full FWR3 region
     # to fix, we check the lengths of the V-gene region and the start position of the CDR3, and use the minimum of the two, then fill the rest of the FWR3 region with Ns
     if len(ab.v_sequence) < cdr3_start:
@@ -196,6 +205,10 @@ def _generate_gene_segment_mask_nt(ab: Antibody) -> list:
     # this usually happens because of overlap between the V and J gene assignments in light chains, resulting in part of the first FWR4 codon being assigned to the V gene
     # to fix, we extend the mask by the smaller of the J gene and FWR4 lengths
     segment_mask.extend(["J"] * min(len(ab.j_sequence), len(ab.fwr4)))
+    if len(segment_mask) != len(ab.sequence):
+        raise ValueError(
+            "Nucleotide gene segment mask length does not match nucleotide sequence length."
+        )
     return segment_mask
 
 
@@ -205,6 +218,10 @@ def _generate_gene_segment_mask_aa(ab: Antibody) -> list:
     """
     segment_mask = []
     cdr3_start = ab.sequence_aa.find(ab.cdr3_aa)
+    if cdr3_start < 0:
+        raise ValueError(
+            "Unable to locate CDR3 sequence while generating amino acid gene segment mask."
+        )
     # there's an edge case in which the V gene is truncated so much that doesn't even contribute the full FWR3 region
     # to fix, we check the lengths of the V-gene region and the start position of the CDR3, and use the minimum of the two, then fill the rest of the FWR3 region with Ns
     if len(ab.v_sequence_aa) < cdr3_start:
@@ -229,4 +246,8 @@ def _generate_gene_segment_mask_aa(ab: Antibody) -> list:
         segment_mask.extend(["J"] * j_mask_length)
     else:
         segment_mask.extend(["J"] * len(ab.fwr4_aa))
+    if len(segment_mask) != len(ab.sequence_aa):
+        raise ValueError(
+            "Amino acid gene segment mask length does not match amino acid sequence length."
+        )
     return segment_mask

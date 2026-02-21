@@ -136,6 +136,23 @@ def test_process_inputs_invalid_raises_error(tmp_path):
         _process_inputs(12345, str(tmp_path))  # Integer is invalid
 
 
+def test_run_merge_defaults_to_empty_merge_kwargs(single_hc_sequence, monkeypatch):
+    """run() should accept merge=True without requiring merge_kwargs."""
+    import abstar.core.abstar as abstar_module
+
+    observed = {}
+
+    def _fake_merge_fastqs(*args, **kwargs):
+        observed["kwargs"] = kwargs
+        raise RuntimeError("merge-called")
+
+    monkeypatch.setattr(abstar_module, "merge_fastqs", _fake_merge_fastqs)
+
+    with pytest.raises(RuntimeError, match="merge-called"):
+        run(single_hc_sequence, merge=True)
+    assert "interleaved" in observed["kwargs"]
+
+
 # =============================================
 #           RETURN TYPE TESTS
 # =============================================
@@ -417,3 +434,63 @@ def test_run_with_debug_mode(single_hc_sequence, tmp_path):
     # Log files should exist
     log_dir = os.path.join(project_path, "logs")
     assert os.path.exists(log_dir)
+
+
+def test_run_falls_back_to_serial_when_process_pool_unavailable(tmp_path, monkeypatch):
+    """Annotation should continue in serial mode if ProcessPoolExecutor cannot start."""
+    import abstar.core.abstar as abstar_module
+
+    input_file = tmp_path / "input.fasta"
+    input_file.write_text(">seq\nATGC\n")
+
+    assign_file = tmp_path / "assign.parquet"
+    pl.DataFrame({"dummy": [1]}).write_parquet(assign_file)
+
+    split_files = [tmp_path / "chunk_1.parquet", tmp_path / "chunk_2.parquet"]
+    for split_file in split_files:
+        pl.DataFrame({"dummy": [1]}).write_parquet(split_file)
+
+    class _DummyAssigner:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def __call__(self, sequence_file):
+            return str(assign_file), 2
+
+        def cleanup(self):
+            return
+
+    annotate_calls = []
+
+    def _fake_annotate(input_file, output_directory, **kwargs):
+        annotate_calls.append(input_file)
+        stem = os.path.splitext(os.path.basename(input_file))[0]
+        output_file = os.path.join(output_directory, f"{stem}_annotated.parquet")
+        pl.DataFrame(
+            {"sequence_id": [stem], "sequence": ["ATGC"], "productive": [True]}
+        ).write_parquet(output_file)
+        return output_file, None, None
+
+    class _FailingExecutor:
+        def __init__(self, *args, **kwargs):
+            raise OSError("platform semaphore support unavailable")
+
+    monkeypatch.setattr(
+        abstar_module,
+        "_process_inputs",
+        lambda sequences, temp_dir: [str(input_file)],
+    )
+    monkeypatch.setattr(abstar_module, "MMseqs", _DummyAssigner)
+    monkeypatch.setattr(
+        abstar_module.abutils.io,
+        "split_parquet",
+        lambda *args, **kwargs: [str(p) for p in split_files],
+    )
+    monkeypatch.setattr(abstar_module, "annotate", _fake_annotate)
+    monkeypatch.setattr(abstar_module, "ProcessPoolExecutor", _FailingExecutor)
+
+    result = run(str(input_file), as_dataframe=True, n_processes=2)
+
+    assert isinstance(result, pl.DataFrame)
+    assert result.height == 2
+    assert len(annotate_calls) == 2

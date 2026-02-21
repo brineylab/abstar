@@ -127,6 +127,24 @@ def test_generate_gene_segment_mask_aa(minimal_ab):
     assert seg == expected
 
 
+def test_generate_gene_segment_mask_nt_raises_when_cdr3_not_found(minimal_ab):
+    minimal_ab.cdr3 = "ZZZZ"
+    with pytest.raises(ValueError, match="CDR3"):
+        generate_gene_segment_mask(minimal_ab, aa=False, as_string=True)
+
+
+def test_generate_gene_segment_mask_aa_raises_when_cdr3_not_found(minimal_ab):
+    minimal_ab.cdr3_aa = "ZZZZ"
+    with pytest.raises(ValueError, match="CDR3"):
+        generate_gene_segment_mask(minimal_ab, aa=True, as_string=True)
+
+
+def test_generate_gene_segment_mask_nt_raises_on_length_mismatch(minimal_ab):
+    minimal_ab.j_sequence = ""
+    with pytest.raises(ValueError, match="length"):
+        generate_gene_segment_mask(minimal_ab, aa=False, as_string=True)
+
+
 def test_generate_nongermline_mask_nt(minimal_ab):
     # Provide simplistic alignments and a basic gene segment mask
     minimal_ab.gene_segment_mask = generate_gene_segment_mask(
@@ -138,6 +156,14 @@ def test_generate_nongermline_mask_nt(minimal_ab):
     mask = generate_nongermline_mask(minimal_ab, aa=False, as_string=True)
     expected = "".join("1" if c == "N" else "0" for c in minimal_ab.gene_segment_mask)
     assert mask == expected
+
+
+def test_generate_nongermline_mask_nt_raises_on_length_mismatch(minimal_ab):
+    minimal_ab.gene_segment_mask = "V" * (len(minimal_ab.sequence) + 1)
+    minimal_ab.sequence_alignment = minimal_ab.sequence
+    minimal_ab.germline_alignment = minimal_ab.sequence
+    with pytest.raises(ValueError, match="length"):
+        generate_nongermline_mask(minimal_ab, aa=False, as_string=True)
 
 
 def test_generate_nongermline_mask_aa(minimal_ab):

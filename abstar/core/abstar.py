@@ -209,6 +209,7 @@ def run(
     # output format
     if isinstance(output_format, str):
         output_format = [output_format]
+    merge_kwargs = dict(merge_kwargs or {})
 
     # set up log/output/temp directories
     if project_path is not None:
@@ -355,6 +356,7 @@ def run(
         else:
             logger.info("\n")
             logger.info("sequence annotation:\n")
+        progress_bar = None
         if verbose and started_from_cli:
             progress_bar = tqdm(
                 total=len(split_assign_files),
@@ -364,21 +366,13 @@ def run(
             progress_bar = tqdm(
                 total=len(split_assign_files),
             )
-        with ProcessPoolExecutor(
-            max_workers=n_processes,
-            mp_context=mp.get_context("spawn"),
-        ) as executor:
-            futures = [
-                executor.submit(annotate, f, **annot_kwargs) for f in split_assign_files
-            ]
-            for future in as_completed(futures):
-                annotated, failed, succeeded = future.result()
-                annotated_files.append(annotated)
-                failed_log_files.append(failed)
-                succeeded_log_files.append(succeeded)
-                if verbose:
-                    progress_bar.update(1)
-        if verbose:
+        annotated_files, failed_log_files, succeeded_log_files = _run_annotation_jobs(
+            split_assign_files=split_assign_files,
+            annot_kwargs=annot_kwargs,
+            n_processes=n_processes,
+            progress_bar=progress_bar,
+        )
+        if progress_bar is not None:
             progress_bar.close()
 
         # get output Sequences
@@ -621,6 +615,62 @@ def _delete_files(files: Iterable[str]) -> None:
         if f is not None:
             if os.path.exists(f):
                 os.remove(f)
+
+
+def _run_annotation_jobs(
+    split_assign_files: Iterable[str],
+    annot_kwargs: dict,
+    n_processes: int,
+    progress_bar=None,
+) -> tuple[list[str], list[str | None], list[str | None]]:
+    """
+    Run annotation jobs with multiprocessing when available, otherwise serially.
+    """
+
+    def _run_serial() -> tuple[list[str], list[str | None], list[str | None]]:
+        serial_annotated = []
+        serial_failed = []
+        serial_succeeded = []
+        for split_file in split_assign_files:
+            annotated, failed, succeeded = annotate(split_file, **annot_kwargs)
+            serial_annotated.append(annotated)
+            serial_failed.append(failed)
+            serial_succeeded.append(succeeded)
+            if progress_bar is not None:
+                progress_bar.update(1)
+        return serial_annotated, serial_failed, serial_succeeded
+
+    if n_processes == 1:
+        return _run_serial()
+
+    annotated_files = []
+    failed_log_files = []
+    succeeded_log_files = []
+    try:
+        with ProcessPoolExecutor(
+            max_workers=n_processes,
+            mp_context=mp.get_context("spawn"),
+        ) as executor:
+            futures = [
+                executor.submit(annotate, f, **annot_kwargs) for f in split_assign_files
+            ]
+            for future in as_completed(futures):
+                annotated, failed, succeeded = future.result()
+                annotated_files.append(annotated)
+                failed_log_files.append(failed)
+                succeeded_log_files.append(succeeded)
+                if progress_bar is not None:
+                    progress_bar.update(1)
+        return annotated_files, failed_log_files, succeeded_log_files
+    except (OSError, RuntimeError, NotImplementedError) as exc:
+        # Only fall back automatically when the worker pool cannot start.
+        if any([annotated_files, failed_log_files, succeeded_log_files]):
+            raise
+        logger.info(
+            f"multiprocessing unavailable ({exc.__class__.__name__}: {exc}); "
+            "falling back to serial annotation (equivalent to n_processes=1)\n"
+        )
+        return _run_serial()
 
 
 # ===============================
