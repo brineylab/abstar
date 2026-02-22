@@ -278,6 +278,34 @@ def extend_cdr3(row: dict, extension: str) -> str:
     return insert_at_position(row["sequence_input"], midpoint, extension)
 
 
+def introduce_stop_codon(
+    row: dict, region: str, codon_index: int = 1, stop_codon: str = "taa"
+) -> str:
+    """Replace the codon at *codon_index* within *region* with a stop codon.
+
+    Parameters
+    ----------
+    row : dict
+        Ground truth row from test_50.csv.
+    region : str
+        Region in which to introduce the stop codon.
+    codon_index : int
+        0-based codon index within the region (default 1, i.e. second codon).
+    stop_codon : str
+        Stop codon to use (default ``"taa"``).
+
+    Returns
+    -------
+    str
+        Modified full sequence.
+    """
+    boundaries = get_region_boundaries(row)
+    region_start = boundaries[region][0]
+    pos = region_start + codon_index * 3
+    seq = row["sequence_input"]
+    return seq[:pos] + stop_codon + seq[pos + 3 :]
+
+
 def shorten_cdr3(row: dict, bases_to_remove: int) -> str:
     """Remove *bases_to_remove* nucleotides from the centre of CDR3.
 

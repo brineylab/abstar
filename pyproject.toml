@@ -41,3 +41,9 @@ include = ["abstar*"]
 version = { attr = "abstar.version.__version__" }
 dependencies = { file = ["requirements.txt"] }
 
+[tool.pytest.ini_options]
+markers = [
+    "core: deterministic representative edge-case tests suitable for CI",
+    "stress: expanded combinatorial edge-case tests for nightly/extended runs",
+]
+

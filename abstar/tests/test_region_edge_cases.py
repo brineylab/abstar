@@ -17,7 +17,7 @@ import pytest
 from abutils import Sequence
 
 from ..annotation.antibody import Antibody
-from ..annotation.regions import get_region_sequence
+from ..annotation.regions import get_region_sequence, identify_cdr3_regions
 from ..core.abstar import run
 from .edge_case_helpers import (
     REGION_NAMES,
@@ -26,8 +26,14 @@ from .edge_case_helpers import (
     insert_at_region_boundary,
     insert_at_position,
     delete_at_position,
+    truncate_5prime,
     truncate_3prime,
+    truncate_to_region,
+    mutate_position,
     mutate_near_boundary,
+    extend_cdr3,
+    shorten_cdr3,
+    introduce_stop_codon,
 )
 
 # ---------------------------------------------------------------------------
@@ -92,6 +98,8 @@ class TestGroundTruthBaseline:
     This serves as a sanity check and regression baseline.
     """
 
+    pytestmark = pytest.mark.core
+
     def test_all_sequences_annotated(self, annotated_sequences):
         """All 50 ground truth sequences should produce annotation results."""
         missing = [sid for sid in _SEQUENCE_IDS if sid not in annotated_sequences]
@@ -146,6 +154,8 @@ class TestGetRegionSequenceEdgeCases:
     These bypass the full pipeline and test region extraction directly with
     crafted alignment objects.  See EDGE_CASES.md "Unit Tests" section.
     """
+
+    pytestmark = pytest.mark.core
 
     # -- shared germline data from the existing test_regions.py fixtures --
 
@@ -465,6 +475,8 @@ class TestIndelAtBoundary:
     See EDGE_CASES.md Edge Case 1 (1a-1e).
     """
 
+    pytestmark = pytest.mark.core
+
     # --- 1a: Codon-length (3-nt) deletion spanning a boundary ---
 
     @pytest.mark.parametrize("boundary", ["cdr1", "fwr2", "cdr2", "fwr3"])
@@ -621,11 +633,11 @@ class TestIndelAtBoundary:
         "boundary,ins_size",
         [
             ("fwr2", 3),
-            ("fwr2", 6),
-            ("fwr2", 9),
+            pytest.param("fwr2", 6, marks=pytest.mark.stress),
+            pytest.param("fwr2", 9, marks=pytest.mark.stress),
             ("fwr3", 3),
-            ("fwr3", 6),
-            ("fwr3", 9),
+            pytest.param("fwr3", 6, marks=pytest.mark.stress),
+            pytest.param("fwr3", 9, marks=pytest.mark.stress),
         ],
     )
     def test_large_codon_insertion_at_boundary(self, boundary, ins_size,
@@ -666,9 +678,15 @@ class TestTrimmedJGene:
     See EDGE_CASES.md Edge Case 2 (2a-2d).
     """
 
+    pytestmark = pytest.mark.core
+
     # --- 2a: Remove most of FWR4 ---
 
-    @pytest.mark.parametrize("seq_id", _LIGHT_IDS[:3])
+    @pytest.mark.parametrize("seq_id", [
+        _LIGHT_IDS[0],
+        pytest.param(_LIGHT_IDS[1], marks=pytest.mark.stress),
+        pytest.param(_LIGHT_IDS[2], marks=pytest.mark.stress),
+    ])
     def test_fwr4_mostly_removed(self, seq_id):
         """Keeping only the last 6 nt of FWR4 should not crash.
 
@@ -695,7 +713,11 @@ class TestTrimmedJGene:
 
     # --- 2b: Remove FWR4 entirely ---
 
-    @pytest.mark.parametrize("seq_id", _LIGHT_IDS[:3])
+    @pytest.mark.parametrize("seq_id", [
+        _LIGHT_IDS[0],
+        pytest.param(_LIGHT_IDS[1], marks=pytest.mark.stress),
+        pytest.param(_LIGHT_IDS[2], marks=pytest.mark.stress),
+    ])
     def test_fwr4_entirely_removed(self, seq_id):
         """Removing FWR4 entirely should not crash.
 
@@ -716,7 +738,11 @@ class TestTrimmedJGene:
 
     # --- 2c: J-gene trimmed to conserved codon only ---
 
-    @pytest.mark.parametrize("seq_id", _LIGHT_IDS[:3])
+    @pytest.mark.parametrize("seq_id", [
+        _LIGHT_IDS[0],
+        pytest.param(_LIGHT_IDS[1], marks=pytest.mark.stress),
+        pytest.param(_LIGHT_IDS[2], marks=pytest.mark.stress),
+    ])
     def test_fwr4_conserved_codon_only(self, seq_id):
         """Keeping only the first 3 nt of FWR4 should not crash."""
         row = _GROUND_TRUTH[seq_id]
@@ -737,7 +763,11 @@ class TestTrimmedJGene:
 
     # --- 2d: Verify locus and D-gene for light chains ---
 
-    @pytest.mark.parametrize("seq_id", _LIGHT_IDS[:3])
+    @pytest.mark.parametrize("seq_id", [
+        _LIGHT_IDS[0],
+        pytest.param(_LIGHT_IDS[1], marks=pytest.mark.stress),
+        pytest.param(_LIGHT_IDS[2], marks=pytest.mark.stress),
+    ])
     def test_light_chain_locus_preserved(self, seq_id):
         """After FWR4 trimming, locus should remain IGK/IGL and D-gene absent."""
         row = _GROUND_TRUTH[seq_id]
@@ -769,6 +799,8 @@ class TestComplementaryFrameshifts:
 
     See EDGE_CASES.md Edge Case 3 (3a-3d).
     """
+
+    pytestmark = pytest.mark.core
 
     # --- 3a: 2-nt deletion in FWR2 + 1-nt insertion in FWR3 (net -1) ---
 
@@ -900,4 +932,1180 @@ class TestComplementaryFrameshifts:
         actual_fwr2_len = _get_region_len(result, "fwr2")
         assert abs(actual_fwr2_len - orig_fwr2_len) <= 3, (
             f"FWR2 should be ~unchanged: expected ~{orig_fwr2_len}, got {actual_fwr2_len}"
+        )
+
+
+# ===========================================================================
+#              Edge Case 4: 5' Truncated Sequences
+# ===========================================================================
+
+
+class TestFivePrimeTruncation:
+    """Integration tests for 5' truncated sequences.
+
+    See EDGE_CASES.md Edge Case 4 (4a-4d).
+    """
+
+    pytestmark = pytest.mark.core
+
+    # --- 4a: Missing entire FWR1 ---
+
+    @pytest.mark.parametrize("seq_id", [_REPR_HEAVY_ID, _REPR_LIGHT_ID])
+    def test_missing_entire_fwr1(self, seq_id):
+        """Removing FWR1 entirely should not crash.  CDR1+ should remain stable."""
+        row = _GROUND_TRUTH[seq_id]
+        modified = truncate_to_region(row, "cdr1")
+        result = _run_single(modified, f"no_fwr1_{seq_id}")
+
+        if result is None:
+            return
+
+        # FWR1 should be empty or very short
+        fwr1_len = _get_region_len(result, "fwr1")
+        assert fwr1_len < len(row["fwr1"]), (
+            f"FWR1 should be shorter/empty after removal, got {fwr1_len}"
+        )
+
+        # CDR1 should be approximately correct
+        orig_cdr1_len = len(row["cdr1"])
+        actual_cdr1_len = _get_region_len(result, "cdr1")
+        assert abs(actual_cdr1_len - orig_cdr1_len) <= 6, (
+            f"CDR1 should be ~unchanged: expected ~{orig_cdr1_len}, got {actual_cdr1_len}"
+        )
+
+    # --- 4b: Partial FWR1 (first 20 nt removed) ---
+
+    @pytest.mark.parametrize("seq_id", [_REPR_HEAVY_ID, _REPR_LIGHT_ID])
+    def test_partial_fwr1(self, seq_id):
+        """Removing first 20 nt should shorten FWR1 but leave CDR1+ intact."""
+        row = _GROUND_TRUTH[seq_id]
+        modified = truncate_5prime(row, 20)
+        result = _run_single(modified, f"partial_fwr1_{seq_id}")
+
+        if result is None:
+            return
+
+        actual_fwr1_len = _get_region_len(result, "fwr1")
+        assert actual_fwr1_len < len(row["fwr1"]), (
+            f"FWR1 should be shorter after 20-nt removal, got {actual_fwr1_len}"
+        )
+
+        # CDR1 should be approximately correct
+        orig_cdr1_len = len(row["cdr1"])
+        actual_cdr1_len = _get_region_len(result, "cdr1")
+        assert abs(actual_cdr1_len - orig_cdr1_len) <= 6, (
+            f"CDR1 should be ~unchanged: expected ~{orig_cdr1_len}, got {actual_cdr1_len}"
+        )
+
+    # --- 4c: Deep truncation past FWR1+CDR1 into FWR2 ---
+
+    def test_deep_truncation_into_fwr2(self):
+        """Truncation into FWR2 should leave FWR1/CDR1 empty."""
+        row = _GROUND_TRUTH[_REPR_HEAVY_ID]
+        boundaries = get_region_boundaries(row)
+        # Remove FWR1 + CDR1 + first 15 nt of FWR2
+        trim_len = boundaries["fwr2"][0] + 15
+        modified = truncate_5prime(row, trim_len)
+        result = _run_single(modified, "deep_trunc_fwr2")
+
+        if result is None:
+            return
+
+        # FWR1 and CDR1 should be empty
+        assert _get_region_len(result, "fwr1") == 0, "FWR1 should be empty"
+        assert _get_region_len(result, "cdr1") == 0, "CDR1 should be empty"
+
+        # FWR2 should be shorter than original
+        assert _get_region_len(result, "fwr2") < len(row["fwr2"])
+
+        # CDR2 onward should be approximately stable
+        for region in ["cdr2", "fwr3"]:
+            orig_len = len(row[region])
+            actual_len = _get_region_len(result, region)
+            assert abs(actual_len - orig_len) <= 6, (
+                f"{region} should be ~unchanged: expected ~{orig_len}, got {actual_len}"
+            )
+
+    # --- 4d: Extreme truncation (start in FWR3) ---
+
+    def test_extreme_truncation_to_fwr3(self):
+        """Truncation to FWR3 should leave FWR1/CDR1/FWR2/CDR2 empty."""
+        row = _GROUND_TRUTH[_REPR_HEAVY_ID]
+        modified = truncate_to_region(row, "fwr3")
+        result = _run_single(modified, "extreme_trunc_fwr3")
+
+        if result is None:
+            return
+
+        # Everything before FWR3 should be empty
+        for region in ["fwr1", "cdr1", "fwr2", "cdr2"]:
+            assert _get_region_len(result, region) == 0, (
+                f"{region} should be empty after extreme truncation"
+            )
+
+        # FWR3 should be approximately correct
+        orig_fwr3_len = len(row["fwr3"])
+        actual_fwr3_len = _get_region_len(result, "fwr3")
+        assert abs(actual_fwr3_len - orig_fwr3_len) <= 6, (
+            f"FWR3 should be ~unchanged: expected ~{orig_fwr3_len}, got {actual_fwr3_len}"
+        )
+
+
+# ===========================================================================
+#              Edge Case 5: 3' Truncated Sequences
+# ===========================================================================
+
+
+class TestThreePrimeTruncation:
+    """Integration tests for 3' truncated sequences.
+
+    See EDGE_CASES.md Edge Case 5 (5a-5c).
+    """
+
+    pytestmark = pytest.mark.core
+
+    # --- 5a: Missing entire FWR4 ---
+
+    @pytest.mark.parametrize("seq_id", [_REPR_HEAVY_ID, _REPR_LIGHT_ID])
+    def test_missing_entire_fwr4(self, seq_id):
+        """Removing FWR4 entirely: V-gene regions should be exact matches."""
+        row = _GROUND_TRUTH[seq_id]
+        fwr4_len = len(row["fwr4"])
+        modified = truncate_3prime(row, fwr4_len)
+        result = _run_single(modified, f"no_fwr4_{seq_id}")
+
+        if result is None:
+            return
+
+        actual_fwr4 = result["fwr4"] or ""
+        assert len(actual_fwr4) < fwr4_len, (
+            f"FWR4 should be empty/shorter after removal, got len={len(actual_fwr4)}"
+        )
+
+        # V-gene regions should be approximately unchanged
+        for region in ["fwr1", "cdr1", "fwr2", "cdr2", "fwr3"]:
+            expected = _normalize(row[region], region)
+            actual = _normalize(result[region], region)
+            if expected:
+                assert abs(len(actual) - len(expected)) <= 3, (
+                    f"{region} should be ~unchanged: expected len {len(expected)}, "
+                    f"got {len(actual)}"
+                )
+
+    # --- 5b: Partial FWR4 (last 15 nt removed) ---
+
+    @pytest.mark.parametrize("seq_id", [_REPR_HEAVY_ID, _REPR_LIGHT_ID])
+    def test_partial_fwr4(self, seq_id):
+        """Removing last 15 nt should shorten FWR4."""
+        row = _GROUND_TRUTH[seq_id]
+        modified = truncate_3prime(row, 15)
+        result = _run_single(modified, f"partial_fwr4_{seq_id}")
+
+        if result is None:
+            return
+
+        actual_fwr4_len = _get_region_len(result, "fwr4")
+        assert actual_fwr4_len < len(row["fwr4"]), (
+            f"FWR4 should be shorter after 15-nt removal, got {actual_fwr4_len}"
+        )
+
+    # --- 5c: Truncation into CDR3 ---
+
+    def test_truncation_into_cdr3(self):
+        """Truncation removing FWR4 + 10 nt of CDR3."""
+        row = _GROUND_TRUTH[_REPR_HEAVY_ID]
+        fwr4_len = len(row["fwr4"])
+        modified = truncate_3prime(row, fwr4_len + 10)
+        result = _run_single(modified, "trunc_into_cdr3")
+
+        if result is None:
+            return
+
+        # CDR3 should be shorter than ground truth
+        actual_cdr3_len = _get_region_len(result, "cdr3")
+        assert actual_cdr3_len < len(row["cdr3"]), (
+            f"CDR3 should be shorter: expected <{len(row['cdr3'])}, got {actual_cdr3_len}"
+        )
+
+        # FWR4 should be empty or very short
+        actual_fwr4 = result["fwr4"] or ""
+        assert len(actual_fwr4) < len(row["fwr4"])
+
+        # V-gene regions should be approximately unchanged
+        for region in ["fwr1", "cdr1", "fwr2", "cdr2", "fwr3"]:
+            expected = _normalize(row[region], region)
+            actual = _normalize(result[region], region)
+            if expected:
+                assert abs(len(actual) - len(expected)) <= 3, (
+                    f"{region} should be ~unchanged: expected len {len(expected)}, "
+                    f"got {len(actual)}"
+                )
+
+
+# ===========================================================================
+#           Edge Case 6: High SHM Near Region Boundaries
+# ===========================================================================
+
+
+class TestHighSHMAtBoundaries:
+    """Integration tests for high SHM near region boundaries.
+
+    See EDGE_CASES.md Edge Case 6 (6a-6d).
+    """
+
+    pytestmark = pytest.mark.core
+
+    # --- 6a: 4-6 mutations clustered at CDR1/FWR2 boundary ---
+
+    def test_mutations_at_cdr1_fwr2_boundary(self):
+        """4 mutations near CDR1/FWR2 boundary: lengths should be preserved."""
+        row = _GROUND_TRUTH[_REPR_HEAVY_ID]
+        modified = mutate_near_boundary(row, "fwr2", num_mutations=4, window=6, seed=42)
+        result = _run_single(modified, "shm_cdr1_fwr2")
+        assert result is not None, "Pipeline should annotate SHM sequence"
+
+        # Mutations don't change length, so region lengths should match ground truth
+        for region in ["cdr1", "fwr2"]:
+            expected_len = len(row[region])
+            actual_len = _get_region_len(result, region)
+            assert abs(actual_len - expected_len) <= 3, (
+                f"{region} length should be ~unchanged: expected {expected_len}, "
+                f"got {actual_len}"
+            )
+
+    # --- 6b: 6-8 mutations at FWR3/CDR3 boundary ---
+
+    def test_mutations_at_fwr3_cdr3_boundary(self):
+        """6 mutations near FWR3/CDR3 boundary: lengths should be preserved."""
+        row = _GROUND_TRUTH[_REPR_HEAVY_ID]
+        modified = mutate_near_boundary(row, "cdr3", num_mutations=6, window=6, seed=42)
+        result = _run_single(modified, "shm_fwr3_cdr3")
+        assert result is not None, "Pipeline should annotate SHM sequence"
+
+        # FWR3 length should be unchanged (SHM doesn't change length)
+        expected_fwr3_len = len(row["fwr3"])
+        actual_fwr3_len = _get_region_len(result, "fwr3")
+        assert abs(actual_fwr3_len - expected_fwr3_len) <= 3, (
+            f"FWR3 length should be ~unchanged: expected {expected_fwr3_len}, "
+            f"got {actual_fwr3_len}"
+        )
+
+    # --- 6c: Heavy mutation in FWR1 start ---
+
+    def test_heavy_mutation_fwr1_start(self):
+        """Mutating first 2 codons of FWR1 should not truncate FWR1 AA."""
+        row = _GROUND_TRUTH[_REPR_HEAVY_ID]
+        seq = row["sequence_input"]
+        # Mutate positions 0-5 (first 2 codons) deterministically
+        for pos in range(6):
+            seq = mutate_position(seq, pos)
+        result = _run_single(seq, "shm_fwr1_start")
+
+        if result is None:
+            return
+
+        # FWR1 should still be approximately full-length
+        expected_fwr1_len = len(row["fwr1"])
+        actual_fwr1_len = _get_region_len(result, "fwr1")
+        assert abs(actual_fwr1_len - expected_fwr1_len) <= 6, (
+            f"FWR1 should be ~unchanged: expected {expected_fwr1_len}, got {actual_fwr1_len}"
+        )
+
+        # FWR1 AA should include the mutated leading residues (non-empty)
+        fwr1_aa = result["fwr1_aa"] or ""
+        assert len(fwr1_aa) > 0, "FWR1 AA should not be empty after start mutations"
+
+    # --- 6d: Parametrized over mutation counts and boundaries ---
+
+    @pytest.mark.parametrize(
+        "boundary,num_mutations",
+        [
+            ("fwr2", 2),
+            ("fwr2", 4),
+            pytest.param("fwr2", 6, marks=pytest.mark.stress),
+            pytest.param("fwr2", 8, marks=pytest.mark.stress),
+            ("cdr3", 2),
+            ("cdr3", 4),
+            pytest.param("cdr3", 6, marks=pytest.mark.stress),
+            pytest.param("cdr3", 8, marks=pytest.mark.stress),
+        ],
+    )
+    def test_parametrized_mutations(self, boundary, num_mutations):
+        """Parametrized SHM at various boundaries and mutation counts."""
+        row = _GROUND_TRUTH[_REPR_HEAVY_ID]
+        modified = mutate_near_boundary(
+            row, boundary, num_mutations=num_mutations, window=6, seed=num_mutations
+        )
+        result = _run_single(modified, f"shm_{boundary}_{num_mutations}")
+        assert result is not None, (
+            f"Pipeline should annotate sequence with {num_mutations} mutations "
+            f"near {boundary}"
+        )
+        _assert_no_gaps_in_v_regions(result)
+
+
+# ===========================================================================
+#            Edge Case 7: Insertions Within CDR Regions
+# ===========================================================================
+
+
+class TestCDRInsertions:
+    """Integration tests for insertions within CDR regions.
+
+    See EDGE_CASES.md Edge Case 7 (7a-7d).
+    """
+
+    pytestmark = pytest.mark.core
+
+    # --- 7a: Codon-length (3-nt) insertion in CDR1 ---
+
+    def test_codon_insertion_cdr1(self):
+        """A 3-nt insertion in CDR1 should increase CDR1 by 3 nt."""
+        row = _GROUND_TRUTH[_REPR_HEAVY_ID]
+        boundaries = get_region_boundaries(row)
+        cdr1_start, cdr1_end = boundaries["cdr1"]
+        mid = cdr1_start + (cdr1_end - cdr1_start) // 2
+        modified = insert_at_position(row["sequence_input"], mid, "GGG")
+        result = _run_single(modified, "ins3_cdr1")
+        assert result is not None, "Pipeline should annotate CDR1 insertion"
+
+        _assert_no_gaps_in_v_regions(result)
+
+        # CDR1 should be 3 nt longer
+        expected_cdr1_len = len(row["cdr1"]) + 3
+        actual_cdr1_len = _get_region_len(result, "cdr1")
+        assert abs(actual_cdr1_len - expected_cdr1_len) <= 3, (
+            f"CDR1 should be ~{expected_cdr1_len} nt, got {actual_cdr1_len}"
+        )
+
+        # FWR1 (upstream) should be unchanged
+        expected_fwr1 = _normalize(row["fwr1"], "fwr1")
+        actual_fwr1 = _normalize(result["fwr1"], "fwr1")
+        assert actual_fwr1 == expected_fwr1, "FWR1 should be unchanged"
+
+    # --- 7b: Multi-codon insertion in CDR2 ---
+
+    @pytest.mark.parametrize("ins_size", [
+        3,
+        pytest.param(6, marks=pytest.mark.stress),
+        pytest.param(9, marks=pytest.mark.stress),
+    ])
+    def test_multicodon_insertion_cdr2(self, ins_size):
+        """Multi-codon insertions in CDR2 should increase CDR2 length."""
+        row = _GROUND_TRUTH[_REPR_HEAVY_ID]
+        boundaries = get_region_boundaries(row)
+        cdr2_start, cdr2_end = boundaries["cdr2"]
+        mid = cdr2_start + (cdr2_end - cdr2_start) // 2
+        insertion = "AGC" * (ins_size // 3)
+        modified = insert_at_position(row["sequence_input"], mid, insertion)
+        result = _run_single(modified, f"ins{ins_size}_cdr2")
+        assert result is not None
+
+        _assert_no_gaps_in_v_regions(result)
+
+        expected_cdr2_len = len(row["cdr2"]) + ins_size
+        actual_cdr2_len = _get_region_len(result, "cdr2")
+        assert abs(actual_cdr2_len - expected_cdr2_len) <= 3, (
+            f"CDR2 should be ~{expected_cdr2_len} nt, got {actual_cdr2_len}"
+        )
+
+    # --- 7c: Non-codon-length insertion in CDR1 ---
+
+    @pytest.mark.parametrize("ins_size", [
+        1,
+        pytest.param(2, marks=pytest.mark.stress),
+        pytest.param(4, marks=pytest.mark.stress),
+        pytest.param(5, marks=pytest.mark.stress),
+    ])
+    def test_noncodon_insertion_cdr1(self, ins_size):
+        """Non-codon-length insertions in CDR1 cause frameshifts.
+
+        Pipeline may fail to annotate; key requirement is no crash.
+        """
+        row = _GROUND_TRUTH[_REPR_HEAVY_ID]
+        boundaries = get_region_boundaries(row)
+        cdr1_start, cdr1_end = boundaries["cdr1"]
+        mid = cdr1_start + (cdr1_end - cdr1_start) // 2
+        insertion = "A" * ins_size
+        modified = insert_at_position(row["sequence_input"], mid, insertion)
+        result = _run_single(modified, f"ins{ins_size}_nc_cdr1")
+
+        if result is None:
+            return
+
+        _assert_no_gaps_in_v_regions(result)
+        # CDR1 should still be extracted
+        assert _get_region_len(result, "cdr1") > 0, "CDR1 should not be empty"
+
+    # --- 7d: Codon-length insertion in CDR3 ---
+
+    @pytest.mark.parametrize("ins_size", [
+        3,
+        pytest.param(6, marks=pytest.mark.stress),
+        pytest.param(9, marks=pytest.mark.stress),
+    ])
+    def test_insertion_in_cdr3(self, ins_size):
+        """Codon-length insertions in CDR3 should extend CDR3."""
+        row = _GROUND_TRUTH[_REPR_HEAVY_ID]
+        insertion = "AGC" * (ins_size // 3)
+        modified = extend_cdr3(row, insertion)
+        result = _run_single(modified, f"ins{ins_size}_cdr3")
+        assert result is not None
+
+        # CDR3 should be longer than original
+        orig_cdr3_len = len(row["cdr3"])
+        actual_cdr3_len = _get_region_len(result, "cdr3")
+        assert actual_cdr3_len > orig_cdr3_len, (
+            f"CDR3 should be longer: expected >{orig_cdr3_len}, got {actual_cdr3_len}"
+        )
+
+        # V-gene regions should be approximately unchanged
+        for region in ["fwr1", "cdr1", "fwr2", "cdr2", "fwr3"]:
+            expected_len = len(row[region])
+            actual_len = _get_region_len(result, region)
+            assert abs(actual_len - expected_len) <= 3, (
+                f"{region} should be ~unchanged: expected {expected_len}, got {actual_len}"
+            )
+
+
+# ===========================================================================
+#            Edge Case 8: Deletions Within FWR Regions
+# ===========================================================================
+
+
+class TestFWRDeletions:
+    """Integration tests for deletions within FWR regions.
+
+    See EDGE_CASES.md Edge Case 8 (8a-8d).
+    """
+
+    pytestmark = pytest.mark.core
+
+    # --- 8a: Codon-length (3-nt) deletion in FWR3 ---
+
+    def test_codon_deletion_fwr3(self):
+        """A 3-nt deletion in FWR3 should shorten FWR3 by 3 nt."""
+        row = _GROUND_TRUTH[_REPR_HEAVY_ID]
+        boundaries = get_region_boundaries(row)
+        fwr3_start = boundaries["fwr3"][0]
+        modified = delete_at_position(row["sequence_input"], fwr3_start + 50, 3)
+        result = _run_single(modified, "del3_fwr3")
+        assert result is not None
+
+        _assert_no_gaps_in_v_regions(result)
+
+        expected_fwr3_len = len(row["fwr3"]) - 3
+        actual_fwr3_len = _get_region_len(result, "fwr3")
+        assert abs(actual_fwr3_len - expected_fwr3_len) <= 3, (
+            f"FWR3 should be ~{expected_fwr3_len} nt, got {actual_fwr3_len}"
+        )
+
+        # CDR2 (upstream) should be approximately unchanged
+        expected_cdr2_len = len(row["cdr2"])
+        actual_cdr2_len = _get_region_len(result, "cdr2")
+        assert abs(actual_cdr2_len - expected_cdr2_len) <= 3, (
+            f"CDR2 should be ~unchanged: expected {expected_cdr2_len}, got {actual_cdr2_len}"
+        )
+
+    # --- 8b: Codon-length (3-nt) deletion in FWR1 ---
+
+    def test_codon_deletion_fwr1(self):
+        """A 3-nt deletion in FWR1 should shorten FWR1 by 3 nt."""
+        row = _GROUND_TRUTH[_REPR_HEAVY_ID]
+        modified = delete_at_position(row["sequence_input"], 15, 3)
+        result = _run_single(modified, "del3_fwr1")
+        assert result is not None
+
+        _assert_no_gaps_in_v_regions(result)
+
+        expected_fwr1_len = len(row["fwr1"]) - 3
+        actual_fwr1_len = _get_region_len(result, "fwr1")
+        assert abs(actual_fwr1_len - expected_fwr1_len) <= 3, (
+            f"FWR1 should be ~{expected_fwr1_len} nt, got {actual_fwr1_len}"
+        )
+
+    # --- 8c: Non-codon-length (2-nt) deletion in FWR2 ---
+
+    def test_noncodon_deletion_fwr2(self):
+        """A 2-nt deletion in FWR2 causes a frameshift.
+
+        Pipeline may fail; key requirement is no crash.
+        """
+        row = _GROUND_TRUTH[_REPR_HEAVY_ID]
+        boundaries = get_region_boundaries(row)
+        fwr2_start = boundaries["fwr2"][0]
+        modified = delete_at_position(row["sequence_input"], fwr2_start + 10, 2)
+        result = _run_single(modified, "del2_fwr2")
+
+        if result is None:
+            return
+
+        _assert_no_gaps_in_v_regions(result)
+        # Productivity fields should be populated
+        assert result["productive"] is not None
+
+    # --- 8d: Large codon-length deletion in FWR3 ---
+
+    @pytest.mark.parametrize("del_size", [
+        3,
+        pytest.param(6, marks=pytest.mark.stress),
+        pytest.param(9, marks=pytest.mark.stress),
+    ])
+    def test_large_deletion_fwr3(self, del_size):
+        """Large codon-length deletions in FWR3."""
+        row = _GROUND_TRUTH[_REPR_HEAVY_ID]
+        boundaries = get_region_boundaries(row)
+        fwr3_start = boundaries["fwr3"][0]
+        modified = delete_at_position(row["sequence_input"], fwr3_start + 30, del_size)
+        result = _run_single(modified, f"del{del_size}_fwr3")
+        assert result is not None
+
+        _assert_no_gaps_in_v_regions(result)
+
+        expected_fwr3_len = len(row["fwr3"]) - del_size
+        actual_fwr3_len = _get_region_len(result, "fwr3")
+        assert abs(actual_fwr3_len - expected_fwr3_len) <= 3, (
+            f"FWR3 should be ~{expected_fwr3_len} nt, got {actual_fwr3_len}"
+        )
+
+
+# ===========================================================================
+#              Edge Case 9: CDR3 Length Extremes
+# ===========================================================================
+
+
+class TestCDR3LengthExtremes:
+    """Integration tests for CDR3 length extremes.
+
+    See EDGE_CASES.md Edge Case 9 (9a-9c).
+    """
+
+    pytestmark = pytest.mark.core
+
+    # --- 9a: Very long CDR3 (extended by 60 nt) ---
+
+    def test_very_long_cdr3(self):
+        """Inserting 60 nt (20 codons) into CDR3 should produce a long CDR3."""
+        row = _GROUND_TRUTH[_REPR_HEAVY_ID]
+        # 60 nt of in-frame sequence (repeating AGC codon)
+        extension = "AGC" * 20
+        modified = extend_cdr3(row, extension)
+        result = _run_single(modified, "long_cdr3")
+        assert result is not None
+
+        orig_cdr3_len = len(row["cdr3"])
+        actual_cdr3_len = _get_region_len(result, "cdr3")
+        assert actual_cdr3_len > orig_cdr3_len, (
+            f"CDR3 should be longer: expected >{orig_cdr3_len}, got {actual_cdr3_len}"
+        )
+
+        # V-gene regions should be approximately unchanged
+        for region in ["fwr1", "cdr1", "fwr2", "cdr2", "fwr3"]:
+            expected_len = len(row[region])
+            actual_len = _get_region_len(result, region)
+            assert abs(actual_len - expected_len) <= 3, (
+                f"{region} should be ~unchanged: expected {expected_len}, got {actual_len}"
+            )
+
+    # --- 9b: Very short CDR3 (shortened to 6 nt) ---
+
+    def test_very_short_cdr3(self):
+        """Shortening CDR3 to 6 nt (2 codons)."""
+        row = _GROUND_TRUTH[_REPR_HEAVY_ID]
+        orig_cdr3_len = len(row["cdr3"])
+        bases_to_remove = orig_cdr3_len - 6
+        modified = shorten_cdr3(row, bases_to_remove)
+        result = _run_single(modified, "short_cdr3")
+
+        if result is None:
+            return
+
+        actual_cdr3_len = _get_region_len(result, "cdr3")
+        assert actual_cdr3_len < orig_cdr3_len, (
+            f"CDR3 should be shorter: expected <{orig_cdr3_len}, got {actual_cdr3_len}"
+        )
+
+    # --- 9c: Minimal CDR3 (3 nt only) ---
+
+    def test_minimal_cdr3(self):
+        """Shortening CDR3 to 3 nt (1 codon)."""
+        row = _GROUND_TRUTH[_REPR_HEAVY_ID]
+        orig_cdr3_len = len(row["cdr3"])
+        bases_to_remove = orig_cdr3_len - 3
+        modified = shorten_cdr3(row, bases_to_remove)
+        result = _run_single(modified, "minimal_cdr3")
+
+        if result is None:
+            return
+
+        # Pipeline should handle gracefully — CDR3/junction present
+        assert result["productive"] is not None
+
+
+# ===========================================================================
+#         Edge Case 10: Multiple Indels Across Different Regions
+# ===========================================================================
+
+
+class TestMultipleIndels:
+    """Integration tests for multiple indels across different regions.
+
+    See EDGE_CASES.md Edge Case 10 (10a-10c).
+    """
+
+    pytestmark = pytest.mark.core
+
+    # --- 10a: 3-nt deletion in FWR1 + 3-nt insertion in FWR3 ---
+
+    def test_del_fwr1_ins_fwr3(self):
+        """Two codon-length indels in different FWR regions (net 0)."""
+        row = _GROUND_TRUTH[_REPR_HEAVY_ID]
+        boundaries = get_region_boundaries(row)
+        seq = row["sequence_input"]
+
+        # Delete 3 nt at FWR1 +15
+        seq = delete_at_position(seq, 15, 3)
+
+        # Insert AGC at FWR3 +20 (adjusted for prior -3 deletion)
+        fwr3_start = boundaries["fwr3"][0] - 3
+        seq = insert_at_position(seq, fwr3_start + 20, "AGC")
+
+        result = _run_single(seq, "multi_del_fwr1_ins_fwr3")
+        assert result is not None
+
+        _assert_no_gaps_in_v_regions(result)
+
+        # FWR1 should be 3 shorter
+        expected_fwr1_len = len(row["fwr1"]) - 3
+        actual_fwr1_len = _get_region_len(result, "fwr1")
+        assert abs(actual_fwr1_len - expected_fwr1_len) <= 3, (
+            f"FWR1 should be ~{expected_fwr1_len}, got {actual_fwr1_len}"
+        )
+
+        # FWR3 should be 3 longer
+        expected_fwr3_len = len(row["fwr3"]) + 3
+        actual_fwr3_len = _get_region_len(result, "fwr3")
+        assert abs(actual_fwr3_len - expected_fwr3_len) <= 3, (
+            f"FWR3 should be ~{expected_fwr3_len}, got {actual_fwr3_len}"
+        )
+
+        # CDR1, CDR2 (between the indels) should be approximately unchanged
+        for region in ["cdr1", "cdr2"]:
+            expected_len = len(row[region])
+            actual_len = _get_region_len(result, region)
+            assert abs(actual_len - expected_len) <= 3, (
+                f"{region} should be ~unchanged: expected {expected_len}, got {actual_len}"
+            )
+
+    # --- 10b: Insertion in CDR1 + Deletion in CDR2 + Insertion in FWR3 ---
+
+    def test_triple_indel(self):
+        """Three separate codon-length indels."""
+        row = _GROUND_TRUTH[_REPR_HEAVY_ID]
+        boundaries = get_region_boundaries(row)
+        seq = row["sequence_input"]
+
+        # Insert 3 nt at middle of CDR1
+        cdr1_start, cdr1_end = boundaries["cdr1"]
+        cdr1_mid = cdr1_start + (cdr1_end - cdr1_start) // 2
+        seq = insert_at_position(seq, cdr1_mid, "AGC")
+
+        # Delete 3 nt at middle of CDR2 (adjusted +3 for prior insertion)
+        cdr2_start, cdr2_end = boundaries["cdr2"]
+        cdr2_mid = cdr2_start + 3 + (cdr2_end - cdr2_start) // 2
+        seq = delete_at_position(seq, cdr2_mid, 3)
+
+        # Insert 3 nt at FWR3 +20 (net adjustment: +3-3=0)
+        fwr3_start = boundaries["fwr3"][0]
+        seq = insert_at_position(seq, fwr3_start + 20, "AGC")
+
+        result = _run_single(seq, "multi_triple_indel")
+        assert result is not None
+
+        _assert_no_gaps_in_v_regions(result)
+
+        # Net effect: CDR1 +3, CDR2 -3, FWR3 +3 → total sequence +3
+        assert len(seq) == len(row["sequence_input"]) + 3
+
+    # --- 10c: Non-codon-length indels summing to codon-length ---
+
+    def test_noncodon_indels_sum_to_codon(self):
+        """1-nt deletion + 2-nt deletion = -3 (in-frame)."""
+        row = _GROUND_TRUTH[_REPR_HEAVY_ID]
+        boundaries = get_region_boundaries(row)
+        seq = row["sequence_input"]
+
+        # Delete 1 nt at FWR2 +10
+        fwr2_start = boundaries["fwr2"][0]
+        seq = delete_at_position(seq, fwr2_start + 10, 1)
+
+        # Delete 2 nt at FWR3 +20 (adjusted -1)
+        fwr3_start = boundaries["fwr3"][0] - 1
+        seq = delete_at_position(seq, fwr3_start + 20, 2)
+
+        result = _run_single(seq, "multi_noncodon_sum_codon")
+        assert result is not None
+
+        _assert_no_gaps_in_v_regions(result)
+        assert len(seq) == len(row["sequence_input"]) - 3
+
+
+# ===========================================================================
+#                     Edge Case 11: Stop Codons
+# ===========================================================================
+
+
+class TestStopCodons:
+    """Integration tests for stop codon introduction.
+
+    See EDGE_CASES.md Edge Case 11 (11a-11c).
+    """
+
+    pytestmark = pytest.mark.core
+
+    # --- 11a: Stop codon in CDR3 ---
+
+    def test_stop_codon_in_cdr3(self):
+        """A stop codon in CDR3 should make the sequence non-productive."""
+        row = _GROUND_TRUTH[_REPR_HEAVY_ID]
+        modified = introduce_stop_codon(row, "cdr3", codon_index=1)
+        result = _run_single(modified, "stop_cdr3")
+        assert result is not None
+
+        assert result["productive"] is False, "Should be non-productive with stop codon"
+        assert result["stop_codon"] is True, "stop_codon should be True"
+        issues = result["productivity_issues"] or ""
+        assert "stop" in issues.lower(), (
+            f"productivity_issues should mention stop codon: {issues}"
+        )
+
+        # V-gene regions should still be extracted and match ground truth
+        for region in ["fwr1", "cdr1", "fwr2", "cdr2", "fwr3"]:
+            expected = _normalize(row[region], region)
+            actual = _normalize(result[region], region)
+            assert abs(len(actual) - len(expected)) <= 3, (
+                f"{region} should be ~unchanged despite stop codon"
+            )
+
+    # --- 11b: Stop codon in FWR3 ---
+
+    def test_stop_codon_in_fwr3(self):
+        """A stop codon in FWR3 should make the sequence non-productive."""
+        row = _GROUND_TRUTH[_REPR_HEAVY_ID]
+        modified = introduce_stop_codon(row, "fwr3", codon_index=5)
+        result = _run_single(modified, "stop_fwr3")
+        assert result is not None
+
+        assert result["productive"] is False
+        assert result["stop_codon"] is True
+        issues = result["productivity_issues"] or ""
+        assert "stop" in issues.lower()
+
+        # Upstream regions should be unchanged
+        for region in ["fwr1", "cdr1", "fwr2", "cdr2"]:
+            expected = _normalize(row[region], region)
+            actual = _normalize(result[region], region)
+            assert abs(len(actual) - len(expected)) <= 3, (
+                f"{region} should be ~unchanged despite stop codon"
+            )
+
+    # --- 11c: Multiple stop codons ---
+
+    def test_multiple_stop_codons(self):
+        """Stop codons in both FWR2 and CDR3."""
+        row = _GROUND_TRUTH[_REPR_HEAVY_ID]
+        # First introduce stop in FWR2
+        modified = introduce_stop_codon(row, "fwr2", codon_index=3)
+        # Now introduce stop in CDR3 of the already-modified sequence
+        # We need to work with the modified sequence directly
+        boundaries = get_region_boundaries(row)
+        cdr3_start = boundaries["cdr3"][0]
+        pos = cdr3_start + 1 * 3  # codon_index=1
+        modified = modified[:pos] + "taa" + modified[pos + 3:]
+
+        result = _run_single(modified, "stop_multi")
+        assert result is not None
+
+        assert result["productive"] is False
+        assert result["stop_codon"] is True
+
+
+# ===========================================================================
+#              Edge Case 12: Region Consistency Checks
+# ===========================================================================
+
+
+class TestRegionConsistency:
+    """Cross-cutting consistency checks for annotation output.
+
+    See EDGE_CASES.md Edge Case 12 (12a-12d).
+    """
+
+    pytestmark = pytest.mark.core
+
+    # --- 12a: Region concatenation matches oriented sequence ---
+
+    @pytest.mark.parametrize("seq_id", _SEQUENCE_IDS)
+    def test_region_concatenation(self, seq_id, annotated_sequences):
+        """Concatenation of all 7 NT regions should match the ground truth input."""
+        result = annotated_sequences.get(seq_id)
+        if result is None:
+            pytest.skip(f"Sequence {seq_id} was not annotated")
+
+        regions = [_normalize(result[r], r) for r in REGION_NAMES]
+        concatenated = "".join(regions)
+
+        # The concatenated regions should match the sequence (possibly oriented)
+        expected = _normalize(_GROUND_TRUTH[seq_id]["sequence_input"], "fwr1")
+        assert concatenated == expected, (
+            f"Region concatenation mismatch for {seq_id}: "
+            f"len(concat)={len(concatenated)} vs len(expected)={len(expected)}"
+        )
+
+    # --- 12b: AA regions are translations of NT regions ---
+
+    @pytest.mark.parametrize("seq_id", _SEQUENCE_IDS)
+    def test_aa_is_translation_of_nt(self, seq_id, annotated_sequences):
+        """For each region where NT length is divisible by 3, AA == translate(NT)."""
+        result = annotated_sequences.get(seq_id)
+        if result is None:
+            pytest.skip(f"Sequence {seq_id} was not annotated")
+
+        for region in REGION_NAMES:
+            nt = result[region] or ""
+            aa = result[f"{region}_aa"] or ""
+            if nt and len(nt) % 3 == 0:
+                translated = abutils.tl.translate(nt)
+                assert translated == aa, (
+                    f"{region} AA mismatch for {seq_id}: "
+                    f"translate(NT)='{translated[:30]}' vs AA='{aa[:30]}'"
+                )
+
+    # --- 12c: NT region lengths are multiples of 3 for productive sequences ---
+
+    @pytest.mark.parametrize("seq_id", _SEQUENCE_IDS)
+    def test_nt_lengths_mod3_for_productive(self, seq_id, annotated_sequences):
+        """For productive sequences, V-region NT lengths should be multiples of 3.
+
+        FWR4 is excluded because it is extracted from J-gene alignment endpoints
+        (not IMGT position mapping), so its length is not necessarily codon-aligned.
+        """
+        result = annotated_sequences.get(seq_id)
+        if result is None:
+            pytest.skip(f"Sequence {seq_id} was not annotated")
+
+        if not result["productive"]:
+            pytest.skip(f"Sequence {seq_id} is not productive")
+
+        # V-regions use IMGT-based extraction; FWR4 uses J-alignment endpoints
+        v_regions = ["fwr1", "cdr1", "fwr2", "cdr2", "fwr3"]
+        for region in v_regions:
+            nt = result[region] or ""
+            if nt:
+                assert len(nt) % 3 == 0, (
+                    f"{region} NT length {len(nt)} is not a multiple of 3 "
+                    f"for productive sequence {seq_id}"
+                )
+
+    # --- 12d: Heavy vs light chain region patterns ---
+
+    @pytest.mark.parametrize("seq_id", _SEQUENCE_IDS)
+    def test_heavy_light_chain_patterns(self, seq_id, annotated_sequences):
+        """Heavy chains should have IGH locus; light chains IGK/IGL."""
+        result = annotated_sequences.get(seq_id)
+        if result is None:
+            pytest.skip(f"Sequence {seq_id} was not annotated")
+
+        locus = result["locus"]
+        if seq_id.endswith("_heavy"):
+            assert locus == "IGH", (
+                f"Heavy chain {seq_id} should have locus IGH, got {locus}"
+            )
+        else:
+            assert locus in ("IGK", "IGL"), (
+                f"Light chain {seq_id} should have locus IGK/IGL, got {locus}"
+            )
+            # Light chains should not have D-gene calls
+            d_call = result["d_call"] or ""
+            assert d_call == "", (
+                f"Light chain {seq_id} should have no D-gene call, got {d_call}"
+            )
+
+
+# ===========================================================================
+#       Edge Case 13: Reverse-Complement / Orientation Robustness
+# ===========================================================================
+
+
+class TestOrientationRobustness:
+    """Integration tests for reverse-complement orientation handling.
+
+    See EDGE_CASES.md Edge Case 13 (13a-13b).
+    """
+
+    pytestmark = pytest.mark.core
+
+    # --- 13a: Reverse-complemented heavy chain ---
+
+    def test_reverse_complement_heavy(self, annotated_sequences):
+        """A reverse-complemented heavy chain should annotate equivalently."""
+        row = _GROUND_TRUTH[_REPR_HEAVY_ID]
+        rc_seq = abutils.tl.reverse_complement(row["sequence_input"])
+        result = _run_single(rc_seq, f"rc_{_REPR_HEAVY_ID}")
+        assert result is not None, "Pipeline should handle reverse-complemented input"
+
+        # Locus should still be IGH
+        assert result["locus"] == "IGH", (
+            f"Locus should be IGH for RC heavy chain, got {result['locus']}"
+        )
+
+        # CDR3 should be identifiable and non-empty
+        assert _get_region_len(result, "cdr3") > 0, "CDR3 should not be empty"
+
+        # Compare to forward annotation
+        fwd = annotated_sequences.get(_REPR_HEAVY_ID)
+        if fwd is not None:
+            # V-gene call should match
+            assert result["v_gene"] == fwd["v_gene"], (
+                f"V-gene should match forward: {fwd['v_gene']} vs {result['v_gene']}"
+            )
+
+    # --- 13b: Reverse-complemented light chain ---
+
+    def test_reverse_complement_light(self, annotated_sequences):
+        """A reverse-complemented light chain should annotate equivalently."""
+        row = _GROUND_TRUTH[_REPR_LIGHT_ID]
+        rc_seq = abutils.tl.reverse_complement(row["sequence_input"])
+        result = _run_single(rc_seq, f"rc_{_REPR_LIGHT_ID}")
+        assert result is not None, "Pipeline should handle reverse-complemented input"
+
+        # Locus should be IGK or IGL
+        assert result["locus"] in ("IGK", "IGL"), (
+            f"Locus should be IGK/IGL for RC light chain, got {result['locus']}"
+        )
+
+        # CDR3 should be identifiable
+        assert _get_region_len(result, "cdr3") > 0, "CDR3 should not be empty"
+
+        # Compare to forward annotation
+        fwd = annotated_sequences.get(_REPR_LIGHT_ID)
+        if fwd is not None:
+            assert result["v_gene"] == fwd["v_gene"]
+
+
+# ===========================================================================
+#        Edge Case 14: Ambiguous Nucleotides Near Critical Boundaries
+# ===========================================================================
+
+
+class TestAmbiguousNucleotides:
+    """Integration tests for ambiguous nucleotide (N) handling.
+
+    See EDGE_CASES.md Edge Case 14 (14a-14b).
+    """
+
+    pytestmark = pytest.mark.core
+
+    # --- 14a: Single N near CDR1/FWR2 boundary ---
+
+    def test_single_n_near_cdr1_fwr2(self):
+        """A single N near CDR1/FWR2 boundary should not crash."""
+        row = _GROUND_TRUTH[_REPR_HEAVY_ID]
+        boundaries = get_region_boundaries(row)
+        boundary_pos = boundaries["fwr2"][0]
+        # Replace one base 2 nt before the boundary with N
+        seq = mutate_position(row["sequence_input"], boundary_pos - 2, "N")
+        result = _run_single(seq, "n_cdr1_fwr2")
+
+        if result is None:
+            return
+
+        # Regions should still be extracted
+        _assert_no_gaps_in_v_regions(result)
+
+        # CDR1 and FWR2 lengths should be approximately stable
+        for region in ["cdr1", "fwr2"]:
+            expected_len = len(row[region])
+            actual_len = _get_region_len(result, region)
+            assert abs(actual_len - expected_len) <= 3, (
+                f"{region} should be ~unchanged: expected {expected_len}, got {actual_len}"
+            )
+
+    # --- 14b: Multiple N bases near FWR3/CDR3 boundary ---
+
+    def test_multiple_n_near_fwr3_cdr3(self):
+        """Multiple N bases near FWR3/CDR3 boundary should not crash."""
+        row = _GROUND_TRUTH[_REPR_HEAVY_ID]
+        boundaries = get_region_boundaries(row)
+        boundary_pos = boundaries["cdr3"][0]
+        # Introduce 4 N bases: 2 before and 2 after the boundary
+        seq = row["sequence_input"]
+        for offset in [-2, -1, 0, 1]:
+            pos = boundary_pos + offset
+            if 0 <= pos < len(seq):
+                seq = mutate_position(seq, pos, "N")
+        result = _run_single(seq, "multi_n_fwr3_cdr3")
+
+        if result is None:
+            return
+
+        # CDR3 should still be identifiable
+        assert _get_region_len(result, "cdr3") > 0, "CDR3 should not be empty"
+
+        # Productivity fields should be populated
+        assert result["productive"] is not None
+
+
+# ===========================================================================
+#        Edge Case 15: Degenerate Alignment Outputs
+# ===========================================================================
+
+
+class TestDegenerateAlignments:
+    """Tests for degenerate alignment outputs / missing coordinates.
+
+    See EDGE_CASES.md Edge Case 15 (15a-15b).
+    """
+
+    pytestmark = pytest.mark.core
+
+    # Reuse germline data from the unit-test class
+    _FWR1_G = TestGetRegionSequenceEdgeCases._FWR1_G
+    _UNGAPPED = TestGetRegionSequenceEdgeCases._UNGAPPED
+    _GAPPED = TestGetRegionSequenceEdgeCases._GAPPED
+
+    # --- 15a: Unit test with unresolved coordinate mapping ---
+
+    def test_unresolved_coordinate_mapping(self):
+        """get_region_sequence should return gracefully when coordinates
+        cannot be resolved (e.g., very short query that doesn't cover the region).
+        """
+        ab = Antibody(sequence_id="test_degenerate")
+        # A very short query that only covers a tiny portion
+        short_query = self._UNGAPPED[:20]
+        aln = _make_alignment(short_query, self._UNGAPPED)
+
+        # Try to extract CDR2 (far from the query coverage)
+        result = get_region_sequence(
+            region="cdr2",
+            aln=aln,
+            gapped_germline=self._GAPPED,
+            germline_start=1,
+            ab=ab,
+        )
+        start, end, seq = _normalize_region_output(result)
+
+        # Should return gracefully — empty sequence is expected
+        assert seq == "" or seq is not None, (
+            "Degenerate alignment should return empty or valid sequence"
+        )
+
+    # --- 15b: Integration-level severely degraded input ---
+
+    def test_severely_degraded_input(self):
+        """Deep truncation + clustered mutations should not crash."""
+        row = _GROUND_TRUTH[_REPR_HEAVY_ID]
+        # Truncate to FWR3 + add heavy mutations
+        modified = truncate_to_region(row, "fwr3")
+        # Apply 8 mutations to the first 20 nt of the remaining sequence
+        seq = modified
+        for pos in range(min(16, len(seq))):
+            if pos % 2 == 0:  # every other position
+                seq = mutate_position(seq, pos)
+        result = _run_single(seq, "degraded_input")
+
+        # Key assertion: no crash. Result may be None if annotation failed.
+        if result is None:
+            return
+
+        # If annotated, region fields should exist
+        for region in REGION_NAMES:
+            # Just verify the field exists and is str or None
+            val = result[region]
+            assert val is None or isinstance(val, str)
+
+
+# ===========================================================================
+#            Edge Case 16: identify_cdr3_regions() Fallback Paths
+# ===========================================================================
+
+
+class TestCDR3FallbackPaths:
+    """Unit tests for identify_cdr3_regions() fallback logic.
+
+    See EDGE_CASES.md Edge Case 16 (16a-16b).
+    """
+
+    pytestmark = pytest.mark.core
+
+    # --- 16a: Missing J positional anchors (fallback string matching) ---
+
+    def test_missing_j_positional_anchors(self):
+        """When j_sequence_start/end are None, fallback string matching is used."""
+        ab = Antibody(sequence_id="test_j_fallback")
+        # Simulate a real-ish annotated antibody
+        ab.sequence = "ATGCGTGTATTACTGTGCGAGAGTGGGCAACTGGGGCCAGGGAACCCTGGTCACC"
+        ab.v_sequence = "ATGCGTGTATTACTGTGCG"
+        ab.v_sequence_start = 0
+        ab.v_sequence_end = 19
+        ab.fwr3 = "ATGCGTGTATTACTGTGCG"
+        ab.cdr3 = "AGAGTGGGCAACTGG"
+        ab.junction_start = 16  # position of conserved C codon
+        ab.j_sequence = "GGCCAGGGAACCCTGGTCACC"
+        ab.j_sequence_start = None  # force fallback
+        ab.j_sequence_end = None
+        ab.d_call = None
+
+        ab = identify_cdr3_regions(ab)
+
+        # CDR3 V should be populated
+        assert ab.cdr3_v is not None
+        # CDR3 J should be populated via fallback
+        assert ab.cdr3_j is not None
+        # Partitions should be non-overlapping and bounded
+        total = len(ab.cdr3_v) + len(ab.cdr3_n1) + len(ab.cdr3_j)
+        assert total <= len(ab.cdr3), (
+            f"CDR3 partitions ({total}) should not exceed CDR3 length ({len(ab.cdr3)})"
+        )
+
+    # --- 16b: Missing D positional anchors ---
+
+    def test_missing_d_positional_anchors(self):
+        """When D anchors are missing, fallback D search is used."""
+        ab = Antibody(sequence_id="test_d_fallback")
+        ab.sequence = "ATGCGTGTATTACTGTGCGAGAGTGGGCAACTGGGGCCAGGGAACCCTGGTCACC"
+        ab.v_sequence = "ATGCGTGTATTACTGTGCG"
+        ab.v_sequence_start = 0
+        ab.v_sequence_end = 19
+        ab.fwr3 = "ATGCGTGTATTACTGTGCG"
+        ab.cdr3 = "AGAGTGGGCAACTGG"
+        ab.junction_start = 16
+        ab.j_sequence = "GGCCAGGGAACCCTGGTCACC"
+        ab.j_sequence_start = 34
+        ab.j_sequence_end = 55
+        ab.d_call = "IGHD3-10*01"
+        ab.d_sequence = "GTGGGCAA"
+        ab.d_sequence_start = None  # force fallback
+        ab.d_sequence_end = None
+
+        ab = identify_cdr3_regions(ab)
+
+        # CDR3 D should be populated
+        assert ab.cdr3_d is not None
+        # All partitions should be non-overlapping
+        assert ab.cdr3_v is not None
+        assert ab.cdr3_n1 is not None
+        assert ab.cdr3_n2 is not None
+        assert ab.cdr3_j is not None
+
+        # Total of partitions should not exceed CDR3 length
+        total = (
+            len(ab.cdr3_v)
+            + len(ab.cdr3_n1)
+            + len(ab.cdr3_d)
+            + len(ab.cdr3_n2)
+            + len(ab.cdr3_j)
+        )
+        assert total <= len(ab.cdr3), (
+            f"CDR3 partitions ({total}) should not exceed CDR3 length ({len(ab.cdr3)})"
         )
