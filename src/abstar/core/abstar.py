@@ -20,6 +20,8 @@ from ..annotation.annotator import annotate
 from ..assigners.mmseqs import MMseqs
 from ..preprocess.merging import merge_fastqs
 
+__all__ = ["run"]
+
 #  TODO: inputs/returns
 #  --------------------
 #

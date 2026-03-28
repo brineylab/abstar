@@ -5,6 +5,8 @@
 
 from .antibody import Antibody
 
+__all__ = ["assess_productivity"]
+
 
 def assess_productivity(ab: Antibody) -> Antibody:
     """

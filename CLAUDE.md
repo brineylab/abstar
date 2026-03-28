@@ -76,9 +76,9 @@ df = abstar.run("sequences.fasta", as_dataframe=True)
 **`annotation/antibody.py`** - `Antibody` dataclass stores all annotation fields. Includes `LoggingMixin` for debug logging.
 
 ### Module Namespaces
-- `abstar.gl` - Germline database functions
-- `abstar.pp` - Preprocessing (read merging)
-- `abstar.tl` - Tools (UMI parsing, germline database building)
+- `abstar.gl` - Germline database access and management (query + build)
+- `abstar.pp` - Preprocessing (paired-end read merging)
+- `abstar.tl` - Tools (UMI parsing)
 
 ### Data Flow
 ```
@@ -92,7 +92,7 @@ Input → MMseqs Assignment → Parquet (temp) → Parallel Annotation → AIRR 
 - **MMseqs2**: External tool for fast sequence search (must be installed separately)
 
 ### Germline Databases
-Built-in databases: `human`, `mouse`, `macaque`, `humouse` (mixed species). Custom databases can be built via `abstar.tl.build_germline_database()`.
+Built-in databases: `human`, `mouse`, `macaque`, `humouse` (mixed species). Custom databases can be built via `abstar.gl.build_germline_database()`.
 
 ### Output Schema
 AIRR-compliant output defined in `annotation/schema.py`. Key fields include sequence_id, v/d/j/c_call, junction_aa, cdr3, mutations, productivity status.

@@ -5,6 +5,8 @@
 from .antibody import Antibody
 from .positions import get_gapped_position_from_raw
 
+__all__ = ["annotate_mutations", "annotate_v_mutations", "annotate_c_mutations"]
+
 
 def annotate_mutations(
     aligned_sequence: str,

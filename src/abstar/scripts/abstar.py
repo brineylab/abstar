@@ -9,7 +9,7 @@ from abutils import Sequence
 
 from ..core.abstar import run as _run
 
-from ..core.germline import build_germline_database as _build_germline_database
+from ..core.germline_builder import build_germline_database as _build_germline_database
 from ..utils.callbacks import HiddenClickOption, parse_dict_from_string
 
 

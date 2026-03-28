@@ -5,6 +5,8 @@
 
 from .antibody import Antibody
 
+__all__ = ["generate_cdr_mask", "generate_gene_segment_mask", "generate_nongermline_mask"]
+
 
 def generate_cdr_mask(
     ab: Antibody,

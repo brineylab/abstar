@@ -2,23 +2,37 @@
 # Distributed under the terms of the MIT License.
 # SPDX-License-Identifier: MIT
 
-from .annotation.germline import *
-from .core.germline import *
+"""Germline database access and management.
 
+Namespace module following scanpy conventions. Provides functions for
+querying germline gene databases and building custom germline databases.
 
-#  TODO:
-#
-#  should think about the pros/cons of building a single, "combined" germline database per species that
-#  contains both BCR and TCR germline segments
-#
-#  the most obvious con is the fact that OGRDB only has BCR data, so combined databases would need to be
-#  mixture of IMGT and OGRDB datasets -- maybe this just needs some more time and OGRDB will eventually get TCR data?
-#
-#  functions:
-#    - build_database() -- has `schema` kwarg, which can be either "ogrdb" or "imgt"
-#    - build_database_ogrdb()
-#       - should use their JSON files by default, but constant regions may need to be FASTA (and come from IMGT)
-#    - build_database_imgt()
-#
-#    - show_manifest()
-#       - prints the manifest for a given germline database
+Usage::
+
+    import abstar
+
+    # get the path to a built-in germline database
+    db_path = abstar.gl.get_germline_database_path("human")
+
+    # retrieve a single germline gene sequence
+    germline = abstar.gl.get_germline("IGHV1-2*02", "human")
+
+    # build a custom germline database
+    abstar.gl.build_germline_database("custom_db", fasta_files=["seqs.fasta"])
+"""
+
+from .annotation.germline_alignment import *
+from .core.germline_builder import *
+
+__all__ = [
+    # from annotation.germline_alignment
+    "get_germline_database_path",
+    "get_germline",
+    "realign_germline",
+    "reassign_dgene",
+    "process_vgene_alignment",
+    "process_jgene_alignment",
+    "process_dgene_alignment",
+    # from core.germline_builder
+    "build_germline_database",
+]

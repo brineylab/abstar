@@ -5,7 +5,7 @@
 import pytest
 from abutils import Sequence
 
-from abstar.annotation.germline import get_germline, get_germline_database_path
+from abstar.annotation.germline_alignment import get_germline, get_germline_database_path
 
 # ----------------------------
 #      DATABASE PATHS

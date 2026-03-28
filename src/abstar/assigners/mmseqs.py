@@ -13,6 +13,8 @@ import polars as pl
 
 from .assigner import AssignerBase
 
+__all__ = ["MMseqs"]
+
 
 ASSIGNMENT_SCHEMA = {
     "sequence_id": pl.String,

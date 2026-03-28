@@ -6,6 +6,16 @@ import abutils
 from abutils.core.sequence import translate
 
 from .antibody import Antibody
+
+__all__ = [
+    "get_region_sequence",
+    "identify_cdr3_regions",
+    "IMGT_REGION_START_POSITIONS_AA",
+    "IMGT_REGION_START_POSITIONS_NT",
+    "IMGT_REGION_END_POSITIONS_AA",
+    "IMGT_REGION_END_POSITIONS_NT",
+]
+
 from .positions import (
     get_aligned_position_from_ungapped,
     get_gapped_position_from_raw,

@@ -4,6 +4,8 @@
 
 import click
 
+__all__ = ["parse_dict_from_string", "HiddenClickOption"]
+
 
 def parse_dict_from_string(
     ctx: click.Context, param: click.Parameter, value: str | None

@@ -8,7 +8,9 @@ import os
 
 import abutils
 
-from ..annotation.germline import get_germline_database_path
+from ..annotation.germline_alignment import get_germline_database_path
+
+__all__ = ["AssignerBase"]
 
 
 class AssignerBase:

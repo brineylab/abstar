@@ -8,6 +8,8 @@ from typing import Iterable
 
 from abutils.tools.log import LoggingMixin
 
+__all__ = ["Antibody"]
+
 
 @dataclass
 class Antibody(LoggingMixin):

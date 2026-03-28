@@ -10,8 +10,10 @@ import abutils
 import polars as pl
 from abutils.core.sequence import reverse_complement, translate
 
+__all__ = ["annotate", "annotate_single_sequence"]
+
 from .antibody import Antibody
-from .germline import (
+from .germline_alignment import (
     get_germline,
     process_cgene_alignment,
     process_dgene_alignment,
