@@ -11,10 +11,8 @@ import os
 import polars as pl
 import pytest
 
-from abstar.annotation.annotator import annotate, annotate_single_sequence
-from abstar.annotation.antibody import Antibody
+from abstar.annotation.annotator import annotate
 from abstar.core.abstar import run
-
 
 # =============================================
 #              FIXTURES
@@ -25,22 +23,24 @@ from abstar.core.abstar import run
 def mock_assignment_parquet(tmp_path):
     """Create a mock assignment parquet file with V/J assignments."""
     # Use a real sequence that will successfully annotate
-    df = pl.DataFrame({
-        "sequence_id": ["10E8_test"],
-        "sequence_input": [
-            "GAGGTGCAGCTGGTGGAGTCTGGGGGAGGCTTGGTGAAGCCTGGAGGATCCCTTAGACTCTCATGTTCAGCCTCTGGTTTCGACTTCGATAACGCCTGGATGACTTGGGTCCGCCAGCCTCCAGGGAAGGGCCTCGAATGGGTTGGTCGTATTACGGGTCCAGGTGAAGGTTGGTCAGTGGACTATGCTGCACCCGTGGAAGGCAGATTTACCATCTCGAGACTCAATTCAATAAATTTCTTATATTTGGAGATGAACAATTTAAGAATGGAAGACTCAGGCCTTTACTTCTGTGCCCGCACGGGAAAATATTATGATTTTTGGAGTGGCTATCCGCCGGGAGAAGAATACTTCCAAGACTGGGGCCGGGGCACCCTGGTCACCGTCTCCTCA"
-        ],
-        "quality": [""],
-        "rev_comp": [False],
-        "v_call": ["IGHV3-23*01"],
-        "v_support": [1e-50],
-        "d_call": ["IGHD3-10*01"],
-        "d_support": [1e-5],
-        "j_call": ["IGHJ4*02"],
-        "j_support": [1e-20],
-        "c_call": [None],
-        "c_support": [None],
-    })
+    df = pl.DataFrame(
+        {
+            "sequence_id": ["10E8_test"],
+            "sequence_input": [
+                "GAGGTGCAGCTGGTGGAGTCTGGGGGAGGCTTGGTGAAGCCTGGAGGATCCCTTAGACTCTCATGTTCAGCCTCTGGTTTCGACTTCGATAACGCCTGGATGACTTGGGTCCGCCAGCCTCCAGGGAAGGGCCTCGAATGGGTTGGTCGTATTACGGGTCCAGGTGAAGGTTGGTCAGTGGACTATGCTGCACCCGTGGAAGGCAGATTTACCATCTCGAGACTCAATTCAATAAATTTCTTATATTTGGAGATGAACAATTTAAGAATGGAAGACTCAGGCCTTTACTTCTGTGCCCGCACGGGAAAATATTATGATTTTTGGAGTGGCTATCCGCCGGGAGAAGAATACTTCCAAGACTGGGGCCGGGGCACCCTGGTCACCGTCTCCTCA"
+            ],
+            "quality": [""],
+            "rev_comp": [False],
+            "v_call": ["IGHV3-23*01"],
+            "v_support": [1e-50],
+            "d_call": ["IGHD3-10*01"],
+            "d_support": [1e-5],
+            "j_call": ["IGHJ4*02"],
+            "j_support": [1e-20],
+            "c_call": [None],
+            "c_support": [None],
+        }
+    )
 
     parquet_path = str(tmp_path / "assignment.parquet")
     df.write_parquet(parquet_path)
@@ -50,22 +50,24 @@ def mock_assignment_parquet(tmp_path):
 @pytest.fixture
 def mock_light_chain_parquet(tmp_path):
     """Create a mock assignment parquet file for light chain."""
-    df = pl.DataFrame({
-        "sequence_id": ["lc_test"],
-        "sequence_input": [
-            "GACATCCAGATGACCCAGTCTCCATCCTCACTGTCTGCATCTGTAGGAGACAGAGTCACCATCACTTGTCGGGCGAGTCAGGGTATTAGCAGCTGGTTAGCCTGGTATCAGCAGAAACCAGGGAAAGCCCCTAAGCTCCTGATCTATGCTGCATCCAGTTTGCAAAGTGGGGTCCCATCAAGGTTCAGCGGCAGTGGATCTGGGACAGATTTCACTCTCACCATCAGCAGCCTGCAGCCTGAAGATTTTGCAACTTACTATTGTCAACAGGCTAACAGTTTCCCGCTCACTTTCGGCGGAGGGACCAAGGTGGAGATCAAACGA"
-        ],
-        "quality": [""],
-        "rev_comp": [False],
-        "v_call": ["IGKV1-39*01"],
-        "v_support": [1e-40],
-        "d_call": [None],
-        "d_support": [None],
-        "j_call": ["IGKJ1*01"],
-        "j_support": [1e-15],
-        "c_call": [None],
-        "c_support": [None],
-    })
+    df = pl.DataFrame(
+        {
+            "sequence_id": ["lc_test"],
+            "sequence_input": [
+                "GACATCCAGATGACCCAGTCTCCATCCTCACTGTCTGCATCTGTAGGAGACAGAGTCACCATCACTTGTCGGGCGAGTCAGGGTATTAGCAGCTGGTTAGCCTGGTATCAGCAGAAACCAGGGAAAGCCCCTAAGCTCCTGATCTATGCTGCATCCAGTTTGCAAAGTGGGGTCCCATCAAGGTTCAGCGGCAGTGGATCTGGGACAGATTTCACTCTCACCATCAGCAGCCTGCAGCCTGAAGATTTTGCAACTTACTATTGTCAACAGGCTAACAGTTTCCCGCTCACTTTCGGCGGAGGGACCAAGGTGGAGATCAAACGA"
+            ],
+            "quality": [""],
+            "rev_comp": [False],
+            "v_call": ["IGKV1-39*01"],
+            "v_support": [1e-40],
+            "d_call": [None],
+            "d_support": [None],
+            "j_call": ["IGKJ1*01"],
+            "j_support": [1e-15],
+            "c_call": [None],
+            "c_support": [None],
+        }
+    )
 
     parquet_path = str(tmp_path / "lc_assignment.parquet")
     df.write_parquet(parquet_path)
@@ -187,23 +189,28 @@ def test_annotate_light_chain(mock_light_chain_parquet, tmp_path):
 
 
 def test_annotate_produces_v_gene(annotated_heavy_chain_result):
-    """Test full annotation of heavy chain sequence produces V gene."""
+    """Test 10E8 annotation produces correct V gene."""
     result = annotated_heavy_chain_result
 
-    assert result["v_gene"] is not None
-    assert "IGHV" in result["v_gene"]
+    assert result["v_gene"] == "IGHV3-15"
 
 
 def test_annotate_produces_j_gene(annotated_heavy_chain_result):
-    """Test annotation produces J gene."""
+    """Test 10E8 annotation produces correct J gene."""
     result = annotated_heavy_chain_result
 
-    assert result["j_gene"] is not None
-    assert "IGHJ" in result["j_gene"]
+    assert result["j_gene"] == "IGHJ1"
+
+
+def test_annotate_produces_d_gene(annotated_heavy_chain_result):
+    """Test 10E8 annotation produces correct D gene."""
+    result = annotated_heavy_chain_result
+
+    assert result["d_gene"] == "IGHD3-3"
 
 
 def test_annotate_produces_locus(annotated_heavy_chain_result):
-    """Test annotation produces locus."""
+    """Test annotation produces correct locus."""
     result = annotated_heavy_chain_result
 
     assert result["locus"] == "IGH"
@@ -267,8 +274,7 @@ def test_cdr3_extraction(annotated_heavy_chain_result):
     """Test CDR3 is correctly extracted from junction."""
     result = annotated_heavy_chain_result
 
-    assert result["cdr3"] is not None
-    assert result["cdr3_aa"] is not None
+    assert result["cdr3_aa"] == "ARTGKYYDFWSGYPPGEEYFQD"
 
     # CDR3 is junction without first and last codons
     junction = result["junction"]
@@ -277,21 +283,18 @@ def test_cdr3_extraction(annotated_heavy_chain_result):
 
 
 def test_cdr3_length_calculation(annotated_heavy_chain_result):
-    """Test CDR3 length is AA length."""
+    """Test CDR3 length matches AA sequence length."""
     result = annotated_heavy_chain_result
 
-    cdr3_aa = result["cdr3_aa"]
-    cdr3_length = result["cdr3_length"]
-
-    assert cdr3_length == len(cdr3_aa)
+    assert result["cdr3_length"] == 22
+    assert result["cdr3_length"] == len(result["cdr3_aa"])
 
 
 def test_junction_aa_present(annotated_heavy_chain_result):
-    """Test junction amino acid sequence is present."""
+    """Test junction amino acid sequence."""
     result = annotated_heavy_chain_result
 
-    assert result["junction_aa"] is not None
-    assert len(result["junction_aa"]) > 0
+    assert result["junction_aa"] == "CARTGKYYDFWSGYPPGEEYFQDW"
 
 
 # =============================================
@@ -300,29 +303,32 @@ def test_junction_aa_present(annotated_heavy_chain_result):
 
 
 def test_all_v_regions_populated(annotated_heavy_chain_result):
-    """Test FWR1-3 and CDR1-2 regions are populated."""
+    """Test 10E8 FWR1-3 and CDR1-2 amino acid regions."""
     result = annotated_heavy_chain_result
 
-    v_regions = ["fwr1", "cdr1", "fwr2", "cdr2", "fwr3"]
-    for region in v_regions:
-        assert result[region] is not None, f"V region {region} should not be None"
-        assert result[f"{region}_aa"] is not None, f"V region {region}_aa should not be None"
+    assert result["fwr1_aa"] == "EVQLVESGGGLVKPGGSLRLSCSAS"
+    assert result["cdr1_aa"] == "GFDFDNAW"
+    assert result["fwr2_aa"] == "MTWVRQPPGKGLEWVGR"
+    assert result["cdr2_aa"] == "ITGPGEGWSV"
+    # FWR3 contains somatic mutations so just check it's populated
+    assert result["fwr3_aa"] is not None
+    assert len(result["fwr3_aa"]) > 0
 
 
 def test_cdr3_region_populated(annotated_heavy_chain_result):
-    """Test CDR3 region is populated."""
+    """Test 10E8 CDR3 region values."""
     result = annotated_heavy_chain_result
 
+    assert result["cdr3_aa"] == "ARTGKYYDFWSGYPPGEEYFQD"
     assert result["cdr3"] is not None
-    assert result["cdr3_aa"] is not None
+    assert len(result["cdr3"]) == 66  # 22 AA * 3
 
 
 def test_fwr4_region_populated(annotated_heavy_chain_result):
-    """Test FWR4 region is populated."""
+    """Test 10E8 FWR4 region."""
     result = annotated_heavy_chain_result
 
-    assert result["fwr4"] is not None
-    assert result["fwr4_aa"] is not None
+    assert result["fwr4_aa"] == "WGRGTLVTVSS"
 
 
 # =============================================
@@ -331,31 +337,20 @@ def test_fwr4_region_populated(annotated_heavy_chain_result):
 
 
 def test_v_mutations_annotated(annotated_heavy_chain_result):
-    """Test V-gene mutations are identified."""
+    """Test 10E8 V-gene mutations are identified."""
     result = annotated_heavy_chain_result
 
-    # Mutation count should exist
-    assert result["v_mutation_count"] is not None
-    assert isinstance(result["v_mutation_count"], int)
-
-    # If there are mutations, the mutation string should be populated
-    if result["v_mutation_count"] > 0:
-        assert result["v_mutations"] is not None
+    assert result["v_mutation_count"] == 65
+    assert result["v_mutations"] is not None
 
 
 def test_v_identity_calculation(annotated_heavy_chain_result):
-    """Test V-gene identity is correctly calculated."""
+    """Test 10E8 V-gene identity is correctly calculated."""
     result = annotated_heavy_chain_result
 
-    v_identity = result["v_identity"]
-    v_identity_aa = result["v_identity_aa"]
-
-    assert v_identity is not None
-    assert v_identity_aa is not None
-
-    # Identity should be between 0 and 1
-    assert 0 <= v_identity <= 1
-    assert 0 <= v_identity_aa <= 1
+    # 10E8 is heavily mutated
+    assert result["v_identity"] == pytest.approx(0.781, abs=0.01)
+    assert 0 < result["v_identity_aa"] < 1
 
 
 # =============================================
@@ -364,32 +359,19 @@ def test_v_identity_calculation(annotated_heavy_chain_result):
 
 
 def test_productive_sequence(annotated_heavy_chain_result):
-    """Test productive sequence is marked as such."""
+    """Test 10E8 is productive with no stop codons."""
     result = annotated_heavy_chain_result
 
-    # Check productivity fields exist
-    assert result["productive"] is not None
-    assert isinstance(result["productive"], bool)
-
-    # 10E8 is a functional antibody, should be productive
     assert result["productive"] is True
+    assert result["stop_codon"] is False
 
 
-def test_stop_codon_field_exists(annotated_heavy_chain_result):
-    """Test stop_codon field exists."""
+def test_productivity_issues_empty_for_productive(annotated_heavy_chain_result):
+    """Test productive 10E8 has no productivity issues."""
     result = annotated_heavy_chain_result
 
-    # stop_codon field should exist
-    assert "stop_codon" in result.annotations
-
-
-def test_productivity_issues_field_exists(annotated_heavy_chain_result):
-    """Test productivity_issues field exists."""
-    result = annotated_heavy_chain_result
-
-    # productivity_issues should be a list (possibly empty)
     issues = result["productivity_issues"]
-    assert issues is not None
+    assert not issues  # empty string or empty list
 
 
 # =============================================

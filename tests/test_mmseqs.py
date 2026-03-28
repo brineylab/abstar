@@ -14,7 +14,6 @@ import pytest
 
 from abstar.assigners.mmseqs import MMseqs
 
-
 # =============================================
 #              FIXTURES
 # =============================================
@@ -70,45 +69,29 @@ def test_mmseqs_initialization(temp_directories):
     assert mmseqs.to_delete == []
 
 
-def test_mmseqs_initialization_with_threads(temp_directories):
-    """Test MMseqs initialization with custom thread count."""
+@pytest.mark.parametrize(
+    "kwargs, attr, expected",
+    [
+        ({"threads": 4}, "threads", 4),
+        ({"threads": 1}, "threads", 1),
+        ({"chunksize": 500}, "chunksize", 500),
+        ({"chunksize": 10000}, "chunksize", 10000),
+        ({"receptor": "tcr"}, "receptor", "tcr"),
+    ],
+    ids=["threads-4", "threads-1", "chunksize-500", "chunksize-10k", "tcr-receptor"],
+)
+def test_mmseqs_initialization_params(temp_directories, kwargs, attr, expected):
+    """Test MMseqs initialization with various parameter combinations."""
     output_dir, log_dir = temp_directories
     mmseqs = MMseqs(
         output_directory=output_dir,
         log_directory=log_dir,
         germdb_name="human",
-        receptor="bcr",
-        threads=4,
+        receptor=kwargs.pop("receptor", "bcr"),
+        **kwargs,
     )
 
-    assert mmseqs.threads == 4
-
-
-def test_mmseqs_initialization_with_chunksize(temp_directories):
-    """Test MMseqs initialization with custom chunksize."""
-    output_dir, log_dir = temp_directories
-    mmseqs = MMseqs(
-        output_directory=output_dir,
-        log_directory=log_dir,
-        germdb_name="human",
-        receptor="bcr",
-        chunksize=500,
-    )
-
-    assert mmseqs.chunksize == 500
-
-
-def test_mmseqs_initialization_tcr(temp_directories):
-    """Test MMseqs initialization for TCR receptor."""
-    output_dir, log_dir = temp_directories
-    mmseqs = MMseqs(
-        output_directory=output_dir,
-        log_directory=log_dir,
-        germdb_name="human",
-        receptor="tcr",
-    )
-
-    assert mmseqs.receptor == "tcr"
+    assert getattr(mmseqs, attr) == expected
     assert mmseqs.germdb_path is not None
 
 
@@ -199,15 +182,17 @@ def test_prepare_input_files_fastq(mmseqs_instance, fastq_test_path):
 def test_build_jquery_fasta(mmseqs_instance, tmp_path):
     """Test J-gene query FASTA generation from V results."""
     # Create mock V result DataFrame
-    vresult_df = pl.DataFrame({
-        "v_query": ["seq1", "seq2"],
-        "v_qstart": [1, 1],
-        "v_qend": [100, 80],
-        "v_qseq": [
-            "ATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGC",
-            "ATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGC"
-        ],
-    })
+    vresult_df = pl.DataFrame(
+        {
+            "v_query": ["seq1", "seq2"],
+            "v_qstart": [1, 1],
+            "v_qend": [100, 80],
+            "v_qseq": [
+                "ATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGC",
+                "ATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGC",
+            ],
+        }
+    )
 
     jquery_path = str(tmp_path / "jquery.fasta")
     mmseqs_instance.build_jquery_fasta(vresult_df, jquery_path)
@@ -225,12 +210,14 @@ def test_build_jquery_fasta(mmseqs_instance, tmp_path):
 def test_build_jquery_fasta_filters_short_sequences(mmseqs_instance, tmp_path):
     """Test that J-gene query FASTA excludes sequences < 14 nt."""
     # Create mock V result where remaining sequence is too short
-    vresult_df = pl.DataFrame({
-        "v_query": ["short_seq"],
-        "v_qstart": [1],
-        "v_qend": [10],  # Only 10 nt remain after V end
-        "v_qseq": ["ATGCATGCATGC"],  # 12 nt total, only 2 remain after position 10
-    })
+    vresult_df = pl.DataFrame(
+        {
+            "v_query": ["short_seq"],
+            "v_qstart": [1],
+            "v_qend": [10],  # Only 10 nt remain after V end
+            "v_qseq": ["ATGCATGCATGC"],  # 12 nt total, only 2 remain after position 10
+        }
+    )
 
     jquery_path = str(tmp_path / "jquery_short.fasta")
     mmseqs_instance.build_jquery_fasta(vresult_df, jquery_path)
@@ -245,16 +232,18 @@ def test_build_jquery_fasta_filters_short_sequences(mmseqs_instance, tmp_path):
 def test_build_dquery_fasta_heavy_chain_only(mmseqs_instance, tmp_path):
     """Test D-gene query FASTA only includes IGH/TRA/TRD."""
     # Create mock VJ result with both heavy and light chain
-    vjresult_df = pl.DataFrame({
-        "v_query": ["heavy_seq", "light_seq"],
-        "v_call": ["IGHV3-23*01", "IGKV1-39*01"],  # IGH is heavy, IGK is light
-        "j_qstart": [50, 40],
-        "j_qend": [100, 80],
-        "j_qseq": [
-            "ATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGC",
-            "ATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGC"
-        ],
-    })
+    vjresult_df = pl.DataFrame(
+        {
+            "v_query": ["heavy_seq", "light_seq"],
+            "v_call": ["IGHV3-23*01", "IGKV1-39*01"],  # IGH is heavy, IGK is light
+            "j_qstart": [50, 40],
+            "j_qend": [100, 80],
+            "j_qseq": [
+                "ATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGC",
+                "ATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGC",
+            ],
+        }
+    )
 
     dquery_path = str(tmp_path / "dquery.fasta")
     mmseqs_instance.build_dquery_fasta(vjresult_df, dquery_path)
@@ -271,14 +260,16 @@ def test_build_dquery_fasta_heavy_chain_only(mmseqs_instance, tmp_path):
 
 def test_build_cquery_fasta(mmseqs_instance, tmp_path):
     """Test C-gene query FASTA generation from VJ results."""
-    vjresult_df = pl.DataFrame({
-        "v_query": ["seq1"],
-        "j_qstart": [1],
-        "j_qend": [50],
-        "j_qseq": [
-            "ATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGC"
-        ],
-    })
+    vjresult_df = pl.DataFrame(
+        {
+            "v_query": ["seq1"],
+            "j_qstart": [1],
+            "j_qend": [50],
+            "j_qseq": [
+                "ATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGC"
+            ],
+        }
+    )
 
     cquery_path = str(tmp_path / "cquery.fasta")
     mmseqs_instance.build_cquery_fasta(vjresult_df, cquery_path)
@@ -401,35 +392,39 @@ def test_cleanup_removes_temp_files(mmseqs_instance, small_fasta_file):
 def test_assemble_output_files(mmseqs_instance, tmp_path):
     """Test merging multiple parquet/CSV files into single outputs."""
     # Create mock assigned parquet files
-    df1 = pl.DataFrame({
-        "sequence_id": ["seq1"],
-        "sequence_input": ["ATGC"],
-        "quality": [""],
-        "rev_comp": [False],
-        "v_call": ["IGHV3-23*01"],
-        "v_support": [1e-10],
-        "d_call": [None],
-        "d_support": [None],
-        "j_call": ["IGHJ4*02"],
-        "j_support": [1e-5],
-        "c_call": [None],
-        "c_support": [None],
-    })
+    df1 = pl.DataFrame(
+        {
+            "sequence_id": ["seq1"],
+            "sequence_input": ["ATGC"],
+            "quality": [""],
+            "rev_comp": [False],
+            "v_call": ["IGHV3-23*01"],
+            "v_support": [1e-10],
+            "d_call": [None],
+            "d_support": [None],
+            "j_call": ["IGHJ4*02"],
+            "j_support": [1e-5],
+            "c_call": [None],
+            "c_support": [None],
+        }
+    )
 
-    df2 = pl.DataFrame({
-        "sequence_id": ["seq2"],
-        "sequence_input": ["GCTA"],
-        "quality": [""],
-        "rev_comp": [False],
-        "v_call": ["IGHV1-2*01"],
-        "v_support": [1e-12],
-        "d_call": [None],
-        "d_support": [None],
-        "j_call": ["IGHJ6*01"],
-        "j_support": [1e-6],
-        "c_call": [None],
-        "c_support": [None],
-    })
+    df2 = pl.DataFrame(
+        {
+            "sequence_id": ["seq2"],
+            "sequence_input": ["GCTA"],
+            "quality": [""],
+            "rev_comp": [False],
+            "v_call": ["IGHV1-2*01"],
+            "v_support": [1e-12],
+            "d_call": [None],
+            "d_support": [None],
+            "j_call": ["IGHJ6*01"],
+            "j_support": [1e-6],
+            "c_call": [None],
+            "c_support": [None],
+        }
+    )
 
     assigned_path1 = str(tmp_path / "assigned1.parquet")
     assigned_path2 = str(tmp_path / "assigned2.parquet")
@@ -437,10 +432,12 @@ def test_assemble_output_files(mmseqs_instance, tmp_path):
     df2.write_parquet(assigned_path2)
 
     # Create mock unassigned CSV files
-    unassigned_df = pl.DataFrame({
-        "sequence_id": ["unassigned1"],
-        "sequence_input": ["NNNN"],
-    })
+    unassigned_df = pl.DataFrame(
+        {
+            "sequence_id": ["unassigned1"],
+            "sequence_input": ["NNNN"],
+        }
+    )
     unassigned_path1 = str(tmp_path / "unassigned1.csv")
     unassigned_path2 = str(tmp_path / "unassigned2.csv")
     unassigned_df.write_csv(unassigned_path1)
@@ -451,8 +448,7 @@ def test_assemble_output_files(mmseqs_instance, tmp_path):
 
     # Assemble outputs
     assembled_path = mmseqs_instance.assemble_output_files(
-        [assigned_path1, assigned_path2],
-        [unassigned_path1, unassigned_path2]
+        [assigned_path1, assigned_path2], [unassigned_path1, unassigned_path2]
     )
 
     # Check assembled file

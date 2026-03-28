@@ -12,8 +12,7 @@ import polars as pl
 import pytest
 from abutils import Sequence
 
-from abstar.core.abstar import run, _process_inputs
-
+from abstar.core.abstar import _process_inputs, run
 
 # =============================================
 #          INPUT PROCESSING TESTS
@@ -85,7 +84,6 @@ def test_run_returns_sequence_object(single_hc_sequence):
     result = run(single_hc_sequence)
 
     assert isinstance(result, Sequence)
-
 
 
 def test_run_returns_sequence_list(multiple_hc_sequences):
@@ -207,77 +205,65 @@ def test_run_with_mouse_database(tmp_path):
 
 
 def test_annotated_sequence_has_v_gene(single_hc_sequence):
-    """Test that annotated sequence has V gene assignment."""
+    """Test that 10E8 heavy chain is assigned to IGHV3-15."""
     result = run(single_hc_sequence)
 
-    assert result["v_gene"] is not None
-    assert "IGHV" in result["v_gene"]
+    assert result["v_gene"] == "IGHV3-15"
 
 
 def test_annotated_sequence_has_j_gene(single_hc_sequence):
-    """Test that annotated sequence has J gene assignment."""
+    """Test that 10E8 heavy chain is assigned to IGHJ1."""
     result = run(single_hc_sequence)
 
-    assert result["j_gene"] is not None
-    assert "IGHJ" in result["j_gene"]
+    assert result["j_gene"] == "IGHJ1"
+
+
+def test_annotated_sequence_has_d_gene(single_hc_sequence):
+    """Test that 10E8 heavy chain is assigned to IGHD3-3."""
+    result = run(single_hc_sequence)
+
+    assert result["d_gene"] == "IGHD3-3"
 
 
 def test_annotated_sequence_has_cdr3(single_hc_sequence):
-    """Test that annotated sequence has CDR3."""
+    """Test 10E8 CDR3 amino acid sequence."""
     result = run(single_hc_sequence)
 
-    assert result["cdr3"] is not None
-    assert len(result["cdr3"]) > 0
+    assert result["cdr3_aa"] == "ARTGKYYDFWSGYPPGEEYFQD"
+    assert result["cdr3_length"] == 22
 
 
 def test_annotated_sequence_has_junction(single_hc_sequence):
-    """Test that annotated sequence has junction."""
+    """Test 10E8 junction amino acid sequence."""
     result = run(single_hc_sequence)
 
-    assert result["junction"] is not None
-    assert len(result["junction"]) > 0
+    assert result["junction_aa"] == "CARTGKYYDFWSGYPPGEEYFQDW"
 
 
 def test_annotated_sequence_has_regions(single_hc_sequence):
-    """Test all regions (FWR1-4, CDR1-3) are populated."""
+    """Test all regions (FWR1-4, CDR1-3) are populated with correct values."""
     result = run(single_hc_sequence)
 
-    # Check FWR and CDR regions
-    regions = ["fwr1", "cdr1", "fwr2", "cdr2", "fwr3", "cdr3"]
-    for region in regions:
-        assert result[region] is not None, f"Region {region} should not be None"
-
-    # FWR4 may be present depending on sequence coverage
-    # CDR3 is already checked above
+    assert result["fwr1_aa"] == "EVQLVESGGGLVKPGGSLRLSCSAS"
+    assert result["cdr1_aa"] == "GFDFDNAW"
+    assert result["fwr2_aa"] == "MTWVRQPPGKGLEWVGR"
+    assert result["cdr2_aa"] == "ITGPGEGWSV"
+    assert result["fwr4_aa"] == "WGRGTLVTVSS"
 
 
 def test_annotated_sequence_has_locus(single_hc_sequence):
-    """Test that annotated sequence has locus."""
+    """Test that 10E8 is assigned to IGH locus."""
     result = run(single_hc_sequence)
 
-    assert result["locus"] is not None
-    assert result["locus"] == "IGH"  # 10E8 is heavy chain
+    assert result["locus"] == "IGH"
 
 
-def test_annotated_sequence_has_productivity(single_hc_sequence):
-    """Test that annotated sequence has productivity assessment."""
+def test_annotated_sequence_is_productive(single_hc_sequence):
+    """Test that 10E8 is assessed as productive."""
     result = run(single_hc_sequence)
 
-    # Productive field should be boolean
-    assert result["productive"] is not None
-    assert isinstance(result["productive"], bool)
-
-
-def test_annotated_heavy_chain_has_d_gene(single_hc_sequence):
-    """Test heavy chain has D gene (when applicable)."""
-    result = run(single_hc_sequence)
-
-    # Heavy chains should have D gene assignment
-    # Note: May be None if no D is found, but field should exist
-    # Just check the field is accessible
-    d_gene = result["d_gene"]
-    # D gene might be None for some sequences, but for 10E8 it should be present
-    assert d_gene is not None or "d_gene" in result.annotations
+    assert result["productive"] is True
+    assert result["stop_codon"] is False
 
 
 # =============================================
@@ -309,19 +295,31 @@ def test_dataframe_row_count_single_sequence(single_hc_sequence):
 
 
 def test_dataframe_contains_annotation_data(single_hc_sequence):
-    """Test that the DataFrame contains actual annotation data."""
+    """Test that the DataFrame contains correct annotation data for 10E8."""
     result = run(single_hc_sequence, as_dataframe=True)
 
-    # sequence should not be null
     assert result["sequence"][0] is not None
+    assert result["v_gene"][0] == "IGHV3-15"
+    assert result["j_gene"][0] == "IGHJ1"
+    assert result["locus"][0] == "IGH"
+    assert result["productive"][0] is True
 
-    # v_gene should be assigned
-    v_gene = result["v_gene"][0]
-    assert v_gene is not None
 
-    # locus should be IGH for heavy chain
-    locus = result["locus"][0]
-    assert locus == "IGH"
+def test_dataframe_row_count_multiple_sequences(multiple_hc_sequences):
+    """Test that DataFrame has correct row count for multiple sequences."""
+    result = run(multiple_hc_sequences, as_dataframe=True)
+    assert result.height == 3
+
+
+def test_multiple_sequences_as_dataframe(multiple_hc_sequences):
+    """Test that multiple sequences return a single DataFrame with multiple rows."""
+    result = run(multiple_hc_sequences, as_dataframe=True)
+
+    assert isinstance(result, pl.DataFrame)
+    assert result.height == 3
+
+    sequence_ids = result["sequence_id"].to_list()
+    assert len(sequence_ids) == 3
 
 
 # =============================================
