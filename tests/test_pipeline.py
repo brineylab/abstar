@@ -12,7 +12,7 @@ import polars as pl
 import pytest
 from abutils import Sequence
 
-from ..core.abstar import run, _process_inputs
+from abstar.core.abstar import run, _process_inputs
 
 
 # =============================================

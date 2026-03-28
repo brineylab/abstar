@@ -5,8 +5,8 @@
 
 import pytest
 
-from ..annotation.antibody import Antibody
-from ..annotation.productivity import assess_productivity
+from abstar.annotation.antibody import Antibody
+from abstar.annotation.productivity import assess_productivity
 
 
 @pytest.fixture

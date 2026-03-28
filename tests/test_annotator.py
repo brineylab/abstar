@@ -11,9 +11,9 @@ import os
 import polars as pl
 import pytest
 
-from ..annotation.annotator import annotate, annotate_single_sequence
-from ..annotation.antibody import Antibody
-from ..core.abstar import run
+from abstar.annotation.annotator import annotate, annotate_single_sequence
+from abstar.annotation.antibody import Antibody
+from abstar.core.abstar import run
 
 
 # =============================================

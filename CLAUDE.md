@@ -14,10 +14,10 @@ abstar is a VDJ assignment and antibody/TCR sequence annotation tool. It perform
 pytest
 
 # Run a single test file
-pytest abstar/tests/test_regions.py
+pytest tests/test_regions.py
 
 # Run a specific test
-pytest abstar/tests/test_regions.py::test_get_region_sequence_fwr1
+pytest tests/test_regions.py::test_get_region_sequence_fwr1
 
 # Run with verbose output
 pytest -v
@@ -25,8 +25,8 @@ pytest -v
 
 ### Installation
 ```bash
-pip install -e .  # Development install
-pip install abstar  # Production install
+pip install -e ".[dev]"  # Development install (includes pytest, ruff)
+pip install abstar       # Production install
 ```
 
 ### CLI Usage
@@ -97,7 +97,15 @@ Built-in databases: `human`, `mouse`, `macaque`, `humouse` (mixed species). Cust
 ### Output Schema
 AIRR-compliant output defined in `annotation/schema.py`. Key fields include sequence_id, v/d/j/c_call, junction_aa, cdr3, mutations, productivity status.
 
+## Repository Structure
+- `src/abstar/` - Package source code (src layout)
+- `tests/` - Test suite (top-level, uses absolute imports)
+- `tests/test_data/` - Test FASTA/FASTQ files
+- Build backend: hatchling
+- Linter/formatter: ruff (configured in pyproject.toml)
+
 ## Testing Conventions
-- Tests located in `abstar/tests/`
-- Use pytest fixtures for shared test data
+- Tests located in `tests/`
+- Use pytest fixtures for shared test data (see `tests/conftest.py`)
 - Test files follow `test_<module>.py` naming
+- Test data in `tests/test_data/`

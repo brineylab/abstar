@@ -1,9 +1,0 @@
-abutils>=0.5.1
-click
-matplotlib
-numpy
-pandas
-parasail
-polars
-pyarrow
-pytest

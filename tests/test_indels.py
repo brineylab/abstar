@@ -4,7 +4,7 @@
 
 import pytest
 
-from ..annotation.indels import annotate_deletions, annotate_insertions
+from abstar.annotation.indels import annotate_deletions, annotate_insertions
 
 # =============================================
 #                  FIXTURES

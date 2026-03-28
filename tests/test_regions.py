@@ -6,8 +6,8 @@ import abutils
 import pytest
 from abutils.core.sequence import translate
 
-from ..annotation.antibody import Antibody
-from ..annotation.regions import (
+from abstar.annotation.antibody import Antibody
+from abstar.annotation.regions import (
     IMGT_REGION_END_POSITIONS_AA,
     IMGT_REGION_END_POSITIONS_NT,
     IMGT_REGION_START_POSITIONS_AA,

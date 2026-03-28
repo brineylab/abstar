@@ -12,7 +12,7 @@ from abutils import Sequence
 
 
 # Path constants
-TEST_DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "test_data")
+TEST_DATA_DIR = os.path.join(os.path.dirname(__file__), "test_data")
 
 
 @pytest.fixture

@@ -11,7 +11,7 @@ import os
 import polars as pl
 import pytest
 
-from ..assigners.mmseqs import MMseqs
+from abstar.assigners.mmseqs import MMseqs
 
 
 # =============================================

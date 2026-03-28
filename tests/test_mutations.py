@@ -4,8 +4,8 @@
 
 import pytest
 
-from ..annotation.antibody import Antibody
-from ..annotation.mutations import annotate_mutations
+from abstar.annotation.antibody import Antibody
+from abstar.annotation.mutations import annotate_mutations
 
 
 @pytest.fixture

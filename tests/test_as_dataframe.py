@@ -12,7 +12,7 @@ import polars as pl
 import pytest
 from abutils import Sequence
 
-from ..core.abstar import run
+from abstar.core.abstar import run
 
 
 # =============================================
@@ -25,7 +25,6 @@ def test_data_path():
     """Path to the test FASTA file."""
     return os.path.join(
         os.path.dirname(__file__),
-        "..",
         "test_data",
         "test_hiv_bnab_hcs.fasta",
     )

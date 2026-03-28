@@ -4,7 +4,7 @@
 
 import polars as pl
 
-from ..annotation.schema import OUTPUT_SCHEMA, NoneDict
+from abstar.annotation.schema import OUTPUT_SCHEMA, NoneDict
 
 
 def test_noneddict_missing_key_returns_none():

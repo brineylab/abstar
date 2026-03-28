@@ -1,12 +1,13 @@
 [build-system]
-requires = ["setuptools>=68", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project]
 name = "abstar"
+version = "0.8.0"
 description = "Germline assignment and annotation of AIRR data. Scalable from a single sequence to billions of sequences."
 readme = { file = "README.md", content-type = "text/markdown" }
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 license = { file = "LICENSE" }
 authors = [
   { name = "Bryan Briney", email = "briney@scripps.edu" },
@@ -17,13 +18,24 @@ classifiers = [
   "License :: OSI Approved :: MIT License",
   "Operating System :: OS Independent",
   "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
   "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
-dynamic = ["version", "dependencies"]
+dependencies = [
+  "abutils>=0.5.1",
+  "click",
+  "matplotlib",
+  "numpy",
+  "pandas",
+  "parasail",
+  "polars",
+  "pyarrow",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "ruff"]
 
 [project.scripts]
 abstar = "abstar.scripts.abstar:cli"
@@ -31,13 +43,22 @@ abstar = "abstar.scripts.abstar:cli"
 [project.urls]
 Homepage = "https://github.com/brineylab/abstar"
 
-[tool.setuptools]
-include-package-data = true
+[tool.hatch.build.targets.wheel]
+packages = ["src/abstar"]
 
-[tool.setuptools.packages.find]
-include = ["abstar*"]
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+  "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+  "integration: marks integration tests",
+]
 
-[tool.setuptools.dynamic]
-version = { attr = "abstar.version.__version__" }
-dependencies = { file = ["requirements.txt"] }
+[tool.ruff]
+line-length = 100
+target-version = "py311"
 
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["abstar"]

@@ -4,7 +4,7 @@
 
 import pytest
 
-from ..annotation.positions import (
+from abstar.annotation.positions import (
     get_gapped_position_from_raw,
     get_raw_position_from_aligned,
     get_raw_position_from_gapped,

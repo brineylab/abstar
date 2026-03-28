@@ -4,8 +4,8 @@
 
 import pytest
 
-from ..annotation.antibody import Antibody
-from ..annotation.mask import (
+from abstar.annotation.antibody import Antibody
+from abstar.annotation.mask import (
     generate_cdr_mask,
     generate_gene_segment_mask,
     generate_nongermline_mask,

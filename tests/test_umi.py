@@ -8,7 +8,7 @@ import tempfile
 import pytest
 from abutils import Sequence
 
-from ..annotation.umi import UMI, parse_umis
+from abstar.annotation.umi import UMI, parse_umis
 
 
 def test_umi_slice_positive_length():
