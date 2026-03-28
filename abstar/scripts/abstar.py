@@ -9,9 +9,6 @@ from abutils import Sequence
 
 from ..core.abstar import run as _run
 
-# from ..core.germline import (
-#     build_germdb_from_igdiscover as _build_germdb_from_igdiscover,
-# )
 from ..core.germline import build_germline_database as _build_germline_database
 from ..utils.callbacks import HiddenClickOption, parse_dict_from_string
 
@@ -21,19 +18,14 @@ def cli():
     pass
 
 
-# cli.add_command(build_germline_database)
-
-
 @cli.command()
 @click.argument(
     "input_path",
     type=str,
-    # help="Path to a FASTA/Q file or a directory of FASTA/Q files. Gzip-compressed files are supported.",
 )
 @click.argument(
     "project_path",
     type=str,
-    # help="Path to a directory in which tmp, log and output files will be deposited",
 )
 @click.option(
     "--germline_database",
@@ -299,79 +291,3 @@ def build_germline_database(
         verbose=verbose,
         debug=debug,
     )
-
-
-# @cli.command()
-# @click.argument(
-#     "name",
-#     type=str,
-#     required=True,
-# )
-# @click.option(
-#     "-i",
-#     "--igdiscover_output",
-#     type=str,
-#     default=None,
-#     help="Path to a directory containing the IgDiscover ouput. Usually myExperiment/final/database/",
-# )
-# @click.option(
-#     "-c",
-#     "--constants",
-#     type=str,
-#     default=None,
-#     help="Path to a FASTA-formatted file containing gapped constant region sequences.",
-# )
-# @click.option(
-#     "-r",
-#     "--receptor",
-#     type=click.Choice(["bcr", "tcr"], case_sensitive=False),
-#     show_default=True,
-#     default="bcr",
-#     help="Receptor type",
-# )
-# @click.option(
-#     "-s",
-#     "--species",
-#     type=str,
-#     show_default=True,
-#     default="human",
-#     help="Name of the germline database to be used as source",
-# )
-# @click.option(
-#     "-l",
-#     "--location",
-#     type=str,
-#     default=None,
-#     help="Location into which the new germline databases will be deposited. This option is provided primarily to test database creation without overwriting current databases of the same name.",
-# )
-# @click.option(
-#     "--verbose/--quiet",
-#     default=True,
-#     help="Print verbose output",
-# )
-# @click.option(
-#     "--debug",
-#     is_flag=True,
-#     default=False,
-#     help="Run in debug mode, which will print more verbose information including stdout/stderr from command line tools.",
-# )
-# def build_germdb_from_igdiscover(
-#     name: str,
-#     igdiscover_output: str,
-#     constants: Optional[str] = None,
-#     receptor: str = "bcr",
-#     species: str = "human",
-#     location: Optional[str] = None,
-#     verbose: bool = True,
-#     debug: bool = False,
-# ):
-#     return _build_germdb_from_igdiscover(
-#         name=name,
-#         igdiscover_output=igdiscover_output,
-#         constants=constants,
-#         receptor=receptor,
-#         species=species,
-#         location=location,
-#         verbose=verbose,
-#         debug=debug,
-#     )

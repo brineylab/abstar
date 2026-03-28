@@ -87,10 +87,7 @@ def test_run_returns_sequence_object(single_hc_sequence):
     assert isinstance(result, Sequence)
 
 
-@pytest.mark.xfail(
-    reason="Known issue: Polars schema error in mmseqs.py when D gene assignment is missing",
-    strict=False,
-)
+
 def test_run_returns_sequence_list(multiple_hc_sequences):
     """Test run() returns list of Sequences for multiple inputs."""
     result = run(multiple_hc_sequences)

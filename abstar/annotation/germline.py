@@ -8,6 +8,7 @@ from typing import Tuple
 
 import abutils
 from abutils import Sequence
+from abutils.core.sequence import translate
 from natsort import natsorted
 
 from .antibody import Antibody
@@ -15,11 +16,11 @@ from .antibody import Antibody
 __all__ = [
     "get_germline_database_path",
     "get_germline",
-    # "realign_germline",
-    # "reassign_dgene",
-    # "process_vgene_alignment",
-    # "process_jgene_alignment",
-    # "process_dgene_alignment",
+    "realign_germline",
+    "reassign_dgene",
+    "process_vgene_alignment",
+    "process_jgene_alignment",
+    "process_dgene_alignment",
 ]
 
 
@@ -415,12 +416,12 @@ def process_vgene_alignment(
     # v-region sequence and germline
     ab.v_sequence = semiglobal_aln.query[ab.v_sequence_start : ab.v_sequence_end]
     ab.v_germline = semiglobal_aln.target[ab.v_germline_start : ab.v_germline_end]
-    # frame -- 1-indexed, which works with abutils.tl.translate()
+    # frame -- 1-indexed, which works with translate()
     ab.v_frame = (3 - (ab.v_germline_start % 3)) % 3 + 1
     ab.frame = ab.v_frame
     # AA sequence and germline
-    ab.v_sequence_aa = abutils.tl.translate(ab.v_sequence, frame=ab.frame)
-    ab.v_germline_aa = abutils.tl.translate(ab.v_germline, frame=ab.frame)
+    ab.v_sequence_aa = translate(ab.v_sequence, frame=ab.frame)
+    ab.v_germline_aa = translate(ab.v_germline, frame=ab.frame)
     return ab
 
 
@@ -517,70 +518,6 @@ def process_jgene_alignment(
     ab.j_sequence = oriented_input[ab.j_sequence_start : ab.j_sequence_end]
     ab.j_germline = semiglobal_aln.target[ab.j_germline_start : ab.j_germline_end]
     return ab
-
-
-# def process_jgene_alignment(
-#     oriented_input: str,
-#     v_sequence_end: int,
-#     semiglobal_aln: abutils.tl.PairwiseAlignment,
-#     local_aln: abutils.tl.PairwiseAlignment,
-#     ab: Antibody,
-# ) -> Antibody:
-#     """
-#     Processes a J gene alignment and updates ``Antibody`` annotations accordingly.
-
-#     .. note:
-#         all start/end positions are 0-indexed and end postions are
-#         exclusive, which aligns with Python slicing. This means that
-#         ``sequence[start : end]`` will work as expected
-
-#     Parameters:
-#     -----------
-#     oriented_input: str
-#         The oriented input sequence.
-
-#     v_sequence_end: int
-#         The end position of the V gene in the `oriented_input` sequence.
-
-#     semiglobal_aln: abutils.tl.PairwiseAlignment
-#         Semiglobal alignment of a query sequence to the J gene germline.
-
-#     local_aln: abutils.tl.PairwiseAlignment
-#         Local alignment of a query sequence to the J gene germline.
-
-#     ab: Antibody
-#         Antibody object to update with annotation information.
-
-#         The following ``Antibody`` properties are updated:
-
-#         - ``j_sequence``: the J gene region of the query sequence
-#         - ``j_score``: the score of the local alignment
-#         - ``j_sequence_start``: start position of the J gene in the query sequence, in positions corresponding to the ``sequence_oriented`` property
-#         - ``j_sequence_end``: end position of the J gene in the query sequence, in positions corresponding to the ``sequence_oriented`` property
-#         - ``j_germline``: the J gene region of the assigned germline sequence
-#         - ``j_germline_start``: start position of the J gene in the assigned germline sequence
-#         - ``j_germline_end``: end position of the J gene in the assigned germline sequence
-
-#         Does not require any ``Antibody`` properties to be set.
-
-#     """
-#     ab.j_score = local_aln.score
-#     # AIRR-C wants 1-based indexing, but 0-based is better so we'll do that instead
-#     ab.j_sequence_start = (
-#         v_sequence_end + semiglobal_aln.query_begin + local_aln.query_begin
-#     )
-#     ab.j_sequence_end = (
-#         ab.j_sequence_start + (local_aln.query_end - local_aln.query_begin) + 1
-#     )
-#     # germline start/stop positions
-#     ab.j_germline_start = semiglobal_aln.target_begin + local_aln.target_begin
-#     ab.j_germline_end = (
-#         ab.j_germline_start + (local_aln.target_end - local_aln.target_begin) + 1
-#     )
-#     # j-region sequence and germline
-#     ab.j_sequence = oriented_input[ab.j_sequence_start : ab.j_sequence_end]
-#     ab.j_germline = semiglobal_aln.target[ab.j_germline_start : ab.j_germline_end]
-#     return ab
 
 
 def process_dgene_alignment(
@@ -721,9 +658,9 @@ def process_cgene_alignment(
     # j-region sequence and germline
     ab.c_sequence = oriented_input[ab.c_sequence_start : ab.c_sequence_end]
     ab.c_germline = semiglobal_aln.target[ab.c_germline_start : ab.c_germline_end]
-    # frame -- 1-indexed, which works with abutils.tl.translate()
+    # frame -- 1-indexed, which works with translate()
     ab.c_frame = (3 - (ab.c_germline_start % 3)) % 3 + 1
     # AA sequence and germline
-    ab.c_sequence_aa = abutils.tl.translate(ab.c_sequence, frame=ab.c_frame)
-    ab.c_germline_aa = abutils.tl.translate(ab.c_germline, frame=ab.c_frame)
+    ab.c_sequence_aa = translate(ab.c_sequence, frame=ab.c_frame)
+    ab.c_germline_aa = translate(ab.c_germline, frame=ab.c_frame)
     return ab

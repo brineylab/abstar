@@ -4,6 +4,7 @@
 
 import abutils
 import pytest
+from abutils.core.sequence import translate
 
 from ..annotation.antibody import Antibody
 from ..annotation.regions import (
@@ -205,13 +206,13 @@ def test_get_region_sequence_aa(seq_string, germ_string, gapped_germline, antibo
     region = "fwr1"
     aln_nt = make_semiglobal_alignment(seq_string, germ_string)
     # Build amino-acid level alignment corresponding to nt alignment windows
-    seq_aa = abutils.tl.translate(aln_nt.query[aln_nt.query_begin :], frame=1)
-    germ_aa = abutils.tl.translate(aln_nt.target, frame=1)
+    seq_aa = translate(aln_nt.query[aln_nt.query_begin :], frame=1)
+    germ_aa = translate(aln_nt.target, frame=1)
     aln_aa = abutils.tl.semiglobal_alignment(seq_aa, germ_aa)
     _, _, result = get_region_sequence(
         region=region,
         aln=aln_aa,
-        gapped_germline=abutils.tl.translate(gapped_germline, allow_dots=True),
+        gapped_germline=translate(gapped_germline, allow_dots=True),
         germline_start=1,
         ab=antibody,
         aa=True,

@@ -354,10 +354,6 @@ def test_mmseqs_assigns_j_gene(mmseqs_instance, small_fasta_file):
     assert "IGHJ" in j_calls[0]
 
 
-@pytest.mark.xfail(
-    reason="Known issue: Polars schema error in mmseqs.py when D gene assignment is missing",
-    strict=False,
-)
 def test_mmseqs_multiple_sequences(mmseqs_instance, multi_sequence_fasta_file):
     """Test assignment of multiple sequences."""
     assigned_path, sequence_count = mmseqs_instance(multi_sequence_fasta_file)

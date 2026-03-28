@@ -121,7 +121,6 @@ def get_aligned_position_from_ungapped(
     ungapped_position = 0
     for aligned_position, s in enumerate(aligned_sequence):
         if s == "-":
-            # ungapped_position += 1  # this might need to be removed if a semiglobal alignment is used (which may have leading gaps)
             continue
         if ungapped_position == position:
             if is_end_position:
@@ -134,7 +133,6 @@ def get_aligned_position_from_ungapped(
                 ):
                     # no insertion, so we can return the aligned position
                     return aligned_position
-                # former_aligned_position = aligned_position
                 while aligned_sequence[aligned_position + 1] == "-":
                     aligned_position += 1
             return aligned_position

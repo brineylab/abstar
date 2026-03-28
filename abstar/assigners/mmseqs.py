@@ -179,6 +179,7 @@ class MMseqs(AssignerBase):
             nulls_last=True,
         )
         vresult_df = vresult_df.unique(subset=["v_query"], keep="first").collect()
+        vresult_df = vresult_df.cast({"v_query": pl.Utf8})
 
         # -----------
         #   J genes
@@ -227,6 +228,7 @@ class MMseqs(AssignerBase):
         # keep only the highest scoring assignment for each sequence
         jresult_df = jresult_df.sort(by=["j_nident"], descending=True, nulls_last=True)
         jresult_df = jresult_df.unique(subset=["j_query"], keep="first").collect()
+        jresult_df = jresult_df.cast({"j_query": pl.Utf8})
         # join the V and J assignment results
         vjresult_df = vresult_df.join(
             jresult_df,
@@ -293,6 +295,9 @@ class MMseqs(AssignerBase):
                 by=["d_nident"], descending=True, nulls_last=True
             )
             dresult_df = dresult_df.unique(subset=["d_query"], keep="first").collect()
+            # cast d_query to str to prevent schema mismatch when Polars
+            # infers numeric-looking sequence IDs as f64
+            dresult_df = dresult_df.cast({"d_query": pl.Utf8})
             if dresult_df.shape[0] > 0:
                 # join the D and VJ assignment results
                 vdjresult_df = vjresult_df.join(
@@ -373,6 +378,7 @@ class MMseqs(AssignerBase):
                 by=["c_nident"], descending=True, nulls_last=True
             )
             cresult_df = cresult_df.unique(subset=["c_query"], keep="first").collect()
+            cresult_df = cresult_df.cast({"c_query": pl.Utf8})
             if cresult_df.shape[0] > 0:
                 # join the C and VDJ assignment results
                 vdjcresult_df = vdjresult_df.join(
@@ -397,6 +403,7 @@ class MMseqs(AssignerBase):
             )
 
         input_df = pl.read_csv(input_tsv, separator="\t")
+        input_df = input_df.cast({"sequence_id": pl.Utf8})
         vdjcresult_df = input_df.join(
             vdjcresult_df,
             left_on="sequence_id",

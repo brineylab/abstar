@@ -22,25 +22,16 @@
 #
 
 
-import datetime
-import difflib
 import json
 import os
 import shutil
 import subprocess as sp
 import sys
-from concurrent.futures import ThreadPoolExecutor
 from typing import Iterable
 
-# from weakref import ref
 import abutils
 import parasail
 from abutils import Sequence
-
-# import click
-# from natsort import natsorted
-# from networkx import max_flow_min_cost
-from tqdm.auto import tqdm
 
 from ..gl import get_germline, get_germline_database_path
 from ..utils import MATRIX_PATH
@@ -334,148 +325,6 @@ def add_imgt_gaps(
                 break
         gapped_vgenes.append(abutils.Sequence(gapped, id=ungapped.id))
     return gapped_vgenes + others
-
-
-# -------------------------
-#   GENERATING CUSTOM DATABASE FROM IgDiscover
-# -------------------------
-
-
-# def build_germdb_from_igdiscover(
-#     name: str,
-#     igdiscover_output: str,
-#     constants: Optional[str] = None,
-#     receptor: str = "bcr",
-#     species: str = "human",
-#     location: Optional[str] = None,
-#     verbose: bool = True,
-#     debug: bool = False,
-# ) -> None:
-#     """
-#     Builds a custom reference database using the output from IgDiscover
-
-#     """
-
-#     abutils.io.make_dir("/tmp/refs")
-
-#     origin = get_germline_database_path(receptor=receptor, germdb_name=species)
-#     shutil.copyfile(os.path.join(origin, "manifest.txt"), "/tmp/refs/manifest.txt")
-
-#     with open("/tmp/refs/manifest.txt", "a") as f:
-#         f.write("\n\n")
-#         f.write("/!\\ CUSTOMIZED REFERENCE SPECIFIC TO DONOR /!\\\n\n")
-#         f.write("Custom database modified with IgDiscover output\n")
-#         f.write(f"Donor identifier: {name}\n")
-#         f.write(f"Database created on {str(datetime.date.today())}\n")
-
-#     files = abutils.io.list_files(igdiscover_output, extension="fasta")
-#     for file_in in files:
-#         filename = os.path.basename(file_in).lower()
-#         file_out = os.path.join("/tmp/refs/", filename)
-
-#         if "v" in filename:  # We only need to gap the V gene file
-#             gapped_sequences = []
-#             sequences = abutils.io.read_fasta(file_in)
-#             v_refs = abutils.io.read_fasta(
-#                 os.path.join(origin, "imgt_gapped", "v.fasta")
-#             )
-#             v_refs_hyphen = [
-#                 Sequence(s.sequence.replace(".", "-"), id=s.id) for s in v_refs
-#             ]
-
-#             with ThreadPoolExecutor() as executor:
-#                 if verbose:
-#                     gapped_sequences = list(
-#                         tqdm(
-#                             executor.map(
-#                                 lambda seq: pairwise_gap_sequence(
-#                                     seq, v_refs_hyphen, verbose=verbose
-#                                 ),
-#                                 sequences,
-#                             ),
-#                             desc="Gapping new sequences...",
-#                             total=len(sequences),
-#                         )
-#                     )
-
-#                 else:
-#                     gapped_sequences = list(
-#                         executor.map(
-#                             lambda seq: pairwise_gap_sequence(
-#                                 seq, v_refs_hyphen, verbose=verbose
-#                             ),
-#                             sequences,
-#                         ),
-#                     )
-
-#             with open(file_out, "w") as f:
-#                 for s in gapped_sequences:
-#                     f.write(s.fasta)
-#                     f.write("\n")
-
-#         else:  # D and J gene fils don't need to be gapped
-#             shutil.copyfile(file_in, file_out)
-
-#     # Constant genes are never part of the IgDiscover output, hence they need to be imported
-#     if constants == None:
-#         shutil.copyfile(
-#             os.path.join(origin, "imgt_gapped", "c.fasta"), "/tmp/refs/c.fasta"
-#         )
-
-#     fastas = abutils.io.list_files("/tmp/refs/", extension="fasta")
-
-#     # Building the germline_database using prepared files
-#     build_germline_database(
-#         name=name,
-#         fastas=fastas,
-#         constants=constants,
-#         receptor=receptor,
-#         manifest="/tmp/refs/manifest.txt",
-#         include_species_in_name=False,
-#         location=location,
-#         verbose=verbose,
-#         debug=debug,
-#     )
-
-#     if not debug:
-#         shutil.rmtree("/tmp/refs")
-
-#     return
-
-
-# # def gap_sequence(sequence, reference, gaps='.'):
-# #     to_align = [sequence, ] + reference
-# #     aln = abutils.tools.alignment.mafft(sequences = to_align, mafft_bin='mafft')
-# #     gapped_seq = [s for s in aln if s.id == sequence.id][0].sequence.replace("-", gaps)
-# #     gapped = Sequence(gapped_seq, id=sequence.id)
-
-# #     return gapped
-
-
-# def pairwise_gap_sequence(sequence, references, gaps=".", verbose=False):
-#     gene_name = sequence.id.split("_")[0]
-
-#     # Getting the correct reference gene from IMGT to gap new sequence
-#     try:
-#         reference = [s for s in references if s.id == gene_name][0]
-#     except:
-#         match = difflib.get_close_matches(
-#             gene_name, [r.id for r in references], n=1, cutoff=0.6
-#         )[0]
-#         if verbose:
-#             print(
-#                 f"No exact match for {gene_name}. Using {match} to perform alignement..."
-#             )
-#         reference = [s for s in references if s.id == match][0]
-
-#     # Performing the alignment
-#     aln = abutils.aln.semiglobal_alignment(
-#         query=sequence, target=reference, mismatch=-5
-#     )
-#     gapped_seq = aln.aligned_query.replace("-", gaps)
-#     gapped = Sequence(gapped_seq, id=sequence.id)
-
-#     return gapped
 
 
 # -------------------------
@@ -826,30 +675,3 @@ def _make_mmseqs_db(input_file: str, output_file: str, debug: bool = False) -> N
         print(createindex_cmd)
         print(stdout)
         print(stderr)
-
-
-# def print_segment_info(segment: str, input_file: str) -> None:
-#     """
-#     Print information about the segment (variable, diversity, joining, constant).
-#     """
-#     seqs = abutils.io.read_fasta(input_file)
-#     seg_string = "  " + segment.upper() + "  "
-#     print("\n")
-#     print("-" * len(seg_string))
-#     print(seg_string)
-#     print("-" * len(seg_string))
-#     print(input_file)
-#     print("input file contains {} sequences".format(len(seqs)))
-#     print("")
-#     print("Building germline databases:")
-
-
-# def print_manifest_info(manifest: str) -> None:
-#     seg_string = "  MANIFEST  "
-#     print("\n")
-#     print("-" * len(seg_string))
-#     print(seg_string)
-#     print("-" * len(seg_string))
-#     print(manifest)
-#     print("")
-#     print("Transferring manifest data...")

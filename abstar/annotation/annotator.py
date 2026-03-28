@@ -7,9 +7,8 @@ import traceback
 from typing import Iterable
 
 import abutils
-
-# import pandas as pd
 import polars as pl
+from abutils.core.sequence import reverse_complement, translate
 
 from .antibody import Antibody
 from .germline import (
@@ -183,7 +182,7 @@ def annotate_single_sequence(
 
     # orient the input sequence
     if ab.rev_comp:
-        ab.sequence_oriented = abutils.tl.reverse_complement(ab.sequence_input)
+        ab.sequence_oriented = reverse_complement(ab.sequence_input)
     else:
         ab.sequence_oriented = ab.sequence_input
     ab.log("SEQUENCE ORIENTED:", ab.sequence_oriented)
@@ -261,8 +260,8 @@ def annotate_single_sequence(
     # query gets truncated at the start of the germline alignment
     # and gets translated in its frame. The full germline is
     # translated and used for alignment.
-    query_aa_sg = abutils.tl.translate(v_sg.query[v_sg.query_begin :], frame=ab.frame)
-    germline_aa_sg = abutils.tl.translate(v_sg.target)
+    query_aa_sg = translate(v_sg.query[v_sg.query_begin :], frame=ab.frame)
+    germline_aa_sg = translate(v_sg.target)
     v_sg_aa = abutils.tl.semiglobal_alignment(
         query=query_aa_sg, target=germline_aa_sg, **ALIGNMENT_PARAMS
     )
@@ -304,7 +303,7 @@ def annotate_single_sequence(
         exact_match=True,
         truncate_species=False,
     ).sequence
-    ab.v_germline_gapped_aa = abutils.tl.translate(
+    ab.v_germline_gapped_aa = translate(
         ab.v_germline_gapped, allow_dots=True
     )
     ab.log("GAPPED GERMLINE:", ab.v_germline_gapped)
@@ -319,7 +318,7 @@ def annotate_single_sequence(
         gapped_germline=ab.v_germline_gapped,
         germline_start=ab.v_germline_start,
     )
-    ab.v_sequence_gapped_aa = abutils.tl.translate(
+    ab.v_sequence_gapped_aa = translate(
         ab.v_sequence_gapped, frame=ab.frame, allow_dots=True
     )
     ab.log("GAPPED SEQUENCE:", ab.v_sequence_gapped)
@@ -566,7 +565,7 @@ def annotate_single_sequence(
                 force_constant=True,
                 truncate_species=False,
             ).sequence
-            ab.c_germline_gapped_aa = abutils.tl.translate(
+            ab.c_germline_gapped_aa = translate(
                 ab.c_germline_gapped, allow_dots=True
             )
             ab.log("GAPPED GERMLINE:", ab.c_germline_gapped)
@@ -581,7 +580,7 @@ def annotate_single_sequence(
                 gapped_germline=ab.c_germline_gapped,
                 germline_start=ab.c_germline_start,
             )
-            ab.c_sequence_gapped_aa = abutils.tl.translate(
+            ab.c_sequence_gapped_aa = translate(
                 ab.c_sequence_gapped, frame=ab.frame, allow_dots=True
             )
 
@@ -599,7 +598,7 @@ def annotate_single_sequence(
             ab.log("CONSTANT REGION MUTATION COUNT:", ab.c_mutation_count)
 
             # amino acid mutations
-            complete_c_germline_aa = abutils.tl.translate(complete_c_germline)
+            complete_c_germline_aa = translate(complete_c_germline)
             ab = annotate_c_mutations(
                 aligned_sequence=c_global_aa.aligned_query,
                 aligned_germline=c_global_aa.aligned_target,
@@ -678,23 +677,23 @@ def annotate_single_sequence(
     ab.log("GAPPED VDJC GERMLINE:", ab.germline_vdjc_gapped)
 
     # translated sequences
-    ab.sequence_aa = abutils.tl.translate(ab.sequence, frame=ab.frame)
-    ab.germline_aa = abutils.tl.translate(ab.germline, frame=ab.frame)
-    # ab.sequence_gapped_aa = abutils.tl.translate(
+    ab.sequence_aa = translate(ab.sequence, frame=ab.frame)
+    ab.germline_aa = translate(ab.germline, frame=ab.frame)
+    # ab.sequence_gapped_aa = translate(
     #     ab.sequence_gapped, frame=ab.frame, allow_dots=True
     # )
-    # ab.germline_gapped_aa = abutils.tl.translate(
+    # ab.germline_gapped_aa = translate(
     #     ab.germline_gapped, frame=ab.frame, allow_dots=True
     # )
 
     if ab.c_sequence is not None:
         # only compute gapped VDJC sequences if there is a constant region
-        ab.sequence_vdjc_aa = abutils.tl.translate(ab.sequence_vdjc, frame=ab.frame)
-        ab.germline_vdjc_aa = abutils.tl.translate(ab.germline_vdjc, frame=ab.frame)
-        # ab.sequence_vdjc_gapped_aa = abutils.tl.translate(
+        ab.sequence_vdjc_aa = translate(ab.sequence_vdjc, frame=ab.frame)
+        ab.germline_vdjc_aa = translate(ab.germline_vdjc, frame=ab.frame)
+        # ab.sequence_vdjc_gapped_aa = translate(
         #     ab.sequence_vdjc_gapped, frame=ab.frame, allow_dots=True
         # )
-        # ab.germline_vdjc_gapped_aa = abutils.tl.translate(
+        # ab.germline_vdjc_gapped_aa = translate(
         #     ab.germline_vdjc_gapped, frame=ab.frame, allow_dots=True
         # )
     ab.log("SEQUENCE AA:", ab.sequence_aa)
@@ -844,7 +843,6 @@ def annotate_single_sequence(
     # we align the re-aligned germline with just the portion of the query sequence contains the FR4
     fr4_sg = abutils.tl.semiglobal_alignment(
         query=ab.sequence_oriented[ab.junction_start : ab.j_sequence_end],
-        # target=germ_fr4_sequence,
         target=realigned_germ_fr4_sequence,
         **ALIGNMENT_PARAMS,
     )
@@ -860,7 +858,7 @@ def annotate_single_sequence(
     ab.log("JUNCTION END:", ab.junction_end)
     # junction sequence
     ab.junction = ab.sequence_oriented[ab.junction_start : ab.junction_end]
-    ab.junction_aa = abutils.tl.translate(ab.junction)
+    ab.junction_aa = translate(ab.junction)
     ab.log("JUNCTION:", ab.junction)
     ab.log("JUNCTION AA:", ab.junction_aa)
 
@@ -931,7 +929,6 @@ def annotate_single_sequence(
         # nucleotide region
         region_start, region_end, region_sequence = get_region_sequence(
             region,
-            # aln=v_sg,
             aln=v_global,
             gapped_germline=ab.v_germline_gapped,
             germline_start=ab.v_germline_start + 1,  # needs to be 1-indexed
@@ -943,7 +940,6 @@ def annotate_single_sequence(
         # amino acid region
         _, _, region_sequence_aa = get_region_sequence(
             region,
-            # aln=v_sg_aa,
             aln=v_global_aa,
             gapped_germline=ab.v_germline_gapped_aa,
             germline_start=ab.v_germline_start // 3 + 1,  # needs to be 1-indexed
@@ -958,7 +954,7 @@ def annotate_single_sequence(
     fwr4_start = fr4_sg.query_begin
     fwr4_end = fr4_sg.query_end + 1  # python end-slicing is exclusive
     ab.fwr4 = fr4_sg.aligned_query[fwr4_start:fwr4_end]
-    ab.fwr4_aa = abutils.tl.translate(ab.fwr4)
+    ab.fwr4_aa = translate(ab.fwr4)
     ab.log("FR4 SEQUENCE:", ab.fwr4)
     ab.log("FR4 SEQUENCE AA:", ab.fwr4_aa)
 
