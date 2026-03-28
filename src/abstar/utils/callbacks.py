@@ -2,14 +2,14 @@
 # Distributed under the terms of the MIT License.
 # SPDX-License-Identifier: MIT
 
+from __future__ import annotations
+
 import click
 
 __all__ = ["parse_dict_from_string", "HiddenClickOption"]
 
 
-def parse_dict_from_string(
-    ctx: click.Context, param: click.Parameter, value: str | None
-) -> dict:
+def parse_dict_from_string(ctx: click.Context, param: click.Parameter, value: str | None) -> dict:
     """
     Parse a string of key-value pairs into a dictionary. Used as a ``click`` callback function
     for parsing command-line arguments.
@@ -22,7 +22,7 @@ def parse_dict_from_string(
     param : click.Parameter
         The click parameter.
 
-    value : Optional[str]
+    value : str | None
         The value to parse. If ``None``, return an empty dictionary.
 
     Returns

@@ -4,6 +4,8 @@
 
 """Analysis tools and utilities.
 
+from __future__ import annotations
+
 Namespace module following scanpy conventions. Provides tools for
 post-annotation analysis, including UMI parsing.
 

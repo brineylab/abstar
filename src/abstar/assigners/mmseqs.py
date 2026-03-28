@@ -3,9 +3,11 @@
 # SPDX-License-Identifier: MIT
 
 
+from __future__ import annotations
+
 import logging
-import os
 import sys
+from pathlib import Path
 from typing import Iterable
 
 import abutils
@@ -61,13 +63,13 @@ class MMseqs(AssignerBase):
         self.chunksize = chunksize
         self.threads = threads
 
-    def __call__(self, sequence_file: str) -> str:
+    def __call__(self, sequence_file: str | Path) -> str:
         """
         Run the MMseqs assigner.
 
         Parameters
         ----------
-        sequence_file : str
+        sequence_file : str or Path
             The path to the input file, in either FASTA or FASTQ format. Gzip-compressed files
             are supported.
 
@@ -76,9 +78,8 @@ class MMseqs(AssignerBase):
         str
             The path to the output Parquet file.
         """
-        self.sample_name = ".".join(
-            os.path.basename(sequence_file).rstrip(".gz").split(".")[:-1]
-        )
+        seq_name = Path(sequence_file).name.rstrip(".gz")
+        self.sample_name = ".".join(seq_name.split(".")[:-1])
 
         # input files are split into 1M sequence chunks
         input_fastas, input_tsvs, sequence_count = self.prepare_input_files(
@@ -114,16 +115,16 @@ class MMseqs(AssignerBase):
 
         return assigned_path, sequence_count
 
-    def assign_germlines(self, input_fasta: str, input_tsv: str) -> str:
+    def assign_germlines(self, input_fasta: str | Path, input_tsv: str | Path) -> str:
         """
         V, D, J, and C germline gene segment assignment.
 
         Parameters
         ----------
-        input_fastas : Iterable[str]
-            An iterable of path(s) to one or more input FASTA files.
+        input_fasta : str or Path
+            Path to the input FASTA file.
 
-        input_tsv : str
+        input_tsv : str or Path
             The path to the input TSV file.
 
         Returns
@@ -132,26 +133,26 @@ class MMseqs(AssignerBase):
             The path to the output Parquet file.
         """
         mmseqs_format_output = "query,target,evalue,qstart,qend,qseq,nident"
-        germdb_path = os.path.join(self.germdb_path, "mmseqs")
+        germdb_path = Path(self.germdb_path) / "mmseqs"
         input_df = pl.scan_csv(input_tsv, separator="\t")
-        idx = input_fasta.split(".")[-2]
+        idx = Path(input_fasta).stem.split(".")[-1]
 
         # -----------
         #   V genes
         # -----------
-        v_germdb = os.path.join(germdb_path, "v")
+        v_germdb = germdb_path / "v"
+        log_dir = Path(self.log_directory)
+        output_dir = Path(self.output_directory)
 
         # process input FASTA files
-        vresult_path = os.path.join(
-            self.output_directory, f"{self.sample_name}.vresult.{idx}.tsv"
-        )
+        vresult_path = output_dir / f"{self.sample_name}.vresult.{idx}.tsv"
         if not self.debug:
-            self.to_delete.append(vresult_path)
+            self.to_delete.append(str(vresult_path))
         # assign V genes
         abutils.tl.mmseqs_search(
             query=input_fasta,
-            target=v_germdb,
-            output_path=vresult_path,
+            target=str(v_germdb),
+            output_path=str(vresult_path),
             search_type=3,
             max_seqs=25,
             sensitivity=7.5,
@@ -159,9 +160,7 @@ class MMseqs(AssignerBase):
             format_mode=4,
             additional_cli_args="--min-aln-len 12 -k 5 --alignment-mode 3",
             format_output=mmseqs_format_output,
-            log_to=os.path.join(
-                self.log_directory, f"{self.sample_name}.v_assignment.log"
-            ),
+            log_to=str(log_dir / f"{self.sample_name}.v_assignment.log"),
             threads=self.threads,
             debug=self.debug,
         )
@@ -170,8 +169,7 @@ class MMseqs(AssignerBase):
             vresult_path,
             separator="\t",
             with_column_names=lambda x: [
-                f"v_{_x}".replace("target", "call").replace("evalue", "support")
-                for _x in x
+                f"v_{_x}".replace("target", "call").replace("evalue", "support") for _x in x
             ],
         )
         # keep only the highest scoring assignment for each sequence
@@ -188,32 +186,26 @@ class MMseqs(AssignerBase):
         # -----------
 
         # self.logger.info(" | J")
-        j_germdb = os.path.join(germdb_path, "j")
-        jquery_path = os.path.join(
-            self.output_directory, f"{self.sample_name}.jquery.{idx}.fasta"
-        )
-        jresult_path = os.path.join(
-            self.output_directory, f"{self.sample_name}.jresult.{idx}.tsv"
-        )
+        j_germdb = germdb_path / "j"
+        jquery_path = output_dir / f"{self.sample_name}.jquery.{idx}.fasta"
+        jresult_path = output_dir / f"{self.sample_name}.jresult.{idx}.tsv"
         if not self.debug:
-            self.to_delete.extend([jresult_path, jquery_path])
+            self.to_delete.extend([str(jresult_path), str(jquery_path)])
         # make the input FASTA file for J gene assignment
         # self.build_jquery_fasta(vresult_df, jquery_path)
         self.build_jquery_fasta(vresult_df, jquery_path)
         # assign J genes
         abutils.tl.mmseqs_search(
-            query=jquery_path,
-            target=j_germdb,
-            output_path=jresult_path,
+            query=str(jquery_path),
+            target=str(j_germdb),
+            output_path=str(jresult_path),
             search_type=3,
             max_seqs=25,
             max_evalue=1000.0,
             format_mode=4,
             additional_cli_args="--min-aln-len 12 -k 5 --alignment-mode 3",
             format_output=mmseqs_format_output,
-            log_to=os.path.join(
-                self.log_directory, f"{self.sample_name}.j_assignment.log"
-            ),
+            log_to=str(log_dir / f"{self.sample_name}.j_assignment.log"),
             threads=self.threads,
             debug=self.debug,
         )
@@ -222,8 +214,7 @@ class MMseqs(AssignerBase):
             jresult_path,
             separator="\t",
             with_column_names=lambda x: [
-                f"j_{_x}".replace("target", "call").replace("evalue", "support")
-                for _x in x
+                f"j_{_x}".replace("target", "call").replace("evalue", "support") for _x in x
             ],
         )
 
@@ -241,9 +232,7 @@ class MMseqs(AssignerBase):
 
         if self.debug:
             vjresult_df.write_csv(
-                os.path.join(
-                    self.output_directory, f"{self.sample_name}.vjresult.{idx}.csv"
-                ),
+                output_dir / f"{self.sample_name}.vjresult.{idx}.csv",
             )
 
         # -----------
@@ -251,35 +240,29 @@ class MMseqs(AssignerBase):
         # -----------
 
         # self.logger.info(" | D")
-        d_germdb = os.path.join(germdb_path, "d")
-        dquery_path = os.path.join(
-            self.output_directory, f"{self.sample_name}.dquery.{idx}.fasta"
-        )
-        dresult_path = os.path.join(
-            self.output_directory, f"{self.sample_name}.dresult.{idx}.tsv"
-        )
+        d_germdb = germdb_path / "d"
+        dquery_path = output_dir / f"{self.sample_name}.dquery.{idx}.fasta"
+        dresult_path = output_dir / f"{self.sample_name}.dresult.{idx}.tsv"
         if not self.debug:
-            self.to_delete.extend([dresult_path, dquery_path])
+            self.to_delete.extend([str(dresult_path), str(dquery_path)])
         # make the input FASTA file for D gene assignment
         self.build_dquery_fasta(vjresult_df, dquery_path, minimum_length=5)
 
         # only assign D genes if the dquery fasta file is not empty
         # if os.path.exists(dquery_path):
-        if abutils.io.determine_fastx_format(dquery_path) == "fasta":
+        if abutils.io.determine_fastx_format(str(dquery_path)) == "fasta":
             # assign D genes
             abutils.tl.mmseqs_search(
-                query=dquery_path,
-                target=d_germdb,
-                output_path=dresult_path,
+                query=str(dquery_path),
+                target=str(d_germdb),
+                output_path=str(dresult_path),
                 search_type=3,
                 max_seqs=25,
                 max_evalue=1000000.0,
                 format_mode=4,
                 additional_cli_args="--min-aln-len 5 -k 3 --alignment-mode 3",
                 format_output=mmseqs_format_output,
-                log_to=os.path.join(
-                    self.log_directory, f"{self.sample_name}.d_assignment.log"
-                ),
+                log_to=str(log_dir / f"{self.sample_name}.d_assignment.log"),
                 threads=self.threads,
                 debug=self.debug,
             )
@@ -288,14 +271,11 @@ class MMseqs(AssignerBase):
                 dresult_path,
                 separator="\t",
                 with_column_names=lambda x: [
-                    f"d_{_x}".replace("target", "call").replace("evalue", "support")
-                    for _x in x
+                    f"d_{_x}".replace("target", "call").replace("evalue", "support") for _x in x
                 ],
             )
             # keep only the highest scoring assignment for each sequence
-            dresult_df = dresult_df.sort(
-                by=["d_nident"], descending=True, nulls_last=True
-            )
+            dresult_df = dresult_df.sort(by=["d_nident"], descending=True, nulls_last=True)
             dresult_df = dresult_df.unique(subset=["d_query"], keep="first").collect()
             # cast d_query to str to prevent schema mismatch when Polars
             # infers numeric-looking sequence IDs as f64
@@ -325,44 +305,36 @@ class MMseqs(AssignerBase):
 
         if self.debug:
             vdjresult_df.write_csv(
-                os.path.join(
-                    self.output_directory, f"{self.sample_name}.vdjresult.{idx}.csv"
-                ),
+                output_dir / f"{self.sample_name}.vdjresult.{idx}.csv",
             )
 
         # -----------
         #   C genes
         # -----------
-        c_germdb = os.path.join(germdb_path, "c")
+        c_germdb = germdb_path / "c"
 
         # some germline databases may not have constant genes
         # so we only try to assign if the database exists
-        if os.path.exists(c_germdb):
+        if c_germdb.exists():
             # self.logger.info(" | C")
-            cquery_path = os.path.join(
-                self.output_directory, f"{self.sample_name}.cquery.{idx}.fasta"
-            )
-            cresult_path = os.path.join(
-                self.output_directory, f"{self.sample_name}.cresult.{idx}.tsv"
-            )
+            cquery_path = output_dir / f"{self.sample_name}.cquery.{idx}.fasta"
+            cresult_path = output_dir / f"{self.sample_name}.cresult.{idx}.tsv"
             if not self.debug:
-                self.to_delete.extend([cresult_path, cquery_path])
+                self.to_delete.extend([str(cresult_path), str(cquery_path)])
             # make the input FASTA file for C gene assignment
             self.build_cquery_fasta(vjresult_df, cquery_path)
             # assign C genes
             abutils.tl.mmseqs_search(
-                query=cquery_path,
-                target=c_germdb,
-                output_path=cresult_path,
+                query=str(cquery_path),
+                target=str(c_germdb),
+                output_path=str(cresult_path),
                 search_type=3,
                 # max_seqs=25,
                 max_evalue=10.0,
                 format_mode=4,
                 additional_cli_args="--min-aln-len 12 -k 5 --alignment-mode 3",
                 format_output=mmseqs_format_output,
-                log_to=os.path.join(
-                    self.log_directory, f"{self.sample_name}.c_assignment.log"
-                ),
+                log_to=str(log_dir / f"{self.sample_name}.c_assignment.log"),
                 threads=self.threads,
                 debug=self.debug,
             )
@@ -371,14 +343,11 @@ class MMseqs(AssignerBase):
                 cresult_path,
                 separator="\t",
                 with_column_names=lambda x: [
-                    f"c_{_x}".replace("target", "call").replace("evalue", "support")
-                    for _x in x
+                    f"c_{_x}".replace("target", "call").replace("evalue", "support") for _x in x
                 ],
             )
             # keep only the highest scoring assignment for each sequence
-            cresult_df = cresult_df.sort(
-                by=["c_nident"], descending=True, nulls_last=True
-            )
+            cresult_df = cresult_df.sort(by=["c_nident"], descending=True, nulls_last=True)
             cresult_df = cresult_df.unique(subset=["c_query"], keep="first").collect()
             cresult_df = cresult_df.cast({"c_query": pl.Utf8})
             if cresult_df.shape[0] > 0:
@@ -420,23 +389,17 @@ class MMseqs(AssignerBase):
 
         if self.debug:
             vdjcresult_df.write_csv(
-                os.path.join(
-                    self.output_directory, f"{self.sample_name}.vdjcresult.{idx}.csv"
-                ),
+                output_dir / f"{self.sample_name}.vdjcresult.{idx}.csv",
             )
 
         # log "unassigned" sequences (no V or J gene assignment)
         unassigned_cols = ["sequence_id", "sequence_input"]
-        unassigned = vdjcresult_df.filter(
-            pl.col("v_call").is_null() | pl.col("j_call").is_null()
-        )
+        unassigned = vdjcresult_df.filter(pl.col("v_call").is_null() | pl.col("j_call").is_null())
         unassigned = unassigned.select(unassigned_cols)
-        unassigned_path = os.path.join(
-            self.log_directory, f"{self.sample_name}.{idx}.unassigned.csv"
-        )
+        unassigned_path = log_dir / f"{self.sample_name}.{idx}.unassigned.csv"
         unassigned.write_csv(unassigned_path)
         if not self.debug:
-            self.to_delete.append(unassigned_path)
+            self.to_delete.append(str(unassigned_path))
 
         # write "assigned" sequence results (successful V and J gene assignment)
         assigned_cols = [
@@ -453,22 +416,16 @@ class MMseqs(AssignerBase):
             "c_call",
             "c_support",
         ]
-        assigned = vdjcresult_df.filter(
-            ~pl.col("v_call").is_null() & ~pl.col("j_call").is_null()
-        )
+        assigned = vdjcresult_df.filter(~pl.col("v_call").is_null() & ~pl.col("j_call").is_null())
         assigned = assigned.select(assigned_cols)
-        assigned_path = os.path.join(
-            self.output_directory, f"{self.sample_name}.{idx}.parquet"
-        )
+        assigned_path = output_dir / f"{self.sample_name}.{idx}.parquet"
         assigned.cast(ASSIGNMENT_SCHEMA).write_parquet(assigned_path)
         if not self.debug:
-            self.to_delete.append(assigned_path)
+            self.to_delete.append(str(assigned_path))
 
-        return assigned_path, unassigned_path
+        return str(assigned_path), str(unassigned_path)
 
-    def prepare_input_files(
-        self, sequence_file: str, chunksize: int = 1e6
-    ) -> Iterable[str]:
+    def prepare_input_files(self, sequence_file: str | Path, chunksize: int = 1e6) -> Iterable[str]:
         """
         Prepare the input file for use by the Assigner.
 
@@ -478,7 +435,7 @@ class MMseqs(AssignerBase):
 
         Parameters
         ----------
-        sequence_file : str
+        sequence_file : str or Path
             The path to the input file.
 
         Returns
@@ -498,28 +455,26 @@ class MMseqs(AssignerBase):
             sequence_count += 1
 
         # split input file, if necessary
+        sequence_file_path = Path(sequence_file)
         if sequence_count > chunksize:
             sequence_files = abutils.io.split_fastx(
-                sequence_file,
-                output_directory=os.path.dirname(sequence_file),
+                str(sequence_file),
+                output_directory=str(sequence_file_path.parent),
                 chunksize=chunksize,
             )
         else:
-            sequence_files = [sequence_file]
+            sequence_files = [str(sequence_file)]
 
         # process sequence file(s)
         output_fastas = []
         output_csvs = []
+        output_dir = Path(self.output_directory)
         for i, sequence_file in enumerate(sequence_files):
             # set up output files
-            output_fasta = os.path.join(
-                self.output_directory, f"{self.sample_name}.{i}.fasta"
-            )
-            output_csv = os.path.join(
-                self.output_directory, f"{self.sample_name}.{i}.tsv"
-            )
+            output_fasta = output_dir / f"{self.sample_name}.{i}.fasta"
+            output_csv = output_dir / f"{self.sample_name}.{i}.tsv"
             if not self.debug:
-                self.to_delete.extend([output_fasta, output_csv])
+                self.to_delete.extend([str(output_fasta), str(output_csv)])
 
             # process input file
             with open(output_fasta, "w") as ofasta:
@@ -532,8 +487,8 @@ class MMseqs(AssignerBase):
                                 qual = "#" + qual[1:]
                         ofasta.write(f">{seq.id}\n{seq.sequence}\n")
                         ocsv.write(f"{seq.id}\t{seq.sequence}\t{qual}\n")
-            output_fastas.append(output_fasta)
-            output_csvs.append(output_csv)
+            output_fastas.append(str(output_fasta))
+            output_csvs.append(str(output_csv))
 
         # delete chunked sequence files (if there's only one file, it hasn't been chunked)
         if len(sequence_files) > 1:
@@ -565,7 +520,7 @@ class MMseqs(AssignerBase):
 
         """
         # assigned files
-        assigned = os.path.join(self.output_directory, f"{self.sample_name}.parquet")
+        assigned = Path(self.output_directory) / f"{self.sample_name}.parquet"
         assigned_dfs = []
         for assigned_path in assigned_paths:
             _df = pl.scan_parquet(assigned_path)
@@ -574,9 +529,7 @@ class MMseqs(AssignerBase):
         assigned_df.sink_parquet(assigned, statistics=False)
 
         # unassigned_files
-        unassigned = os.path.join(
-            self.log_directory, f"{self.sample_name}.unassigned.csv"
-        )
+        unassigned = Path(self.log_directory) / f"{self.sample_name}.unassigned.csv"
         unassigned_dfs = []
         for unassigned_path in unassigned_paths:
             _df = pl.scan_csv(unassigned_path)
@@ -584,12 +537,12 @@ class MMseqs(AssignerBase):
         unassigned_df = pl.concat(unassigned_dfs)
         unassigned_df.sink_csv(unassigned)
 
-        return assigned
+        return str(assigned)
 
     def build_jquery_fasta(
         self,
         vresult_df: pl.LazyFrame | pl.DataFrame,
-        fasta_path: str,
+        fasta_path: str | Path,
     ) -> None:
         """
         Builds a FASTA file for the J gene assignment.
@@ -601,7 +554,7 @@ class MMseqs(AssignerBase):
         vresult_df : pl.LazyFrame or pl.DataFrame
             The V gene assignment results.
 
-        fasta_path : str
+        fasta_path : str or Path
             The path to the output FASTA file.
 
         Returns
@@ -615,9 +568,9 @@ class MMseqs(AssignerBase):
             vresult_df = vresult_df.collect()
 
         # retrieve a subset of the sequence that follows the V alignment
-        for name, start, end, seq in vresult_df.select(
-            pl.concat_list(pl.col(vcols)).alias("jq")
-        )["jq"]:
+        for name, start, end, seq in vresult_df.select(pl.concat_list(pl.col(vcols)).alias("jq"))[
+            "jq"
+        ]:
             start = int(start)
             end = int(end)
             if start > end:
@@ -636,7 +589,7 @@ class MMseqs(AssignerBase):
     def build_dquery_fasta(
         self,
         vjresult_df: pl.LazyFrame | pl.DataFrame,
-        fasta_path: str,
+        fasta_path: str | Path,
         minimum_length: int = 5,
     ) -> None:
         """
@@ -649,7 +602,7 @@ class MMseqs(AssignerBase):
         vjresult_df : pl.LazyFrame or pl.DataFrame
             The J gene assignment results.
 
-        fasta_path : str
+        fasta_path : str or Path
             The path to the output FASTA file.
 
         Returns
@@ -668,9 +621,9 @@ class MMseqs(AssignerBase):
             heavy_df = heavy_df.collect()
 
         # retrieve a subset of the sequence that preceeds the J alignment
-        for name, start, end, seq in heavy_df.select(
-            pl.concat_list(pl.col(vcols)).alias("dq")
-        )["dq"]:
+        for name, start, end, seq in heavy_df.select(pl.concat_list(pl.col(vcols)).alias("dq"))[
+            "dq"
+        ]:
             start = int(start)
             end = int(end)
             if abs(start - end) < minimum_length:
@@ -688,7 +641,7 @@ class MMseqs(AssignerBase):
     def build_cquery_fasta(
         self,
         vjresult_df: pl.LazyFrame | pl.DataFrame,
-        fasta_path: str,
+        fasta_path: str | Path,
     ) -> None:
         """
         Builds a FASTA file for the C gene assignment.
@@ -700,7 +653,7 @@ class MMseqs(AssignerBase):
         vjresult_df : pl.LazyFrame or pl.DataFrame
             The J gene assignment results.
 
-        fasta_path : str
+        fasta_path : str or Path
             The path to the output FASTA file.
 
         Returns
@@ -715,9 +668,9 @@ class MMseqs(AssignerBase):
         vjresult_df = vjresult_df.drop_nulls(vcols)
 
         # retrieve a subset of the sequence that preceeds the J alignment
-        for name, start, end, seq in vjresult_df.select(
-            pl.concat_list(pl.col(vcols)).alias("cq")
-        )["cq"]:
+        for name, start, end, seq in vjresult_df.select(pl.concat_list(pl.col(vcols)).alias("cq"))[
+            "cq"
+        ]:
             start = int(start)
             end = int(end)
             if start > end:

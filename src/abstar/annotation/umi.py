@@ -2,9 +2,11 @@
 # Distributed under the terms of the MIT License.
 # SPDX-License-Identifier: MIT
 
-import os
+from __future__ import annotations
+
 import shutil
 import tempfile
+from pathlib import Path
 from typing import Iterable
 
 import abutils
@@ -134,9 +136,7 @@ class UMI:
         """
         Performs local alignment between a pattern and sequence.
         """
-        aln = abutils.tl.local_alignment(
-            pattern, sequence, gap_open=-20, gap_extend=-20
-        )
+        aln = abutils.tl.local_alignment(pattern, sequence, gap_open=-20, gap_extend=-20)
         return aln
 
     def get_mismatches(self) -> int | None:
@@ -346,14 +346,13 @@ def parse_umis(
         err += f"You provided {fmt}.\n"
         raise ValueError(err)
     # input processing
-    if isinstance(sequences, str) and os.path.isfile(sequences):
+    if isinstance(sequences, str) and Path(sequences).is_file():
         output = _parse_umis_from_file(
             input_file=sequences,
             patterns=patterns,
             lengths=lengths,
             output_file=output_file,
             allowed_mismatches=allowed_mismatches,
-
             ignore_strand=ignore_strand,
             fmt=fmt,
         )
@@ -363,7 +362,6 @@ def parse_umis(
             patterns=patterns,
             lengths=lengths,
             allowed_mismatches=allowed_mismatches,
-
             ignore_strand=ignore_strand,
         )
     else:
@@ -373,7 +371,6 @@ def parse_umis(
             lengths=lengths,
             output_file=output_file,
             allowed_mismatches=allowed_mismatches,
-
             ignore_strand=ignore_strand,
             fmt=fmt,
             sequence_key=sequence_key,
@@ -401,7 +398,7 @@ def _parse_umis_from_file(
         output_file = tempfile.NamedTemporaryFile(delete=False).name
         inplace = True
     else:
-        abutils.io.make_dir(os.path.dirname(output_file))
+        abutils.io.make_dir(str(Path(output_file).parent))
     with open(output_file, "w") as ofile:
         for s in abutils.io.parse_fastx(input_file):
             umi_list = []
@@ -410,7 +407,6 @@ def _parse_umis_from_file(
                     sequence=s,
                     pattern=pattern,
                     length=length,
-        
                     ignore_strand=ignore_strand,
                 )
                 if u.num_mismatches <= allowed_mismatches:
@@ -463,7 +459,6 @@ def _parse_umis_from_sequences(
                 sequence=s,
                 pattern=pattern,
                 length=length,
-    
                 ignore_strand=ignore_strand,
             )
             if u.num_mismatches <= allowed_mismatches:
@@ -515,7 +510,6 @@ def _parse_umis_from_single_sequence(
             sequence=s,
             pattern=pattern,
             length=length,
-
             ignore_strand=ignore_strand,
         )
         if u.num_mismatches <= allowed_mismatches:

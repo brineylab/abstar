@@ -2,6 +2,8 @@
 # Distributed under the terms of the MIT License.
 # SPDX-License-Identifier: MIT
 
+from __future__ import annotations
+
 from typing import Iterable
 
 import click
@@ -115,7 +117,7 @@ def cli():
     "copy_inputs_to_project",
     is_flag=True,
     default=True,
-    help="Whether to copy input files to the project directory."
+    help="Whether to copy input files to the project directory.",
 )
 @click.option(
     "--verbose/--quiet",

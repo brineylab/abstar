@@ -2,8 +2,10 @@
 # Distributed under the terms of the MIT License.
 # SPDX-License-Identifier: MIT
 
-import os
+from __future__ import annotations
+
 import traceback
+from pathlib import Path
 from typing import Iterable
 
 import abutils
@@ -75,13 +77,13 @@ def annotate(
     germline_database : str
         Name of the germline database to use for annotation.
 
-    log_directory : Optional[str], default=None
+    log_directory : str | None, default=None
         Path to the directory where the log files will be written.
 
-    umi_pattern : Optional[str], default=None
+    umi_pattern : str | None, default=None
         Pattern to match for parsing the UMI sequence, or name of a built-in pattern.
 
-    umi_length : Optional[int], default=None
+    umi_length : int | None, default=None
         Length of the UMI sequence.
 
     debug : bool, default=False
@@ -92,11 +94,11 @@ def annotate(
     output_file : str
         Path to the output Parquet file containing annotated sequences.
 
-    failed_logfile : Optional[str]
+    failed_logfile : str | None
         Path to the log file for failed sequences. Only returned if
         `log_directory` is provided
 
-    succeeded_logfile : Optional[str]
+    succeeded_logfile : str | None
         Path to the log file for succeeded sequences. Only returned if
         `debug=True` and `log_directory` is provided.
 
@@ -126,20 +128,20 @@ def annotate(
     succeeded_df = pl.DataFrame([s.to_dict() for s in succeeded], schema=OUTPUT_SCHEMA)
 
     # write logs
-    basename = os.path.basename(input_file)
+    basename = Path(input_file).name
     if log_directory:
-        failed_logfile = os.path.join(log_directory, f"{basename}.failed")
+        failed_logfile = str(Path(log_directory) / f"{basename}.failed")
         with open(failed_logfile, "w") as f:
             for fail in failed:
                 f.write(fail.format_log())
         if debug:
-            succeeded_logfile = os.path.join(log_directory, f"{basename}.succeeded")
+            succeeded_logfile = str(Path(log_directory) / f"{basename}.succeeded")
             with open(succeeded_logfile, "w") as f:
                 for succ in succeeded:
                     f.write(succ.format_log())
 
     # write outputs
-    output_file = os.path.join(output_directory, f"{basename}_annotated.parquet")
+    output_file = str(Path(output_directory) / f"{basename}_annotated.parquet")
     succeeded_df.write_parquet(output_file)
 
     # returns
@@ -305,9 +307,7 @@ def annotate_single_sequence(
         exact_match=True,
         truncate_species=False,
     ).sequence
-    ab.v_germline_gapped_aa = translate(
-        ab.v_germline_gapped, allow_dots=True
-    )
+    ab.v_germline_gapped_aa = translate(ab.v_germline_gapped, allow_dots=True)
     ab.log("GAPPED GERMLINE:", ab.v_germline_gapped)
     ab.log("GAPPED GERMLINE AA:", ab.v_germline_gapped_aa)
     # ab.v_germline_gapped = ab.v_germline_gapped
@@ -320,9 +320,7 @@ def annotate_single_sequence(
         gapped_germline=ab.v_germline_gapped,
         germline_start=ab.v_germline_start,
     )
-    ab.v_sequence_gapped_aa = translate(
-        ab.v_sequence_gapped, frame=ab.frame, allow_dots=True
-    )
+    ab.v_sequence_gapped_aa = translate(ab.v_sequence_gapped, frame=ab.frame, allow_dots=True)
     ab.log("GAPPED SEQUENCE:", ab.v_sequence_gapped)
     ab.log("GAPPED SEQUENCE AA:", ab.v_sequence_gapped_aa)
     # ab.v_sequence_gapped = ab.v_sequence_gapped
@@ -338,9 +336,7 @@ def annotate_single_sequence(
         )
         ab.log("V INSERTIONS:", ab.v_insertions)
         insertions = ab.v_insertions.split("|")
-        cumulative_ins_length = sum(
-            [int(i.split(">")[0].split(":")[1]) for i in insertions]
-        )
+        cumulative_ins_length = sum([int(i.split(">")[0].split(":")[1]) for i in insertions])
     else:
         cumulative_ins_length = 0
 
@@ -354,9 +350,7 @@ def annotate_single_sequence(
         )
         ab.log("V DELETIONS:", ab.v_deletions)
         deletions = ab.v_deletions.split("|")
-        cumulative_del_length = sum(
-            [int(d.split(">")[0].split(":")[1]) for d in deletions]
-        )
+        cumulative_del_length = sum([int(d.split(">")[0].split(":")[1]) for d in deletions])
     else:
         cumulative_del_length = 0
 
@@ -373,9 +367,7 @@ def annotate_single_sequence(
     # j-gene realignment
     jquery = ab.sequence_oriented[ab.v_sequence_end :]
     if len(jquery) == 0:
-        raise ValueError(
-            f"Query sequence for J-gene realignment is empty for {ab.sequence_id}"
-        )
+        raise ValueError(f"Query sequence for J-gene realignment is empty for {ab.sequence_id}")
     # use a smaller gap open penalty for the J-gene alignment than we use for others (V-gene and constant region)
     j_sg, j_loc = realign_germline(
         sequence=jquery,
@@ -567,9 +559,7 @@ def annotate_single_sequence(
                 force_constant=True,
                 truncate_species=False,
             ).sequence
-            ab.c_germline_gapped_aa = translate(
-                ab.c_germline_gapped, allow_dots=True
-            )
+            ab.c_germline_gapped_aa = translate(ab.c_germline_gapped, allow_dots=True)
             ab.log("GAPPED GERMLINE:", ab.c_germline_gapped)
             ab.log("GAPPED GERMLINE AA:", ab.c_germline_gapped_aa)
             # ab.v_germline_gapped = ab.v_germline_gapped

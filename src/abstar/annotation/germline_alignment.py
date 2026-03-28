@@ -3,8 +3,9 @@
 # SPDX-License-Identifier: MIT
 
 
-import os
-from typing import Tuple
+from __future__ import annotations
+
+from pathlib import Path
 
 import abutils
 from abutils import Sequence
@@ -73,19 +74,18 @@ def get_germline_database_path(germdb_name: str, receptor: str = "bcr") -> str:
     if receptor not in ["bcr", "tcr"]:
         raise ValueError(f"Receptor type {receptor} not supported")
     # check the addon directory first
-    addon_dir = os.path.expanduser(f"~/.abstar/germline_dbs/{receptor}")
-    if os.path.isdir(addon_dir):
-        if germdb_name.lower() in [os.path.basename(d[0]) for d in os.walk(addon_dir)]:
-            return os.path.join(addon_dir, f"{receptor}/{germdb_name}")
+    addon_dir = Path(f"~/.abstar/germline_dbs/{receptor}").expanduser()
+    if addon_dir.is_dir():
+        if germdb_name.lower() in [d.name for d in addon_dir.iterdir() if d.is_dir()]:
+            return str(addon_dir / receptor / germdb_name)
     # if a user-generated DB isn't found, use the built-in DB
-    core_dir = os.path.dirname(os.path.abspath(__file__))  # "abstar/core" directory
-    abstar_dir = os.path.dirname(core_dir)  # "abstar" directory
-    germdb_path = os.path.join(abstar_dir, f"germline_dbs/{receptor}/{germdb_name}")
-    if not os.path.exists(germdb_path):
+    abstar_dir = Path(__file__).resolve().parent.parent  # "abstar" directory
+    germdb_path = abstar_dir / "germline_dbs" / receptor / germdb_name
+    if not germdb_path.exists():
         raise FileNotFoundError(
             f"Germline database {germdb_name} for receptor {receptor} not found"
         )
-    return germdb_path
+    return str(germdb_path)
 
 
 def get_germline(
@@ -168,15 +168,15 @@ def get_germline(
         )
     # decide on gapped vs ungapped
     if imgt_gapped:
-        germdb_file = os.path.join(germdb_path, f"imgt_gapped/{segment}.fasta")
+        germdb_file = Path(germdb_path) / "imgt_gapped" / f"{segment}.fasta"
     else:
-        germdb_file = os.path.join(germdb_path, f"ungapped/{segment}.fasta")
-    if not os.path.exists(germdb_file):
+        germdb_file = Path(germdb_path) / "ungapped" / f"{segment}.fasta"
+    if not germdb_file.exists():
         raise FileNotFoundError(
             f"Germline database {germdb_name} for receptor {receptor} not found"
         )
     # retrieve germline sequences
-    all_germs = abutils.io.read_fasta(germdb_file)
+    all_germs = abutils.io.read_fasta(str(germdb_file))
     if truncate_species:
         for g in all_germs:
             g.id = g.id.split("__")[0]
@@ -186,9 +186,7 @@ def get_germline(
     else:
         germs = [g for g in all_germs if germline_gene in g.id]
     if not germs:
-        raise ValueError(
-            f"No substring matches to {germline_gene} were found in {germdb_file}"
-        )
+        raise ValueError(f"No substring matches to {germline_gene} were found in {germdb_file}")
     if len(germs) == 1:
         return germs[0]
     else:
@@ -212,7 +210,7 @@ def realign_germline(
     truncate_query: int | None = None,
     truncate_target: int | None = None,
     force_constant: bool = False,
-) -> Tuple[abutils.tl.PairwiseAlignment | None]:
+) -> tuple[abutils.tl.PairwiseAlignment | None, abutils.tl.PairwiseAlignment | None]:
     """
     Performs an (optionally) two-step realignment of an assigned germline gene to a query sequence.
 
@@ -272,7 +270,7 @@ def realign_germline(
 
     Returns
     -------
-    Tuple[Optional[abutils.tl.PairwiseAlignment], Optional[abutils.tl.PairwiseAlignment]]
+    tuple[abutils.tl.PairwiseAlignment | None, abutils.tl.PairwiseAlignment | None]
         The semi-global and local alignments. If ``skip_semiglobal`` is ``True``, the first element of the tuple is ``None``.
         If ``skip_local`` is ``True``, the second element of the tuple is ``None``.
 
@@ -293,9 +291,7 @@ def realign_germline(
     if skip_semiglobal:
         sg = None
     else:
-        semiglobal_aln_params = (
-            semiglobal_aln_params if semiglobal_aln_params is not None else {}
-        )
+        semiglobal_aln_params = semiglobal_aln_params if semiglobal_aln_params is not None else {}
         sg = abutils.tl.semiglobal_alignment(sequence, germ, **semiglobal_aln_params)
         sequence = sg.query[sg.query_begin : sg.query_end + 1]
         germ = sg.target[sg.target_begin : sg.target_end + 1]
@@ -487,9 +483,7 @@ def process_jgene_alignment(
     # sequence start is relative to the oriented input sequence
     # germline start is relative to the full (ungapped) germline gene sequence
     # AIRR-C wants 1-based indexing, but 0-based is better so we'll do that instead
-    ab.j_sequence_start = (
-        v_sequence_end + semiglobal_aln.query_begin + local_aln.query_begin
-    )
+    ab.j_sequence_start = v_sequence_end + semiglobal_aln.query_begin + local_aln.query_begin
     ab.j_germline_start = semiglobal_aln.target_begin + local_aln.target_begin
 
     # like V genes, we need to check whether the local alignment was incorrectly truncated
@@ -507,9 +501,7 @@ def process_jgene_alignment(
         ab.j_sequence_end = v_sequence_end + semiglobal_aln.query_end + 1
         ab.j_germline_end = ab.j_germline_start + semiglobal_aln.target_end + 1
     else:
-        ab.j_sequence_end = (
-            ab.j_sequence_start + (local_aln.query_end - local_aln.query_begin) + 1
-        )
+        ab.j_sequence_end = ab.j_sequence_start + (local_aln.query_end - local_aln.query_begin) + 1
         ab.j_germline_end = (
             ab.j_germline_start + (local_aln.target_end - local_aln.target_begin) + 1
         )
@@ -639,9 +631,7 @@ def process_cgene_alignment(
     if semiglobal_aln.query_begin < semiglobal_aln.target_begin:
         # the query sequence doesn't extend to the beginning of the germline
         # so we'll use the start position of the local alignment
-        ab.c_sequence_start = (
-            j_sequence_end + semiglobal_aln.query_begin + local_aln.query_begin
-        )
+        ab.c_sequence_start = j_sequence_end + semiglobal_aln.query_begin + local_aln.query_begin
         ab.c_germline_start = semiglobal_aln.target_begin + local_aln.target_begin
     else:
         # if the query extends 5' at least to the beginning of the germline,
@@ -651,9 +641,7 @@ def process_cgene_alignment(
         ab.c_sequence_start = j_sequence_end + semiglobal_aln.query_begin
         ab.c_germline_start = semiglobal_aln.target_begin
     # sequence/germline stop positions
-    ab.c_sequence_end = (
-        ab.c_sequence_start + semiglobal_aln.query_begin + local_aln.query_end + 1
-    )
+    ab.c_sequence_end = ab.c_sequence_start + semiglobal_aln.query_begin + local_aln.query_end + 1
     ab.c_germline_end = semiglobal_aln.target_begin + local_aln.target_end + 1
     # j-region sequence and germline
     ab.c_sequence = oriented_input[ab.c_sequence_start : ab.c_sequence_end]

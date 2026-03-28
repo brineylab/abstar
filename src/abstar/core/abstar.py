@@ -2,10 +2,12 @@
 # Distributed under the terms of the MIT License.
 # SPDX-License-Identifier: MIT
 
+from __future__ import annotations
+
 import multiprocessing as mp
-import os
 import shutil
 import tempfile
+from pathlib import Path
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from datetime import datetime
 from typing import Iterable
@@ -48,7 +50,7 @@ __all__ = ["run"]
 #    - if str and not either file or directory: assume str is a sequence, convert to Sequence and process
 #    - if Sequence or Iterable[Sequence]: process accordingly
 #
-#  - project_path: Optional[str]
+#  - project_path: str | None
 #    - if provided, str should be a directory path into which tmp, log and output files will be deposited
 #    - if not provided:
 #      - tmp files will be written to /tmp
@@ -89,8 +91,8 @@ __all__ = ["run"]
 
 
 def run(
-    sequences: str | Sequence | Iterable[Sequence],
-    project_path: str | None = None,
+    sequences: str | Path | Sequence | Iterable[Sequence],
+    project_path: str | Path | None = None,
     germline_database: str = "human",
     receptor: str = "bcr",
     output_format: str | Iterable[str] = "airr",
@@ -123,7 +125,7 @@ def run(
     Parameters
     ----------
 
-    sequences : Union[str, Sequence, Iterable[Sequence]]
+    sequences : str | Sequence | Iterable[Sequence]
         The sequences to annotate. Can be one of the following:
 
           - ``str``: path to a FASTA/Q file, path to a directory of FASTA/Q files, or a single sequence, as a string
@@ -134,7 +136,7 @@ def run(
             If `sequences` is a directory path, files in the directory will be consumed recursively, including
             files in any subfolders.
 
-    project_path : Optional[str] = None
+    project_path : str | None = None
         If provided, the path to a directory in which tmp, log and output files will be deposited. If not provided,
         annotated sequecnes will be returned as ``Sequence`` objects and log/tmp directories will be placed in
         ``"/tmp"``.
@@ -150,21 +152,21 @@ def run(
     receptor : str = "bcr",
         Name of the receptor to be used for assignment/annotation. Options are "bcr" and "tcr".
 
-    output_format : Union[str, Iterable[str]] = "airr",
+    output_format : str | Iterable[str] = "airr",
         Format of the output files. Options are "airr" and "parquet". If more than one output format is
         desired, a list of multiple output formats can be provided.
 
-    umi_pattern : Optional[str], default=None
+    umi_pattern : str | None, default=None
         Pattern to match for parsing the UMI sequence, or name of a built-in pattern.
 
-    umi_length : Optional[int], default=None
+    umi_length : int | None, default=None
         Length of the UMI sequence.
 
     merge : bool = False,
         Whether to merge FASTQ files prior to assignment. If ``True``, the ``merge_fastqs`` function will be used to merge
         FASTQ files.
 
-    merge_kwargs : Optional[dict] = None,
+    merge_kwargs : dict | None = None,
         Keyword arguments to pass to the ``merge_fastqs`` function.
 
     interleaved_fastq : bool = False,
@@ -178,7 +180,7 @@ def run(
     mmseqs_chunksize : int = 1e6,
         Number of sequences to process at a time for MMseqs2 searches (VDJC assignment).
 
-    n_processes : Optional[int] = None,
+    n_processes : int | None = None,
         Number of processes to use for annotation. If ``None``, the number of processes will be set to the number of
         available CPU cores.
 
@@ -214,18 +216,18 @@ def run(
     # set up log/output/temp directories
     if project_path is not None:
         return_sequences = False
-        project_path = os.path.abspath(project_path)
+        project_path = Path(project_path).resolve()
     else:
         return_sequences = True
         sequences_to_return = []
         output_format = ["parquet"]
-        project_path = tempfile.TemporaryDirectory(prefix="abstar", dir="/tmp").name
-    log_dir = os.path.join(project_path, "logs")
-    abutils.io.make_dir(log_dir)
-    temp_dir = os.path.join(project_path, "tmp")
-    abutils.io.make_dir(temp_dir)
+        project_path = Path(tempfile.TemporaryDirectory(prefix="abstar", dir="/tmp").name)
+    log_dir = project_path / "logs"
+    abutils.io.make_dir(str(log_dir))
+    temp_dir = project_path / "tmp"
+    abutils.io.make_dir(str(temp_dir))
     for fmt in output_format:
-        abutils.io.make_dir(os.path.join(project_path, fmt))
+        abutils.io.make_dir(str(project_path / fmt))
 
     # setup logging
     global logger
@@ -267,10 +269,10 @@ def run(
 
     # merge FASTQ files
     if merge or interleaved_fastq:
-        merge_dir = os.path.join(project_path, "merged")
-        abutils.io.make_dir(merge_dir)
-        merge_log_dir = os.path.join(log_dir, "merge_fastqs")
-        abutils.io.make_dir(merge_log_dir)
+        merge_dir = project_path / "merged"
+        abutils.io.make_dir(str(merge_dir))
+        merge_log_dir = log_dir / "merge_fastqs"
+        abutils.io.make_dir(str(merge_log_dir))
         # log merge info
         if not concise_logging:
             logger.info("\n\n\n")
@@ -280,10 +282,10 @@ def run(
             # merging
         sequence_files = merge_fastqs(
             sequence_files,
-            merge_dir,
+            str(merge_dir),
             interleaved=interleaved_fastq,
             show_progress=verbose,
-            log_directory=merge_log_dir,
+            log_directory=str(merge_log_dir),
             **merge_kwargs,
         )
 
@@ -295,9 +297,9 @@ def run(
     if n_processes is None:
         n_processes = mp.cpu_count()
     annot_kwargs = {
-        "output_directory": temp_dir,
+        "output_directory": str(temp_dir),
         "germline_database": germline_database,
-        "log_directory": log_dir,
+        "log_directory": str(log_dir),
         "umi_pattern": umi_pattern,
         "umi_length": umi_length,
         "debug": debug,
@@ -305,8 +307,8 @@ def run(
 
     # initialize the assigner
     assigner = MMseqs(
-        output_directory=temp_dir,
-        log_directory=log_dir,
+        output_directory=str(temp_dir),
+        log_directory=str(log_dir),
         germdb_name=germline_database,
         receptor=receptor,
         logger=logger,
@@ -322,9 +324,7 @@ def run(
         to_delete = []
 
         # parse sample name
-        sample_name = ".".join(
-            os.path.basename(sequence_file).rstrip(".gz").split(".")[:-1]
-        )
+        sample_name = ".".join(Path(sequence_file).name.rstrip(".gz").split(".")[:-1])
         if not sample_name:  # if the input was Sequence object(s), not file(s)
             sample_name = "sequences"
         # log sample info
@@ -342,7 +342,7 @@ def run(
 
         # split into annotation jobs
         split_assign_files = abutils.io.split_parquet(
-            assign_file, temp_dir, num_rows=chunksize
+            assign_file, str(temp_dir), num_rows=chunksize
         )
 
         # run annotation jobs
@@ -368,9 +368,7 @@ def run(
             max_workers=n_processes,
             mp_context=mp.get_context("spawn"),
         ) as executor:
-            futures = [
-                executor.submit(annotate, f, **annot_kwargs) for f in split_assign_files
-            ]
+            futures = [executor.submit(annotate, f, **annot_kwargs) for f in split_assign_files]
             for future in as_completed(futures):
                 annotated, failed, succeeded = future.result()
                 annotated_files.append(annotated)
@@ -404,19 +402,17 @@ def run(
         else:
             output_df = pl.scan_parquet(annotated_files)
             if "airr" in output_format:
-                airr_file = os.path.join(project_path, f"airr/{sample_name}.tsv")
+                airr_file = project_path / "airr" / f"{sample_name}.tsv"
                 output_df.sink_csv(airr_file, separator="\t")
             if "parquet" in output_format:
-                parquet_file = os.path.join(
-                    project_path, f"parquet/{sample_name}.parquet"
-                )
+                parquet_file = project_path / "parquet" / f"{sample_name}.parquet"
                 output_df.sink_parquet(parquet_file)
             # assemble logs
-            failed_log_file = os.path.join(log_dir, f"{sample_name}.failed")
+            failed_log_file = log_dir / f"{sample_name}.failed"
             _assemble_logs(failed_log_files, failed_log_file)
             if debug:
                 # only log succeeded sequences if we're in debug mode
-                succeeded_log_file = os.path.join(log_dir, f"{sample_name}.succeeded")
+                succeeded_log_file = log_dir / f"{sample_name}.succeeded"
                 _assemble_logs(succeeded_log_files, succeeded_log_file)
 
             # log results summary
@@ -451,18 +447,18 @@ def run(
 
 
 def _process_inputs(
-    sequences: str | Sequence | Iterable[Sequence],
-    temp_dir: str,
+    sequences: str | Path | Sequence | Iterable[Sequence],
+    temp_dir: str | Path,
 ) -> Iterable[str]:
     """
     Process the various inputs accepted by abstar and return a list of one or more sequence files.
 
     Parameters
     ----------
-    sequences : Union[str, Sequence, Iterable[Sequence]]
+    sequences : str | Path | Sequence | Iterable[Sequence]
         The sequences to process.
 
-    temp_dir : str
+    temp_dir : str | Path
         The path to a directory in which tmp files will be deposited.
 
     Returns
@@ -471,26 +467,26 @@ def _process_inputs(
         A list of one or more sequence files.
     """
     sequence_files = None
-    if isinstance(sequences, str):
-        # input is a string -- either a file/directory path or a raw sequence string
-        if os.path.isfile(sequences):
-            sequence_files = [os.path.abspath(sequences)]
-        elif os.path.isdir(sequences):
+    if isinstance(sequences, (str, Path)):
+        # input is a string/Path -- either a file/directory path or a raw sequence string
+        seq_path = Path(sequences)
+        if seq_path.is_file():
+            sequence_files = [str(seq_path.resolve())]
+        elif seq_path.is_dir():
             sequence_files = abutils.io.list_files(
-                sequences,
+                str(sequences),
                 recursive=True,
                 extension=["fasta", "fa", "fastq", "fq", "fasta.gz", "fastq.gz"],
             )
         else:
             sequences = Sequence(sequences)
     if isinstance(sequences, Sequence) or (
-        isinstance(sequences, Iterable)
-        and all(isinstance(s, Sequence) for s in sequences)
+        isinstance(sequences, Iterable) and all(isinstance(s, Sequence) for s in sequences)
     ):
         # input is a Sequence or an iterable of Sequences
         if isinstance(sequences, Sequence):
             sequences = [sequences]
-        temp_file = tempfile.NamedTemporaryFile(delete=False, dir=temp_dir, mode="w")
+        temp_file = tempfile.NamedTemporaryFile(delete=False, dir=str(temp_dir), mode="w")
         fastas = [seq.fasta for seq in sequences]
         temp_file.write("\n".join(fastas))
         temp_file.close()
@@ -502,7 +498,7 @@ def _process_inputs(
     return natsorted(sequence_files)
 
 
-def _copy_inputs_to_project(sequence_files: Iterable[str], project_path: str) -> None:
+def _copy_inputs_to_project(sequence_files: Iterable[str], project_path: str | Path) -> None:
     """
     Copy input sequences to the project directory.
 
@@ -511,16 +507,16 @@ def _copy_inputs_to_project(sequence_files: Iterable[str], project_path: str) ->
     sequence_files : Iterable[str]
         A list of sequence files to copy.
 
-    project_path : str
+    project_path : str | Path
         The path to the project directory.
     """
-    inputs_path = os.path.join(project_path, "input")
-    abutils.io.make_dir(inputs_path)
+    inputs_path = Path(project_path) / "input"
+    abutils.io.make_dir(str(inputs_path))
     for f in sequence_files:
         shutil.copy(f, inputs_path)
 
 
-def _assemble_logs(log_files: Iterable[str], combined_log_file: str) -> None:
+def _assemble_logs(log_files: Iterable[str], combined_log_file: str | Path) -> None:
     """
     Assemble log files into a single file.
 
@@ -529,7 +525,7 @@ def _assemble_logs(log_files: Iterable[str], combined_log_file: str) -> None:
     log_files : Iterable[str]
         A list of log files to be assembled.
 
-    combined_log_file : str
+    combined_log_file : str | Path
         The path to the file in which the combined log will be written.
 
     Returns
@@ -549,8 +545,9 @@ def _delete_files(files: Iterable[str]) -> None:
     """
     for f in files:
         if f is not None:
-            if os.path.exists(f):
-                os.remove(f)
+            p = Path(f)
+            if p.exists():
+                p.unlink()
 
 
 # ===============================
@@ -561,14 +558,14 @@ def _delete_files(files: Iterable[str]) -> None:
 
 
 def _setup_logging(
-    log_dir: str,
+    log_dir: str | Path,
     add_stream_handler: bool,
     single_line_handler: bool = False,
     debug: bool = False,
 ) -> None:
-    logfile = os.path.join(log_dir, "abstar.log")
+    logfile = Path(log_dir) / "abstar.log"
     abutils.log.setup_logging(
-        logfile=logfile,
+        logfile=str(logfile),
         add_stream_handler=add_stream_handler,
         single_line_handler=single_line_handler,
         debug=debug,
@@ -583,7 +580,7 @@ def _setup_logging(
 
 
 def _log_run_parameters(
-    project_path: str,
+    project_path: str | Path,
     germline_database: str,
     receptor: str,
     output_format: str | Iterable[str],
@@ -615,9 +612,7 @@ def _log_run_parameters(
     logger.info(f"MERGE KWARGS: {merge_kwargs}\n")
     logger.info(f"INTERLEAVED FASTQ: {interleaved_fastq}\n")
     logger.info(f"CHUNKSIZE: {chunksize}\n")
-    logger.info(
-        f"NUM PROCESSES: {n_processes if n_processes is not None else 'auto'}\n"
-    )
+    logger.info(f"NUM PROCESSES: {n_processes if n_processes is not None else 'auto'}\n")
     logger.info(f"COPY INPUTS TO PROJECT: {copy_inputs_to_project}\n")
     logger.info(f"VERBOSE: {verbose}\n")
     logger.info(f"DEBUG: {debug}\n")
@@ -632,10 +627,10 @@ def _log_sequence_file_info(sequence_files: Iterable[str]) -> None:
     logger.info(f"found {num_files} input {plural}:\n")
     if num_files < 6:
         for f in sequence_files:
-            logger.info(f"  {os.path.basename(f)}\n")
+            logger.info(f"  {Path(f).name}\n")
     else:
         for f in sequence_files[:5]:
-            logger.info(f"  {os.path.basename(f)}\n")
+            logger.info(f"  {Path(f).name}\n")
         logger.info(f"  ... and {num_files - 5} more\n")
 
 
@@ -663,9 +658,7 @@ def _log_results_summary(
     else:
         logger.info("\n")
         logger.info(f"{sequence_count:,} sequences had an identifiable rearrangement\n")
-    logger.info(
-        f"time elapsed: {duration_string} ({sequences_per_second:,.2f} sequences/sec)\n"
-    )
+    logger.info(f"time elapsed: {duration_string} ({sequences_per_second:,.2f} sequences/sec)\n")
 
 
 ABSTAR_SPLASH = """

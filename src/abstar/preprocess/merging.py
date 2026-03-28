@@ -3,9 +3,11 @@
 # SPDX-License-Identifier: MIT
 
 
-import os
+from __future__ import annotations
+
 import subprocess as sp
 import tempfile
+from pathlib import Path
 from typing import Iterable
 
 from abutils.bin import get_path as get_binary_path
@@ -34,12 +36,18 @@ class FASTQFile:
 
     """
 
-    def __init__(self, file: str):
+    def __init__(self, file: str | Path):
         self.file = file
-        self.path = os.path.abspath(file)
-        self.basename = os.path.basename(self.path)
-        self.dir = os.path.dirname(self.path)
-        self.filename = self.basename.rstrip(".gz").rstrip(".fastq").rstrip(".fq")
+        self.path = Path(file).resolve()
+        self.basename = self.path.name
+        self.dir = self.path.parent
+        # strip .gz then .fastq/.fq suffixes to get the sample filename stem
+        p = self.path
+        if p.suffix == ".gz":
+            p = p.with_suffix("")
+        if p.suffix in (".fastq", ".fq"):
+            p = p.with_suffix("")
+        self.filename = p.name
 
     def __eq__(self, other):
         return self.name == other.name
@@ -52,12 +60,12 @@ class IlluminaFile(FASTQFile):
 
     Parameters
     ----------
-    file : str
+    file : str | Path
         Path to a FASTQ file.
 
     """
 
-    def __init__(self, file: str):
+    def __init__(self, file: str | Path):
         super().__init__(file)
         self.schema = "illumina"
 
@@ -88,12 +96,12 @@ class ElementFile(FASTQFile):
 
     Parameters
     ----------
-    file : str
+    file : str | Path
         Path to a FASTQ file.
 
     """
 
-    def __init__(self, file: str):
+    def __init__(self, file: str | Path):
         super().__init__(file)
         self.schema = "element"
 
@@ -139,16 +147,16 @@ class MergeGroup:
 
     def merge(
         self,
-        merged_directory: str,
-        log_directory: str | None = None,
+        merged_directory: str | Path,
+        log_directory: str | Path | None = None,
         format: str = "fastq",
         algo: str = "fastp",
-        binary_path: str | None = None,
+        binary_path: str | Path | None = None,
         minimum_overlap: int = 30,
         allowed_mismatches: int = 5,
         allowed_mismatch_percent: float = 20.0,
         trim_adapters: bool = True,
-        adapter_file: str | None = None,
+        adapter_file: str | Path | None = None,
         quality_trim: bool = True,
         window_size: int = 4,
         quality_cutoff: int = 20,
@@ -181,19 +189,16 @@ class MergeGroup:
 
         # merge files
         merged_files = []
+        merged_directory = Path(merged_directory)
         compress_suffix = ".gz" if compress_output else ""
-        self.merged_file = os.path.join(
-            merged_directory, f"{self.name}.{format.lower()}{compress_suffix}"
-        )
+        self.merged_file = str(merged_directory / f"{self.name}.{format.lower()}{compress_suffix}")
         # if show_progress:
         #     groups = tqdm(groups, total=n_groups, leave=True)
         for group in groups:
             r1, r2 = natsorted(group, key=lambda x: x.read)
             # add name and compression suffix, if necessary
             name = self.name if n_groups == 1 else f"{self.name}_{r1.lane}"
-            merged_path = os.path.join(
-                merged_directory, f"{name}.{format.lower()}{compress_suffix}"
-            )
+            merged_path = str(merged_directory / f"{name}.{format.lower()}{compress_suffix}")
             # merge
             merge_func(
                 r1.path,
@@ -231,25 +236,23 @@ class MergeGroup:
             if f.lane not in lane_dict:
                 lane_dict[f.lane] = []
             lane_dict[f.lane].append(f)
-        return [
-            group for lane, group in natsorted(lane_dict.items(), key=lambda x: x[0])
-        ]
+        return [group for lane, group in natsorted(lane_dict.items(), key=lambda x: x[0])]
 
 
 def merge_fastqs(
-    files: str | Iterable,
-    output_directory: str,
+    files: str | Path | Iterable,
+    output_directory: str | Path,
     output_format: str = "fastq",
-    log_directory: str | None = None,
+    log_directory: str | Path | None = None,
     schema: str = "illumina",
     algo: str = "fastp",
-    binary_path: str | None = None,
+    binary_path: str | Path | None = None,
     merge_args: str | None = None,
     minimum_overlap: int = 30,
     allowed_mismatches: int = 5,
     allowed_mismatch_percent: float = 20.0,
     trim_adapters: bool = True,
-    adapter_file: str | None = None,
+    adapter_file: str | Path | None = None,
     quality_trim: bool = True,
     window_size: int = 4,
     quality_cutoff: int = 20,
@@ -329,41 +332,44 @@ def merge_fastqs(
 
     """
     # input/output files and directories
-    if isinstance(files, str):
-        if os.path.isdir(files):
-            files = list_files(
-                files, extension=[".fastq", ".fq", ".fastq.gz", ".fq.gz"]
-            )
-        elif os.path.isfile(files):
-            files = [files]
+    if isinstance(files, (str, Path)):
+        files = Path(files)
+        if files.is_dir():
+            files = list_files(str(files), extension=[".fastq", ".fq", ".fastq.gz", ".fq.gz"])
+        elif files.is_file():
+            files = [str(files)]
         else:
             raise ValueError(
                 f"If files are supplied as a string, it must be either a directory or a file. The supplied ({files}) is neither."
             )
-    make_dir(output_directory)
+    make_dir(str(output_directory))
 
     merged_files = []
 
     if interleaved:
         if show_progress:
-            _print_files_to_merge(
-                [os.path.basename(f) for f in files], name="interleaved FASTQ file"
-            )
+            _print_files_to_merge([Path(f).name for f in files], name="interleaved FASTQ file")
             files = tqdm(
                 files,
                 desc="merging FASTQ files:",
                 leave=True,
                 bar_format="{desc}{percentage:3.0f}%|{bar:25}{r_bar}",
             )
+        output_directory = Path(output_directory)
         for f in files:
+            f_path = Path(f)
             compress_suffix = ".gz" if compress_output else ""
-            name = os.path.basename(f).rstrip(".gz").rstrip(".fastq")
-            merged_file = os.path.join(
-                output_directory, f"{name}.{output_format.lower()}{compress_suffix}"
-            )
+            # strip .gz then .fastq to get the base name
+            stem = f_path
+            if stem.suffix == ".gz":
+                stem = stem.with_suffix("")
+            if stem.suffix == ".fastq":
+                stem = stem.with_suffix("")
+            name = stem.name
+            merged_file = str(output_directory / f"{name}.{output_format.lower()}{compress_suffix}")
             # fastp seems to occasionally have problems with multi-line interleaved FASTQ
             # files, so we'll make a temp file with sequences/qualities each on a single line
-            tmp = tempfile.NamedTemporaryFile(delete=False, dir=os.path.dirname(f))
+            tmp = tempfile.NamedTemporaryFile(delete=False, dir=f_path.parent)
             for seq in parse_fastx(f):
                 tmp.write(f"{seq.fastq}\n")
             tmp.close()
@@ -385,14 +391,12 @@ def merge_fastqs(
                 debug=debug,
             )
             merged_files.append(merged_file)
-            os.unlink(tmp.name)
+            Path(tmp.name).unlink()
     else:
         # group files by sample
         file_pairs = group_paired_fastqs(files, schema=schema)
         if show_progress:
-            _print_files_to_merge(
-                [f.name for f in file_pairs], name="paired-end FASTQ group"
-            )
+            _print_files_to_merge([f.name for f in file_pairs], name="paired-end FASTQ group")
             file_pairs = tqdm(
                 file_pairs,
                 desc="merging FASTQ files:",
@@ -425,7 +429,7 @@ def merge_fastqs(
 
 
 def group_paired_fastqs(
-    files: str | Iterable, schema: str = "illumina"
+    files: str | Path | Iterable, schema: str = "illumina"
 ) -> Iterable[MergeGroup]:
     """
     Group paired-end fastq files by sample name. If a sample has multiple lanes, the files will be combined.
@@ -448,11 +452,11 @@ def group_paired_fastqs(
 
     """
     # process input files
-    if isinstance(files, str):
-        if not os.path.isdir(files):
+    if isinstance(files, (str, Path)):
+        if not Path(files).is_dir():
             err = f"The supplied file path ({files}) does not exist or is not a directory."
             raise ValueError(err)
-        files = list_files(files, extension=[".fastq", ".fq", ".fastq.gz", ".fq.gz"])
+        files = list_files(str(files), extension=[".fastq", ".fq", ".fastq.gz", ".fq.gz"])
     if schema.lower() == "illumina":
         files = [IlluminaFile(f) for f in files]
     elif schema.lower() == "element":
@@ -474,11 +478,11 @@ def group_paired_fastqs(
 
 
 def merge_fastqs_vsearch(
-    forward: str,
-    reverse: str | None,
-    merged_file: str,
+    forward: str | Path,
+    reverse: str | Path | None,
+    merged_file: str | Path,
     output_format: str = "fasta",
-    binary_path: str | None = None,
+    binary_path: str | Path | None = None,
     minimum_overlap: int = 30,
     allowed_mismatches: int = 5,
     allowed_mismatch_percent: float = 20.0,
@@ -519,18 +523,18 @@ def merge_fastqs_vsearch(
 
     """
     # validate input files
-    if not os.path.isfile(forward):
+    if not Path(forward).is_file():
         err = f"The supplied forward read file path ({forward}) does not exist or is not a file."
         raise ValueError(err)
-    if reverse is not None and not os.path.isfile(reverse):
+    if reverse is not None and not Path(reverse).is_file():
         err = f"The supplied reverse read file path ({reverse}) does not exist or is not a file."
         raise ValueError(err)
     if reverse is None and not interleaved:
         err = "Reverse read file path is required when not using interleaved mode."
         raise ValueError(err)
     # make output directory
-    out_dir = os.path.dirname(merged_file)
-    make_dir(out_dir)
+    out_dir = Path(merged_file).parent
+    make_dir(str(out_dir))
     # get the vsearch binary
     if binary_path is None:
         binary_path = get_binary_path("vsearch")
@@ -558,21 +562,21 @@ def merge_fastqs_vsearch(
 
 
 def merge_fastqs_fastp(
-    forward: str,
-    reverse: str | None = None,
-    merged: str | None = None,
-    binary_path: str | None = None,
+    forward: str | Path,
+    reverse: str | Path | None = None,
+    merged: str | Path | None = None,
+    binary_path: str | Path | None = None,
     minimum_overlap: int = 30,
     allowed_mismatches: int = 5,
     allowed_mismatch_percent: int = 20,
     correct_overlap_region: bool = False,
     trim_adapters: bool = True,
-    adapter_file: str | None = None,
+    adapter_file: str | Path | None = None,
     quality_trim: bool = True,
     window_size: int = 4,
     quality_cutoff: int = 20,
     name: str | None = None,
-    log_directory: str | None = None,
+    log_directory: str | Path | None = None,
     interleaved: bool = False,
     additional_args: str | None = None,
     debug: bool = False,
@@ -649,10 +653,10 @@ def merge_fastqs_fastp(
 
     """
     # validate input files
-    if not os.path.isfile(forward):
+    if not Path(forward).is_file():
         err = f"The supplied forward read file path ({forward}) does not exist or is not a file."
         raise ValueError(err)
-    if reverse is not None and not os.path.isfile(reverse):
+    if reverse is not None and not Path(reverse).is_file():
         err = f"The supplied reverse read file path ({reverse}) does not exist or is not a file."
         raise ValueError(err)
     if reverse is None and not interleaved:
@@ -660,15 +664,15 @@ def merge_fastqs_fastp(
         raise ValueError(err)
     if merged is None:
         if interleaved and reverse is not None:
-            merged = os.path.abspath(reverse)
+            merged = str(Path(reverse).resolve())
             reverse = None
         else:
             raise ValueError("You must supply a path for the merged output file.")
 
     # make output directory
-    merged = os.path.abspath(merged)
-    out_dir = os.path.dirname(merged)
-    make_dir(out_dir)
+    merged = str(Path(merged).resolve())
+    merged_path = Path(merged)
+    make_dir(str(merged_path.parent))
 
     # get the fastp binary
     if binary_path is None:
@@ -707,15 +711,19 @@ def merge_fastqs_fastp(
 
     # log
     if log_directory is None:
-        log_directory = tempfile.mkdtemp()
-    make_dir(log_directory)
+        log_directory = Path(tempfile.mkdtemp())
+    log_directory = Path(log_directory)
+    make_dir(str(log_directory))
     if name is None:
-        if merged.endswith(".gz"):
-            name = ".".join(os.path.basename(merged).split(".")[:-2])
+        merged_name = merged_path.name
+        if merged_name.endswith(".gz"):
+            name = ".".join(merged_name.split(".")[:-2])
         else:
-            name = ".".join(os.path.basename(merged).split(".")[:-1])
-    cmd += f" --html '{os.path.join(log_directory, name)}_fastp-report.html'"
-    cmd += f" --json '{os.path.join(log_directory, name)}_fastp-report.json'"
+            name = ".".join(merged_name.split(".")[:-1])
+    html_report = log_directory / f"{name}_fastp-report.html"
+    json_report = log_directory / f"{name}_fastp-report.json"
+    cmd += f" --html '{html_report}'"
+    cmd += f" --json '{json_report}'"
 
     # additional CLI args
     if additional_args is not None:

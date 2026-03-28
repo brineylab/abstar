@@ -1,3 +1,5 @@
-import os
+from __future__ import annotations
 
-MATRIX_PATH = os.path.join(os.path.dirname(__file__), "matrices")
+from pathlib import Path
+
+MATRIX_PATH = Path(__file__).parent / "matrices"

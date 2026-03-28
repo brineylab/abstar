@@ -3,6 +3,8 @@
 # SPDX-License-Identifier: MIT
 
 
+from __future__ import annotations
+
 from .antibody import Antibody
 
 __all__ = ["generate_cdr_mask", "generate_gene_segment_mask", "generate_nongermline_mask"]
@@ -225,9 +227,7 @@ def _generate_gene_segment_mask_aa(ab: Antibody) -> list:
     # to fix, we check to see whether the existing segment_mask is longer than the antibody sequence (up to the end of the CDR3)
     # if so, we reduce the length of the J-gene portion of the segment_mask accordingly
     if len(segment_mask) > (cdr3_start + len(ab.cdr3_aa)):
-        j_mask_length = len(ab.fwr4_aa) - (
-            len(segment_mask) - (cdr3_start + len(ab.cdr3_aa))
-        )
+        j_mask_length = len(ab.fwr4_aa) - (len(segment_mask) - (cdr3_start + len(ab.cdr3_aa)))
         segment_mask.extend(["J"] * j_mask_length)
     else:
         segment_mask.extend(["J"] * len(ab.fwr4_aa))

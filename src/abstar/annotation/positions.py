@@ -3,6 +3,8 @@
 # SPDX-License-Identifier: MIT
 
 
+from __future__ import annotations
+
 from .antibody import Antibody
 
 __all__ = [

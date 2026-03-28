@@ -22,11 +22,13 @@
 #
 
 
+from __future__ import annotations
+
 import json
-import os
 import shutil
 import subprocess as sp
 import sys
+from pathlib import Path
 from typing import Iterable
 
 import abutils
@@ -94,13 +96,13 @@ __all__ = ["build_germline_database"]
 
 def build_germline_database(
     name: str,
-    fastas: str | Iterable[str] | None = None,
-    jsons: str | Iterable[str] | None = None,
-    constants: str | Iterable[str] | None = None,
+    fastas: str | Path | Iterable[str | Path] | None = None,
+    jsons: str | Path | Iterable[str | Path] | None = None,
+    constants: str | Path | Iterable[str | Path] | None = None,
     receptor: str = "bcr",
-    manifest: str | None = None,
+    manifest: str | Path | None = None,
     include_species_in_name: bool = True,
-    location: str | None = None,
+    location: str | Path | None = None,
     reference: str = "human",
     verbose: bool = True,
     debug: bool = False,
@@ -161,7 +163,7 @@ def build_germline_database(
     database_dir = get_database_directory(location, receptor)
     if check_for_existing_db(name, receptor, database_dir):
         confirm_overwrite_existing_db(name)
-    database_dir = os.path.join(database_dir, name.lower())
+    database_dir = Path(database_dir) / name.lower()
     sub_dirs = make_db_directories(database_dir)
     raw_dir = sub_dirs["raw"]
     gapped_dir = sub_dirs["imgt_gapped"]
@@ -175,7 +177,7 @@ def build_germline_database(
         if isinstance(fastas, str):
             fastas = [fastas]
         for fasta in fastas:
-            if not os.path.isfile(fasta):
+            if not Path(fasta).is_file():
                 raise FileNotFoundError(f"The file {fasta} does not exist.")
             copy_to_raw(fasta, raw_dir)
             sequences = process_fasta(
@@ -190,12 +192,10 @@ def build_germline_database(
         if isinstance(jsons, str):
             jsons = [jsons]
         for _json in jsons:
-            if not os.path.isfile(_json):
+            if not Path(_json).is_file():
                 raise FileNotFoundError(f"The file {_json} does not exist.")
             copy_to_raw(_json, raw_dir)
-            sequences = process_json(
-                _json, include_species_in_name=include_species_in_name
-            )
+            sequences = process_json(_json, include_species_in_name=include_species_in_name)
             gapped_vdjs.extend(sequences)
 
     # add IMGT gapps (if they don't already exist)
@@ -208,7 +208,7 @@ def build_germline_database(
         if isinstance(constants, str):
             constants = [constants]
         for constant in constants:
-            if not os.path.isfile(constant):
+            if not Path(constant).is_file():
                 raise FileNotFoundError(f"The file {constant} does not exist.")
             copy_to_raw(constant, raw_dir)
             sequences = process_fasta(
@@ -231,12 +231,8 @@ def build_germline_database(
     if verbose:
         print("")
         print("building ungapped database")
-    ungapped_vdjs = [
-        Sequence(s.sequence.replace(".", ""), id=s.id) for s in gapped_vdjs
-    ]
-    ungapped_constants = [
-        Sequence(s.sequence.replace(".", ""), id=s.id) for s in gapped_constants
-    ]
+    ungapped_vdjs = [Sequence(s.sequence.replace(".", ""), id=s.id) for s in gapped_vdjs]
+    ungapped_constants = [Sequence(s.sequence.replace(".", ""), id=s.id) for s in gapped_constants]
     make_fasta_dbs(
         vdjs=ungapped_vdjs,
         constants=ungapped_constants,
@@ -299,16 +295,14 @@ def add_imgt_gaps(
     germs = get_germline("IGHV", germdb_name=reference, imgt_gapped=True)
 
     # build parasail matrix that more heavily penalizes mismatches to gaps
-    matrix_file = os.path.join(MATRIX_PATH, "imgt_gapped.txt")
-    matrix = parasail.Matrix(matrix_file)
+    matrix_file = MATRIX_PATH / "imgt_gapped.txt"
+    matrix = parasail.Matrix(str(matrix_file))
 
     # add IMGT gaps
     gapped_vgenes = []
     for ungapped in vgenes:
         # find the best germline match
-        alns = abutils.tl.semiglobal_alignment(
-            ungapped, targets=germs, matrix=matrix, gap_open=-25
-        )
+        alns = abutils.tl.semiglobal_alignment(ungapped, targets=germs, matrix=matrix, gap_open=-25)
         top_aln = alns[0]
         # build the gapped sequence
         gapped = ""
@@ -332,13 +326,13 @@ def add_imgt_gaps(
 # -------------------------
 
 
-def get_database_directory(receptor: str, db_location: str | None) -> str:
+def get_database_directory(receptor: str, db_location: str | Path | None = None) -> Path:
     """
     Get the path to the receptor-level germline database directory.
 
     Parameters
     ----------
-    db_location : Optional[str]
+    db_location : str | Path | None
         The path to the addon directory. If not provided, the default location (~/.abstar/) will be used.
 
     receptor : str
@@ -346,30 +340,26 @@ def get_database_directory(receptor: str, db_location: str | None) -> str:
 
     Returns
     -------
-    str
+    Path
         The path to the addon directory.
 
     """
     if db_location is not None:
         print("")
-        print(
-            "NOTE: You have selected a non-default location for the germline directory."
-        )
+        print("NOTE: You have selected a non-default location for the germline directory.")
         string = "abstar only looks in the default location (~/.abstar/) for user-created germline databases, "
         string += "so this database will not be used by abstar. The custom database location option is primarily "
         string += "provided so that users can test the database creation process without overwriting existing databases.\n"
         print(string)
-        database_dir = db_location
+        database_dir = Path(db_location)
     else:
-        database_dir = os.path.expanduser("~/.abstar/germline_dbs")
-    database_dir = os.path.join(database_dir, receptor.lower())
-    abutils.io.make_dir(database_dir)
+        database_dir = Path("~/.abstar/germline_dbs").expanduser()
+    database_dir = database_dir / receptor.lower()
+    abutils.io.make_dir(str(database_dir))
     return database_dir
 
 
-def check_for_existing_db(
-    name: str, receptor: str, location: str | None = None
-) -> bool:
+def check_for_existing_db(name: str, receptor: str, location: str | Path | None = None) -> bool:
     """
     Check if a germline database already exists in the addon directory.
 
@@ -381,7 +371,7 @@ def check_for_existing_db(
     receptor : str
         The receptor type.
 
-    location : Optional[str], default: None
+    location : str | Path | None, default: None
         The path to a non-standard directory that may contain the germline database.
 
     Returns
@@ -392,7 +382,8 @@ def check_for_existing_db(
     """
     if location is None:
         location = get_database_directory(receptor)
-    dbs = [os.path.basename(d[0]) for d in os.walk(location)]
+    location = Path(location)
+    dbs = [d.name for d in location.iterdir() if d.is_dir()]
     if name.lower() in dbs:
         return True
     else:
@@ -426,48 +417,45 @@ def confirm_overwrite_existing_db(name: str) -> bool:
         print("")
 
 
-def make_db_directories(database_dir: str) -> None:
+def make_db_directories(database_dir: str | Path) -> dict[str, Path]:
     """
     Make the main directory for the germline database and the subdirectories for each file type.
 
     Parameters
     ----------
-    database_dir : str
+    database_dir : str | Path
         The path to the database directory.
 
     """
+    database_dir = Path(database_dir)
     # make the main DB directory
-    abutils.io.make_dir(database_dir)
+    abutils.io.make_dir(str(database_dir))
 
     # make subdirectories
     subdirs = {}
     subdir_names = ["raw", "imgt_gapped", "ungapped", "mmseqs"]
     for subdir_name in subdir_names:
-        subdir = os.path.join(database_dir, subdir_name)
-        abutils.io.make_dir(subdir)
+        subdir = database_dir / subdir_name
+        abutils.io.make_dir(str(subdir))
         subdirs[subdir_name] = subdir
     return subdirs
 
 
-def transfer_manifest_data(manifest_file: str, database_dir: str) -> None:
+def transfer_manifest_data(manifest_file: str | Path, database_dir: str | Path) -> None:
     """
     Transfer manifest data to the new germline database.
 
     Parameters
     ----------
-    manifest : str
+    manifest_file : str | Path
         The path to the manifest file.
 
-    addon_directory : str
-        The path to the addon directory.
-
-    dbname : str
-        The name of the germline database.
+    database_dir : str | Path
+        The path to the database directory.
 
     Returns
     -------
-    str
-        The path to the manifest file.
+    None
 
     """
     # read manifest data
@@ -475,21 +463,21 @@ def transfer_manifest_data(manifest_file: str, database_dir: str) -> None:
         manifest_data = f.read()
 
     # write to manifest file
-    manifest_file = os.path.join(database_dir, "manifest.txt")
-    with open(manifest_file, "w") as f:
+    output_file = Path(database_dir) / "manifest.txt"
+    with open(output_file, "w") as f:
         f.write(manifest_data)
 
 
-def copy_to_raw(fasta: str, raw_dir: str) -> None:
+def copy_to_raw(fasta: str | Path, raw_dir: str | Path) -> None:
     """
     Copy a FASTA file to the raw directory.
 
     Parameters
     ----------
-    fasta : str
+    fasta : str | Path
         The path to the input FASTA file.
 
-    raw_dir : str
+    raw_dir : str | Path
         The path to the raw directory.
     """
     shutil.copy(fasta, raw_dir)
@@ -501,21 +489,19 @@ def copy_to_raw(fasta: str, raw_dir: str) -> None:
 
 
 def process_fasta(
-    fasta_file: str, include_species_in_name: bool = True
+    fasta_file: str | Path, include_species_in_name: bool = True
 ) -> Iterable[Sequence]:
     """
     Process a FASTA file and return a list of Sequence objects.
     """
-    seqs = abutils.io.read_fasta(fasta_file)
+    seqs = abutils.io.read_fasta(str(fasta_file))
     if not include_species_in_name:
         for s in seqs:
             s.id = s.id.split("__")[0]
     return seqs
 
 
-def process_json(
-    json_file: str, include_species_in_name: bool = True
-) -> Iterable[Sequence]:
+def process_json(json_file: str | Path, include_species_in_name: bool = True) -> Iterable[Sequence]:
     """
     Process a JSON file and return a list of Sequence objects.
     """
@@ -527,11 +513,9 @@ def process_json(
         if entry["sequence_type"] == "V":
             # V-genes are the only ones with IMGT-gapped sequences,
             # and it's in a different location than D/J sequences
-            gapped = [
-                d
-                for d in entry["v_gene_delineations"]
-                if d["delineation_scheme"] == "IMGT"
-            ][0]["aligned_sequence"]
+            gapped = [d for d in entry["v_gene_delineations"] if d["delineation_scheme"] == "IMGT"][
+                0
+            ]["aligned_sequence"]
         else:
             gapped = entry["coding_sequence"]
         species = entry["species"]["label"].lower().replace(" ", "_")
@@ -549,7 +533,7 @@ def process_json(
 def make_fasta_dbs(
     vdjs: Iterable[Sequence],
     constants: Iterable[Sequence],
-    database_dir: str,
+    database_dir: str | Path,
     verbose: bool = False,
 ) -> None:
     """
@@ -563,12 +547,13 @@ def make_fasta_dbs(
     constants : Iterable[Sequence]
         The constant regions.
 
-    database_dir : str
+    database_dir : str | Path
         The path to the database directory.
 
     verbose : bool, default: False
         Whether to print verbose output.
     """
+    database_dir = Path(database_dir)
     # VDJ genes
     for segment in ["V", "D", "J"]:
         if verbose:
@@ -578,20 +563,18 @@ def make_fasta_dbs(
                 print(f" | {segment}", end="")
         seqs = [s for s in vdjs if s.id[3] == segment]
         if seqs:
-            abutils.io.to_fasta(
-                seqs, os.path.join(database_dir, f"{segment.lower()}.fasta")
-            )
+            abutils.io.to_fasta(seqs, str(database_dir / f"{segment.lower()}.fasta"))
 
     # constant regions
     if constants:
         if verbose:
             print(" | C")
-        abutils.io.to_fasta(constants, os.path.join(database_dir, "c.fasta"))
+        abutils.io.to_fasta(constants, str(database_dir / "c.fasta"))
 
 
 def make_mmseqs_dbs(
-    database_dir: str,
-    ungapped_dir: str,
+    database_dir: str | Path,
+    ungapped_dir: str | Path,
     verbose: bool = False,
     debug: bool = False,
 ) -> None:
@@ -600,17 +583,11 @@ def make_mmseqs_dbs(
 
     Parameters
     ----------
-    input_file : str
-        The path to the input (ungapped) FASTA file.
+    database_dir : str | Path
+        The path to the MMseqs database directory.
 
-    addon_directory : str
-        The path to the addon directory.
-
-    segment : str
-        The segment type.
-
-    dbname : str
-        The name of the germline database.
+    ungapped_dir : str | Path
+        The path to the ungapped FASTA directory.
 
     verbose : bool, default: False
         Whether to print verbose output.
@@ -619,6 +596,8 @@ def make_mmseqs_dbs(
         Whether to print debug output.
 
     """
+    database_dir = Path(database_dir)
+    ungapped_dir = Path(ungapped_dir)
     # VDJ genes
     for segment in ["V", "D", "J"]:
         if verbose:
@@ -626,32 +605,32 @@ def make_mmseqs_dbs(
                 print("  V", end="")
             else:
                 print(f" | {segment}", end="")
-        ungapped_file = os.path.join(ungapped_dir, f"{segment.lower()}.fasta")
-        output_file = os.path.join(database_dir, f"{segment.lower()}")
+        ungapped_file = ungapped_dir / f"{segment.lower()}.fasta"
+        output_file = database_dir / segment.lower()
         _make_mmseqs_db(ungapped_file, output_file, debug=debug)
 
     # constant regions
     segment = "C"
-    ungapped_file = os.path.join(ungapped_dir, f"{segment.lower()}.fasta")
-    if os.path.exists(ungapped_file):
+    ungapped_file = ungapped_dir / f"{segment.lower()}.fasta"
+    if ungapped_file.exists():
         if verbose:
             print(f" | {segment}")
-        output_file = os.path.join(database_dir, f"{segment.lower()}")
+        output_file = database_dir / segment.lower()
         _make_mmseqs_db(ungapped_file, output_file, debug=debug)
     elif verbose:
         print("")
 
 
-def _make_mmseqs_db(input_file: str, output_file: str, debug: bool = False) -> None:
+def _make_mmseqs_db(input_file: str | Path, output_file: str | Path, debug: bool = False) -> None:
     """
     Make an MMseqs2 database.
 
     Parameters
     ----------
-    input_file : str
+    input_file : str | Path
         The path to the input file.
 
-    output_file : str
+    output_file : str | Path
         The path to the output file.
 
     debug : bool, default: False

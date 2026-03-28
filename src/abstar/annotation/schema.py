@@ -3,6 +3,8 @@
 # SPDX-License-Identifier: MIT
 
 
+from __future__ import annotations
+
 import polars as pl
 
 __all__ = ["NoneDict", "schema_dict", "OUTPUT_SCHEMA"]

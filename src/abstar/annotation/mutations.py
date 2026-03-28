@@ -2,6 +2,8 @@
 # Distributed under the terms of the MIT License.
 # SPDX-License-Identifier: MIT
 
+from __future__ import annotations
+
 from .antibody import Antibody
 from .positions import get_gapped_position_from_raw
 
@@ -69,17 +71,13 @@ def annotate_mutations(
             raw_position += 1
             log_str += f"{raw_position}{' ' * (10 - len(str(raw_position)))}"
             if debug:
-                imgt_position = get_gapped_position_from_raw(
-                    raw_position, gapped_germline
-                )
+                imgt_position = get_gapped_position_from_raw(raw_position, gapped_germline)
                 log_str += f"{imgt_position}{' ' * (10 - len(str(imgt_position)))}"
         elif g == "-":
             # sequence has insertion -- no mutation and don't increment the position
             log_str += f"{raw_position}{' ' * (10 - len(str(raw_position)))}"
             if debug:
-                imgt_position = get_gapped_position_from_raw(
-                    raw_position, gapped_germline
-                )
+                imgt_position = get_gapped_position_from_raw(raw_position, gapped_germline)
                 log_str += f"{imgt_position}{' ' * (10 - len(str(imgt_position)))}"
         elif s == "-":
             # sequence has a deletion -- no mutation but increment the position

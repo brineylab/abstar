@@ -4,6 +4,8 @@
 
 """Germline database access and management.
 
+from __future__ import annotations
+
 Namespace module following scanpy conventions. Provides functions for
 querying germline gene databases and building custom germline databases.
 

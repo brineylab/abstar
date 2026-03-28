@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from .assigner import AssignerBase
 from .mmseqs import MMseqs
 

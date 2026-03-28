@@ -2,6 +2,8 @@
 # Distributed under the terms of the MIT License.
 # SPDX-License-Identifier: MIT
 
+from __future__ import annotations
+
 import abutils
 from abutils.core.sequence import translate
 
@@ -180,7 +182,9 @@ def get_region_sequence(
         # only extend the 3' end of the region if there are non-codon length 3' gaps
         if gap_length_5p > 0 and gap_length_5p % 3 != 0:
             while gap_length_5p % 3 != 0:
-                region_end += 3  # steal the residual portion of the codon from the start of the next region
+                region_end += (
+                    3  # steal the residual portion of the codon from the start of the next region
+                )
                 region_sequence = aln.aligned_query[region_start : region_end + 1]
                 gap_length_5p = len(region_sequence) - len(region_sequence.rstrip("-"))
         # only truncate the 5' end of the region if there are non-codon length 5' gaps

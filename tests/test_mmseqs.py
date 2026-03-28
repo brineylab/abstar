@@ -7,6 +7,7 @@ Tests for the MMseqs2 germline assigner.
 """
 
 import os
+from pathlib import Path
 
 import polars as pl
 import pytest
@@ -60,8 +61,8 @@ def test_mmseqs_initialization(temp_directories):
         receptor="bcr",
     )
 
-    assert mmseqs.output_directory == output_dir
-    assert mmseqs.log_directory == log_dir
+    assert mmseqs.output_directory == Path(output_dir).resolve()
+    assert mmseqs.log_directory == Path(log_dir).resolve()
     assert mmseqs.germdb_name == "human"
     assert mmseqs.receptor == "bcr"
     assert mmseqs.germdb_path is not None

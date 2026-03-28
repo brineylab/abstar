@@ -3,8 +3,10 @@
 # SPDX-License-Identifier: MIT
 
 
+from __future__ import annotations
+
 import logging
-import os
+from pathlib import Path
 
 import abutils
 
@@ -20,16 +22,16 @@ class AssignerBase:
 
     def __init__(
         self,
-        output_directory: str,
+        output_directory: str | Path,
         germdb_name: str,
         receptor: str,
-        log_directory: str,
+        log_directory: str | Path,
         logger: logging.Logger | None = None,
         concise_logging: bool = False,
         debug: bool = False,
     ):
-        self.output_directory = os.path.abspath(output_directory)
-        self.log_directory = os.path.abspath(log_directory)
+        self.output_directory = Path(output_directory).resolve()
+        self.log_directory = Path(log_directory).resolve()
         self.receptor = receptor
         self.germdb_name = germdb_name
         self.debug = debug

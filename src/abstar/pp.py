@@ -4,6 +4,8 @@
 
 """Preprocessing utilities for sequencing data.
 
+from __future__ import annotations
+
 Namespace module following scanpy conventions. Provides functions for
 preprocessing raw sequencing data before annotation, including paired-end
 read merging via fastp.

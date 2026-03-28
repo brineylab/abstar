@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import warnings
 
 from Bio import BiopythonWarning
