@@ -86,6 +86,11 @@ When a negative length is used, the sequence is automatically reverse-complement
 before pattern matching, so you can write patterns in the 5'->3' orientation
 of your primers.
 
+Pattern searches are limited to the applicable end of the read. The search window
+contains the conserved pattern, the requested UMI length, and 25 additional bases.
+When using :func:`abstar.tl.parse_umis` directly, unusually distant anchors can be
+supported with ``extra_length_for_alignment``.
+
 
 Built-in Patterns
 -----------------
@@ -157,3 +162,8 @@ Sequences Without UMIs
 Sequences where the UMI pattern cannot be matched (due to too many mismatches
 or the pattern not being found) will have a ``null``/empty UMI field but are
 still annotated normally.
+
+The standalone parser follows the same conservation rule: iterable and file inputs
+retain unmatched records. File input is never modified in place. If ``output_file``
+is omitted, a sibling file named ``<stem>.umis.fasta`` or ``<stem>.umis.fastq`` is
+created.

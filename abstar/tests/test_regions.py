@@ -11,7 +11,9 @@ from ..annotation.regions import (
     IMGT_REGION_END_POSITIONS_NT,
     IMGT_REGION_START_POSITIONS_AA,
     IMGT_REGION_START_POSITIONS_NT,
+    RegionSequence,
     get_region_sequence,
+    identify_cdr3_regions,
 )
 
 # =============================================
@@ -259,8 +261,28 @@ def test_get_region_sequence_missing_region(
         germline_start=germline_start,
         ab=antibody,
     )
-    # The result should be an empty string for a missing region
-    assert result == ""
+    # Missing regions preserve the function's typed, three-item return contract.
+    assert isinstance(result, RegionSequence)
+    assert result == (None, None, "")
+
+
+def test_identify_cdr3_uses_alignment_coordinates_with_repeated_motifs():
+    ab = Antibody(sequence_id="repeated-motif")
+    ab.sequence = "CCCXXXAAABBBCCCJJJ"
+    ab.cdr3 = "CCC"
+    ab.v_sequence = ab.sequence[:12]
+    ab.j_sequence = ab.sequence[12:]
+    ab.v_sequence_start = 100
+    ab.junction_start = 109
+    ab.junction_end = 118
+    ab.j_sequence_start = 112
+    ab.d_call = None
+
+    identify_cdr3_regions(ab)
+
+    assert ab.cdr3_v == ""
+    assert ab.cdr3_n1 == ""
+    assert ab.cdr3_j == "CCC"
 
 
 def test_all_regions(
@@ -438,9 +460,7 @@ def test_edge_cases(antibody):
         germline_start=400,
         ab=antibody,
     )
-    # Result may be empty string directly or tuple with empty string
-    if isinstance(result, tuple):
-        _, _, result = result
+    _, _, result = result
     assert isinstance(result, str)
     assert "-" not in result
 
@@ -453,8 +473,6 @@ def test_edge_cases(antibody):
         germline_start=400,
         ab=antibody,
     )
-    # Result may be empty string directly or tuple with empty string
-    if isinstance(result, tuple):
-        _, _, result = result
+    _, _, result = result
     assert isinstance(result, str)
     assert "-" not in result

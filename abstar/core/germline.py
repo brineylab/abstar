@@ -29,6 +29,8 @@ import os
 import shutil
 import subprocess as sp
 import sys
+import tempfile
+import uuid
 from concurrent.futures import ThreadPoolExecutor
 from typing import Iterable
 
@@ -163,117 +165,123 @@ def build_germline_database(
         The function does not return anything.
 
     """
+    receptor = receptor.lower()
+    if receptor not in {"bcr", "tcr"}:
+        raise ValueError("receptor must be 'bcr' or 'tcr'")
+    if not name or name in {".", ".."} or os.path.basename(name) != name:
+        raise ValueError("database name must be a non-empty path-safe name")
+
+    database_root = get_database_directory(receptor, location)
+    database_dir = os.path.join(database_root, name.lower())
+    replacing = os.path.exists(database_dir)
+    if replacing:
+        confirm_overwrite_existing_db(name)
+
+    staging_dir = tempfile.mkdtemp(prefix=f".{name.lower()}.staging-", dir=database_root)
     gapped_vdjs = []
     gapped_constants = []
+    try:
+        sub_dirs = make_db_directories(staging_dir)
+        raw_dir = sub_dirs["raw"]
+        gapped_dir = sub_dirs["imgt_gapped"]
+        ungapped_dir = sub_dirs["ungapped"]
+        mmseqs_dir = sub_dirs["mmseqs"]
 
-    # set up database directory structure
-    database_dir = get_database_directory(location, receptor)
-    if check_for_existing_db(name, receptor, database_dir):
-        confirm_overwrite_existing_db(name)
-    database_dir = os.path.join(database_dir, name.lower())
-    sub_dirs = make_db_directories(database_dir)
-    raw_dir = sub_dirs["raw"]
-    gapped_dir = sub_dirs["imgt_gapped"]
-    ungapped_dir = sub_dirs["ungapped"]
-    mmseqs_dir = sub_dirs["mmseqs"]
+        # process FASTA-formatted VDJ segments
+        if fastas:
+            if verbose:
+                print("processing FASTA-formatted VDJ segments")
+            if isinstance(fastas, str):
+                fastas = [fastas]
+            for fasta in fastas:
+                if not os.path.isfile(fasta):
+                    raise FileNotFoundError(f"The file {fasta} does not exist.")
+                copy_to_raw(fasta, raw_dir)
+                sequences = process_fasta(
+                    fasta_file=fasta, include_species_in_name=include_species_in_name
+                )
+                gapped_vdjs.extend(sequences)
 
-    # process FASTA-formatted VDJ segments
-    if fastas:
-        if verbose:
-            print("processing FASTA-formatted VDJ segments")
-        if isinstance(fastas, str):
-            fastas = [fastas]
-        for fasta in fastas:
-            if not os.path.isfile(fasta):
-                raise FileNotFoundError(f"The file {fasta} does not exist.")
-            copy_to_raw(fasta, raw_dir)
-            sequences = process_fasta(
-                fasta_file=fasta, include_species_in_name=include_species_in_name
-            )
-            gapped_vdjs.extend(sequences)
+        # process JSON-formatted VDJ segments
+        if jsons:
+            if verbose:
+                print("processing JSON-formatted VDJ segments")
+            if isinstance(jsons, str):
+                jsons = [jsons]
+            for _json in jsons:
+                if not os.path.isfile(_json):
+                    raise FileNotFoundError(f"The file {_json} does not exist.")
+                copy_to_raw(_json, raw_dir)
+                sequences = process_json(
+                    _json, include_species_in_name=include_species_in_name
+                )
+                gapped_vdjs.extend(sequences)
 
-    # process JSON-formatted VDJ segments
-    if jsons:
-        if verbose:
-            print("processing JSON-formatted VDJ segments")
-        if isinstance(jsons, str):
-            jsons = [jsons]
-        for _json in jsons:
-            if not os.path.isfile(_json):
-                raise FileNotFoundError(f"The file {_json} does not exist.")
-            copy_to_raw(_json, raw_dir)
-            sequences = process_json(
-                _json, include_species_in_name=include_species_in_name
-            )
-            gapped_vdjs.extend(sequences)
+        # add IMGT gaps (if they don't already exist)
+        validate_germlines(gapped_vdjs, gapped_constants, receptor)
+        gapped_vdjs = add_imgt_gaps(
+            gapped_vdjs, reference=reference, receptor=receptor
+        )
 
-    # add IMGT gapps (if they don't already exist)
-    gapped_vdjs = add_imgt_gaps(gapped_vdjs, reference=reference)
+        # process FASTA-formatted constant regions
+        if constants:
+            if verbose:
+                print("processing FASTA-formatted constant regions")
+            if isinstance(constants, str):
+                constants = [constants]
+            for constant in constants:
+                if not os.path.isfile(constant):
+                    raise FileNotFoundError(f"The file {constant} does not exist.")
+                copy_to_raw(constant, raw_dir)
+                sequences = process_fasta(
+                    fasta_file=constant, include_species_in_name=include_species_in_name
+                )
+                gapped_constants.extend(sequences)
 
-    # process FASTA-formatted constant regions
-    if constants:
-        if verbose:
-            print("processing FASTA-formatted constant regions")
-        if isinstance(constants, str):
-            constants = [constants]
-        for constant in constants:
-            if not os.path.isfile(constant):
-                raise FileNotFoundError(f"The file {constant} does not exist.")
-            copy_to_raw(constant, raw_dir)
-            sequences = process_fasta(
-                fasta_file=constant, include_species_in_name=include_species_in_name
-            )
-            gapped_constants.extend(sequences)
+        validate_germlines(gapped_vdjs, gapped_constants, receptor)
 
-    # IMGT-gapped database
-    if verbose:
-        print("")
-        print("building IMGT-gapped database")
-    make_fasta_dbs(
-        vdjs=gapped_vdjs,
-        constants=gapped_constants,
-        database_dir=gapped_dir,
-        verbose=verbose,
-    )
-
-    # ungapped database
-    if verbose:
-        print("")
-        print("building ungapped database")
-    ungapped_vdjs = [
-        Sequence(s.sequence.replace(".", ""), id=s.id) for s in gapped_vdjs
-    ]
-    ungapped_constants = [
-        Sequence(s.sequence.replace(".", ""), id=s.id) for s in gapped_constants
-    ]
-    make_fasta_dbs(
-        vdjs=ungapped_vdjs,
-        constants=ungapped_constants,
-        database_dir=ungapped_dir,
-        verbose=verbose,
-    )
-
-    # MMseqs database
-    if verbose:
-        print("")
-        print("building MMseqs database")
-    make_mmseqs_dbs(
-        database_dir=mmseqs_dir,
-        ungapped_dir=ungapped_dir,
-        verbose=verbose,
-        debug=debug,
-    )
-
-    # manifest
-    if manifest is not None:
+        # IMGT-gapped database
         if verbose:
             print("")
-            print("transferring manifest data")
-        transfer_manifest_data(manifest, database_dir)
+            print("building IMGT-gapped database")
+        make_fasta_dbs(gapped_vdjs, gapped_constants, gapped_dir, verbose)
+
+        # ungapped database
+        if verbose:
+            print("")
+            print("building ungapped database")
+        ungapped_vdjs = [
+            Sequence(s.sequence.replace(".", ""), id=s.id) for s in gapped_vdjs
+        ]
+        ungapped_constants = [
+            Sequence(s.sequence.replace(".", ""), id=s.id)
+            for s in gapped_constants
+        ]
+        make_fasta_dbs(ungapped_vdjs, ungapped_constants, ungapped_dir, verbose)
+
+        # MMseqs database
+        if verbose:
+            print("")
+            print("building MMseqs database")
+        make_mmseqs_dbs(mmseqs_dir, ungapped_dir, verbose, debug)
+
+        # manifest
+        if manifest is not None:
+            if not os.path.isfile(manifest):
+                raise FileNotFoundError(f"The file {manifest} does not exist.")
+            transfer_manifest_data(manifest, staging_dir)
+
+        publish_database(staging_dir, database_dir, replacing)
+        staging_dir = None
+    finally:
+        if staging_dir is not None:
+            shutil.rmtree(staging_dir, ignore_errors=True)
 
 
 def add_imgt_gaps(
-    germlines: abutils.Sequence | Iterable[abutils.Sequence], reference: str = "human"
+    germlines: abutils.Sequence | Iterable[abutils.Sequence],
+    reference: str = "human",
+    receptor: str = "bcr",
 ) -> Iterable[abutils.Sequence]:
     """
     Add IMGT gaps to germline sequences.
@@ -292,20 +300,14 @@ def add_imgt_gaps(
     Returns
     -------
     Iterable[abutils.Sequence]
-        The germline sequences with IMGT gaps added. If any of the V gene sequences already
-        have gaps, all sequences are returned unchanged.
+        Germline sequences with IMGT gaps added to each ungapped V gene. Already-gapped
+        V genes and all D/J genes are returned unchanged.
 
     """
     if isinstance(germlines, abutils.Sequence):
         germlines = [germlines]
-    # check for gaps -- if they're present, return the gapped sequences
     vgenes = [g for g in germlines if g.id[3] == "V"]
     others = [g for g in germlines if g.id[3] != "V"]
-    if any(["." in v.sequence for v in vgenes]):
-        return germlines
-
-    # get IMGT-gapped germline V genes
-    germs = get_germline("IGHV", germdb_name=reference, imgt_gapped=True)
 
     # build parasail matrix that more heavily penalizes mismatches to gaps
     matrix_file = os.path.join(MATRIX_PATH, "imgt_gapped.txt")
@@ -314,6 +316,15 @@ def add_imgt_gaps(
     # add IMGT gaps
     gapped_vgenes = []
     for ungapped in vgenes:
+        if "." in ungapped.sequence:
+            gapped_vgenes.append(ungapped)
+            continue
+        germs = get_germline(
+            f"{ungapped.id[:3]}V",
+            germdb_name=reference,
+            receptor=receptor,
+            imgt_gapped=True,
+        )
         # find the best germline match
         alns = abutils.tl.semiglobal_alignment(
             ungapped, targets=germs, matrix=matrix, gap_open=-25
@@ -483,17 +494,17 @@ def add_imgt_gaps(
 # -------------------------
 
 
-def get_database_directory(receptor: str, db_location: str | None) -> str:
+def get_database_directory(receptor: str, db_location: str | None = None) -> str:
     """
     Get the path to the receptor-level germline database directory.
 
     Parameters
     ----------
-    db_location : Optional[str]
-        The path to the addon directory. If not provided, the default location (~/.abstar/) will be used.
-
     receptor : str
         The receptor type.
+
+    db_location : Optional[str]
+        The path to the addon directory. If not provided, the default location (~/.abstar/) will be used.
 
     Returns
     -------
@@ -513,7 +524,10 @@ def get_database_directory(receptor: str, db_location: str | None) -> str:
         database_dir = db_location
     else:
         database_dir = os.path.expanduser("~/.abstar/germline_dbs")
-    database_dir = os.path.join(database_dir, receptor.lower())
+    receptor = receptor.lower()
+    if receptor not in {"bcr", "tcr"}:
+        raise ValueError("receptor must be 'bcr' or 'tcr'")
+    database_dir = os.path.join(database_dir, receptor)
     abutils.io.make_dir(database_dir)
     return database_dir
 
@@ -543,11 +557,23 @@ def check_for_existing_db(
     """
     if location is None:
         location = get_database_directory(receptor)
-    dbs = [os.path.basename(d[0]) for d in os.walk(location)]
-    if name.lower() in dbs:
-        return True
-    else:
-        return False
+    return os.path.isdir(os.path.join(location, name.lower()))
+
+
+def publish_database(staging_dir: str, database_dir: str, replacing: bool) -> None:
+    """Atomically expose a completed staged database, preserving the old one."""
+    backup_dir = None
+    if replacing:
+        backup_dir = f"{database_dir}.backup-{uuid.uuid4().hex}"
+        os.replace(database_dir, backup_dir)
+    try:
+        os.replace(staging_dir, database_dir)
+    except Exception:
+        if backup_dir is not None:
+            os.replace(backup_dir, database_dir)
+        raise
+    if backup_dir is not None:
+        shutil.rmtree(backup_dir)
 
 
 def confirm_overwrite_existing_db(name: str) -> bool:
@@ -643,7 +669,10 @@ def copy_to_raw(fasta: str, raw_dir: str) -> None:
     raw_dir : str
         The path to the raw directory.
     """
-    shutil.copy(fasta, raw_dir)
+    destination = os.path.join(raw_dir, os.path.basename(fasta))
+    if os.path.exists(destination):
+        raise ValueError(f"duplicate raw input filename: {os.path.basename(fasta)}")
+    shutil.copy2(fasta, destination)
 
 
 # -------------------------
@@ -690,6 +719,66 @@ def process_json(
             name = f"{name}__{species}"
         seqs.append(Sequence(gapped, id=name))
     return seqs
+
+
+def validate_germlines(
+    vdjs: Iterable[Sequence], constants: Iterable[Sequence], receptor: str
+) -> None:
+    """Validate identifiers, loci, alphabets, uniqueness, and required segments."""
+    vdjs = list(vdjs)
+    constants = list(constants)
+    allowed_loci = {
+        "bcr": {"IGH", "IGK", "IGL"},
+        "tcr": {"TRA", "TRB", "TRD", "TRG"},
+    }[receptor]
+    allowed_d_loci = {"bcr": {"IGH"}, "tcr": {"TRB", "TRD"}}[receptor]
+    allowed_bases = set("ACGTRYSWKMBDHVN.")
+    seen = set()
+
+    for sequence in [*vdjs, *constants]:
+        identifier = str(sequence.id)
+        bare_id = identifier.split("__", 1)[0]
+        if len(bare_id) < 4 or any(character.isspace() for character in identifier):
+            raise ValueError(f"invalid germline identifier: {identifier!r}")
+        if identifier in seen:
+            raise ValueError(f"duplicate germline identifier: {identifier}")
+        seen.add(identifier)
+        locus = bare_id[:3].upper()
+        if locus not in allowed_loci:
+            raise ValueError(
+                f"germline {identifier} has locus {locus}, incompatible with {receptor}"
+            )
+        normalized = sequence.sequence.upper()
+        if not normalized or set(normalized) - allowed_bases:
+            raise ValueError(f"invalid nucleotide sequence for germline {identifier}")
+        sequence.sequence = normalized
+
+    segments_by_locus = {}
+    for sequence in vdjs:
+        bare_id = str(sequence.id).split("__", 1)[0]
+        segment = bare_id[3].upper()
+        locus = bare_id[:3].upper()
+        if segment not in {"V", "D", "J"}:
+            raise ValueError(f"invalid V/D/J segment identifier: {sequence.id}")
+        if segment == "D" and locus not in allowed_d_loci:
+            raise ValueError(f"locus does not contain D genes: {sequence.id}")
+        if segment != "V" and "." in sequence.sequence:
+            raise ValueError(f"only V genes may contain IMGT gaps: {sequence.id}")
+        segments_by_locus.setdefault(locus, set()).add(segment)
+
+    if not segments_by_locus:
+        raise ValueError("custom germline database requires V and J genes")
+    for locus, segments in segments_by_locus.items():
+        if {"V", "J"} - segments:
+            raise ValueError(
+                f"custom germline database locus {locus} requires V and J genes"
+            )
+
+    allowed_constant_segments = {"bcr": set("CADEGM"), "tcr": {"C"}}[receptor]
+    for sequence in constants:
+        bare_id = str(sequence.id).split("__", 1)[0]
+        if bare_id[3].upper() not in allowed_constant_segments:
+            raise ValueError(f"invalid constant-region identifier: {sequence.id}")
 
 
 # -------------------------
@@ -772,12 +861,14 @@ def make_mmseqs_dbs(
     """
     # VDJ genes
     for segment in ["V", "D", "J"]:
+        ungapped_file = os.path.join(ungapped_dir, f"{segment.lower()}.fasta")
+        if not os.path.exists(ungapped_file):
+            continue
         if verbose:
             if segment == "V":
                 print("  V", end="")
             else:
                 print(f" | {segment}", end="")
-        ungapped_file = os.path.join(ungapped_dir, f"{segment.lower()}.fasta")
         output_file = os.path.join(database_dir, f"{segment.lower()}")
         _make_mmseqs_db(ungapped_file, output_file, debug=debug)
 
@@ -810,22 +901,42 @@ def _make_mmseqs_db(input_file: str, output_file: str, debug: bool = False) -> N
     """
     # create MMseqs2 database
     mmseqs_bin = abutils.bin.get_path("mmseqs")
-    createdb_cmd = f"{mmseqs_bin} createdb {input_file} {output_file}"
-    p = sp.Popen(createdb_cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
-    stdout, stderr = p.communicate()
+    createdb_cmd = [mmseqs_bin, "createdb", input_file, output_file]
+    createdb = _run_mmseqs_command(createdb_cmd)
     if debug:
-        print(createdb_cmd)
-        print(stdout)
-        print(stderr)
+        print(" ".join(createdb_cmd))
+        print(createdb.stdout)
+        print(createdb.stderr)
 
     # create MMseqs2 index
-    createindex_cmd = f"{mmseqs_bin} createindex {output_file} /tmp"
-    p = sp.Popen(createindex_cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
-    stdout, stderr = p.communicate()
-    if debug:
-        print(createindex_cmd)
-        print(stdout)
-        print(stderr)
+    with tempfile.TemporaryDirectory() as index_tmp:
+        createindex_cmd = [
+            mmseqs_bin,
+            "createindex",
+            output_file,
+            index_tmp,
+            "--search-type",
+            "3",
+        ]
+        createindex = _run_mmseqs_command(createindex_cmd)
+        if debug:
+            print(" ".join(createindex_cmd))
+            print(createindex.stdout)
+            print(createindex.stderr)
+
+
+def _run_mmseqs_command(command: list[str]) -> sp.CompletedProcess:
+    """Run MMseqs and retain its diagnostics when a build step fails."""
+    try:
+        return sp.run(command, check=True, capture_output=True, text=True)
+    except sp.CalledProcessError as error:
+        details = "\n".join(
+            value.strip() for value in (error.stdout, error.stderr) if value
+        )
+        message = f"MMseqs command failed: {' '.join(command)}"
+        if details:
+            message = f"{message}\n{details}"
+        raise RuntimeError(message) from error
 
 
 # def print_segment_info(segment: str, input_file: str) -> None:

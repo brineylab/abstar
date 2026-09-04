@@ -96,7 +96,7 @@ def test_missing_conserved_cysteine_antibody(missing_conserved_cysteine_antibody
 def test_missing_conserved_tryptophan_antibody(missing_conserved_tryptophan_antibody):
     ab = assess_productivity(missing_conserved_tryptophan_antibody)
     assert not ab.productive
-    assert "conserved W/F" in ab.productivity_issues
+    assert "conserved W" in ab.productivity_issues
 
 
 def test_locus_mismatch_antibody(locus_mismatch_antibody):
@@ -109,3 +109,88 @@ def test_ambiguous_nucleotide_antibody(ambiguous_nucleotide_antibody):
     ab = assess_productivity(ambiguous_nucleotide_antibody)
     assert not ab.productive
     assert "ambiguous nucleotide" in ab.productivity_issues
+
+
+@pytest.mark.parametrize("ambiguous_base", ["r", "Y", "u", "-"])
+def test_all_non_acgt_bases_are_ambiguous(productive_antibody, ambiguous_base):
+    productive_antibody.sequence = productive_antibody.sequence[:10] + ambiguous_base
+
+    ab = assess_productivity(productive_antibody)
+
+    assert not ab.productive
+    assert "ambiguous nucleotide(s)" in ab.productivity_issues
+
+
+@pytest.mark.parametrize("junction,junction_aa", [("", ""), ("TGT", "C")])
+def test_empty_or_truncated_junction_is_nonproductive(
+    productive_antibody, junction, junction_aa
+):
+    productive_antibody.junction = junction
+    productive_antibody.junction_aa = junction_aa
+
+    ab = assess_productivity(productive_antibody)
+
+    assert not ab.productive
+    assert "missing or truncated junction" in ab.productivity_issues
+    assert ab.vj_in_frame is False
+
+
+def test_junction_length_must_be_a_multiple_of_three(productive_antibody):
+    productive_antibody.junction = "TGTAAAT"
+
+    ab = assess_productivity(productive_antibody)
+
+    assert not ab.productive
+    assert "junction length is not a multiple of 3" in ab.productivity_issues
+    assert ab.vj_in_frame is False
+
+
+def test_junction_must_start_in_v_reading_frame(productive_antibody):
+    productive_antibody.junction = "TGTAAATGG"
+    productive_antibody.frame = 1
+    productive_antibody.junction_start = 1
+
+    ab = assess_productivity(productive_antibody)
+
+    assert not ab.productive
+    assert "V/J junction is out of frame" in ab.productivity_issues
+    assert ab.vj_in_frame is False
+
+
+@pytest.mark.parametrize("locus", ["TRA", "TRB", "TRD", "TRG"])
+def test_tcr_junction_requires_terminal_phenylalanine(locus):
+    ab = Antibody(
+        sequence="TGTGCTTTT",
+        sequence_aa="CAF",
+        v_call=f"{locus}V1*01",
+        j_call=f"{locus}J1*01",
+        locus=locus,
+        junction="TGTGCTTTT",
+        junction_aa="CAF",
+        frame=1,
+    )
+    ab.junction_start = 0
+
+    assessed = assess_productivity(ab)
+
+    assert assessed.productive
+    assert assessed.vj_in_frame is True
+
+
+def test_tcr_junction_rejects_terminal_tryptophan():
+    ab = Antibody(
+        sequence="TGTGCTTGG",
+        sequence_aa="CAW",
+        v_call="TRAV1*01",
+        j_call="TRAJ1*01",
+        locus="TRA",
+        junction="TGTGCTTGG",
+        junction_aa="CAW",
+        frame=1,
+    )
+    ab.junction_start = 0
+
+    assessed = assess_productivity(ab)
+
+    assert not assessed.productive
+    assert "junction does not end with conserved F" in assessed.productivity_issues

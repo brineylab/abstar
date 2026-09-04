@@ -98,14 +98,19 @@ def generate_nongermline_mask(
 
     nongermline_mask = []
     mask_idx = 0
-    for i in range(len(sequence)):
-        s = sequence[i]
-        g = germline[i]
-        m = segment_mask[mask_idx]
+    if len(sequence) != len(germline):
+        raise ValueError("Aligned sequence and germline must have equal lengths")
+    ungapped_sequence_length = len(sequence.replace("-", ""))
+    if len(segment_mask) != ungapped_sequence_length:
+        raise ValueError(
+            "Gene-segment mask length must equal the ungapped sequence length"
+        )
+    for s, g in zip(sequence, germline):
         # if there's a deletion, don't increment the segment mask index
         # or add to the nongermline mask
         if s == "-":
             continue
+        m = segment_mask[mask_idx]
         # N-addition regions are (by definition) non-germline
         if m == "N":
             nongermline_mask.append(1)
@@ -116,8 +121,6 @@ def generate_nongermline_mask(
         else:
             nongermline_mask.append(0)
         mask_idx += 1
-        if mask_idx >= len(segment_mask):
-            break
 
     # return
     if as_string:
@@ -178,7 +181,9 @@ def _generate_gene_segment_mask_nt(ab: Antibody) -> list:
     Create a mask for the gene segments of an antibody nucleotide sequence.
     """
     segment_mask = []
-    cdr3_start = ab.sequence.find(ab.cdr3)
+    cdr3_start = sum(
+        len(region) for region in (ab.fwr1, ab.cdr1, ab.fwr2, ab.cdr2, ab.fwr3)
+    )
     # there's an edge case in which the V gene is truncated so much that doesn't even contribute the full FWR3 region
     # to fix, we check the lengths of the V-gene region and the start position of the CDR3, and use the minimum of the two, then fill the rest of the FWR3 region with Ns
     if len(ab.v_sequence) < cdr3_start:
@@ -204,7 +209,16 @@ def _generate_gene_segment_mask_aa(ab: Antibody) -> list:
     Create a mask for the gene segments of an antibody amino acid sequence.
     """
     segment_mask = []
-    cdr3_start = ab.sequence_aa.find(ab.cdr3_aa)
+    cdr3_start = sum(
+        len(region)
+        for region in (
+            ab.fwr1_aa,
+            ab.cdr1_aa,
+            ab.fwr2_aa,
+            ab.cdr2_aa,
+            ab.fwr3_aa,
+        )
+    )
     # there's an edge case in which the V gene is truncated so much that doesn't even contribute the full FWR3 region
     # to fix, we check the lengths of the V-gene region and the start position of the CDR3, and use the minimum of the two, then fill the rest of the FWR3 region with Ns
     if len(ab.v_sequence_aa) < cdr3_start:

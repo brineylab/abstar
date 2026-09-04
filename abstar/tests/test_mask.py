@@ -159,3 +159,54 @@ def test_generate_nongermline_mask_aa(minimal_ab):
         "1" if c == "N" else "0" for c in minimal_ab.gene_segment_mask_aa
     )
     assert mask == expected
+
+
+def test_gene_segment_mask_does_not_search_for_repeated_cdr3(minimal_ab):
+    minimal_ab.fwr1 = minimal_ab.cdr3 + "A"
+    minimal_ab.sequence = (
+        minimal_ab.fwr1
+        + minimal_ab.cdr1
+        + minimal_ab.fwr2
+        + minimal_ab.cdr2
+        + minimal_ab.fwr3
+        + minimal_ab.cdr3
+        + minimal_ab.fwr4
+    )
+    minimal_ab.v_sequence = (
+        minimal_ab.fwr1
+        + minimal_ab.cdr1
+        + minimal_ab.fwr2
+        + minimal_ab.cdr2
+        + minimal_ab.fwr3
+    )
+
+    mask = generate_gene_segment_mask(minimal_ab, aa=False, as_string=True)
+
+    expected_cdr3_start = sum(
+        len(region)
+        for region in (
+            minimal_ab.fwr1,
+            minimal_ab.cdr1,
+            minimal_ab.fwr2,
+            minimal_ab.cdr2,
+            minimal_ab.fwr3,
+        )
+    )
+    assert mask[:expected_cdr3_start] == "V" * expected_cdr3_start
+
+
+def test_nongermline_mask_handles_terminal_deletion_after_mask_is_consumed(minimal_ab):
+    minimal_ab.sequence_alignment = "A-"
+    minimal_ab.germline_alignment = "AT"
+    minimal_ab.gene_segment_mask = "V"
+
+    assert generate_nongermline_mask(minimal_ab) == "0"
+
+
+def test_nongermline_mask_rejects_short_segment_mask(minimal_ab):
+    minimal_ab.sequence_alignment = "AA"
+    minimal_ab.germline_alignment = "AA"
+    minimal_ab.gene_segment_mask = "V"
+
+    with pytest.raises(ValueError, match="mask length"):
+        generate_nongermline_mask(minimal_ab)

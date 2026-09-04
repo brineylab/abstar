@@ -2,6 +2,8 @@
 # Distributed under the terms of the MIT License.
 # SPDX-License-Identifier: MIT
 
+from typing import NamedTuple
+
 import abutils
 
 from .antibody import Antibody
@@ -13,6 +15,14 @@ from .positions import (
 )
 
 
+class RegionSequence(NamedTuple):
+    """A region's inclusive alignment coordinates and ungapped sequence."""
+
+    start: int | None
+    end: int | None
+    sequence: str
+
+
 def get_region_sequence(
     region: str,
     aln: abutils.tl.PairwiseAlignment,
@@ -21,7 +31,7 @@ def get_region_sequence(
     ab: Antibody,
     aa: bool = False,
     nt_region_start: int | None = None,
-) -> str:
+) -> RegionSequence:
     """
     Get the sequence of an antibody region (e.g., CDR1).
 
@@ -74,8 +84,10 @@ def get_region_sequence(
 
     Returns
     -------
-    str
-        The sequence of the region.
+    Tuple[Optional[int], Optional[int], str]
+        The inclusive alignment start and end positions and the region sequence.
+        A region that is absent because the read is truncated is represented as
+        ``(None, None, "")``.
 
     """
     # IMGT start/end positions for the region (they're 1-indexed and not suitable for slicing in Python)
@@ -96,7 +108,7 @@ def get_region_sequence(
     )
     ab.log(f"{region.upper()} GAPPED GERMLINE START:", gapped_germline_start)
     if gapped_germline_start > imgt_end:
-        return ""
+        return RegionSequence(None, None, "")
 
     # positions in the ungapped germline
     ungapped_germline_start = get_raw_position_from_gapped(
@@ -168,7 +180,7 @@ def get_region_sequence(
 
     # if we couldn't determine start/end (eg., empty inputs), return empty string
     if region_start is None or region_end is None:
-        return region_start, region_end, ""
+        return RegionSequence(region_start, region_end, "")
 
     # NOTE: alignment numbering is inclusive, so we +1 the end position for Python slicing
     if not aa:
@@ -202,7 +214,7 @@ def get_region_sequence(
         region_sequence = aln.aligned_query[region_start : region_end + 1]
 
     region_sequence = region_sequence.replace("-", "")
-    return region_start, region_end, region_sequence
+    return RegionSequence(region_start, region_end, region_sequence)
 
 
 # def get_region_sequence(
@@ -329,16 +341,23 @@ def identify_cdr3_regions(ab: Antibody) -> Antibody:
         - ``cdr3_v_aa``: the V gene region of the CDR3 in amino acids
         - ``cdr3_n1``: the N1 region of the CDR3
         - ``cdr3_n1_aa``: the N1 region of the CDR3 in amino acids
-        - ``cdr3_d``: the D region of the CDR3 (only for IGH/TRA/TRD chains with a D-gene call)
-        - ``cdr3_d_aa``: the D region of the CDR3 in amino acids (only for IGH/TRA/TRD chains with a D-gene call)
-        - ``cdr3_n2``: the N2 region of the CDR3 (only for IGH/TRA/TRD chains with a D-gene call)
-        - ``cdr3_n2_aa``: the N2 region of the CDR3 in amino acids (only for IGH/TRA/TRD chains with a D-gene call)
+        - ``cdr3_d``: the D region of the CDR3 (only for IGH/TRB/TRD chains with a D-gene call)
+        - ``cdr3_d_aa``: the D region of the CDR3 in amino acids (only for IGH/TRB/TRD chains with a D-gene call)
+        - ``cdr3_n2``: the N2 region of the CDR3 (only for IGH/TRB/TRD chains with a D-gene call)
+        - ``cdr3_n2_aa``: the N2 region of the CDR3 in amino acids (only for IGH/TRB/TRD chains with a D-gene call)
         - ``cdr3_j``: the J gene region of the CDR3
         - ``cdr3_j_aa``: the J gene region of the CDR3 in amino acids
 
     """
-    cdr3_start = ab.sequence.find(ab.fwr3) + len(ab.fwr3)
-    cdr3_end = cdr3_start + len(ab.cdr3)
+    # ``ab.sequence`` starts at v_sequence_start in oriented-query space.
+    # Junction coordinates originate in that same oriented query, so this is
+    # an explicit coordinate conversion rather than a motif search.
+    cdr3_start = ab.junction_start - ab.v_sequence_start + 3
+    cdr3_end = ab.junction_end - ab.v_sequence_start - 3
+    if not (0 <= cdr3_start <= cdr3_end <= len(ab.sequence)):
+        raise ValueError("CDR3 coordinates fall outside the assembled V(D)J sequence")
+    if ab.sequence[cdr3_start:cdr3_end] != ab.cdr3:
+        raise ValueError("CDR3 coordinates do not reproduce the annotated CDR3 sequence")
     ab.log("CDR3 START:", cdr3_start)
     ab.log("CDR3 END:", cdr3_end)
 
@@ -361,7 +380,7 @@ def identify_cdr3_regions(ab: Antibody) -> Antibody:
     ab.log("CDR3 V SEQUENCE AA:", ab.cdr3_v_aa)
 
     # J gene region of the CDR3
-    cdr3_j_start = ab.sequence.find(ab.j_sequence)
+    cdr3_j_start = ab.j_sequence_start - ab.v_sequence_start
     cdr3_j_end = cdr3_end
     j_frame = (cdr3_j_start - cdr3_start) % 3
     j_trunc_5 = (-j_frame) % 3  # "wrap-around" modulo for trimming the front of the J
@@ -384,10 +403,7 @@ def identify_cdr3_regions(ab: Antibody) -> Antibody:
     if ab.d_call is not None:
         # limit the D-gene search region to the sequence between CDR3 V and CDR3 J
         # if we don't, we may find a D-gene match elsewhere (in the middle of the V-gene, for example) and throw off the positional numbering
-        cdr3_d_start = (
-            ab.sequence[cdr3_v_end:adjusted_cdr3_j_start].find(ab.d_sequence)
-            + cdr3_v_end  # add back the CDR3 V start position to get the absolute start position
-        )
+        cdr3_d_start = ab.d_sequence_start - ab.v_sequence_start
         cdr3_d_end = cdr3_d_start + len(ab.d_sequence)
         d_start_frame = (cdr3_d_start - cdr3_start) % 3
         d_trunc_5 = (-d_start_frame) % 3  # "wrap-around" modulo

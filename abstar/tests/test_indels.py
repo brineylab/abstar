@@ -289,6 +289,17 @@ def test_annotate_deletions_germline_offset(
     assert result == "17:1>T!"  # Position should be offset by 10
 
 
+def test_deletion_end_accounts_for_intervening_imgt_gap():
+    result = annotate_deletions(
+        aligned_sequence="A--D",
+        aligned_germline="ABCD",
+        gapped_germline="AB.CD",
+        germline_start=0,
+    )
+
+    assert result == "2-4:2>BC!"
+
+
 def test_annotate_deletions_in_frame_deletion(
     aligned_germline_multi_deletion,
     gapped_germline_multi_deletion,

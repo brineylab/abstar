@@ -7,11 +7,17 @@ Tests for the MMseqs2 germline assigner.
 """
 
 import os
+from types import SimpleNamespace
 
 import polars as pl
 import pytest
 
-from ..assigners.mmseqs import MMseqs
+from ..assigners.mmseqs import (
+    INPUT_SCHEMA,
+    MMseqs,
+    filter_compatible_locus,
+    select_best_hits,
+)
 
 
 # =============================================
@@ -149,14 +155,65 @@ def test_prepare_input_files_fasta(mmseqs_instance, small_fasta_file):
     assert os.path.exists(fasta_paths[0])
     with open(fasta_paths[0]) as f:
         content = f.read()
-        assert ">10E8" in content
+        assert ">abstar_0_0" in content
+        assert ">10E8" not in content
 
     # Check TSV file has correct columns
     assert os.path.exists(tsv_paths[0])
-    df = pl.read_csv(tsv_paths[0], separator="\t")
+    df = pl.read_csv(
+        tsv_paths[0], separator="\t", schema_overrides=INPUT_SCHEMA
+    )
+    assert df["sequence_id"].to_list() == ["10E8"]
     assert "sequence_id" in df.columns
     assert "sequence_input" in df.columns
     assert "quality" in df.columns
+
+
+def test_prepare_input_files_preserves_opaque_and_duplicate_ids(
+    mmseqs_instance, tmp_path, monkeypatch
+):
+    """External IDs remain exact payload strings and are never MMseqs keys."""
+    identifiers = [
+        "10E8",
+        "000123",
+        "1e3",
+        "雪",
+        "identifier with spaces",
+        "identifier\twith-tab",
+        "x" * 1024,
+        "10E8",
+    ]
+    records = [
+        SimpleNamespace(id=identifier, sequence="ACGT", qual=None)
+        for identifier in identifiers
+    ]
+    monkeypatch.setattr(
+        "abstar.assigners.mmseqs.abutils.io.parse_fastx",
+        lambda _: iter(records),
+    )
+    input_path = tmp_path / "opaque_ids.fasta"
+    input_path.write_text("")
+    mmseqs_instance.sample_name = "opaque_ids"
+
+    fasta_paths, tsv_paths, sequence_count = mmseqs_instance.prepare_input_files(
+        str(input_path), chunksize=1000
+    )
+
+    input_df = pl.read_csv(
+        tsv_paths[0], separator="\t", schema_overrides=INPUT_SCHEMA
+    )
+    assert sequence_count == len(identifiers)
+    assert input_df.schema["sequence_id"] == pl.String
+    assert input_df["sequence_id"].to_list() == identifiers
+    assert input_df["row_id"].n_unique() == len(identifiers)
+    assert input_df["row_id"].to_list() == [
+        f"abstar_0_{i}" for i in range(len(identifiers))
+    ]
+    with open(fasta_paths[0]) as fasta_file:
+        fasta_headers = [
+            line.rstrip("\n") for line in fasta_file if line.startswith(">")
+        ]
+    assert fasta_headers == [f">abstar_0_{i}" for i in range(len(identifiers))]
 
 
 def test_prepare_input_files_multiple_sequences(mmseqs_instance, multi_sequence_fasta_file):
@@ -193,6 +250,74 @@ def test_prepare_input_files_fastq(mmseqs_instance, fastq_test_path):
 # =============================================
 #       QUERY FASTA BUILDER TESTS
 # =============================================
+
+
+def _mmseqs_hits(**overrides):
+    data = {
+        "v_query": ["query1", "query1"],
+        "v_call": ["IGHV1-2*01", "IGHV3-15*01"],
+        "v_support": [1e-20, 1e-10],
+        "v_qstart": [1, 1],
+        "v_qend": [100, 110],
+        "v_qseq": ["A" * 100, "A" * 110],
+        "v_fident": [0.99, 0.95],
+        "v_qcov": [0.8, 0.9],
+        "v_tcov": [0.8, 0.9],
+        "v_alnlen": [100, 110],
+        "v_bits": [180.0, 220.0],
+    }
+    data.update(overrides)
+    return pl.DataFrame(data)
+
+
+def test_select_best_hits_uses_alignment_evidence_not_output_order():
+    """The higher bit-score hit wins even when another hit has better identity."""
+    selected = select_best_hits(_mmseqs_hits(), "v")
+
+    assert selected.height == 1
+    assert selected["v_call"].item() == "IGHV3-15*01"
+    assert selected["v_bits"].item() == 220.0
+    assert selected["v_support"].item() == 1e-10
+
+
+def test_select_best_hits_retains_exact_allele_ties_deterministically():
+    """Calls with identical evidence are retained as an AIRR ambiguity set."""
+    tied = _mmseqs_hits(
+        v_call=["IGHV3-15*07", "IGHV3-15*01"],
+        v_support=[1e-20, 1e-20],
+        v_qend=[100, 100],
+        v_qseq=["A" * 100, "A" * 100],
+        v_fident=[1.0, 1.0],
+        v_qcov=[0.8, 0.8],
+        v_tcov=[0.9, 0.9],
+        v_alnlen=[100, 100],
+        v_bits=[220.0, 220.0],
+    )
+
+    selected = select_best_hits(tied.reverse(), "v")
+
+    assert selected.height == 1
+    assert selected["v_call"].item() == "IGHV3-15*01,IGHV3-15*07"
+    assert selected["v_qend"].item() == 100
+
+
+def test_filter_compatible_locus_removes_cross_locus_hits():
+    v_assignments = pl.DataFrame(
+        {"v_query": ["heavy", "light"], "v_call": ["IGHV1-2*01", "IGKV1-5*01"]}
+    )
+    j_results = pl.DataFrame(
+        {
+            "j_query": ["heavy", "heavy", "light", "light"],
+            "j_call": ["IGKJ1*01", "IGHJ4*02", "IGHJ4*02", "IGKJ2*01"],
+        }
+    )
+
+    compatible = filter_compatible_locus(j_results, v_assignments, "j").collect()
+
+    assert compatible.select("j_query", "j_call").rows() == [
+        ("heavy", "IGHJ4*02"),
+        ("light", "IGKJ2*01"),
+    ]
 
 
 def test_build_jquery_fasta(mmseqs_instance, tmp_path):
@@ -241,31 +366,60 @@ def test_build_jquery_fasta_filters_short_sequences(mmseqs_instance, tmp_path):
         assert content == "" or ">" not in content
 
 
-def test_build_dquery_fasta_heavy_chain_only(mmseqs_instance, tmp_path):
-    """Test D-gene query FASTA only includes IGH/TRA/TRD."""
-    # Create mock VJ result with both heavy and light chain
-    vjresult_df = pl.DataFrame({
-        "v_query": ["heavy_seq", "light_seq"],
-        "v_call": ["IGHV3-23*01", "IGKV1-39*01"],  # IGH is heavy, IGK is light
-        "j_qstart": [50, 40],
-        "j_qend": [100, 80],
-        "j_qseq": [
-            "ATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGC",
-            "ATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGC"
-        ],
-    })
+def test_build_jquery_fasta_respects_inclusive_mmseqs_coordinates(
+    mmseqs_instance, tmp_path
+):
+    results = pl.DataFrame(
+        {
+            "v_query": ["forward", "reverse"],
+            "v_qstart": [1, 30],
+            "v_qend": [5, 16],
+            "v_qseq": ["ABCDEFGHIJ" + "K" * 10, "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234"],
+        }
+    )
+    path = tmp_path / "jquery_coordinates.fasta"
+
+    mmseqs_instance.build_jquery_fasta(results, str(path))
+
+    assert path.read_text().splitlines() == [
+        ">forward",
+        "FGHIJ" + "K" * 10,
+        ">reverse",
+        "ABCDEFGHIJKLMNO",
+    ]
+
+
+def test_build_dquery_fasta_uses_d_bearing_loci_and_query_length(
+    mmseqs_instance, tmp_path
+):
+    """IGH/TRB/TRD are eligible; TRA is not, and extracted length is tested."""
+    vjresult_df = pl.DataFrame(
+        {
+            "v_query": ["igh", "trb", "trd", "tra", "too_short"],
+            "v_call": [
+                "IGHV3-23*01",
+                "TRBV1*01",
+                "TRDV1*01",
+                "TRAV1*01",
+                "IGHV1*01",
+            ],
+            "j_qstart": [6, 6, 6, 6, 3],
+            "j_qend": [10, 2, 10, 10, 10],
+            "j_qseq": ["ABCDEFGHIJK"] * 5,
+        }
+    )
 
     dquery_path = str(tmp_path / "dquery.fasta")
     mmseqs_instance.build_dquery_fasta(vjresult_df, dquery_path)
 
-    # Check content - should only have heavy chain sequence
-    with open(dquery_path) as f:
-        content = f.read()
-        # Heavy chain should be included
-        if content.strip():  # If not empty
-            assert "heavy_seq" in content or content.count(">") >= 1
-            # Light chain should NOT be included
-            assert "light_seq" not in content
+    assert open(dquery_path).read().splitlines() == [
+        ">igh",
+        "ABCDE",
+        ">trb",
+        "GHIJK",
+        ">trd",
+        "ABCDE",
+    ]
 
 
 def test_build_cquery_fasta(mmseqs_instance, tmp_path):
@@ -284,6 +438,29 @@ def test_build_cquery_fasta(mmseqs_instance, tmp_path):
 
     # Check file was created
     assert os.path.exists(cquery_path)
+
+
+def test_build_cquery_fasta_respects_inclusive_mmseqs_coordinates(
+    mmseqs_instance, tmp_path
+):
+    results = pl.DataFrame(
+        {
+            "v_query": ["forward", "reverse"],
+            "j_qstart": [1, 10],
+            "j_qend": [5, 3],
+            "j_qseq": ["ABCDEFGHIJ", "ABCDEFGHIJ"],
+        }
+    )
+    path = tmp_path / "cquery_coordinates.fasta"
+
+    mmseqs_instance.build_cquery_fasta(results, str(path))
+
+    assert path.read_text().splitlines() == [
+        ">forward",
+        "FGHIJ",
+        ">reverse",
+        "AB",
+    ]
 
 
 # =============================================
@@ -326,6 +503,7 @@ def test_mmseqs_call_parquet_has_required_columns(mmseqs_instance, small_fasta_f
 
     for col in required_columns:
         assert col in df.columns, f"Missing required column: {col}"
+    assert df["sequence_id"].to_list() == ["10E8"]
 
 
 def test_mmseqs_assigns_v_gene(mmseqs_instance, small_fasta_file):

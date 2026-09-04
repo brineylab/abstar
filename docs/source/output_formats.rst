@@ -230,6 +230,9 @@ Quality Metrics
    * - ``productive``
      - Boolean
      - True if sequence is productive
+   * - ``vj_in_frame``
+     - Boolean
+     - True if the V-to-J junction is in frame and has a codon-complete length
    * - ``productivity_issues``
      - String
      - List of productivity issues (if any)
@@ -241,13 +244,28 @@ Quality Metrics
      - True if V, D (heavy only), and J assigned
    * - ``v_identity``
      - Float
-     - V gene identity (0-1)
+     - V gene alignment identity (0-1), including indel columns
    * - ``v_identity_aa``
      - Float
-     - V gene amino acid identity
+     - V gene amino acid alignment identity, including indel columns
+   * - ``d_identity``
+     - Float
+     - D gene alignment identity, including indel columns
+   * - ``d_identity_aa``
+     - Float
+     - D gene amino acid alignment identity, including indel columns
    * - ``j_identity``
      - Float
-     - J gene identity
+     - J gene alignment identity, including indel columns
+   * - ``j_identity_aa``
+     - Float
+     - J gene amino acid alignment identity, including indel columns
+   * - ``c_identity``
+     - Float
+     - Constant-region alignment identity, including indel columns
+   * - ``c_identity_aa``
+     - Float
+     - Constant-region amino acid alignment identity, including indel columns
    * - ``frame``
      - Integer
      - Reading frame (0, 1, or 2)
