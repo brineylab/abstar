@@ -6,6 +6,7 @@ import multiprocessing as mp
 import os
 import shutil
 import tempfile
+from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from datetime import datetime
 from typing import Iterable
@@ -98,7 +99,7 @@ def run(
     merge_kwargs: dict | None = None,
     interleaved_fastq: bool = False,
     chunksize: int = 500,
-    mmseqs_chunksize: int = 1e6,
+    mmseqs_chunksize: int = 1_000_000,
     mmseqs_threads: int | None = None,
     n_processes: int | None = None,
     copy_inputs_to_project: bool = False,
@@ -205,9 +206,31 @@ def run(
 
 
     """
-    # output format
+    # validate public arguments before creating any project directories
     if isinstance(output_format, str):
         output_format = [output_format]
+    else:
+        try:
+            output_format = list(output_format)
+        except TypeError as error:
+            raise ValueError("output_format must be 'airr', 'parquet', or an iterable of those values") from error
+    if not all(isinstance(fmt, str) for fmt in output_format):
+        raise ValueError("output_format values must be strings")
+    output_format = list(dict.fromkeys(fmt.lower() for fmt in output_format))
+    invalid_formats = set(output_format) - {"airr", "parquet"}
+    if not output_format or invalid_formats:
+        invalid = ", ".join(sorted(invalid_formats)) or "an empty format list"
+        raise ValueError(
+            f"Unsupported output format: {invalid}. Supported formats are 'airr' and 'parquet'."
+        )
+    if not isinstance(chunksize, int) or chunksize <= 0:
+        raise ValueError("chunksize must be a positive integer")
+    if not isinstance(mmseqs_chunksize, int) or mmseqs_chunksize <= 0:
+        raise ValueError("mmseqs_chunksize must be a positive integer")
+    if n_processes is not None and (
+        not isinstance(n_processes, int) or n_processes <= 0
+    ):
+        raise ValueError("n_processes must be a positive integer or None")
 
     # set up log/output/temp directories
     if project_path is not None:
@@ -216,6 +239,7 @@ def run(
     else:
         return_sequences = True
         sequences_to_return = []
+        dataframes_to_return = []
         output_format = ["parquet"]
         project_path = tempfile.TemporaryDirectory(prefix="abstar", dir="/tmp").name
     log_dir = os.path.join(project_path, "logs")
@@ -282,7 +306,7 @@ def run(
             interleaved=interleaved_fastq,
             show_progress=verbose,
             log_directory=merge_log_dir,
-            **merge_kwargs,
+            **(merge_kwargs or {}),
         )
 
     # print sequence file info
@@ -315,16 +339,14 @@ def run(
     )
 
     # annotate sequences
-    for sequence_file in natsorted(sequence_files):
+    sequence_files = natsorted(sequence_files)
+    sample_names = _get_sample_names(sequence_files)
+    total_input_count = 0
+    for sequence_file in sequence_files:
         start_time = datetime.now()
         to_delete = []
 
-        # parse sample name
-        sample_name = ".".join(
-            os.path.basename(sequence_file).rstrip(".gz").split(".")[:-1]
-        )
-        if not sample_name:  # if the input was Sequence object(s), not file(s)
-            sample_name = "sequences"
+        sample_name = sample_names[sequence_file]
         # log sample info
         if started_from_cli:
             logger.info("\n\n")
@@ -335,7 +357,10 @@ def run(
             logger.info("\n")
 
         # assign VDJC genes, the returned assign_file is in parquet format
-        assign_file, raw_sequence_count = assigner(sequence_file)
+        assign_file, raw_sequence_count = assigner(
+            sequence_file, sample_name=sample_name
+        )
+        total_input_count += raw_sequence_count
         assigner.cleanup()
 
         # split into annotation jobs
@@ -366,16 +391,19 @@ def run(
             max_workers=n_processes,
             mp_context=mp.get_context("spawn"),
         ) as executor:
-            futures = [
-                executor.submit(annotate, f, **annot_kwargs) for f in split_assign_files
-            ]
+            futures = {
+                executor.submit(annotate, f, **annot_kwargs): index
+                for index, f in enumerate(split_assign_files)
+            }
+            chunk_results = [None] * len(futures)
             for future in as_completed(futures):
-                annotated, failed, succeeded = future.result()
+                chunk_results[futures[future]] = future.result()
+                if verbose:
+                    progress_bar.update(1)
+            for annotated, failed, succeeded in chunk_results:
                 annotated_files.append(annotated)
                 failed_log_files.append(failed)
                 succeeded_log_files.append(succeeded)
-                if verbose:
-                    progress_bar.update(1)
         if verbose:
             progress_bar.close()
 
@@ -383,6 +411,7 @@ def run(
         if return_sequences:
             if as_dataframe:
                 sequence_df = pl.read_parquet(annotated_files)
+                dataframes_to_return.append(sequence_df)
                 sequence_count = sequence_df.height
             else:
                 annotated_sequences = abutils.io.read_parquet(annotated_files)
@@ -440,8 +469,8 @@ def run(
 
     if return_sequences:
         if as_dataframe:
-            return sequence_df
-        if len(sequences_to_return) == 1:
+            return pl.concat(dataframes_to_return, how="vertical")
+        if total_input_count == 1 and len(sequences_to_return) == 1:
             return sequences_to_return[0]
         return sequences_to_return
     else:
@@ -481,14 +510,17 @@ def _process_inputs(
             )
         else:
             sequences = Sequence(sequences)
-    if isinstance(sequences, Sequence) or (
-        isinstance(sequences, Iterable)
-        and all(isinstance(s, Sequence) for s in sequences)
-    ):
+    if isinstance(sequences, Sequence):
+        sequences = [sequences]
+    elif isinstance(sequences, Iterable) and not isinstance(sequences, str):
+        sequences = list(sequences)
+        if not all(isinstance(sequence, Sequence) for sequence in sequences):
+            sequences = None
+    if isinstance(sequences, list):
         # input is a Sequence or an iterable of Sequences
-        if isinstance(sequences, Sequence):
-            sequences = [sequences]
-        temp_file = tempfile.NamedTemporaryFile(delete=False, dir=temp_dir, mode="w")
+        if not sequences:
+            raise ValueError("Input sequences cannot be empty.")
+        temp_file = open(os.path.join(temp_dir, "sequences.fasta"), "w")
         fastas = [seq.fasta for seq in sequences]
         temp_file.write("\n".join(fastas))
         temp_file.close()
@@ -497,7 +529,10 @@ def _process_inputs(
         raise ValueError(
             "Invalid input sequences. Must be a path to a file or directory, a single sequence, or an iterable of sequences."
         )
-    return natsorted(sequence_files)
+    sequence_files = natsorted(os.path.abspath(path) for path in sequence_files)
+    if not sequence_files:
+        raise ValueError("No supported FASTA or FASTQ files were found in the input directory.")
+    return sequence_files
 
 
 def _copy_inputs_to_project(sequence_files: Iterable[str], project_path: str) -> None:
@@ -514,8 +549,59 @@ def _copy_inputs_to_project(sequence_files: Iterable[str], project_path: str) ->
     """
     inputs_path = os.path.join(project_path, "input")
     abutils.io.make_dir(inputs_path)
+    sequence_files = [os.path.abspath(path) for path in sequence_files]
+    common_root = os.path.commonpath(sequence_files)
+    if len(sequence_files) == 1 or os.path.isfile(common_root):
+        common_root = os.path.dirname(common_root)
     for f in sequence_files:
-        shutil.copy(f, inputs_path)
+        relative_path = os.path.relpath(f, common_root)
+        destination = os.path.join(inputs_path, relative_path)
+        abutils.io.make_dir(os.path.dirname(destination))
+        shutil.copy2(f, destination)
+
+
+def _get_sample_names(sequence_files: Iterable[str]) -> dict[str, str]:
+    """Return deterministic, unique sample names for a collection of input files."""
+    sequence_files = [os.path.abspath(path) for path in sequence_files]
+    common_root = os.path.commonpath(sequence_files)
+    if len(sequence_files) == 1 or os.path.isfile(common_root):
+        common_root = os.path.dirname(common_root)
+
+    names_by_stem = defaultdict(list)
+    for path in sequence_files:
+        names_by_stem[_strip_sequence_suffix(os.path.basename(path))].append(path)
+
+    candidates = {}
+    for stem, paths in names_by_stem.items():
+        if len(paths) == 1:
+            candidates[paths[0]] = stem or "sequences"
+            continue
+        for path in paths:
+            relative = os.path.relpath(path, common_root)
+            candidate = _strip_sequence_suffix(relative).replace(os.sep, "__")
+            candidates[path] = candidate or stem or "sequences"
+
+    unique_names = {}
+    used = set()
+    for path in sequence_files:
+        candidate = candidates[path]
+        name = candidate
+        index = 2
+        while name in used:
+            name = f"{candidate}__{index}"
+            index += 1
+        used.add(name)
+        unique_names[path] = name
+    return unique_names
+
+
+def _strip_sequence_suffix(path: str) -> str:
+    """Strip one supported sequence-file suffix without altering the stem."""
+    lower_path = path.lower()
+    for suffix in (".fasta.gz", ".fastq.gz", ".fasta", ".fastq", ".fa", ".fq"):
+        if lower_path.endswith(suffix):
+            return path[: -len(suffix)]
+    return os.path.splitext(path)[0]
 
 
 def _assemble_logs(log_files: Iterable[str], combined_log_file: str) -> None:

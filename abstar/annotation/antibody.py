@@ -34,6 +34,7 @@ class Antibody(LoggingMixin):
     j_identity: float = None
     j_identity_aa: float = None
     productive: bool = True
+    vj_in_frame: bool = None
     complete_vdj: bool = False
 
     # everything else

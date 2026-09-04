@@ -11,7 +11,12 @@ import os
 import polars as pl
 import pytest
 
-from ..annotation.annotator import annotate, annotate_single_sequence
+from ..annotation.annotator import (
+    _parse_assignment_call,
+    annotate,
+    annotate_single_sequence,
+    calculate_alignment_identity,
+)
 from ..annotation.antibody import Antibody
 from ..core.abstar import run
 
@@ -19,6 +24,16 @@ from ..core.abstar import run
 # =============================================
 #              FIXTURES
 # =============================================
+
+
+def test_parse_assignment_call_preserves_ties_and_primary_lookup():
+    display, primary, species = _parse_assignment_call(
+        "IGHV3-15*01__human,IGHV3-15*07__human"
+    )
+
+    assert display == "IGHV3-15*01,IGHV3-15*07"
+    assert primary == "IGHV3-15*01__human"
+    assert species == "human"
 
 
 @pytest.fixture
@@ -356,6 +371,45 @@ def test_v_identity_calculation(annotated_heavy_chain_result):
     # Identity should be between 0 and 1
     assert 0 <= v_identity <= 1
     assert 0 <= v_identity_aa <= 1
+
+
+def test_alignment_identity_counts_substitutions_and_indels():
+    identity = calculate_alignment_identity("AC-GTA", "ACTG-A")
+
+    assert identity == pytest.approx(4 / 6)
+
+
+def test_alignment_identity_ignores_double_gap_columns():
+    identity = calculate_alignment_identity("A--C", "A-TC")
+
+    assert identity == pytest.approx(2 / 3)
+
+
+def test_alignment_identity_rejects_different_alignment_lengths():
+    with pytest.raises(ValueError, match="equal lengths"):
+        calculate_alignment_identity("AC", "A-C")
+
+
+def test_all_assigned_gene_segments_have_identity(annotated_heavy_chain_result):
+    result = annotated_heavy_chain_result
+
+    for segment in ("v", "d", "j", "c"):
+        if result[f"{segment}_call"] is not None:
+            identity = result[f"{segment}_identity"]
+            identity_aa = result[f"{segment}_identity_aa"]
+            assert identity is not None
+            assert identity_aa is not None
+            assert 0 <= identity <= 1
+            assert 0 <= identity_aa <= 1
+
+    assert result["v_identity"] == pytest.approx(0.7811447811447811)
+    assert result["v_identity_aa"] == pytest.approx(0.7272727272727273)
+    assert result["d_identity"] == pytest.approx(0.9166666666666666)
+    assert result["d_identity_aa"] == pytest.approx(0.8571428571428571)
+    assert result["j_identity"] == pytest.approx(0.9375)
+    assert result["j_identity_aa"] == pytest.approx(0.875)
+    assert result["c_identity"] is None
+    assert result["c_identity_aa"] is None
 
 
 # =============================================

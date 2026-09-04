@@ -12,7 +12,12 @@ import polars as pl
 import pytest
 from abutils import Sequence
 
-from ..core.abstar import run, _process_inputs
+from ..core.abstar import (
+    _copy_inputs_to_project,
+    _get_sample_names,
+    _process_inputs,
+    run,
+)
 
 
 # =============================================
@@ -58,6 +63,54 @@ def test_process_inputs_sequence_list(tmp_path, multiple_hc_sequences):
         content = f.read()
         for seq in multiple_hc_sequences:
             assert seq.id in content
+
+
+def test_process_inputs_generator_is_consumed_once(tmp_path, multiple_hc_sequences):
+    """A one-shot iterable must retain every sequence when written to FASTA."""
+    sequence_generator = (sequence for sequence in multiple_hc_sequences)
+
+    sequence_files = _process_inputs(sequence_generator, str(tmp_path))
+
+    with open(sequence_files[0]) as fasta_file:
+        content = fasta_file.read()
+    assert [sequence.id for sequence in multiple_hc_sequences] == [
+        line[1:] for line in content.splitlines() if line.startswith(">")
+    ]
+
+
+def test_process_inputs_empty_directory_raises_error(tmp_path):
+    with pytest.raises(ValueError, match="No supported FASTA or FASTQ"):
+        _process_inputs(str(tmp_path), str(tmp_path))
+
+
+def test_sample_names_are_unique_for_nested_and_extension_collisions(tmp_path):
+    paths = [
+        tmp_path / "a" / "sample.fasta",
+        tmp_path / "b" / "sample.fasta",
+        tmp_path / "b" / "sample.fa",
+    ]
+    for path in paths:
+        path.parent.mkdir(exist_ok=True)
+        path.touch()
+
+    names = _get_sample_names([str(path) for path in paths])
+
+    assert len(set(names.values())) == 3
+    assert names[str(paths[0])] == "a__sample"
+
+
+def test_copy_inputs_preserves_relative_directories(tmp_path):
+    source = tmp_path / "source"
+    project = tmp_path / "project"
+    paths = [source / "a" / "sample.fasta", source / "b" / "sample.fasta"]
+    for path in paths:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(">id\nACGT\n")
+
+    _copy_inputs_to_project([str(path) for path in paths], str(project))
+
+    assert (project / "input" / "a" / "sample.fasta").is_file()
+    assert (project / "input" / "b" / "sample.fasta").is_file()
 
 
 def test_process_inputs_raw_string(tmp_path):
@@ -107,6 +160,45 @@ def test_run_returns_dataframe_when_requested(single_hc_sequence):
     assert isinstance(result, pl.DataFrame)
 
 
+def test_run_accumulates_dataframes_from_multiple_files(single_hc_sequence, tmp_path):
+    input_dir = tmp_path / "inputs"
+    for directory, suffix, sequence_id in (
+        ("a", "fasta", "first"),
+        ("b", "fa", "second"),
+    ):
+        path = input_dir / directory / f"sample.{suffix}"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(f">{sequence_id}\n{single_hc_sequence.sequence}\n")
+
+    result = run(str(input_dir), as_dataframe=True, n_processes=1)
+
+    assert result.height == 2
+    assert result.get_column("sequence_id").to_list() == ["first", "second"]
+
+
+def test_multi_record_input_with_one_annotation_returns_list(single_hc_sequence):
+    unassignable = Sequence("NNNNNNNNNNNNNNNN", id="unassignable")
+
+    result = run([single_hc_sequence, unassignable], n_processes=1)
+
+    assert isinstance(result, list)
+    assert [sequence.id for sequence in result] == [single_hc_sequence.id]
+
+
+def test_five_prime_truncated_read_is_annotated_as_partial(single_hc_sequence):
+    truncated = Sequence(
+        single_hc_sequence.sequence[90:], id="five_prime_truncated"
+    )
+
+    result = run(truncated, n_processes=1)
+
+    assert isinstance(result, Sequence)
+    assert result.id == "five_prime_truncated"
+    assert result["fwr1"] == ""
+    assert result["cdr1"] == "AACGCCTGG"
+    assert result["fwr2"] == "ATGACTTGGGTCCGCCAGCCTCCAGGGAAGGGCCTCGAATGGGTTGGTCGT"
+
+
 def test_run_returns_none_with_project_path(single_hc_sequence, tmp_path):
     """Test run() returns None when project_path provided (writes files)."""
     project_path = str(tmp_path / "test_project")
@@ -126,6 +218,21 @@ def test_run_single_sequence_returns_single_not_list(single_hc_sequence):
 # =============================================
 #          OUTPUT FORMAT TESTS
 # =============================================
+
+
+def test_run_rejects_unsupported_output_before_creating_project(
+    single_hc_sequence, tmp_path
+):
+    project_path = tmp_path / "invalid_output"
+
+    with pytest.raises(ValueError, match="Unsupported output format"):
+        run(
+            single_hc_sequence,
+            project_path=str(project_path),
+            output_format="csv",
+        )
+
+    assert not project_path.exists()
 
 
 def test_run_creates_airr_output(single_hc_sequence, tmp_path):

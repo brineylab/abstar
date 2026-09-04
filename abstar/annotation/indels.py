@@ -126,12 +126,17 @@ def annotate_deletions(
         # position immediately preceeding the insertion)
         start = len(aligned_germline[:raw_start].replace("-", "")) + germline_start + 1
         imgt_start = get_gapped_position_from_raw(start, gapped_germline)
-        imgt_end = imgt_start + length
+        # Convert the final deleted raw germline residue independently. IMGT
+        # gap characters between deleted residues make simple length addition
+        # incorrect in the gapped coordinate space.
+        imgt_end = get_gapped_position_from_raw(
+            start + length - 1, gapped_germline
+        )
 
         # format the deletion
         oof = "!" if length % 3 else ""
         if length > 1:
-            pos_range = f"{imgt_start}-{imgt_end - 1}"  # end is inclusive
+            pos_range = f"{imgt_start}-{imgt_end}"  # end is inclusive
         else:
             pos_range = f"{imgt_start}"
         deletions.append(f"{pos_range}:{length}>{seq}{oof}")

@@ -30,6 +30,7 @@ schema_dict = {
     "j_identity": pl.Float64,
     "j_identity_aa": pl.Float64,
     "productive": pl.Boolean,
+    "vj_in_frame": pl.Boolean,
     "complete_vdj": pl.Boolean,
     "sequence": pl.String,
     "germline": pl.String,

@@ -4,6 +4,7 @@
 
 
 import os
+import shlex
 import subprocess as sp
 import tempfile
 from typing import Iterable
@@ -23,6 +24,24 @@ from tqdm.auto import tqdm
 __all__ = ["merge_fastqs", "group_paired_fastqs"]
 
 
+def _strip_fastq_suffix(filename: str) -> str:
+    """Remove one complete FASTQ suffix without treating it as a character set."""
+    lower_filename = filename.lower()
+    for suffix in (".fastq.gz", ".fq.gz", ".fastq", ".fq"):
+        if lower_filename.endswith(suffix):
+            return filename[: -len(suffix)]
+    return filename
+
+
+def _additional_arguments(arguments: str | Iterable[str] | None) -> list[str]:
+    """Normalize optional command arguments without invoking a shell."""
+    if arguments is None:
+        return []
+    if isinstance(arguments, str):
+        return shlex.split(arguments)
+    return [str(argument) for argument in arguments]
+
+
 class FASTQFile:
     """
     Base class for processing paired FASTQ filenames.
@@ -39,7 +58,7 @@ class FASTQFile:
         self.path = os.path.abspath(file)
         self.basename = os.path.basename(self.path)
         self.dir = os.path.dirname(self.path)
-        self.filename = self.basename.rstrip(".gz").rstrip(".fastq").rstrip(".fq")
+        self.filename = _strip_fastq_suffix(self.basename)
 
     def __eq__(self, other):
         return self.name == other.name
@@ -134,8 +153,22 @@ class MergeGroup:
 
     def __init__(self, name: str, files: Iterable[FASTQFile]):
         self.name = name
-        self.files = files
+        self.files = list(files)
+        self._validate_pairs()
         self.merged_file = None  # assigned by merge function
+
+    def _validate_pairs(self) -> None:
+        """Require exactly one R1 and one R2 file for every lane."""
+        lane_reads = {}
+        for fastq in self.files:
+            lane_reads.setdefault(fastq.lane, []).append(fastq.read)
+        for lane, reads in lane_reads.items():
+            if sorted(reads) != ["R1", "R2"]:
+                lane_name = lane or "unlabelled lane"
+                raise ValueError(
+                    f"Sample '{self.name}' {lane_name} must contain exactly one R1 "
+                    f"and one R2 FASTQ; found {sorted(reads)}."
+                )
 
     def merge(
         self,
@@ -188,7 +221,8 @@ class MergeGroup:
         # if show_progress:
         #     groups = tqdm(groups, total=n_groups, leave=True)
         for group in groups:
-            r1, r2 = natsorted(group, key=lambda x: x.read)
+            reads = {fastq.read: fastq for fastq in group}
+            r1, r2 = reads["R1"], reads["R2"]
             # add name and compression suffix, if necessary
             name = self.name if n_groups == 1 else f"{self.name}_{r1.lane}"
             merged_path = os.path.join(
@@ -222,7 +256,8 @@ class MergeGroup:
             concatenate_files(merged_files, self.merged_file)
             delete_files(merged_files)
         else:
-            rename_file(merged_files[0], self.merged_file)
+            if os.path.abspath(merged_files[0]) != os.path.abspath(self.merged_file):
+                rename_file(merged_files[0], self.merged_file)
         return self.merged_file
 
     def _group_by_lane(self):
@@ -357,35 +392,45 @@ def merge_fastqs(
             )
         for f in files:
             compress_suffix = ".gz" if compress_output else ""
-            name = os.path.basename(f).rstrip(".gz").rstrip(".fastq")
+            name = _strip_fastq_suffix(os.path.basename(f))
             merged_file = os.path.join(
                 output_directory, f"{name}.{output_format.lower()}{compress_suffix}"
             )
+            if merged_file in merged_files:
+                raise ValueError(
+                    f"Multiple interleaved inputs resolve to the same output: {merged_file}"
+                )
             # fastp seems to occasionally have problems with multi-line interleaved FASTQ
             # files, so we'll make a temp file with sequences/qualities each on a single line
-            tmp = tempfile.NamedTemporaryFile(delete=False, dir=os.path.dirname(f))
-            for seq in parse_fastx(f):
-                tmp.write(f"{seq.fastq}\n")
-            tmp.close()
-            merge_fastqs_fastp(
-                forward=tmp.name,
-                merged=merged_file,
-                binary_path=binary_path,
-                log_directory=log_directory,
-                minimum_overlap=minimum_overlap,
-                allowed_mismatches=allowed_mismatches,
-                allowed_mismatch_percent=allowed_mismatch_percent,
-                trim_adapters=trim_adapters,
-                adapter_file=adapter_file,
-                quality_trim=quality_trim,
-                window_size=window_size,
-                quality_cutoff=quality_cutoff,
-                additional_args=merge_args,
-                interleaved=True,
-                debug=debug,
+            tmp = tempfile.NamedTemporaryFile(
+                delete=False, dir=output_directory, mode="w", suffix=".fastq"
             )
+            try:
+                for seq in parse_fastx(f):
+                    tmp.write(f"{seq.fastq}\n")
+                tmp.close()
+                merge_fastqs_fastp(
+                    forward=tmp.name,
+                    merged=merged_file,
+                    binary_path=binary_path,
+                    log_directory=log_directory,
+                    minimum_overlap=minimum_overlap,
+                    allowed_mismatches=allowed_mismatches,
+                    allowed_mismatch_percent=allowed_mismatch_percent,
+                    trim_adapters=trim_adapters,
+                    adapter_file=adapter_file,
+                    quality_trim=quality_trim,
+                    window_size=window_size,
+                    quality_cutoff=quality_cutoff,
+                    additional_args=merge_args,
+                    interleaved=True,
+                    debug=debug,
+                )
+            finally:
+                tmp.close()
+                if os.path.exists(tmp.name):
+                    os.unlink(tmp.name)
             merged_files.append(merged_file)
-            os.unlink(tmp.name)
     else:
         # group files by sample
         file_pairs = group_paired_fastqs(files, schema=schema)
@@ -535,25 +580,25 @@ def merge_fastqs_vsearch(
     if binary_path is None:
         binary_path = get_binary_path("vsearch")
     # compile the vsearch command
-    cmd = f"{binary_path} --fastq_mergepairs {forward} --reverse {reverse}"
+    cmd = [binary_path, "--fastq_mergepairs", forward]
+    if reverse is not None:
+        cmd.extend(["--reverse", reverse])
     if output_format.lower() == "fasta":
-        cmd += " --fastaout {merged_file}"
+        cmd.extend(["--fastaout", merged_file])
     elif output_format.lower() == "fastq":
-        cmd += " --fastqout {merged_file}"
+        cmd.extend(["--fastqout", merged_file])
     else:
         err = f"Invalid output format: {output_format}. Must be 'fasta' or 'fastq'."
         raise ValueError(err)
-    if additional_args is not None:
-        cmd += f" {additional_args}"
+    cmd.extend(_additional_arguments(additional_args))
     # merge reads
-    p = sp.Popen(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
-    stdout, stderr = p.communicate()
+    try:
+        result = sp.run(cmd, check=True, capture_output=True, text=True)
+    except sp.CalledProcessError as error:
+        raise ValueError(f"Error merging reads with vsearch: {error.stderr}") from error
     if debug:
-        print(stdout.decode())
-        print(stderr.decode())
-    if p.returncode != 0:
-        err = f"Error merging reads with vsearch: {stderr.decode()}"
-        raise ValueError(err)
+        print(result.stdout)
+        print(result.stderr)
     return merged_file
 
 
@@ -675,35 +720,37 @@ def merge_fastqs_fastp(
         binary_path = get_binary_path("fastp")
 
     # compile the fastp command
-    cmd = f"{binary_path} -i '{forward}' --merge --merged_out '{merged}'"
+    cmd = [binary_path, "-i", forward, "--merge", "--merged_out", merged]
     if not interleaved:
-        cmd += f" -I '{reverse}'"
-    cmd += f" --overlap_len_require {int(minimum_overlap)}"
-    cmd += f" --overlap_diff_limit {int(allowed_mismatches)}"
-    cmd += f" --overlap_diff_percent_limit {int(allowed_mismatch_percent)}"
+        cmd.extend(["-I", reverse])
+    cmd.extend(["--overlap_len_require", str(int(minimum_overlap))])
+    cmd.extend(["--overlap_diff_limit", str(int(allowed_mismatches))])
+    cmd.extend(
+        ["--overlap_diff_percent_limit", str(int(allowed_mismatch_percent))]
+    )
     if correct_overlap_region:
-        cmd += " --correction"
+        cmd.append("--correction")
     if interleaved:
-        cmd += " --interleaved_in"
+        cmd.append("--interleaved_in")
 
     # adapters
     if trim_adapters:
         if adapter_file is None:
             # default Illumina TruSeq adapters
-            cmd += " --adapter_sequence=AGATCGGAAGAGCACACGTCTGAACTCCAGTCA"
-            cmd += " --adapter_sequence_r2=AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGT"
+            cmd.append("--adapter_sequence=AGATCGGAAGAGCACACGTCTGAACTCCAGTCA")
+            cmd.append("--adapter_sequence_r2=AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGT")
         else:
-            cmd += f" --adapter_fasta {adapter_file}"
+            cmd.extend(["--adapter_fasta", adapter_file])
     else:
-        cmd += " --disable_adapter_trimming"
+        cmd.append("--disable_adapter_trimming")
 
     # quality
     if quality_trim:
-        cmd += " --cut_tail"
-        cmd += f" --cut_tail_window_size {int(window_size)}"
-        cmd += f" --cut_tail_mean_quality {int(quality_cutoff)}"
+        cmd.append("--cut_tail")
+        cmd.extend(["--cut_tail_window_size", str(int(window_size))])
+        cmd.extend(["--cut_tail_mean_quality", str(int(quality_cutoff))])
     else:
-        cmd += " --disable_quality_filtering"
+        cmd.append("--disable_quality_filtering")
 
     # log
     if log_directory is None:
@@ -714,22 +761,20 @@ def merge_fastqs_fastp(
             name = ".".join(os.path.basename(merged).split(".")[:-2])
         else:
             name = ".".join(os.path.basename(merged).split(".")[:-1])
-    cmd += f" --html '{os.path.join(log_directory, name)}_fastp-report.html'"
-    cmd += f" --json '{os.path.join(log_directory, name)}_fastp-report.json'"
+    cmd.extend(["--html", f"{os.path.join(log_directory, name)}_fastp-report.html"])
+    cmd.extend(["--json", f"{os.path.join(log_directory, name)}_fastp-report.json"])
 
     # additional CLI args
-    if additional_args is not None:
-        cmd += f" {additional_args}"
+    cmd.extend(_additional_arguments(additional_args))
 
     # merge reads
-    p = sp.Popen(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
-    stdout, stderr = p.communicate()
+    try:
+        result = sp.run(cmd, check=True, capture_output=True, text=True)
+    except sp.CalledProcessError as error:
+        raise ValueError(f"Error merging reads with fastp: {error.stderr}") from error
     if debug:
-        print(stdout.decode())
-        print(stderr.decode())
-    if p.returncode != 0:
-        err = f"Error merging reads with fastp: {stderr.decode()}"
-        raise ValueError(err)
+        print(result.stdout)
+        print(result.stderr)
     return merged
 
 

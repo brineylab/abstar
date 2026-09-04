@@ -35,6 +35,61 @@ from .schema import OUTPUT_SCHEMA
 from .umi import parse_umis
 
 
+def calculate_alignment_identity(
+    aligned_query: str, aligned_germline: str
+) -> float | None:
+    """Return exact-match identity across alignment columns, including indels.
+
+    The denominator is the aligned span. A mismatch or a gap in either sequence
+    therefore contributes one non-identical column. Double-gap columns, which
+    contain no biological residue, are ignored defensively.
+    """
+    if len(aligned_query) != len(aligned_germline):
+        raise ValueError("Aligned query and germline must have equal lengths")
+    columns = [
+        (query, germline)
+        for query, germline in zip(aligned_query, aligned_germline)
+        if query != "-" or germline != "-"
+    ]
+    if not columns:
+        return None
+    matches = sum(
+        query == germline and query != "-" for query, germline in columns
+    )
+    return matches / len(columns)
+
+
+def _segment_identities(
+    sequence: str, germline: str, frame: int
+) -> tuple[float | None, float | None]:
+    """Calculate nucleotide and amino-acid identity for one gene segment."""
+    nt_alignment = abutils.tl.global_alignment(
+        sequence, germline, **ALIGNMENT_PARAMS
+    )
+    sequence_aa = abutils.tl.translate(sequence, frame=frame)
+    germline_aa = abutils.tl.translate(germline, frame=frame)
+    aa_alignment = abutils.tl.global_alignment(
+        sequence_aa, germline_aa, **ALIGNMENT_PARAMS
+    )
+    return (
+        calculate_alignment_identity(
+            nt_alignment.aligned_query, nt_alignment.aligned_target
+        ),
+        calculate_alignment_identity(
+            aa_alignment.aligned_query, aa_alignment.aligned_target
+        ),
+    )
+
+
+def _parse_assignment_call(call: str) -> tuple[str, str, str | None]:
+    """Return the public ambiguity set, primary lookup call, and species."""
+    raw_calls = call.split(",")
+    display_calls = [raw_call.split("__", 1)[0] for raw_call in raw_calls]
+    primary_parts = raw_calls[0].split("__", 1)
+    species = primary_parts[1] if len(primary_parts) == 2 else None
+    return ",".join(display_calls), raw_calls[0], species
+
+
 def annotate(
     input_file: str,
     output_directory: str,
@@ -191,31 +246,26 @@ def annotate_single_sequence(
     # check germline calls for species name
     # (mainly for mixed species databases like humouse)
     # need to keep the raw call for calls to get_germline(), which must include the species name if it's present
-    raw_v_call = ab.v_call
-    raw_j_call = ab.j_call
-    raw_d_call = ab.d_call
-    raw_c_call = ab.c_call
-    if len(vsplit := ab.v_call.split("__")) > 1:
-        ab.v_call, ab.species = vsplit
-    else:
-        ab.species = ab.germline_database
-    if len(jsplit := ab.j_call.split("__")) > 1:
-        ab.j_call, _ = jsplit
+    ab.v_call, raw_v_call, species = _parse_assignment_call(ab.v_call)
+    ab.j_call, raw_j_call, _ = _parse_assignment_call(ab.j_call)
+    ab.species = species or ab.germline_database
     if ab.d_call is not None:
-        if len(dsplit := ab.d_call.split("__")) > 1:
-            ab.d_call, _ = dsplit
+        ab.d_call, raw_d_call, _ = _parse_assignment_call(ab.d_call)
+    else:
+        raw_d_call = None
     if ab.c_call is not None:
-        if len(c_split := ab.c_call.split("__")) > 1:
-            ab.c_call, _ = c_split
+        ab.c_call, raw_c_call, _ = _parse_assignment_call(ab.c_call)
+    else:
+        raw_c_call = None
     ab.log("SPECIES:", ab.species)
 
     # get genes from calls
-    ab.v_gene = ab.v_call.split("*")[0]
-    ab.j_gene = ab.j_call.split("*")[0]
+    ab.v_gene = ab.v_call.split(",", 1)[0].split("*")[0]
+    ab.j_gene = ab.j_call.split(",", 1)[0].split("*")[0]
     if ab.d_call is not None:
-        ab.d_gene = ab.d_call.split("*")[0]
+        ab.d_gene = ab.d_call.split(",", 1)[0].split("*")[0]
     if ab.c_call is not None:
-        ab.c_gene = ab.c_call.split("*")[0]
+        ab.c_gene = ab.c_call.split(",", 1)[0].split("*")[0]
 
     ab.log("\n--------")
     ab.log(" V GENE")
@@ -226,6 +276,7 @@ def annotate_single_sequence(
         sequence=ab.sequence_oriented,
         germline_name=raw_v_call,  # must include species annotation if it's present in the germline database
         germdb_name=ab.germline_database,
+        receptor=ab.receptor_type,
         imgt_gapped=False,
         semiglobal_aln_params=ALIGNMENT_PARAMS,
         local_aln_params=ALIGNMENT_PARAMS,
@@ -300,6 +351,7 @@ def annotate_single_sequence(
     ab.v_germline_gapped = get_germline(
         raw_v_call,
         ab.germline_database,
+        receptor=ab.receptor_type,
         imgt_gapped=True,
         exact_match=True,
         truncate_species=False,
@@ -380,6 +432,7 @@ def annotate_single_sequence(
         sequence=jquery,
         germline_name=raw_j_call,  # must include species annotation if it's present in the germline database
         germdb_name=ab.germline_database,
+        receptor=ab.receptor_type,
         imgt_gapped=False,
         semiglobal_aln_params=ALIGNMENT_PARAMS | {"gap_open": -20},
         local_aln_params=ALIGNMENT_PARAMS | {"gap_open": -15},
@@ -411,6 +464,12 @@ def annotate_single_sequence(
     ab.log("J GERMLINE END:", ab.j_germline_end)
     ab.log("J SEQUENCE:", ab.j_sequence)
     ab.log("J GERMLINE:", ab.j_germline)
+    j_frame = (3 - (ab.j_germline_start % 3)) % 3 + 1
+    ab.j_identity, ab.j_identity_aa = _segment_identities(
+        ab.j_sequence, ab.j_germline, j_frame
+    )
+    ab.log("J IDENTITY:", ab.j_identity)
+    ab.log("J IDENTITY AA:", ab.j_identity_aa)
 
     ab.log("\n--------")
     ab.log(" D GENE")
@@ -418,24 +477,34 @@ def annotate_single_sequence(
 
     # d-gene realignment
     dquery = ab.sequence_oriented[ab.v_sequence_end : ab.j_sequence_start]
+    d_loci = {"IGH", "TRB", "TRD"}
+    if ab.d_call is not None and (
+        ab.locus not in d_loci or ab.d_call[:3].upper() != ab.locus
+    ):
+        ab.d_call = None
+        ab.d_gene = None
+        raw_d_call = None
     # if the assigner made a d-gene call
     if dquery and ab.d_call is not None:
         _, d_loc = realign_germline(
             sequence=dquery,
             germline_name=raw_d_call,  # must include species annotation if it's present in the germline database
             germdb_name=ab.germline_database,
+            receptor=ab.receptor_type,
             imgt_gapped=False,
             skip_semiglobal=True,
             local_aln_params=ALIGNMENT_PARAMS,
         )
-    # if not, we can try again using local pairwise alignment (for IGH/TRA/TRD chains only)
-    elif len(dquery) >= 5 and ab.locus in ["IGH", "TRA", "TRD"]:
+    # If not, retry by local alignment for loci that contain D genes.
+    elif len(dquery) >= 5 and ab.locus in d_loci:
         d_loc = reassign_dgene(
             sequence=dquery,
             germdb_name=ab.germline_database,
+            locus=ab.locus,
+            receptor=ab.receptor_type,
             aln_params=ALIGNMENT_PARAMS,
         )
-    # maybe there's not a d-gene (or it's a light/TRB/TRG chain)
+    # The remaining IG/TCR loci do not contain D genes.
     else:
         ab.d_call = None
         ab.d_gene = None
@@ -448,6 +517,9 @@ def annotate_single_sequence(
             v_sequence_end=ab.v_sequence_end,
             local_aln=d_loc,
             ab=ab,
+        )
+        ab.d_identity, ab.d_identity_aa = _segment_identities(
+            ab.d_sequence, ab.d_germline, ab.d_frame
         )
         ab.np1 = ab.sequence_oriented[ab.v_sequence_end : ab.d_sequence_start]
         ab.np2 = ab.sequence_oriented[ab.d_sequence_end : ab.j_sequence_start]
@@ -471,6 +543,8 @@ def annotate_single_sequence(
         ab.log("D FRAME:", ab.d_frame)
         ab.log("D SEQUENCE:", ab.d_sequence)
         ab.log("D GERMLINE:", ab.d_germline)
+        ab.log("D IDENTITY:", ab.d_identity)
+        ab.log("D IDENTITY AA:", ab.d_identity_aa)
         ab.log("NP1 SEQUENCE:", ab.np1)
         ab.log("NP1 LENGTH:", ab.np1_length)
         ab.log("NP2 SEQUENCE:", ab.np2)
@@ -488,6 +562,7 @@ def annotate_single_sequence(
             sequence=cquery,
             germline_name=raw_c_call,  # must include species annotation if it's present in the germline database
             germdb_name=ab.germline_database,
+            receptor=ab.receptor_type,
             imgt_gapped=False,
             semiglobal_aln_params=ALIGNMENT_PARAMS,
             local_aln_params=ALIGNMENT_PARAMS,
@@ -561,6 +636,7 @@ def annotate_single_sequence(
             ab.c_germline_gapped = get_germline(
                 raw_c_call,
                 ab.germline_database,
+                receptor=ab.receptor_type,
                 imgt_gapped=True,
                 exact_match=True,
                 force_constant=True,
@@ -611,9 +687,14 @@ def annotate_single_sequence(
             ab.log("CONSTANT REGION MUTATIONS AA:", ab.c_mutations_aa)
             ab.log("CONSTANT REGION MUTATION COUNT AA:", ab.c_mutation_count_aa)
 
-            # calculate identify (nt and aa)
-            ab.c_identity = 1 - ab.c_mutation_count / len(ab.c_germline)
-            ab.c_identity_aa = 1 - ab.c_mutation_count_aa / len(ab.c_germline_aa)
+            # Identity uses the complete aligned span, so substitutions and
+            # both insertion/deletion columns contribute to the denominator.
+            ab.c_identity = calculate_alignment_identity(
+                c_global.aligned_query, c_global.aligned_target
+            )
+            ab.c_identity_aa = calculate_alignment_identity(
+                c_global_aa.aligned_query, c_global_aa.aligned_target
+            )
             ab.log("CONSTANT REGION IDENTITY:", ab.c_identity)
             ab.log("CONSTANT REGION IDENTITY AA:", ab.c_identity_aa)
 
@@ -902,9 +983,14 @@ def annotate_single_sequence(
     ab.log("V MUTATIONS AA:", ab.v_mutations_aa)
     ab.log("V MUTATION COUNT AA:", ab.v_mutation_count_aa)
 
-    # calculate identify (nt and aa)
-    ab.v_identity = 1 - ab.v_mutation_count / len(ab.v_germline)
-    ab.v_identity_aa = 1 - ab.v_mutation_count_aa / len(ab.v_germline_aa)
+    # Identity uses the complete aligned span, so substitutions and both
+    # insertion/deletion columns contribute to the denominator.
+    ab.v_identity = calculate_alignment_identity(
+        v_global.aligned_query, v_global.aligned_target
+    )
+    ab.v_identity_aa = calculate_alignment_identity(
+        v_global_aa.aligned_query, v_global_aa.aligned_target
+    )
     ab.log("V IDENTITY:", ab.v_identity)
     ab.log("V IDENTITY AA:", ab.v_identity_aa)
 

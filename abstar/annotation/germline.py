@@ -73,9 +73,9 @@ def get_germline_database_path(germdb_name: str, receptor: str = "bcr") -> str:
         raise ValueError(f"Receptor type {receptor} not supported")
     # check the addon directory first
     addon_dir = os.path.expanduser(f"~/.abstar/germline_dbs/{receptor}")
-    if os.path.isdir(addon_dir):
-        if germdb_name.lower() in [os.path.basename(d[0]) for d in os.walk(addon_dir)]:
-            return os.path.join(addon_dir, f"{receptor}/{germdb_name}")
+    custom_dir = os.path.join(addon_dir, germdb_name)
+    if os.path.isdir(custom_dir):
+        return custom_dir
     # if a user-generated DB isn't found, use the built-in DB
     core_dir = os.path.dirname(os.path.abspath(__file__))  # "abstar/core" directory
     abstar_dir = os.path.dirname(core_dir)  # "abstar" directory
@@ -130,6 +130,9 @@ def get_germline(
         Whether to force the query to match a constant germline gene. This is necessary because both IgD and diversity (D)
         gene names are formatted as IGHD, making it ambiguous whether the query is for IgD or diversity. By default,
         a supplied germline name of the format IGHD is assumed to be diversity.
+
+    receptor : str, default: "bcr"
+        Germline database type, either ``bcr`` or ``tcr``.
 
     truncate_species : bool, default: True
         Whether to truncate the species name from the germline gene name (if it is present). Truncation
@@ -211,6 +214,7 @@ def realign_germline(
     truncate_query: int | None = None,
     truncate_target: int | None = None,
     force_constant: bool = False,
+    receptor: str = "bcr",
 ) -> Tuple[abutils.tl.PairwiseAlignment | None]:
     """
     Performs an (optionally) two-step realignment of an assigned germline gene to a query sequence.
@@ -280,6 +284,7 @@ def realign_germline(
     germ = get_germline(
         germline_name,
         germdb_name,
+        receptor=receptor,
         imgt_gapped=imgt_gapped,
         exact_match=True,
         force_constant=force_constant,
@@ -308,7 +313,11 @@ def realign_germline(
 
 
 def reassign_dgene(
-    sequence: str, germdb_name: str, aln_params: dict | None = None
+    sequence: str,
+    germdb_name: str,
+    locus: str,
+    receptor: str,
+    aln_params: dict | None = None,
 ) -> abutils.tl.PairwiseAlignment:
     """
     Assigns a D gene to a query sequence using local alignment.
@@ -321,6 +330,13 @@ def reassign_dgene(
     germdb_name : str
         The name of the germline database.
 
+    locus : str
+        Three-letter locus name. Supported D-bearing loci are ``IGH``, ``TRB``,
+        and ``TRD``.
+
+    receptor : str
+        Germline database type, either ``bcr`` or ``tcr``.
+
     aln_params : dict, default: None
         The parameters to use for the local alignment.
 
@@ -331,8 +347,15 @@ def reassign_dgene(
         The highest scoring local alignment. If no suitable alignment is found, ``None`` is returned.
 
     """
-    # fetch all d-genes
-    germs = get_germline("IGHD", germdb_name, truncate_species=False)
+    d_prefix = {"IGH": "IGHD", "TRB": "TRBD", "TRD": "TRDD"}.get(locus.upper())
+    if d_prefix is None:
+        return None
+    germs = get_germline(
+        d_prefix,
+        germdb_name,
+        receptor=receptor,
+        truncate_species=False,
+    )
     aln_params = aln_params if aln_params is not None else {}
     # align the query sequence to all d-genes
     alns = abutils.tl.local_alignment(sequence, targets=germs, **aln_params)
@@ -504,7 +527,9 @@ def process_jgene_alignment(
             f"USING SEMIGLOBAL ALIGNMENT END POSITION BECAUSE LOCAL ALIGNMENT WAS TRUNCATED BY {residual_germ} NUCLEOTIDE{plural}"
         )
         ab.j_sequence_end = v_sequence_end + semiglobal_aln.query_end + 1
-        ab.j_germline_end = ab.j_germline_start + semiglobal_aln.target_end + 1
+        # semiglobal target coordinates are already relative to the complete
+        # germline; adding the local-derived start a second time shifts the end.
+        ab.j_germline_end = semiglobal_aln.target_end + 1
     else:
         ab.j_sequence_end = (
             ab.j_sequence_start + (local_aln.query_end - local_aln.query_begin) + 1
@@ -642,8 +667,8 @@ def process_dgene_alignment(
     ab.d_sequence_end = ab.d_sequence_start + d_length + 1
     # germline start/stop positions
     ab.d_germline_start = local_aln.target_begin
-    d_germline_length = local_aln.query_end - local_aln.query_begin
-    ab.d_germline_end = ab.d_germline_start + d_germline_length + 1
+    # Query and target spans differ when the D alignment contains an indel.
+    ab.d_germline_end = local_aln.target_end + 1
     # d-region sequence and germline
     ab.d_sequence = oriented_input[ab.d_sequence_start : ab.d_sequence_end]
     ab.d_germline = local_aln.target[ab.d_germline_start : ab.d_germline_end]
@@ -714,8 +739,10 @@ def process_cgene_alignment(
         ab.c_sequence_start = j_sequence_end + semiglobal_aln.query_begin
         ab.c_germline_start = semiglobal_aln.target_begin
     # sequence/germline stop positions
+    # Both alignment offsets are relative to cquery, whose origin is the end
+    # of J. Do not add semiglobal query_begin again via c_sequence_start.
     ab.c_sequence_end = (
-        ab.c_sequence_start + semiglobal_aln.query_begin + local_aln.query_end + 1
+        j_sequence_end + semiglobal_aln.query_begin + local_aln.query_end + 1
     )
     ab.c_germline_end = semiglobal_aln.target_begin + local_aln.target_end + 1
     # j-region sequence and germline

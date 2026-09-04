@@ -3,8 +3,6 @@
 # SPDX-License-Identifier: MIT
 
 import os
-import shutil
-import tempfile
 from typing import Iterable
 
 import abutils
@@ -12,6 +10,9 @@ from abutils import Sequence
 from abutils.tl import PairwiseAlignment
 
 __all__ = ["parse_umis"]
+
+UMI_TOKEN = "[UMI]"
+EXTRA_ALIGNMENT_LENGTH = 25
 
 
 class UMI:
@@ -25,7 +26,7 @@ class UMI:
         pattern: str,
         length: int | None = None,
         ignore_strand: bool = False,
-        # extra_length_for_alignment: int = 25,
+        extra_length_for_alignment: int = EXTRA_ALIGNMENT_LENGTH,
     ):
         """
         Parameters
@@ -50,7 +51,30 @@ class UMI:
         self.length = length
         self.pattern = pattern if pattern is None else pattern.strip().upper()
         self.ignore_strand = ignore_strand
-        # self.extra_length_for_alignment = extra_length_for_alignment
+        if (
+            not isinstance(extra_length_for_alignment, int)
+            or extra_length_for_alignment < 0
+        ):
+            raise ValueError("extra_length_for_alignment must be a non-negative integer")
+        self.extra_length_for_alignment = extra_length_for_alignment
+        if self.pattern is None and self.length is None:
+            raise ValueError("Either a UMI pattern or length must be provided")
+        if self.length == 0:
+            raise ValueError("UMI length cannot be zero")
+        if self.pattern is not None:
+            if self.pattern.count(UMI_TOKEN) != 1:
+                raise ValueError("UMI patterns must contain exactly one '[UMI]' token")
+            if self.pattern.endswith(UMI_TOKEN) and self.length is None:
+                raise ValueError(
+                    "UMI length is required when a pattern ends with '[UMI]'"
+                )
+        self.reverse_complement = (
+            self.pattern is not None
+            and self.length is not None
+            and self.length < 0
+            and not self.ignore_strand
+        )
+        self.umi_length = abs(self.length) if self.length is not None else None
         self.sequence = self.process_sequence(sequence)
         self._leading_aln = None
         self._trailing_aln = None
@@ -63,7 +87,7 @@ class UMI:
         Returns the leading conserved region of the pattern, if present.
         """
         if self.pattern is not None:
-            leading = self.pattern.split("[UMI]")[0]
+            leading = self.pattern.split(UMI_TOKEN)[0]
             return leading if leading else None
 
     @property
@@ -72,7 +96,7 @@ class UMI:
         Returns the trailing conserved region of the pattern, if present.
         """
         if self.pattern is not None:
-            trailing = self.pattern.split("[UMI]")[-1]
+            trailing = self.pattern.split(UMI_TOKEN)[-1]
             return trailing if trailing else None
 
     @property
@@ -130,14 +154,17 @@ class UMI:
         -------
         truncated : str
         """
+        sequence = sequence.sequence if isinstance(sequence, Sequence) else str(sequence)
+        sequence = sequence.upper()
+        if self.reverse_complement:
+            sequence = abutils.tl.reverse_complement(sequence)
         if self.pattern is not None:
-            # length_for_aln = (
-            #     len(self.pattern.replace("[UMI]", "")) + self.extra_length_for_alignment
-            # )
-            # length_for_aln += self.length if self.length is not None else 16
-            # sequence = sequence[:length_for_aln]
-            if self.length < 0 and not self.ignore_strand:
-                sequence = abutils.tl.reverse_complement(sequence)
+            conserved_length = len(self.pattern.replace(UMI_TOKEN, ""))
+            umi_length = self.umi_length or 0
+            window_length = (
+                conserved_length + umi_length + self.extra_length_for_alignment
+            )
+            sequence = sequence[:window_length]
         return sequence
 
     def align(self, pattern: str, sequence: Sequence) -> PairwiseAlignment:
@@ -156,7 +183,7 @@ class UMI:
         """
         if self.pattern is None:
             return 0
-        total = len(self.pattern.replace("[UMI]", ""))
+        total = len(self.pattern.replace(UMI_TOKEN, ""))
         matches = 0
         for aln in [self.leading_aln, self.trailing_aln]:
             if aln is not None:
@@ -170,22 +197,22 @@ class UMI:
         # length without pattern means we just slice
         if self.pattern is None:
             if self.length < 0:
-                return self.sequence[self.length :]
+                return self.sequence[-self.umi_length :]
             else:
-                return self.sequence[: self.length]
+                return self.sequence[: self.umi_length]
         ## something like "ATGC[UMI]"
         ## we need to take `length` residues following the end of the leading alignment
         if self.trailing is None and self.leading is not None:
             start = self.leading_aln.target_end + 1
-            end = start + self.length
+            end = start + self.umi_length
             if end > len(self.sequence):
                 return None
         ## something like "[UMI]ATGC"
         ## we need to take `length` residues preceeding the start of the trailing alignment
         elif self.leading is None and self.trailing is not None:
             end = self.trailing_aln.target_begin
-            if self.length is not None:
-                start = end - self.length
+            if self.umi_length is not None:
+                start = end - self.umi_length
             else:
                 start = 0
             ## if self.length is longer than the region preceeding the start of the
@@ -195,6 +222,8 @@ class UMI:
         else:
             start = self.leading_aln.target_end + 1
             end = self.trailing_aln.target_begin
+        if start > end:
+            return None
         return self.sequence[start:end]
 
 
@@ -203,8 +232,8 @@ def parse_umis(
     output_file: str | None = None,
     pattern: str | Iterable | None = None,
     length: int | Iterable | None = None,
-    allowed_mismatches: int = 1,
-    # extra_length_for_alignment: int = 25,
+    allowed_mismatches: int | None = None,
+    extra_length_for_alignment: int = EXTRA_ALIGNMENT_LENGTH,
     ignore_strand: bool = False,
     fmt: str = "fasta",
     sequence_key: str = "sequence_input",
@@ -225,10 +254,10 @@ def parse_umis(
         Path to an output file. If `sequences` is not a file, and `output_file` is not
         provided `sequences` are converted to ``abutils.Sequence`` objects and the UMI
         is added to the ``"umi"`` field of ``sequence.annotations``. If `sequences` is
-        a file and `output` is not provided, UMI parsing is done in-place and the
-        `sequences` file is updated. UMIs are added to the end of each sequence ID with
-        an underscore (``"_"``) separating the name and UMI. Sequences for which at least
-        one UMI was not found are not included in the output.
+        a file and `output_file` is not provided, a sibling ``*.umis.fasta`` or
+        ``*.umis.fastq`` file is created; the input is never replaced. UMIs are added to
+        output sequence IDs with an underscore (``"_"``). Records without a detected
+        UMI are retained with their original ID.
 
     pattern : str or iterable, default=None
         Pattern (or iterable of patterns) for identifying the location of the UMI,
@@ -286,7 +315,8 @@ def parse_umis(
         Total number of mismatches allowed when aligning the conserved flanking regions
         of `pattern`. Mismatches are calculated by subtracting the number of identically
         matching alignment positions from the total length of the conserved flanking region.
-        If not provided, the default is to allow ``1`` mismatch.
+        If not provided, custom patterns allow ``1`` mismatch and built-in patterns use
+        their pattern-specific default.
 
     extra_length_for_alignment : int, default=25
         To speed alignment and avoid coincidental matches in regions of the sequence that are
@@ -331,13 +361,11 @@ def parse_umis(
 
     """
     # lengths and patterns
+    if pattern is None and length is None:
+        raise ValueError("Either pattern or length must be provided for UMI parsing")
     if pattern is None:
-        if isinstance(length, int):
-            patterns = [None]
-            lengths = [length]
-        else:
-            patterns = [None] * len(length)
-            lengths = length
+        lengths = [length] if isinstance(length, int) else list(length)
+        patterns = [None] * len(lengths)
     elif pattern is not None:
         if isinstance(pattern, str):
             if pattern.lower() in BUILTIN_PATTERNS:
@@ -349,17 +377,35 @@ def parse_umis(
             else:
                 patterns = [pattern]
         else:
-            patterns = pattern
+            patterns = list(pattern)
         if isinstance(length, int) or length is None:
             lengths = [length] * len(patterns)
         else:
-            lengths = length
+            lengths = list(length)
         if len(patterns) != len(lengths):
             err = "\nERROR: if pattern and length are both iterables,"
             err += " they must be the same length.\n"
             err += f"  - pattern has {len(patterns)} elements: {', '.join(patterns)}\n"
-            err += f"  - length has {len(lengths)} elements: {', '.join(lengths)}\n"
+            err += f"  - length has {len(lengths)} elements: {', '.join(map(str, lengths))}\n"
             raise ValueError(err)
+    if allowed_mismatches is None:
+        allowed_mismatches = 1
+    if not isinstance(allowed_mismatches, int) or allowed_mismatches < 0:
+        raise ValueError("allowed_mismatches must be a non-negative integer")
+    if not patterns:
+        raise ValueError("At least one UMI pattern or length must be provided")
+    if not all(pattern is None or isinstance(pattern, str) for pattern in patterns):
+        raise ValueError("Each UMI pattern must be a string or None")
+    if not all(length is None or isinstance(length, int) for length in lengths):
+        raise ValueError("Each UMI length must be an integer or None")
+    # Validate each pattern/length pair once, before consuming any input records.
+    for normalized_pattern, normalized_length in zip(patterns, lengths):
+        UMI(
+            Sequence("A"),
+            normalized_pattern,
+            normalized_length,
+            extra_length_for_alignment=extra_length_for_alignment,
+        )
     # validate format
     fmt = fmt.lower()
     if fmt not in ["fasta", "fastq"]:
@@ -374,7 +420,7 @@ def parse_umis(
             lengths=lengths,
             output_file=output_file,
             allowed_mismatches=allowed_mismatches,
-            # extra_length_for_alignment=extra_length_for_alignment,
+            extra_length_for_alignment=extra_length_for_alignment,
             ignore_strand=ignore_strand,
             fmt=fmt,
         )
@@ -384,7 +430,7 @@ def parse_umis(
             patterns=patterns,
             lengths=lengths,
             allowed_mismatches=allowed_mismatches,
-            # extra_length_for_alignment=extra_length_for_alignment,
+            extra_length_for_alignment=extra_length_for_alignment,
             ignore_strand=ignore_strand,
         )
     else:
@@ -394,7 +440,7 @@ def parse_umis(
             lengths=lengths,
             output_file=output_file,
             allowed_mismatches=allowed_mismatches,
-            # extra_length_for_alignment=extra_length_for_alignment,
+            extra_length_for_alignment=extra_length_for_alignment,
             ignore_strand=ignore_strand,
             fmt=fmt,
             sequence_key=sequence_key,
@@ -409,7 +455,7 @@ def _parse_umis_from_file(
     lengths: Iterable,
     output_file: str | None = None,
     allowed_mismatches: int = 1,
-    # extra_length_for_alignment: int = 25,
+    extra_length_for_alignment: int = EXTRA_ALIGNMENT_LENGTH,
     ignore_strand: bool = False,
     separator: str = "_",
     fmt: str = "fasta",
@@ -417,13 +463,20 @@ def _parse_umis_from_file(
     """
     Parses UMIs from a FASTA- or FASTQ-formatted file.
     """
-    # set up output file
-    inplace = False
+    # set up output file without ever replacing the input
     if output_file is None:
-        output_file = tempfile.NamedTemporaryFile(delete=False).name
-        inplace = True
+        input_name = os.path.basename(input_file)
+        if input_name.lower().endswith(".gz"):
+            input_name = input_name[:-3]
+        stem = os.path.splitext(input_name)[0]
+        output_file = os.path.join(
+            os.path.dirname(os.path.abspath(input_file)), f"{stem}.umis.{fmt.lower()}"
+        )
     else:
-        abutils.io.make_dir(os.path.dirname(output_file))
+        output_directory = os.path.dirname(os.path.abspath(output_file))
+        abutils.io.make_dir(output_directory)
+    if os.path.abspath(output_file) == os.path.abspath(input_file):
+        raise ValueError("UMI output_file must not replace the input file")
     with open(output_file, "w") as ofile:
         for s in abutils.io.parse_fastx(input_file):
             # with open(input_file, "r") as ifile:
@@ -435,24 +488,20 @@ def _parse_umis_from_file(
                     sequence=s,
                     pattern=pattern,
                     length=length,
-                    # extra_length_for_alignment=extra_length_for_alignment,
                     ignore_strand=ignore_strand,
+                    extra_length_for_alignment=extra_length_for_alignment,
                 )
                 if u.num_mismatches <= allowed_mismatches:
                     umi_list.append(u.umi)
-            # if we couldn't find a UMI, skip the sequence
             umi_list = [u for u in umi_list if u is not None]
-            if not umi_list:
-                continue
-            umi = "+".join(umi_list)
-            s.id = f"{s.id}{separator}{umi}"
+            if umi_list:
+                umi = "+".join(umi_list)
+                s.id = f"{s.id}{separator}{umi}"
             if fmt.lower() == "fastq":
                 fstring = s.fastq + "\n"
             else:
                 fstring = s.fasta + "\n"
             ofile.write(fstring)
-    if inplace:
-        output_file = shutil.move(output_file, input_file)
     return output_file
 
 
@@ -462,7 +511,7 @@ def _parse_umis_from_sequences(
     lengths: Iterable,
     output_file: str,
     allowed_mismatches: int = 1,
-    # extra_length_for_alignment: int = 25,
+    extra_length_for_alignment: int = EXTRA_ALIGNMENT_LENGTH,
     ignore_strand: bool = False,
     fmt: str = "fasta",
     sequence_key: str = "sequence_input",
@@ -489,21 +538,19 @@ def _parse_umis_from_sequences(
                 sequence=s,
                 pattern=pattern,
                 length=length,
-                # extra_length_for_alignment=extra_length_for_alignment,
                 ignore_strand=ignore_strand,
+                extra_length_for_alignment=extra_length_for_alignment,
             )
             if u.num_mismatches <= allowed_mismatches:
                 umi_list.append(u.umi)
-        # if we couldn't find a UMI, skip the sequence
         umi_list = [u for u in umi_list if u is not None]
-        if not umi_list:
-            continue
-        umi = "+".join(umi_list)
+        umi = "+".join(umi_list) if umi_list else None
         if inplace:
             s["umi"] = umi
             output.append(s)
         else:
-            s.id = f"{s.id}_{umi}"
+            if umi is not None:
+                s.id = f"{s.id}_{umi}"
             if fmt.lower() == "fastq":
                 output.append(s.fastq)
             else:
@@ -521,7 +568,7 @@ def _parse_umis_from_single_sequence(
     patterns: Iterable,
     lengths: Iterable,
     allowed_mismatches: int = 1,
-    # extra_length_for_alignment: int = 25,
+    extra_length_for_alignment: int = EXTRA_ALIGNMENT_LENGTH,
     ignore_strand: bool = False,
     sequence_key: str = "sequence_input",
     id_key: str = "sequence_id",
@@ -542,8 +589,8 @@ def _parse_umis_from_single_sequence(
             sequence=s,
             pattern=pattern,
             length=length,
-            # extra_length_for_alignment=extra_length_for_alignment,
             ignore_strand=ignore_strand,
+            extra_length_for_alignment=extra_length_for_alignment,
         )
         if u.num_mismatches <= allowed_mismatches:
             umi_list.append(u.umi)

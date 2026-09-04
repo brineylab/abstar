@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: MIT
 
 
+import csv
 import logging
 import os
 import sys
@@ -28,6 +29,92 @@ ASSIGNMENT_SCHEMA = {
     "c_call": pl.String,
     "c_support": pl.Float64,
 }
+
+INPUT_SCHEMA = {
+    "row_id": pl.String,
+    "sequence_id": pl.String,
+    "sequence_input": pl.String,
+    "quality": pl.String,
+}
+
+MMSEQS_FORMAT_FIELDS = [
+    "query",
+    "target",
+    "evalue",
+    "qstart",
+    "qend",
+    "qseq",
+    "fident",
+    "qcov",
+    "tcov",
+    "alnlen",
+    "bits",
+]
+
+
+def select_best_hits(results: pl.LazyFrame | pl.DataFrame, segment: str) -> pl.DataFrame:
+    """Select the strongest MMseqs hit and retain exact assignment ties.
+
+    Bit score is the primary ranking metric because it incorporates both alignment
+    quality and length. E-value, fractional identity, target/query coverage, and
+    alignment length provide deterministic secondary evidence. Calls tied across
+    every metric are emitted as a sorted, comma-delimited ambiguity set; alignment
+    details come from the alphabetically first tied call.
+    """
+    query = f"{segment}_query"
+    call = f"{segment}_call"
+    ranking = [
+        f"{segment}_bits",
+        f"{segment}_support",
+        f"{segment}_fident",
+        f"{segment}_tcov",
+        f"{segment}_qcov",
+        f"{segment}_alnlen",
+    ]
+    descending = [False, True, False, True, True, True, True, False]
+    results = results.sort(
+        by=[query, *ranking, call],
+        descending=descending,
+        nulls_last=True,
+    )
+    if isinstance(results, pl.LazyFrame):
+        results = results.collect()
+    if results.is_empty():
+        return results
+
+    best = results.group_by(query, maintain_order=True).first().select(
+        query, *[pl.col(column).alias(f"__best_{column}") for column in ranking]
+    )
+    tied = results.join(best, on=query, how="left")
+    tied = tied.filter(
+        pl.all_horizontal(
+            pl.col(column).eq_missing(pl.col(f"__best_{column}"))
+            for column in ranking
+        )
+    ).drop([f"__best_{column}" for column in ranking])
+    other_columns = [column for column in tied.columns if column not in (query, call)]
+    return tied.group_by(query, maintain_order=True).agg(
+        pl.col(call).unique().sort().str.join(",").alias(call),
+        *[pl.col(column).first() for column in other_columns],
+    )
+
+
+def filter_compatible_locus(
+    results: pl.LazyFrame | pl.DataFrame,
+    v_assignments: pl.LazyFrame | pl.DataFrame,
+    segment: str,
+) -> pl.LazyFrame:
+    """Keep candidate genes whose three-letter locus matches the V assignment."""
+    query = f"{segment}_query"
+    call = f"{segment}_call"
+    return results.lazy().join(
+        v_assignments.lazy().select("v_query", "v_call"),
+        left_on=query,
+        right_on="v_query",
+        how="inner",
+    ).filter(
+        pl.col(call).str.slice(0, 3) == pl.col("v_call").str.slice(0, 3)
+    ).drop("v_call")
 
 
 class MMseqs(AssignerBase):
@@ -59,7 +146,9 @@ class MMseqs(AssignerBase):
         self.chunksize = chunksize
         self.threads = threads
 
-    def __call__(self, sequence_file: str) -> str:
+    def __call__(
+        self, sequence_file: str, sample_name: str | None = None
+    ) -> tuple[str, int]:
         """
         Run the MMseqs assigner.
 
@@ -69,12 +158,16 @@ class MMseqs(AssignerBase):
             The path to the input file, in either FASTA or FASTQ format. Gzip-compressed files
             are supported.
 
+        sample_name : Optional[str]
+            A unique name to use for temporary files and logs. If not provided, it is derived
+            from the input filename.
+
         Returns
         -------
-        str
-            The path to the output Parquet file.
+        Tuple[str, int]
+            The path to the output Parquet file and the number of input sequences.
         """
-        self.sample_name = ".".join(
+        self.sample_name = sample_name or ".".join(
             os.path.basename(sequence_file).rstrip(".gz").split(".")[:-1]
         )
 
@@ -129,9 +222,8 @@ class MMseqs(AssignerBase):
         str
             The path to the output Parquet file.
         """
-        mmseqs_format_output = "query,target,evalue,qstart,qend,qseq,nident"
+        mmseqs_format_output = ",".join(MMSEQS_FORMAT_FIELDS)
         germdb_path = os.path.join(self.germdb_path, "mmseqs")
-        input_df = pl.scan_csv(input_tsv, separator="\t")
         idx = input_fasta.split(".")[-2]
 
         # -----------
@@ -171,14 +263,9 @@ class MMseqs(AssignerBase):
                 f"v_{_x}".replace("target", "call").replace("evalue", "support")
                 for _x in x
             ],
+            schema_overrides={"v_query": pl.String, "v_call": pl.String},
         )
-        # keep only the highest scoring assignment for each sequence
-        vresult_df = vresult_df.sort(
-            by=["v_nident"],
-            descending=True,
-            nulls_last=True,
-        )
-        vresult_df = vresult_df.unique(subset=["v_query"], keep="first").collect()
+        vresult_df = select_best_hits(vresult_df, "v")
 
         # -----------
         #   J genes
@@ -222,11 +309,11 @@ class MMseqs(AssignerBase):
                 f"j_{_x}".replace("target", "call").replace("evalue", "support")
                 for _x in x
             ],
+            schema_overrides={"j_query": pl.String, "j_call": pl.String},
         )
 
-        # keep only the highest scoring assignment for each sequence
-        jresult_df = jresult_df.sort(by=["j_nident"], descending=True, nulls_last=True)
-        jresult_df = jresult_df.unique(subset=["j_query"], keep="first").collect()
+        jresult_df = filter_compatible_locus(jresult_df, vresult_df, "j")
+        jresult_df = select_best_hits(jresult_df, "j")
         # join the V and J assignment results
         vjresult_df = vresult_df.join(
             jresult_df,
@@ -287,12 +374,10 @@ class MMseqs(AssignerBase):
                     f"d_{_x}".replace("target", "call").replace("evalue", "support")
                     for _x in x
                 ],
+                schema_overrides={"d_query": pl.String, "d_call": pl.String},
             )
-            # keep only the highest scoring assignment for each sequence
-            dresult_df = dresult_df.sort(
-                by=["d_nident"], descending=True, nulls_last=True
-            )
-            dresult_df = dresult_df.unique(subset=["d_query"], keep="first").collect()
+            dresult_df = filter_compatible_locus(dresult_df, vjresult_df, "d")
+            dresult_df = select_best_hits(dresult_df, "d")
             if dresult_df.shape[0] > 0:
                 # join the D and VJ assignment results
                 vdjresult_df = vjresult_df.join(
@@ -367,12 +452,10 @@ class MMseqs(AssignerBase):
                     f"c_{_x}".replace("target", "call").replace("evalue", "support")
                     for _x in x
                 ],
+                schema_overrides={"c_query": pl.String, "c_call": pl.String},
             )
-            # keep only the highest scoring assignment for each sequence
-            cresult_df = cresult_df.sort(
-                by=["c_nident"], descending=True, nulls_last=True
-            )
-            cresult_df = cresult_df.unique(subset=["c_query"], keep="first").collect()
+            cresult_df = filter_compatible_locus(cresult_df, vjresult_df, "c")
+            cresult_df = select_best_hits(cresult_df, "c")
             if cresult_df.shape[0] > 0:
                 # join the C and VDJ assignment results
                 vdjcresult_df = vdjresult_df.join(
@@ -396,10 +479,14 @@ class MMseqs(AssignerBase):
                 pl.lit(None).alias("c_support"),
             )
 
-        input_df = pl.read_csv(input_tsv, separator="\t")
+        input_df = pl.read_csv(
+            input_tsv,
+            separator="\t",
+            schema_overrides=INPUT_SCHEMA,
+        )
         vdjcresult_df = input_df.join(
             vdjcresult_df,
-            left_on="sequence_id",
+            left_on="row_id",
             right_on="v_query",
             how="left",
         )
@@ -515,14 +602,19 @@ class MMseqs(AssignerBase):
             # process input file
             with open(output_fasta, "w") as ofasta:
                 with open(output_csv, "w") as ocsv:
-                    ocsv.write("sequence_id\tsequence_input\tquality\n")  # header
-                    for seq in abutils.io.parse_fastx(sequence_file):
+                    writer = csv.writer(ocsv, delimiter="\t", lineterminator="\n")
+                    writer.writerow(
+                        ["row_id", "sequence_id", "sequence_input", "quality"]
+                    )
+                    for row_number, seq in enumerate(
+                        abutils.io.parse_fastx(sequence_file)
+                    ):
                         qual = seq.qual if seq.qual is not None else ""
-                        if qual:
-                            if qual[0] in ['"', "'"]:  # leading quotes cause issues
-                                qual = "#" + qual[1:]
-                        ofasta.write(f">{seq.id}\n{seq.sequence}\n")
-                        ocsv.write(f"{seq.id}\t{seq.sequence}\t{qual}\n")
+                        # MMseqs sees only this immutable, unique key. User identifiers
+                        # remain payload data and are restored after assignment.
+                        row_id = f"abstar_{i}_{row_number}"
+                        ofasta.write(f">{row_id}\n{seq.sequence}\n")
+                        writer.writerow([row_id, str(seq.id), seq.sequence, qual])
             output_fastas.append(output_fasta)
             output_csvs.append(output_csv)
 
@@ -570,7 +662,13 @@ class MMseqs(AssignerBase):
         )
         unassigned_dfs = []
         for unassigned_path in unassigned_paths:
-            _df = pl.scan_csv(unassigned_path)
+            _df = pl.scan_csv(
+                unassigned_path,
+                schema_overrides={
+                    "sequence_id": pl.String,
+                    "sequence_input": pl.String,
+                },
+            )
             unassigned_dfs.append(_df)
         unassigned_df = pl.concat(unassigned_dfs)
         unassigned_df.sink_csv(unassigned)
@@ -612,7 +710,7 @@ class MMseqs(AssignerBase):
             start = int(start)
             end = int(end)
             if start > end:
-                s = seq[:end]
+                s = seq[: end - 1]
             else:
                 s = seq[end:]
             # sequences shorter than 14 nt can break MMseqs2
@@ -651,8 +749,8 @@ class MMseqs(AssignerBase):
         vcols = ["v_query", "j_qstart", "j_qend", "j_qseq"]
         fastas = []
 
-        # only assign D genes on "heavy" chains
-        prefixes = ["IGH", "TRA", "TRD"]
+        # Only IGH, TRB, and TRD rearrangements contain a D segment.
+        prefixes = ["IGH", "TRB", "TRD"]
         heavy_df = vjresult_df.filter(pl.col("v_call").str.contains_any(prefixes))
         heavy_df = heavy_df.filter(~pl.col("j_qstart").is_null())
         if isinstance(heavy_df, pl.LazyFrame):
@@ -664,13 +762,12 @@ class MMseqs(AssignerBase):
         )["dq"]:
             start = int(start)
             end = int(end)
-            if abs(start - end) < minimum_length:
-                continue
             if start > end:
-                fasta = f">{name}\n{seq[start:]}"
+                query = seq[start:]
             else:
-                fasta = f">{name}\n{seq[:start]}"
-            fastas.append(fasta)
+                query = seq[: start - 1]
+            if len(query) >= minimum_length:
+                fastas.append(f">{name}\n{query}")
 
         # write the FASTA file
         with open(fasta_path, "w") as f:
@@ -712,7 +809,7 @@ class MMseqs(AssignerBase):
             start = int(start)
             end = int(end)
             if start > end:
-                query = seq[:end]
+                query = seq[: end - 1]
             else:
                 query = seq[end:]
             fasta = f">{name}\n{query}"
