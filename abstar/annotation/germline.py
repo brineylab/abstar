@@ -67,10 +67,11 @@ def get_germline_database_path(germdb_name: str, receptor: str = "bcr") -> str:
         If the receptor type is not one of "bcr" or "tcr".
 
     """
+    requested_germdb_name = germdb_name
     germdb_name = germdb_name.lower()
     receptor = receptor.lower()
     if receptor not in ["bcr", "tcr"]:
-        raise ValueError(f"Receptor type {receptor} not supported")
+        raise ValueError(f"receptor type {receptor} not supported")
     # check the addon directory first
     addon_dir = os.path.expanduser(f"~/.abstar/germline_dbs/{receptor}")
     custom_dir = os.path.join(addon_dir, germdb_name)
@@ -82,7 +83,7 @@ def get_germline_database_path(germdb_name: str, receptor: str = "bcr") -> str:
     germdb_path = os.path.join(abstar_dir, f"germline_dbs/{receptor}/{germdb_name}")
     if not os.path.exists(germdb_path):
         raise FileNotFoundError(
-            f"Germline database {germdb_name} for receptor {receptor} not found"
+            f"Germline database {requested_germdb_name} for receptor {receptor} not found"
         )
     return germdb_path
 
