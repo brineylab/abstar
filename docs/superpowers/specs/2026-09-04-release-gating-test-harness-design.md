@@ -311,8 +311,11 @@ an internal exception cannot become an ordinary successful empty output.
 
 ## AIRR and Parquet Contracts
 
-AIRR TSV output will be read by the official AIRR Python reference library
-against the schema version targeted by `abstar`. Additional semantic tests will
+`abstar` targets the AIRR Data Standards 2.0 Rearrangement schema. AIRR TSV
+output will be read and validated by version 2.0.0 of the official AIRR Python
+reference library. Internal annotation code may keep Python-native 0-based,
+half-open query intervals; a single named serialization boundary converts them
+to AIRR's required 1-based, closed intervals. Additional semantic tests will
 assert behavior that structural validation alone cannot prove:
 
 - one-based AIRR coordinate conventions and correct endpoints;
