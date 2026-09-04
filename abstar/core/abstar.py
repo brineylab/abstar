@@ -447,7 +447,7 @@ def run(
                 _assemble_logs(succeeded_log_files, succeeded_log_file)
 
             # log results summary
-            sequence_count = output_df.select(pl.count()).collect().row(0)[0]
+            sequence_count = output_df.select(pl.len()).collect().row(0)[0]
             duration = datetime.now() - start_time
             _log_results_summary(
                 sequence_count=sequence_count,

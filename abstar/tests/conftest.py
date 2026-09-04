@@ -22,18 +22,6 @@ def test_data_path():
 
 
 @pytest.fixture
-def hiv_bnab_hc_path():
-    """Path to HIV bnAb heavy chain test file."""
-    return os.path.join(TEST_DATA_DIR, "test_hiv_bnab_hcs.fasta")
-
-
-@pytest.fixture
-def hiv_bnab_lc_path():
-    """Path to HIV bnAb light chain test file."""
-    return os.path.join(TEST_DATA_DIR, "test_hiv_bnab_lcs.fasta")
-
-
-@pytest.fixture
 def fastq_test_path():
     """Path to FASTQ test file."""
     return os.path.join(TEST_DATA_DIR, "test.fastq")

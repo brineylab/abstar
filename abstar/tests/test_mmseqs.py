@@ -7,6 +7,7 @@ Tests for the MMseqs2 germline assigner.
 """
 
 import os
+from pathlib import Path
 from types import SimpleNamespace
 
 import polars as pl
@@ -117,19 +118,11 @@ def test_mmseqs_initialization_tcr(temp_directories):
     assert mmseqs.germdb_path is not None
 
 
-@pytest.mark.skip(reason="Mouse germline database not installed in test environment")
-def test_mmseqs_initialization_mouse_database(temp_directories):
-    """Test MMseqs initialization with mouse germline database."""
+@pytest.mark.parametrize("database", ["c57bl6", "balbc"])
+def test_mmseqs_initialization_mouse_database(database, temp_directories):
     output_dir, log_dir = temp_directories
-    mmseqs = MMseqs(
-        output_directory=output_dir,
-        log_directory=log_dir,
-        germdb_name="mouse",
-        receptor="bcr",
-    )
-
-    assert mmseqs.germdb_name == "mouse"
-    assert mmseqs.germdb_path is not None
+    assigner = MMseqs(output_dir, log_dir, database, receptor="bcr")
+    assert Path(assigner.germdb_path).name == database
 
 
 # =============================================
@@ -409,10 +402,10 @@ def test_build_dquery_fasta_uses_d_bearing_loci_and_query_length(
         }
     )
 
-    dquery_path = str(tmp_path / "dquery.fasta")
-    mmseqs_instance.build_dquery_fasta(vjresult_df, dquery_path)
+    dquery_path = tmp_path / "dquery.fasta"
+    mmseqs_instance.build_dquery_fasta(vjresult_df, str(dquery_path))
 
-    assert open(dquery_path).read().splitlines() == [
+    assert dquery_path.read_text().splitlines() == [
         ">igh",
         "ABCDE",
         ">trb",
@@ -468,6 +461,7 @@ def test_build_cquery_fasta_respects_inclusive_mmseqs_coordinates(
 # =============================================
 
 
+@pytest.mark.integration
 def test_mmseqs_call_returns_parquet_path_and_count(mmseqs_instance, small_fasta_file):
     """Test __call__ method returns correct path and count."""
     assigned_path, sequence_count = mmseqs_instance(small_fasta_file)
@@ -479,6 +473,7 @@ def test_mmseqs_call_returns_parquet_path_and_count(mmseqs_instance, small_fasta
     assert sequence_count == 1
 
 
+@pytest.mark.integration
 def test_mmseqs_call_parquet_has_required_columns(mmseqs_instance, small_fasta_file):
     """Test that output parquet has required columns."""
     assigned_path, _ = mmseqs_instance(small_fasta_file)
@@ -506,6 +501,7 @@ def test_mmseqs_call_parquet_has_required_columns(mmseqs_instance, small_fasta_f
     assert df["sequence_id"].to_list() == ["10E8"]
 
 
+@pytest.mark.integration
 def test_mmseqs_assigns_v_gene(mmseqs_instance, small_fasta_file):
     """Test that V gene is assigned for a valid antibody sequence."""
     assigned_path, _ = mmseqs_instance(small_fasta_file)
@@ -519,6 +515,7 @@ def test_mmseqs_assigns_v_gene(mmseqs_instance, small_fasta_file):
     assert "IGHV" in v_calls[0]  # 10E8 is a heavy chain
 
 
+@pytest.mark.integration
 def test_mmseqs_assigns_j_gene(mmseqs_instance, small_fasta_file):
     """Test that J gene is assigned for a valid antibody sequence."""
     assigned_path, _ = mmseqs_instance(small_fasta_file)
@@ -532,10 +529,7 @@ def test_mmseqs_assigns_j_gene(mmseqs_instance, small_fasta_file):
     assert "IGHJ" in j_calls[0]
 
 
-@pytest.mark.xfail(
-    reason="Known issue: Polars schema error in mmseqs.py when D gene assignment is missing",
-    strict=False,
-)
+@pytest.mark.integration
 def test_mmseqs_multiple_sequences(mmseqs_instance, multi_sequence_fasta_file):
     """Test assignment of multiple sequences."""
     assigned_path, sequence_count = mmseqs_instance(multi_sequence_fasta_file)
@@ -543,8 +537,8 @@ def test_mmseqs_multiple_sequences(mmseqs_instance, multi_sequence_fasta_file):
     assert sequence_count == 3
 
     df = pl.read_parquet(assigned_path)
-    # Some or all sequences should be successfully assigned
-    assert df.height >= 1
+    assert df.height == 3
+    assert df.get_column("sequence_id").to_list() == ["10E8", "10J4", "10M6"]
 
 
 # =============================================
@@ -552,6 +546,7 @@ def test_mmseqs_multiple_sequences(mmseqs_instance, multi_sequence_fasta_file):
 # =============================================
 
 
+@pytest.mark.integration
 def test_cleanup_removes_temp_files(mmseqs_instance, small_fasta_file):
     """Test that cleanup() removes files in to_delete list."""
     # Run assignment to populate to_delete

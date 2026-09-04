@@ -133,6 +133,7 @@ def test_process_inputs_invalid_raises_error(tmp_path):
 # =============================================
 
 
+@pytest.mark.e2e
 def test_run_returns_sequence_object(single_hc_sequence):
     """Test run() returns Sequence when no project_path."""
     result = run(single_hc_sequence)
@@ -140,19 +141,18 @@ def test_run_returns_sequence_object(single_hc_sequence):
     assert isinstance(result, Sequence)
 
 
-@pytest.mark.xfail(
-    reason="Known issue: Polars schema error in mmseqs.py when D gene assignment is missing",
-    strict=False,
-)
+@pytest.mark.e2e
 def test_run_returns_sequence_list(multiple_hc_sequences):
     """Test run() returns list of Sequences for multiple inputs."""
     result = run(multiple_hc_sequences)
 
     assert isinstance(result, list)
-    assert len(result) >= 1
+    assert len(result) == 3
     assert all(isinstance(s, Sequence) for s in result)
+    assert [sequence.id for sequence in result] == ["10E8", "10J4", "10M6"]
 
 
+@pytest.mark.e2e
 def test_run_returns_dataframe_when_requested(single_hc_sequence):
     """Test run() returns polars DataFrame when as_dataframe=True."""
     result = run(single_hc_sequence, as_dataframe=True)
@@ -160,6 +160,7 @@ def test_run_returns_dataframe_when_requested(single_hc_sequence):
     assert isinstance(result, pl.DataFrame)
 
 
+@pytest.mark.e2e
 def test_run_accumulates_dataframes_from_multiple_files(single_hc_sequence, tmp_path):
     input_dir = tmp_path / "inputs"
     for directory, suffix, sequence_id in (
@@ -176,6 +177,7 @@ def test_run_accumulates_dataframes_from_multiple_files(single_hc_sequence, tmp_
     assert result.get_column("sequence_id").to_list() == ["first", "second"]
 
 
+@pytest.mark.e2e
 def test_multi_record_input_with_one_annotation_returns_list(single_hc_sequence):
     unassignable = Sequence("NNNNNNNNNNNNNNNN", id="unassignable")
 
@@ -185,6 +187,7 @@ def test_multi_record_input_with_one_annotation_returns_list(single_hc_sequence)
     assert [sequence.id for sequence in result] == [single_hc_sequence.id]
 
 
+@pytest.mark.e2e
 def test_five_prime_truncated_read_is_annotated_as_partial(single_hc_sequence):
     truncated = Sequence(
         single_hc_sequence.sequence[90:], id="five_prime_truncated"
@@ -199,6 +202,7 @@ def test_five_prime_truncated_read_is_annotated_as_partial(single_hc_sequence):
     assert result["fwr2"] == "ATGACTTGGGTCCGCCAGCCTCCAGGGAAGGGCCTCGAATGGGTTGGTCGT"
 
 
+@pytest.mark.e2e
 def test_run_returns_none_with_project_path(single_hc_sequence, tmp_path):
     """Test run() returns None when project_path provided (writes files)."""
     project_path = str(tmp_path / "test_project")
@@ -207,6 +211,7 @@ def test_run_returns_none_with_project_path(single_hc_sequence, tmp_path):
     assert result is None
 
 
+@pytest.mark.e2e
 def test_run_single_sequence_returns_single_not_list(single_hc_sequence):
     """Test that single sequence input returns single Sequence, not list."""
     result = run(single_hc_sequence)
@@ -220,6 +225,7 @@ def test_run_single_sequence_returns_single_not_list(single_hc_sequence):
 # =============================================
 
 
+@pytest.mark.e2e
 def test_run_rejects_unsupported_output_before_creating_project(
     single_hc_sequence, tmp_path
 ):
@@ -235,6 +241,7 @@ def test_run_rejects_unsupported_output_before_creating_project(
     assert not project_path.exists()
 
 
+@pytest.mark.e2e
 def test_run_creates_airr_output(single_hc_sequence, tmp_path):
     """Test AIRR TSV output file creation."""
     project_path = str(tmp_path / "airr_test")
@@ -247,8 +254,16 @@ def test_run_creates_airr_output(single_hc_sequence, tmp_path):
 
     airr_files = [f for f in os.listdir(airr_dir) if f.endswith(".tsv")]
     assert len(airr_files) >= 1
+    output_df = pl.read_csv(
+        os.path.join(airr_dir, airr_files[0]),
+        separator="\t",
+        columns=["sequence_id"],
+        schema_overrides={"sequence_id": pl.String},
+    )
+    assert output_df.height == 1
 
 
+@pytest.mark.e2e
 def test_run_creates_parquet_output(single_hc_sequence, tmp_path):
     """Test Parquet output file creation."""
     project_path = str(tmp_path / "parquet_test")
@@ -263,6 +278,7 @@ def test_run_creates_parquet_output(single_hc_sequence, tmp_path):
     assert len(parquet_files) >= 1
 
 
+@pytest.mark.e2e
 def test_run_creates_both_outputs(single_hc_sequence, tmp_path):
     """Test creating both AIRR and Parquet outputs."""
     project_path = str(tmp_path / "both_test")
@@ -274,6 +290,7 @@ def test_run_creates_both_outputs(single_hc_sequence, tmp_path):
     assert os.path.exists(os.path.join(project_path, "parquet"))
 
 
+@pytest.mark.e2e
 def test_run_creates_log_directory(single_hc_sequence, tmp_path):
     """Test log directory creation."""
     project_path = str(tmp_path / "log_test")
@@ -290,6 +307,7 @@ def test_run_creates_log_directory(single_hc_sequence, tmp_path):
 # =============================================
 
 
+@pytest.mark.e2e
 def test_run_with_human_database(single_hc_sequence):
     """Test run with human germline database."""
     result = run(single_hc_sequence, germline_database="human")
@@ -298,24 +316,12 @@ def test_run_with_human_database(single_hc_sequence):
     assert result["v_gene"] is not None
 
 
-@pytest.mark.skip(reason="Mouse germline database not installed in test environment")
-def test_run_with_mouse_database(tmp_path):
-    """Test run with mouse germline database."""
-    # Use a simple sequence - mouse genes will be different
-    mouse_seq = Sequence(
-        "GAGGTGCAGCTGGTGGAGTCTGGGGGAGGCTTGGTGAAGCCTGGAGGATCCCTTAGACTCTCATGTTCAGCCTCTGGTTTCGACTTCGATAACGCCTGGATGACTTGGGTCCGCCAGCCTCCAGGGAAGGGCCTCGAATGGGTTGGTCGTATTACGGGTCCAGGTGAAGGTTGGTCAGTGGACTATGCTGCACCCGTGGAAGGCAGATTTACCATCTCGAGACTCAATTCAATAAATTTCTTATATTTGGAGATGAACAATTTAAGAATGGAAGACTCAGGCCTTTACTTCTGTGCCCGCACGGGAAAATATTATGATTTTTGGAGTGGCTATCCGCCGGGAGAAGAATACTTCCAAGACTGGGGCCGGGGCACCCTGGTCACCGTCTCCTCA",
-        id="test_mouse",
-    )
-    # This should run without error even if assignment differs
-    result = run(mouse_seq, germline_database="mouse")
-    assert result is not None
-
-
 # =============================================
 #       ANNOTATION VALIDATION TESTS
 # =============================================
 
 
+@pytest.mark.e2e
 def test_annotated_sequence_has_v_gene(single_hc_sequence):
     """Test that annotated sequence has V gene assignment."""
     result = run(single_hc_sequence)
@@ -324,6 +330,7 @@ def test_annotated_sequence_has_v_gene(single_hc_sequence):
     assert "IGHV" in result["v_gene"]
 
 
+@pytest.mark.e2e
 def test_annotated_sequence_has_j_gene(single_hc_sequence):
     """Test that annotated sequence has J gene assignment."""
     result = run(single_hc_sequence)
@@ -332,6 +339,7 @@ def test_annotated_sequence_has_j_gene(single_hc_sequence):
     assert "IGHJ" in result["j_gene"]
 
 
+@pytest.mark.e2e
 def test_annotated_sequence_has_cdr3(single_hc_sequence):
     """Test that annotated sequence has CDR3."""
     result = run(single_hc_sequence)
@@ -340,6 +348,7 @@ def test_annotated_sequence_has_cdr3(single_hc_sequence):
     assert len(result["cdr3"]) > 0
 
 
+@pytest.mark.e2e
 def test_annotated_sequence_has_junction(single_hc_sequence):
     """Test that annotated sequence has junction."""
     result = run(single_hc_sequence)
@@ -348,6 +357,7 @@ def test_annotated_sequence_has_junction(single_hc_sequence):
     assert len(result["junction"]) > 0
 
 
+@pytest.mark.e2e
 def test_annotated_sequence_has_regions(single_hc_sequence):
     """Test all regions (FWR1-4, CDR1-3) are populated."""
     result = run(single_hc_sequence)
@@ -361,6 +371,7 @@ def test_annotated_sequence_has_regions(single_hc_sequence):
     # CDR3 is already checked above
 
 
+@pytest.mark.e2e
 def test_annotated_sequence_has_locus(single_hc_sequence):
     """Test that annotated sequence has locus."""
     result = run(single_hc_sequence)
@@ -369,6 +380,7 @@ def test_annotated_sequence_has_locus(single_hc_sequence):
     assert result["locus"] == "IGH"  # 10E8 is heavy chain
 
 
+@pytest.mark.e2e
 def test_annotated_sequence_has_productivity(single_hc_sequence):
     """Test that annotated sequence has productivity assessment."""
     result = run(single_hc_sequence)
@@ -378,6 +390,7 @@ def test_annotated_sequence_has_productivity(single_hc_sequence):
     assert isinstance(result["productive"], bool)
 
 
+@pytest.mark.e2e
 def test_annotated_heavy_chain_has_d_gene(single_hc_sequence):
     """Test heavy chain has D gene (when applicable)."""
     result = run(single_hc_sequence)
@@ -395,6 +408,7 @@ def test_annotated_heavy_chain_has_d_gene(single_hc_sequence):
 # =============================================
 
 
+@pytest.mark.e2e
 def test_dataframe_has_expected_columns(single_hc_sequence):
     """Test that the DataFrame contains expected core columns."""
     result = run(single_hc_sequence, as_dataframe=True)
@@ -411,6 +425,7 @@ def test_dataframe_has_expected_columns(single_hc_sequence):
         assert col in result.columns, f"Expected column '{col}' not found in DataFrame"
 
 
+@pytest.mark.e2e
 def test_dataframe_row_count_single_sequence(single_hc_sequence):
     """Test that DataFrame has correct row count for a single sequence."""
     result = run(single_hc_sequence, as_dataframe=True)
@@ -418,6 +433,7 @@ def test_dataframe_row_count_single_sequence(single_hc_sequence):
     assert result.height == 1
 
 
+@pytest.mark.e2e
 def test_dataframe_contains_annotation_data(single_hc_sequence):
     """Test that the DataFrame contains actual annotation data."""
     result = run(single_hc_sequence, as_dataframe=True)
@@ -439,6 +455,7 @@ def test_dataframe_contains_annotation_data(single_hc_sequence):
 # =============================================
 
 
+@pytest.mark.e2e
 def test_run_from_fasta_file(small_fasta_file):
     """Test run() with a FASTA file path."""
     result = run(small_fasta_file)
@@ -448,6 +465,7 @@ def test_run_from_fasta_file(small_fasta_file):
     assert result["v_gene"] is not None
 
 
+@pytest.mark.e2e
 def test_run_preserves_sequence_id(single_hc_sequence):
     """Test that original sequence ID is preserved or reasonably handled."""
     result = run(single_hc_sequence)
@@ -457,6 +475,7 @@ def test_run_preserves_sequence_id(single_hc_sequence):
     assert len(result["sequence_id"]) > 0
 
 
+@pytest.mark.e2e
 def test_run_with_debug_mode(single_hc_sequence, tmp_path):
     """Test run with debug mode enabled."""
     project_path = str(tmp_path / "debug_test")

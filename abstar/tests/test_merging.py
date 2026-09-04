@@ -108,6 +108,7 @@ def test_fastp_failure_includes_stderr(monkeypatch, tmp_path):
         )
 
 
+@pytest.mark.integration
 def test_fastp_merges_a_real_overlapping_pair(tmp_path):
     sequence = (
         "ACGTTGCAAGTCGATCGTACGATGCTAGCTACGTTAGCGATCGATGACCTGACTGATCGTAGCTAGTCGATG"
@@ -160,6 +161,7 @@ def test_interleaved_merge_normalizes_text_and_cleans_temporary_file(
     assert outputs == [str(tmp_path / "output" / "iraq.fastq")]
 
 
+@pytest.mark.e2e
 def test_run_merge_accepts_default_merge_kwargs(monkeypatch, tmp_path):
     sentinel = RuntimeError("merge reached")
     observed = {}

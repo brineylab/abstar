@@ -30,6 +30,7 @@ def fake_mmseqs(monkeypatch):
     return calls
 
 
+@pytest.mark.integration
 def test_build_custom_database_clean_room_and_discovery(
     tmp_path, monkeypatch, custom_genes, fake_mmseqs
 ):
@@ -53,6 +54,7 @@ def test_build_custom_database_clean_room_and_discovery(
     assert not list((database.parent).glob(".custom.staging-*"))
 
 
+@pytest.mark.integration
 def test_overwrite_removes_stale_files(
     tmp_path, monkeypatch, custom_genes, fake_mmseqs
 ):
@@ -74,6 +76,7 @@ def test_overwrite_removes_stale_files(
     assert not (database / "stale.txt").exists()
 
 
+@pytest.mark.integration
 def test_failed_overwrite_preserves_existing_database(
     tmp_path, monkeypatch, custom_genes, fake_mmseqs
 ):
