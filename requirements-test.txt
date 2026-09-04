@@ -1,0 +1,6 @@
+-e .
+pytest>=8.4,<10
+pytest-cov>=6,<8
+hypothesis>=6.138,<7
+airr==2.0.0
+build>=1.2,<2

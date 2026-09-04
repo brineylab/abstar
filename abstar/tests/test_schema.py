@@ -2,7 +2,10 @@
 # Distributed under the terms of the MIT License.
 # SPDX-License-Identifier: MIT
 
+from pathlib import Path
+
 import polars as pl
+import pytest
 
 from ..annotation.schema import OUTPUT_SCHEMA, NoneDict
 
@@ -21,3 +24,10 @@ def test_output_schema_is_polars_schema_like():
         schema=NoneDict(subset),
     )
     assert df.shape == (1, 3)
+
+
+def test_pytest_configuration_registers_test_scopes(pytestconfig):
+    assert Path(pytestconfig.getini("testpaths")[0]) == Path("abstar/tests")
+    markers = "\n".join(pytestconfig.getini("markers"))
+    for name in ("integration", "e2e", "slow"):
+        assert f"{name}:" in markers

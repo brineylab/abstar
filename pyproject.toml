@@ -41,3 +41,16 @@ include = ["abstar*"]
 version = { attr = "abstar.version.__version__" }
 dependencies = { file = ["requirements.txt"] }
 
+[tool.pytest.ini_options]
+testpaths = ["abstar/tests"]
+strict_config = true
+strict_markers = true
+xfail_strict = true
+markers = [
+  "integration: exercises a real component or external-tool boundary",
+  "e2e: exercises abstar.run or the installed abstar command",
+  "slow: bounded checks excluded from the ordinary pull-request matrix",
+]
+filterwarnings = [
+  "error::Warning:abstar.*",
+]

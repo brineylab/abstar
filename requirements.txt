@@ -6,4 +6,3 @@ pandas
 parasail
 polars
 pyarrow
-pytest
