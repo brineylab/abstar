@@ -196,6 +196,7 @@ def test_file_rejects_explicit_in_place_output(tmp_path):
         )
 
 
+@pytest.mark.e2e
 def test_annotation_pipeline_retains_sequence_without_umi(single_hc_sequence):
     result = run(
         single_hc_sequence,
