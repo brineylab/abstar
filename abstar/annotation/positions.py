@@ -26,7 +26,8 @@ def get_gapped_position_from_raw(
     Parameters
     ----------
     position : int
-        The raw (ungapped) position to convert to a gapped position.
+        The raw (ungapped) position to convert to a gapped position. Zero
+        denotes the boundary before the first germline base and maps to zero.
 
     gapped_germline : str
         The gapped germline sequence to convert the raw position to a gapped position.
@@ -37,6 +38,8 @@ def get_gapped_position_from_raw(
         The IMGT-gapped position.
 
     """
+    if position == 0:
+        return 0
     raw = 0
     gapped = 0
     for res in gapped_germline:
