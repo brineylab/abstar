@@ -24,8 +24,8 @@
 
 import datetime
 import difflib
-import fcntl
 import json
+import logging
 import os
 import shlex
 import shutil
@@ -34,7 +34,6 @@ import subprocess as sp
 import sys
 import tempfile
 import uuid
-import warnings
 from contextlib import contextmanager
 from concurrent.futures import ThreadPoolExecutor
 from typing import Iterable
@@ -51,6 +50,19 @@ from tqdm.auto import tqdm
 
 from ..gl import get_germline, get_germline_database_path
 from ..utils import MATRIX_PATH
+
+try:
+    import fcntl as _fcntl
+except ImportError:  # pragma: no cover - exercised through the Windows backend test
+    _fcntl = None
+
+try:
+    import msvcrt as _msvcrt
+except ImportError:  # pragma: no cover - unavailable on POSIX
+    _msvcrt = None
+
+
+logger = logging.getLogger(__name__)
 
 __all__ = ["build_germline_database"]
 
@@ -626,12 +638,22 @@ def publish_database(staging_dir: str, database_dir: str, replacing: bool) -> No
         try:
             shutil.rmtree(backup_dir)
         except OSError as error:
-            warnings.warn(
-                f"database published successfully, but backup cleanup failed: "
-                f"{error}; retained backup at {backup_dir}",
-                RuntimeWarning,
-                stacklevel=2,
-            )
+            _log_retained_backup(backup_dir, error)
+
+
+def _log_retained_backup(backup_dir: str, error: OSError) -> None:
+    """Report recoverable cleanup trouble without changing publication success."""
+    try:
+        logger.warning(
+            "Database published successfully, but backup cleanup failed: %s; "
+            "retained backup at %s",
+            error,
+            backup_dir,
+        )
+    except Exception:
+        # Publication already succeeded. A broken logging handler cannot safely
+        # turn that completed filesystem transaction into a reported failure.
+        pass
 
 
 def inspect_database_destination(database_dir: str) -> tuple[int, int] | None:
@@ -655,21 +677,54 @@ def inspect_database_destination(database_dir: str) -> tuple[int, int] | None:
 def database_build_lock(database_root: str, name: str):
     """Coordinate publication by abstar builders targeting the same database."""
     lock_path = os.path.join(database_root, f".{name}.lock")
+    try:
+        lock_metadata = os.lstat(lock_path)
+    except FileNotFoundError:
+        pass
+    else:
+        if stat.S_ISLNK(lock_metadata.st_mode):
+            raise ValueError(f"database build lock must not be a symlink: {lock_path}")
+        if not stat.S_ISREG(lock_metadata.st_mode):
+            raise ValueError(f"database build lock must be a regular file: {lock_path}")
     flags = os.O_CREAT | os.O_RDWR
     if hasattr(os, "O_NOFOLLOW"):
         flags |= os.O_NOFOLLOW
     descriptor = os.open(lock_path, flags, 0o600)
+    locked = False
     try:
         metadata = os.fstat(descriptor)
         if not stat.S_ISREG(metadata.st_mode):
             raise ValueError(f"database build lock must be a regular file: {lock_path}")
-        fcntl.flock(descriptor, fcntl.LOCK_EX)
+        _lock_database_descriptor(descriptor)
+        locked = True
         yield lock_path
     finally:
         try:
-            fcntl.flock(descriptor, fcntl.LOCK_UN)
+            if locked:
+                _unlock_database_descriptor(descriptor)
         finally:
             os.close(descriptor)
+
+
+def _lock_database_descriptor(descriptor: int) -> None:
+    if _fcntl is not None:
+        _fcntl.flock(descriptor, _fcntl.LOCK_EX)
+        return
+    if _msvcrt is not None:
+        if os.fstat(descriptor).st_size == 0:
+            os.write(descriptor, b"\0")
+        os.lseek(descriptor, 0, os.SEEK_SET)
+        _msvcrt.locking(descriptor, _msvcrt.LK_LOCK, 1)
+        return
+    raise RuntimeError("no supported database build lock backend is available")
+
+
+def _unlock_database_descriptor(descriptor: int) -> None:
+    if _fcntl is not None:
+        _fcntl.flock(descriptor, _fcntl.LOCK_UN)
+        return
+    os.lseek(descriptor, 0, os.SEEK_SET)
+    _msvcrt.locking(descriptor, _msvcrt.LK_UNLCK, 1)
 
 
 _MMSEQS_COMPONENT_SUFFIXES = (
@@ -738,10 +793,16 @@ def validate_staged_database(
         ungapped = list(abutils.io.read_fasta(ungapped_path))
         gapped_ids = [str(sequence.id) for sequence in gapped]
         ungapped_ids = [str(sequence.id) for sequence in ungapped]
-        if not gapped:
+        if not gapped or not ungapped:
             raise ValueError(
-                f"staged germline database {components[0]} contains no sequences"
+                f"staged germline database {segment.upper()} FASTA contains no sequences"
             )
+        for sequence in [*gapped, *ungapped]:
+            if not sequence.sequence:
+                raise ValueError(
+                    f"staged germline database {segment.upper()} FASTA record "
+                    f"{sequence.id} has empty nucleotide content"
+                )
         if len(gapped_ids) != len(set(gapped_ids)):
             raise ValueError(
                 f"staged germline database {components[0]} contains duplicate IDs"

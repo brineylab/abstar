@@ -2,6 +2,7 @@ import hashlib
 import os
 import stat
 import subprocess
+import warnings
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -570,8 +571,8 @@ def test_publish_and_rollback_failure_retains_both_errors_and_recovery_path(
     assert (Path(error.backup_path) / "marker").read_text() == "recover me\n"
 
 
-def test_backup_cleanup_failure_warns_after_success_and_retains_backup(
-    tmp_path, monkeypatch, custom_genes, fake_mmseqs
+def test_backup_cleanup_failure_logs_success_and_retained_backup_under_strict_warnings(
+    tmp_path, monkeypatch, custom_genes, fake_mmseqs, caplog
 ):
     database_root = tmp_path / ".abstar" / "germline_dbs" / "bcr"
     database = database_root / "custom"
@@ -587,17 +588,123 @@ def test_backup_cleanup_failure_warns_after_success_and_retains_backup(
 
     monkeypatch.setattr(germline.shutil, "rmtree", fail_backup_cleanup)
 
-    with pytest.warns(RuntimeWarning, match="TASK19-CLEANUP.*backup|backup.*TASK19-CLEANUP"):
-        germline.build_germline_database(
-            "custom", fastas=str(custom_genes), include_species_in_name=False,
-            verbose=False,
-        )
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        with caplog.at_level("WARNING", logger=germline.__name__):
+            result = germline.build_germline_database(
+                "custom", fastas=str(custom_genes), include_species_in_name=False,
+                verbose=False,
+            )
 
+    assert result is None
     assert database.is_dir()
     assert not (database / "marker").exists()
     backups = list(database_root.glob("custom.backup-*"))
     assert len(backups) == 1
     assert (backups[0] / "marker").read_text() == "old database\n"
+    assert "TASK19-CLEANUP" in caplog.text
+    assert str(backups[0]) in caplog.text
+
+
+def test_logging_failure_cannot_turn_successful_publication_into_failure(
+    tmp_path, monkeypatch, custom_genes, fake_mmseqs
+):
+    database_root = tmp_path / ".abstar" / "germline_dbs" / "bcr"
+    database = database_root / "custom"
+    database.mkdir(parents=True)
+    (database / "marker").write_text("old database\n")
+    monkeypatch.setattr("builtins.input", lambda _: "yes")
+    rmtree = germline.shutil.rmtree
+
+    def fail_backup_cleanup(path, *args, **kwargs):
+        if Path(path).name.startswith("custom.backup-"):
+            raise OSError("TASK19-CLEANUP")
+        return rmtree(path, *args, **kwargs)
+
+    monkeypatch.setattr(germline.shutil, "rmtree", fail_backup_cleanup)
+    monkeypatch.setattr(
+        germline.logger, "warning",
+        lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("broken handler")),
+    )
+
+    assert germline.build_germline_database(
+        "custom", fastas=str(custom_genes), include_species_in_name=False,
+        verbose=False,
+    ) is None
+    assert database.is_dir()
+    assert not (database / "marker").exists()
+
+
+def test_windows_lock_backend_is_balanced_and_closes_descriptor(
+    tmp_path, monkeypatch
+):
+    calls = []
+
+    class FakeMSVCRT:
+        LK_LOCK = 1
+        LK_UNLCK = 2
+
+        @staticmethod
+        def locking(descriptor, operation, size):
+            calls.append((descriptor, operation, size))
+
+    monkeypatch.setattr(germline, "_fcntl", None)
+    monkeypatch.setattr(germline, "_msvcrt", FakeMSVCRT)
+
+    with germline.database_build_lock(str(tmp_path), "custom"):
+        descriptor = calls[0][0]
+        os.fstat(descriptor)
+
+    assert calls == [(descriptor, FakeMSVCRT.LK_LOCK, 1),
+                     (descriptor, FakeMSVCRT.LK_UNLCK, 1)]
+    with pytest.raises(OSError):
+        os.fstat(descriptor)
+
+
+def test_lock_symlink_is_rejected_before_windows_backend_open(
+    tmp_path, monkeypatch
+):
+    target = tmp_path / "external-lock"
+    target.write_text("external\n")
+    (tmp_path / ".custom.lock").symlink_to(target)
+    calls = []
+    fake = SimpleNamespace(
+        LK_LOCK=1, LK_UNLCK=2,
+        locking=lambda *args: calls.append(args),
+    )
+    monkeypatch.setattr(germline, "_fcntl", None)
+    monkeypatch.setattr(germline, "_msvcrt", fake)
+
+    with pytest.raises(ValueError, match="lock must not be a symlink"):
+        with germline.database_build_lock(str(tmp_path), "custom"):
+            pass
+
+    assert calls == []
+    assert target.read_text() == "external\n"
+
+
+def test_header_only_staged_fasta_record_is_rejected(
+    tmp_path, monkeypatch, custom_genes, fake_mmseqs
+):
+    database_root = tmp_path / ".abstar" / "germline_dbs" / "bcr"
+    database = database_root / "custom"
+    validate = germline.validate_staged_database
+
+    def remove_sequence_content(staging_dir, receptor, **kwargs):
+        for directory in ("imgt_gapped", "ungapped"):
+            (Path(staging_dir) / directory / "j.fasta").write_text(">IGHJTEST*01\n")
+        validate(staging_dir, receptor, **kwargs)
+
+    monkeypatch.setattr(germline, "validate_staged_database", remove_sequence_content)
+
+    with pytest.raises(ValueError, match="empty nucleotide"):
+        germline.build_germline_database(
+            "custom", fastas=str(custom_genes), include_species_in_name=False,
+            verbose=False,
+        )
+
+    assert not database.exists()
+    assert not list(database_root.glob(".custom.staging-*"))
 
 
 @pytest.mark.parametrize(
