@@ -5,7 +5,44 @@
 
 from .antibody import Antibody
 
+
+def alignment_columns_for_span(
+    aligned_query: str, aligned_reference: str,
+    query_origin: int, reference_origin: int,
+    query_start: int, query_end: int, reference_start: int, reference_end: int,
+) -> tuple[int, int]:
+    """Map half-open query/reference spans to their shared alignment columns.
+
+    Origins address the first ungapped residue represented by the trace. Each
+    column advances only the coordinate whose residue is present; specifying
+    both spaces makes boundaries adjacent to insertions/deletions unambiguous.
+    A span that cuts outside the trace or cannot be represented by its columns
+    raises ValueError rather than combining evidence from another alignment.
+    """
+    if len(aligned_query) != len(aligned_reference):
+        raise ValueError('Alignment rows must have equal lengths')
+    if query_end < query_start or reference_end < reference_start:
+        raise ValueError('Alignment spans must be ordered')
+    query, reference = query_origin, reference_origin
+    boundaries = {(query, reference): 0}
+    for column, (q, r) in enumerate(zip(aligned_query, aligned_reference), 1):
+        if q == r == '-':
+            raise ValueError('Alignment cannot contain double-gap columns')
+        query += q != '-'
+        reference += r != '-'
+        boundaries[query, reference] = column
+    try:
+        start = boundaries[query_start, reference_start]
+        end = boundaries[query_end, reference_end]
+    except KeyError as error:
+        raise ValueError('Requested span is not represented by the alignment') from error
+    if end < start:
+        raise ValueError('Alignment columns must be ordered')
+    return start, end
+
+
 __all__ = [
+    "alignment_columns_for_span",
     "get_gapped_position_from_raw",
     "get_raw_position_from_gapped",
     "get_raw_position_from_aligned",
@@ -244,7 +281,9 @@ def get_gapped_sequence(
         The gapped germline sequence, which will be used to determine where gaps should be inserted.
 
     germline_start : int
-        The start position of the germline sequence in the alignment with the query sequence.
+        Zero-based start in the ungapped reference. At zero, leading IMGT dots
+        are retained; otherwise output begins at the first retained residue.
+        Internal dots are emitted before their following reference residue.
 
     Returns
     -------
@@ -252,24 +291,28 @@ def get_gapped_sequence(
         The gapped sequence.
 
     """
-    gapped_seq = ""
-    seq_pos = 0
-    germ_pos = 0
-    gap_pos = germline_start
-
-    while gap_pos < len(gapped_germline):
-        seq = aligned_sequence[seq_pos]
-        germ = aligned_germline[germ_pos]
-        gap = gapped_germline[gap_pos]
-        if gap == "." and germ != "-":
-            gapped_seq += gap
-            gap_pos += 1
-        else:
-            gapped_seq += seq
-            seq_pos += 1
-            germ_pos += 1
-            gap_pos += 1
-        if seq_pos >= len(aligned_sequence):
-            break
-
-    return gapped_seq
+    if len(aligned_sequence) != len(aligned_germline):
+        raise ValueError('Alignment rows must have equal lengths')
+    residues = [i for i, base in enumerate(gapped_germline) if base != '.']
+    if not 0 <= germline_start <= len(residues):
+        raise ValueError('Germline start lies outside the reference')
+    if germline_start == 0:
+        template_position = 0
+    elif germline_start == len(residues):
+        template_position = len(gapped_germline)
+    else:
+        template_position = residues[germline_start]
+    output = []
+    for query, reference in zip(aligned_sequence, aligned_germline):
+        if reference != '-':
+            while template_position < len(gapped_germline) and gapped_germline[template_position] == '.':
+                output.append('.')
+                template_position += 1
+            if (template_position == len(gapped_germline)
+                    or gapped_germline[template_position] != reference):
+                raise ValueError('Alignment reference does not match its IMGT template')
+            template_position += 1
+        # Insertion columns, including terminal insertions, consume no
+        # reference residue and must never move the template cursor.
+        output.append(query)
+    return ''.join(output)

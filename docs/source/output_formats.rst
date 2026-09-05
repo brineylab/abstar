@@ -409,7 +409,15 @@ query/reference pair in the same alignment columns. Previously, the latter
 could contain the entire constant reference for a partial read. Consumers
 needing the full C reference should retrieve it from the germline database.
 Their amino acid counterparts use the C-region frame; C identity includes
-mismatch and insertion/deletion columns.
+mismatch and insertion/deletion columns. Insertion columns consume query bases
+without advancing the reference template, including at the final reference
+base or when the retained reference starts inside a codon.
+
+All retained V nucleotide alignments, mutation and indel events, identities,
+and region sequences now use the same boundary-alignment trace. Re-aligning
+that span with a different gap penalty could previously erase compensating
+indels or make annotation fail. Region boundary adjustment applies only to
+complete-codon deletions spanning a boundary, preserving each query base once.
 
 .. list-table::
    :header-rows: 1

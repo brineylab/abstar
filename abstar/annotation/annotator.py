@@ -8,6 +8,7 @@ import abutils
 
 # import pandas as pd
 import polars as pl
+from typing import NamedTuple
 
 from .antibody import Antibody
 from .germline import (
@@ -28,12 +29,21 @@ from .mask import (
     generate_nongermline_mask,
 )
 from .mutations import annotate_c_mutations, annotate_v_mutations
-from .positions import get_gapped_sequence, get_ungapped_position_from_aligned
+from .positions import (
+    alignment_columns_for_span, get_gapped_sequence, get_ungapped_position_from_aligned,
+)
 from .productivity import assess_productivity
 from .regions import get_region_sequence, identify_cdr3_regions
 from .schema import ANNOTATION_WORK_SCHEMA
 from .umi import parse_umis
 from ..core.results import AnnotationChunkResult, RecordFailure
+
+
+class RetainedAlignment(NamedTuple):
+    """Aligned rows in the selected query/reference boundary rectangle."""
+
+    aligned_query: str
+    aligned_target: str
 
 
 def calculate_alignment_identity(
@@ -379,18 +389,21 @@ def annotate_single_sequence(
     ab.log(f"            {v_sg_aa.alignment_midline}")
     ab.log(f"  GERMLINE: {v_sg_aa.aligned_target}")
 
-    # global alignment of sequence and germline
-    # using the start/end positions determined parsed from the
-    # semiglobal and local alignments
-    v_global = abutils.tl.global_alignment(
-        ab.v_sequence,
-        ab.v_germline,
-        **ALIGNMENT_PARAMS,
+    # Project all retained NT evidence from the boundary trace. Realigning the
+    # same endpoints with different gap scores can erase/introduce indels and
+    # makes detection, mutation calls, and extraction describe different paths.
+    first, last = alignment_columns_for_span(
+        v_loc.aligned_query, v_loc.aligned_target,
+        v_loc.query_begin, v_loc.target_begin,
+        ab.v_sequence_start, ab.v_sequence_end,
+        ab.v_germline_start, ab.v_germline_end,
     )
-    ab.log("GLOBAL ALIGNMENT:")
-    ab.log(f"     QUERY: {v_global.aligned_query}")
-    ab.log(f"            {v_global.alignment_midline}")
-    ab.log(f"  GERMLINE: {v_global.aligned_target}")
+    v_retained = RetainedAlignment(
+        v_loc.aligned_query[first:last], v_loc.aligned_target[first:last],
+    )
+    ab.log("RETAINED V ALIGNMENT:")
+    ab.log(f"     QUERY: {v_retained.aligned_query}")
+    ab.log(f"  GERMLINE: {v_retained.aligned_target}")
 
     # global alignment of the AA sequences
     v_global_aa = abutils.tl.global_alignment(
@@ -422,8 +435,8 @@ def annotate_single_sequence(
 
     # gapped V-gene sequence
     ab.v_sequence_gapped = get_gapped_sequence(
-        aligned_sequence=v_global.aligned_query,
-        aligned_germline=v_global.aligned_target,
+        aligned_sequence=v_retained.aligned_query,
+        aligned_germline=v_retained.aligned_target,
         gapped_germline=ab.v_germline_gapped,
         germline_start=ab.v_germline_start,
     )
@@ -436,10 +449,10 @@ def annotate_single_sequence(
     # ab.v_sequence_gapped_aa = ab.v_sequence_gapped_aa
 
     # insertions
-    if "-" in v_loc.aligned_target:
+    if "-" in v_retained.aligned_target:
         ab.v_insertions = annotate_insertions(
-            aligned_sequence=v_global.aligned_query,
-            aligned_germline=v_global.aligned_target,
+            aligned_sequence=v_retained.aligned_query,
+            aligned_germline=v_retained.aligned_target,
             gapped_germline=ab.v_germline_gapped,
             germline_start=ab.v_germline_start,
         )
@@ -452,10 +465,10 @@ def annotate_single_sequence(
         cumulative_ins_length = 0
 
     # deletions
-    if "-" in v_loc.aligned_query:
+    if "-" in v_retained.aligned_query:
         ab.v_deletions = annotate_deletions(
-            aligned_sequence=v_loc.aligned_query,
-            aligned_germline=v_loc.aligned_target,
+            aligned_sequence=v_retained.aligned_query,
+            aligned_germline=v_retained.aligned_target,
             gapped_germline=ab.v_germline_gapped,
             germline_start=ab.v_germline_start,
         )
@@ -908,7 +921,7 @@ def annotate_single_sequence(
             ab.log("CONSTANT REGION IDENTITY AA:", ab.c_identity_aa)
 
             # insertions
-            if "-" in c_loc.aligned_target:
+            if "-" in c_global.aligned_target:
                 ab.c_insertions = annotate_insertions(
                     aligned_sequence=c_global.aligned_query,
                     aligned_germline=c_global.aligned_target,
@@ -918,10 +931,10 @@ def annotate_single_sequence(
                 ab.log("CONSTANT REGION INSERTIONS:", ab.c_insertions)
 
             # deletions
-            if "-" in c_loc.aligned_query:
+            if "-" in c_global.aligned_query:
                 ab.c_deletions = annotate_deletions(
-                    aligned_sequence=c_loc.aligned_query,
-                    aligned_germline=c_loc.aligned_target,
+                    aligned_sequence=c_global.aligned_query,
+                    aligned_germline=c_global.aligned_target,
                     gapped_germline=complete_c_germline,
                     germline_start=ab.c_germline_start,
                 )
@@ -1040,8 +1053,8 @@ def annotate_single_sequence(
 
     # nucleotide mutations
     ab = annotate_v_mutations(
-        aligned_sequence=v_global.aligned_query,
-        aligned_germline=v_global.aligned_target,
+        aligned_sequence=v_retained.aligned_query,
+        aligned_germline=v_retained.aligned_target,
         gapped_germline=ab.v_germline_gapped,
         germline_start=ab.v_germline_start,
         is_aa=False,
@@ -1067,7 +1080,7 @@ def annotate_single_sequence(
     # Identity uses the complete aligned span, so substitutions and both
     # insertion/deletion columns contribute to the denominator.
     ab.v_identity = calculate_alignment_identity(
-        v_global.aligned_query, v_global.aligned_target
+        v_retained.aligned_query, v_retained.aligned_target
     )
     ab.v_identity_aa = calculate_alignment_identity(
         v_global_aa.aligned_query, v_global_aa.aligned_target
@@ -1081,8 +1094,8 @@ def annotate_single_sequence(
 
     # V regions
     v_regions = ["fwr1", "cdr1", "fwr2", "cdr2", "fwr3"]
-    ab.log("ALIGNED SEQUENCE (GLOBAL):", v_global.aligned_query)
-    ab.log("ALIGNED GERMLINE (GLOBAL):", v_global.aligned_target)
+    ab.log("ALIGNED SEQUENCE (RETAINED):", v_retained.aligned_query)
+    ab.log("ALIGNED GERMLINE (RETAINED):", v_retained.aligned_target)
     ab.log("ALIGNED SEQUENCE (SEMI-GLOBAL):", v_sg.aligned_query)
     ab.log("ALIGNED GERMLINE (SEMI-GLOBAL):", v_sg.aligned_target)
     ab.log("GAPPED GERMLINE:", ab.v_germline_gapped)
@@ -1099,7 +1112,7 @@ def annotate_single_sequence(
         region_start, region_end, region_sequence = get_region_sequence(
             region,
             # aln=v_sg,
-            aln=v_global,
+            aln=v_retained,
             gapped_germline=ab.v_germline_gapped,
             germline_start=ab.v_germline_start + 1,  # needs to be 1-indexed
             ab=ab,
