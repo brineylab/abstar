@@ -11,6 +11,8 @@ import polars as pl
 
 from .antibody import Antibody
 from .germline import (
+    VJ_BOUNDARY_PARAMS,
+    translated_reference_start,
     get_germline,
     process_cgene_alignment,
     process_dgene_alignment,
@@ -329,7 +331,8 @@ def annotate_single_sequence(
         receptor=ab.receptor_type,
         imgt_gapped=False,
         semiglobal_aln_params=ALIGNMENT_PARAMS,
-        local_aln_params=ALIGNMENT_PARAMS,
+        local_aln_params=VJ_BOUNDARY_PARAMS,
+        local_full_query=True,
     )
     ab.log("V GERMLINE:", v_sg.target.sequence)
 
@@ -342,7 +345,10 @@ def annotate_single_sequence(
     ab.log(f"            {v_loc.alignment_midline}")
     ab.log(f"  GERMLINE: {v_loc.aligned_target}")
 
-    ab = process_vgene_alignment(semiglobal_aln=v_sg, local_aln=v_loc, ab=ab)
+    ab = process_vgene_alignment(
+        semiglobal_aln=v_sg, local_aln=v_loc, ab=ab, local_full_query=True,
+    )
+    v_germline_aa_start = translated_reference_start(ab.v_germline_start, ab.v_frame)
     ab.log("SEMIGLOBAL QUERY START:", v_sg.query_begin)
     ab.log("SEMIGLOBAL GERMLINE START:", v_sg.target_begin)
     ab.log("LOCAL QUERY START:", v_loc.query_begin)
@@ -362,7 +368,7 @@ def annotate_single_sequence(
     # query gets truncated at the start of the germline alignment
     # and gets translated in its frame. The full germline is
     # translated and used for alignment.
-    query_aa_sg = abutils.tl.translate(v_sg.query[v_sg.query_begin :], frame=ab.frame)
+    query_aa_sg = abutils.tl.translate(v_sg.query[ab.v_sequence_start :], frame=ab.frame)
     germline_aa_sg = abutils.tl.translate(v_sg.target)
     v_sg_aa = abutils.tl.semiglobal_alignment(
         query=query_aa_sg, target=germline_aa_sg, **ALIGNMENT_PARAMS
@@ -485,7 +491,8 @@ def annotate_single_sequence(
         receptor=ab.receptor_type,
         imgt_gapped=False,
         semiglobal_aln_params=ALIGNMENT_PARAMS | {"gap_open": -20},
-        local_aln_params=ALIGNMENT_PARAMS | {"gap_open": -15},
+        local_aln_params=VJ_BOUNDARY_PARAMS,
+        local_full_query=True,
     )
     ab.log("SEMIGLOBAL ALIGNMENT:")
     ab.log(f"     QUERY: {j_sg.aligned_query}")
@@ -505,6 +512,7 @@ def annotate_single_sequence(
         semiglobal_aln=j_sg,
         local_aln=j_loc,
         ab=ab,
+        local_full_query=True,
     )
     ab.log("SEMIGLOBAL QUERY START:", j_sg.query_begin)
     ab.log("LOCAL QUERY START:", j_loc.query_begin)
@@ -514,6 +522,152 @@ def annotate_single_sequence(
     ab.log("J GERMLINE END:", ab.j_germline_end)
     ab.log("J SEQUENCE:", ab.j_sequence)
     ab.log("J GERMLINE:", ab.j_germline)
+    ab.log("\n----------")
+    ab.log(" JUNCTION")
+    ab.log("----------\n")
+
+    # junction start
+    # the IMGT start position for FR3 is 196, but 1-indexed so we need to subtract 1 to slice correctly
+    # also, since we're trying to identify the junction, we drop the last codon of FR3 (since the last codon is part of the junction)
+    # germ_fr3_sequence = ab.v_germline_gapped[196 - 1 : 309].replace(".", "")
+
+    # we include the conserved C codon (which forms the start of the junction) to avoid an edge case
+    # in which a sequence has a deletion at the position immediately preceding the conserved C codon
+    # because the C is so highly conserved, it's basically impossible for a sequence to have a deletion at that position
+    germ_fr3_sequence = ab.v_germline_gapped[196 - 1 : 312].replace(".", "")
+    ab.log("FR3 GERMLINE SEQUENCE:", germ_fr3_sequence)
+
+    # edge case where there's an insertion (gaps in the germline when aligned to the query) near the end of the FWR3, which can cause a misalignment.
+    # if the region 3' of the indel isn't not long enough to overcome the gap penalty, the sequences can be aligned like so:
+    #
+    #    QUERY:    ACCGGGACTCTGGGGTCCCAGATAGATTCAGCGGCAGTGGGTCAGGCACTGATTTCACACTGAAAATCAGCAGGGTGGAGGCTGAAGATGTTGTTGGGGTTTATTAC
+    #              |||||||||||||||||||||| |||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||| |||||||  |    |||
+    #    GERMLINE: ACCGGGACTCTGGGGTCCCAGACAGATTCAGCGGCAGTGGGTCAGGCACTGATTTCACACTGAAAATCAGCAGGGTGGAGGCTGAGGATGTTGGGGTTTATTAC
+    #
+    # which should actually be:
+    #
+    #    QUERY:    ACCGGGACTCTGGGGTCCCAGATAGATTCAGCGGCAGTGGGTCAGGCACTGATTTCACACTGAAAATCAGCAGGGTGGAGGCTGAAGATGTTGTTGGGGTTTATTAC
+    #              |||||||||||||||||||||| |||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||| ||   ||||||||||||||||
+    #    GERMLINE: ACCGGGACTCTGGGGTCCCAGACAGATTCAGCGGCAGTGGGTCAGGCACTGATTTCACACTGAAAATCAGCAGGGTGGAGGCTGAGGA---TGTTGGGGTTTATTAC
+    #
+    # to fix, we'll first align the germline region to the pre-aligned germline sequence (from the V-gene semiglobal alignment),
+    # which will give us the correct gapped alignment (since the full germline alignment presumably has enough 3' sequence to  overcome the gap penalty)
+    # then we can use the re-aligned (and pre-gapped, if necessary) germline for alignment with the query sequence to correctly identify the FWR3 region.
+
+    # since the sequences for alignment shoud be identical (aside from any pre-existing alignment gaps), we can use a smaller gap open penalty
+    # this helps us capture gaps very close to the end of the sequence, for which there aren't enough matches on one side of the gap to overcome a high gap penalty.
+    REALIGNMENT_PARAMS = ALIGNMENT_PARAMS | {"gap_open": -2}
+
+    # realign germline FWR3 region to the aligned germline sequence and extract the aligned region sequence
+    fr3_germ_realign = abutils.tl.semiglobal_alignment(
+        query=germ_fr3_sequence,
+        target=v_sg.aligned_target,
+        **REALIGNMENT_PARAMS,
+    )
+    # semiglobal alignment is with the full oriented sequence, so there will typically be gaps on both ends of the aligned query (FR3 region)
+    realigned_germ_fr3_sequence = fr3_germ_realign.aligned_query.lstrip("-").rstrip("-")
+    ab.log("REALIGNED FR3 GERMLINE SEQUENCE:", realigned_germ_fr3_sequence)
+
+    # the same edge case (but in reverse) can happen with a deletion (gaps in the query when aligned to the germline)
+    # near the end of the FR3, which causes incorrect identification of the start of the junction.
+    # to fix, we'll use the aligned version of the query sequence (from the V-gene semiglobal alignment) and align that to the re-aligned germline FWR3 region.
+    # then we need to convert the aligned position of the junction start to the raw (unaligned) position
+
+    # fr3_sg = abutils.tl.semiglobal_alignment(
+    #     query=ab.sequence_oriented,
+    #     target=realigned_germ_fr3_sequence,
+    #     **ALIGNMENT_PARAMS,
+    # )
+    # ab.junction_start = fr3_sg.query_end + 1
+
+    fr3_sg = abutils.tl.semiglobal_alignment(
+        query=v_sg.aligned_query,
+        target=realigned_germ_fr3_sequence,
+        **ALIGNMENT_PARAMS,  # normal params are fine, since we already put in any gaps we want
+    )
+    ab.log("FWR3 SG ALIGNMENT")
+    ab.log("ALIGNED QUERY:        ", fr3_sg.aligned_query)
+    ab.log("                      ", fr3_sg.alignment_midline)
+    ab.log("ALIGNED FWR3 GERMLINE:", fr3_sg.aligned_target)
+    ab.log("FWR3 ALIGNMENT END:", fr3_sg.query_end)
+
+    ab.junction_start = (
+        get_ungapped_position_from_aligned(
+            position=fr3_sg.query_end,
+            aligned_sequence=v_sg.aligned_query,
+        )
+        # + 1  # junction start is the position after the end of the FR3 alignment
+        - 2  # back up to the start of the conserved C codon (start of the junction)
+    )
+    ab.log("JUNCTION START:", ab.junction_start)
+
+    # junction end
+    # we need to do similar re-alignment gymnastics with the FR4 region as we did with the FR3 above to ensure that
+    # FR4 indels near the start of the J gene don't cause misalignment and incorrect identification of the junction end.
+    # TODO:
+
+    if ab.locus in ["IGH", "TRA", "TRD"]:
+        germ_fr4_sequence = j_sg.target[-34:]
+    else:
+        germ_fr4_sequence = j_sg.target[-31:]
+
+    fr4_germ_realign = abutils.tl.semiglobal_alignment(
+        query=germ_fr4_sequence,
+        target=j_sg.aligned_target,
+        **REALIGNMENT_PARAMS,
+    )
+    realigned_germ_fr4_sequence = fr4_germ_realign.aligned_query.lstrip("-").rstrip("-")
+
+    # to prevent possible misalignments, which we can sometimes get when an insertion duplicates a portion of the J-gene,
+    # we align the re-aligned germline with just the portion of the query sequence contains the FR4
+    fr4_sg = abutils.tl.semiglobal_alignment(
+        query=ab.sequence_oriented[ab.junction_start : ab.j_sequence_end],
+        # target=germ_fr4_sequence,
+        target=realigned_germ_fr4_sequence,
+        **ALIGNMENT_PARAMS,
+    )
+    # junction sequence includes the W/F, so we need to add 3 because the germline FR4 sequence used for alignment also contains the W/F codon
+    ab.junction_end = fr4_sg.query_begin + ab.junction_start + 3
+    ab.log("FR4 GERMLINE SEQUENCE:", germ_fr4_sequence)
+    ab.log("REALIGNED FR4 GERMLINE SEQUENCE:", realigned_germ_fr4_sequence)
+    ab.log("FWR4 SG ALIGNMENT")
+    ab.log("ALIGNED QUERY        :", fr4_sg.aligned_query)
+    ab.log("                      ", fr4_sg.alignment_midline)
+    ab.log("ALIGNED FWR4 GERMLINE:", fr4_sg.aligned_target)
+    ab.log("FWR4 ALIGNMENT BEGIN:", fr4_sg.query_begin)
+    ab.log("JUNCTION END:", ab.junction_end)
+    # junction sequence
+    ab.junction = ab.sequence_oriented[ab.junction_start : ab.junction_end]
+    ab.junction_aa = abutils.tl.translate(ab.junction)
+    ab.log("JUNCTION:", ab.junction)
+    ab.log("JUNCTION AA:", ab.junction_aa)
+
+    # CDR3 sequence and length
+    ab.cdr3 = ab.junction[3:-3]
+    ab.cdr3_aa = ab.junction_aa[1:-1]
+    ab.cdr3_length = len(ab.cdr3_aa)
+    ab.log("CDR3:", ab.cdr3)
+    ab.log("CDR3 AA:", ab.cdr3_aa)
+    ab.log("CDR3 LENGTH:", ab.cdr3_length)
+
+    # The mapped FWR4 anchor is in oriented-input coordinates. A local J hit
+    # wholly beyond that junction belongs to a downstream J-like repeat. Bound
+    # the search by projecting the assigned reference's remaining FWR4 length
+    # from the primary anchor; the local coordinates still address jquery.
+    if ab.j_sequence_start >= ab.junction_end:
+        primary_j_end = ab.junction_end - 3 + len(germ_fr4_sequence)
+        j_loc = abutils.tl.local_alignment(
+            jquery[:primary_j_end - ab.v_sequence_end], j_sg.target,
+            **VJ_BOUNDARY_PARAMS,
+        )
+        ab = process_jgene_alignment(
+            ab.sequence_oriented, ab.v_sequence_end, j_sg, j_loc, ab,
+            local_full_query=True,
+        )
+        ab.log("PRIMARY J BOUNDARY QUERY:", j_loc.aligned_query)
+        ab.log("PRIMARY J BOUNDARY GERMLINE:", j_loc.aligned_target)
+        ab.log("PRIMARY J BOUNDARY SCORE:", j_loc.score)
+
     j_frame = (3 - (ab.j_germline_start % 3)) % 3 + 1
     ab.j_identity, ab.j_identity_aa = _segment_identities(
         ab.j_sequence, ab.j_germline, j_frame
@@ -693,23 +847,27 @@ def annotate_single_sequence(
                 force_constant=True,
                 truncate_species=False,
             ).sequence
-            ab.c_germline_gapped_aa = abutils.tl.translate(
-                ab.c_germline_gapped, allow_dots=True
-            )
-            ab.log("GAPPED GERMLINE:", ab.c_germline_gapped)
-            ab.log("GAPPED GERMLINE AA:", ab.c_germline_gapped_aa)
-            # ab.v_germline_gapped = ab.v_germline_gapped
-            # ab.v_germline_gapped_aa = ab.v_germline_gapped_aa
-
-            # gapped Constant region sequence
+            # Emit the retained C reference in the same alignment columns as
+            # the query. The full reference is a numbering template, not the
+            # aligned counterpart of a partial constant-region read.
+            complete_c_gapped = ab.c_germline_gapped
             ab.c_sequence_gapped = get_gapped_sequence(
                 aligned_sequence=c_global.aligned_query,
                 aligned_germline=c_global.aligned_target,
-                gapped_germline=ab.c_germline_gapped,
+                gapped_germline=complete_c_gapped,
+                germline_start=ab.c_germline_start,
+            )
+            ab.c_germline_gapped = get_gapped_sequence(
+                aligned_sequence=c_global.aligned_target,
+                aligned_germline=c_global.aligned_target,
+                gapped_germline=complete_c_gapped,
                 germline_start=ab.c_germline_start,
             )
             ab.c_sequence_gapped_aa = abutils.tl.translate(
-                ab.c_sequence_gapped, frame=ab.frame, allow_dots=True
+                ab.c_sequence_gapped, frame=ab.c_frame, allow_dots=True
+            )
+            ab.c_germline_gapped_aa = abutils.tl.translate(
+                ab.c_germline_gapped, frame=ab.c_frame, allow_dots=True
             )
 
             # nucleotide mutations
@@ -731,7 +889,7 @@ def annotate_single_sequence(
                 aligned_sequence=c_global_aa.aligned_query,
                 aligned_germline=c_global_aa.aligned_target,
                 gapped_germline=complete_c_germline_aa,
-                germline_start=ab.c_germline_start // 3,
+                germline_start=translated_reference_start(ab.c_germline_start, ab.c_frame),
                 is_aa=True,
                 ab=ab,
             )
@@ -876,134 +1034,6 @@ def annotate_single_sequence(
         ab.complete_vdj = True
     ab.log("COMPLETE VDJ:", ab.complete_vdj)
 
-    ab.log("\n----------")
-    ab.log(" JUNCTION")
-    ab.log("----------\n")
-
-    # junction start
-    # the IMGT start position for FR3 is 196, but 1-indexed so we need to subtract 1 to slice correctly
-    # also, since we're trying to identify the junction, we drop the last codon of FR3 (since the last codon is part of the junction)
-    # germ_fr3_sequence = ab.v_germline_gapped[196 - 1 : 309].replace(".", "")
-
-    # we include the conserved C codon (which forms the start of the junction) to avoid an edge case
-    # in which a sequence has a deletion at the position immediately preceding the conserved C codon
-    # because the C is so highly conserved, it's basically impossible for a sequence to have a deletion at that position
-    germ_fr3_sequence = ab.v_germline_gapped[196 - 1 : 312].replace(".", "")
-    ab.log("FR3 GERMLINE SEQUENCE:", germ_fr3_sequence)
-
-    # edge case where there's an insertion (gaps in the germline when aligned to the query) near the end of the FWR3, which can cause a misalignment.
-    # if the region 3' of the indel isn't not long enough to overcome the gap penalty, the sequences can be aligned like so:
-    #
-    #    QUERY:    ACCGGGACTCTGGGGTCCCAGATAGATTCAGCGGCAGTGGGTCAGGCACTGATTTCACACTGAAAATCAGCAGGGTGGAGGCTGAAGATGTTGTTGGGGTTTATTAC
-    #              |||||||||||||||||||||| |||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||| |||||||  |    |||
-    #    GERMLINE: ACCGGGACTCTGGGGTCCCAGACAGATTCAGCGGCAGTGGGTCAGGCACTGATTTCACACTGAAAATCAGCAGGGTGGAGGCTGAGGATGTTGGGGTTTATTAC
-    #
-    # which should actually be:
-    #
-    #    QUERY:    ACCGGGACTCTGGGGTCCCAGATAGATTCAGCGGCAGTGGGTCAGGCACTGATTTCACACTGAAAATCAGCAGGGTGGAGGCTGAAGATGTTGTTGGGGTTTATTAC
-    #              |||||||||||||||||||||| |||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||| ||   ||||||||||||||||
-    #    GERMLINE: ACCGGGACTCTGGGGTCCCAGACAGATTCAGCGGCAGTGGGTCAGGCACTGATTTCACACTGAAAATCAGCAGGGTGGAGGCTGAGGA---TGTTGGGGTTTATTAC
-    #
-    # to fix, we'll first align the germline region to the pre-aligned germline sequence (from the V-gene semiglobal alignment),
-    # which will give us the correct gapped alignment (since the full germline alignment presumably has enough 3' sequence to  overcome the gap penalty)
-    # then we can use the re-aligned (and pre-gapped, if necessary) germline for alignment with the query sequence to correctly identify the FWR3 region.
-
-    # since the sequences for alignment shoud be identical (aside from any pre-existing alignment gaps), we can use a smaller gap open penalty
-    # this helps us capture gaps very close to the end of the sequence, for which there aren't enough matches on one side of the gap to overcome a high gap penalty.
-    REALIGNMENT_PARAMS = ALIGNMENT_PARAMS | {"gap_open": -2}
-
-    # realign germline FWR3 region to the aligned germline sequence and extract the aligned region sequence
-    fr3_germ_realign = abutils.tl.semiglobal_alignment(
-        query=germ_fr3_sequence,
-        target=v_sg.aligned_target,
-        **REALIGNMENT_PARAMS,
-    )
-    # semiglobal alignment is with the full oriented sequence, so there will typically be gaps on both ends of the aligned query (FR3 region)
-    realigned_germ_fr3_sequence = fr3_germ_realign.aligned_query.lstrip("-").rstrip("-")
-    ab.log("REALIGNED FR3 GERMLINE SEQUENCE:", realigned_germ_fr3_sequence)
-
-    # the same edge case (but in reverse) can happen with a deletion (gaps in the query when aligned to the germline)
-    # near the end of the FR3, which causes incorrect identification of the start of the junction.
-    # to fix, we'll use the aligned version of the query sequence (from the V-gene semiglobal alignment) and align that to the re-aligned germline FWR3 region.
-    # then we need to convert the aligned position of the junction start to the raw (unaligned) position
-
-    # fr3_sg = abutils.tl.semiglobal_alignment(
-    #     query=ab.sequence_oriented,
-    #     target=realigned_germ_fr3_sequence,
-    #     **ALIGNMENT_PARAMS,
-    # )
-    # ab.junction_start = fr3_sg.query_end + 1
-
-    fr3_sg = abutils.tl.semiglobal_alignment(
-        query=v_sg.aligned_query,
-        target=realigned_germ_fr3_sequence,
-        **ALIGNMENT_PARAMS,  # normal params are fine, since we already put in any gaps we want
-    )
-    ab.log("FWR3 SG ALIGNMENT")
-    ab.log("ALIGNED QUERY:        ", fr3_sg.aligned_query)
-    ab.log("                      ", fr3_sg.alignment_midline)
-    ab.log("ALIGNED FWR3 GERMLINE:", fr3_sg.aligned_target)
-    ab.log("FWR3 ALIGNMENT END:", fr3_sg.query_end)
-
-    ab.junction_start = (
-        get_ungapped_position_from_aligned(
-            position=fr3_sg.query_end,
-            aligned_sequence=v_sg.aligned_query,
-        )
-        # + 1  # junction start is the position after the end of the FR3 alignment
-        - 2  # back up to the start of the conserved C codon (start of the junction)
-    )
-    ab.log("JUNCTION START:", ab.junction_start)
-
-    # junction end
-    # we need to do similar re-alignment gymnastics with the FR4 region as we did with the FR3 above to ensure that
-    # FR4 indels near the start of the J gene don't cause misalignment and incorrect identification of the junction end.
-    # TODO:
-
-    if ab.locus in ["IGH", "TRA", "TRD"]:
-        germ_fr4_sequence = j_sg.target[-34:]
-    else:
-        germ_fr4_sequence = j_sg.target[-31:]
-
-    fr4_germ_realign = abutils.tl.semiglobal_alignment(
-        query=germ_fr4_sequence,
-        target=j_sg.aligned_target,
-        **REALIGNMENT_PARAMS,
-    )
-    realigned_germ_fr4_sequence = fr4_germ_realign.aligned_query.lstrip("-").rstrip("-")
-
-    # to prevent possible misalignments, which we can sometimes get when an insertion duplicates a portion of the J-gene,
-    # we align the re-aligned germline with just the portion of the query sequence contains the FR4
-    fr4_sg = abutils.tl.semiglobal_alignment(
-        query=ab.sequence_oriented[ab.junction_start : ab.j_sequence_end],
-        # target=germ_fr4_sequence,
-        target=realigned_germ_fr4_sequence,
-        **ALIGNMENT_PARAMS,
-    )
-    # junction sequence includes the W/F, so we need to add 3 because the germline FR4 sequence used for alignment also contains the W/F codon
-    ab.junction_end = fr4_sg.query_begin + ab.junction_start + 3
-    ab.log("FR4 GERMLINE SEQUENCE:", germ_fr4_sequence)
-    ab.log("REALIGNED FR4 GERMLINE SEQUENCE:", realigned_germ_fr4_sequence)
-    ab.log("FWR4 SG ALIGNMENT")
-    ab.log("ALIGNED QUERY        :", fr4_sg.aligned_query)
-    ab.log("                      ", fr4_sg.alignment_midline)
-    ab.log("ALIGNED FWR4 GERMLINE:", fr4_sg.aligned_target)
-    ab.log("FWR4 ALIGNMENT BEGIN:", fr4_sg.query_begin)
-    ab.log("JUNCTION END:", ab.junction_end)
-    # junction sequence
-    ab.junction = ab.sequence_oriented[ab.junction_start : ab.junction_end]
-    ab.junction_aa = abutils.tl.translate(ab.junction)
-    ab.log("JUNCTION:", ab.junction)
-    ab.log("JUNCTION AA:", ab.junction_aa)
-
-    # CDR3 sequence and length
-    ab.cdr3 = ab.junction[3:-3]
-    ab.cdr3_aa = ab.junction_aa[1:-1]
-    ab.cdr3_length = len(ab.cdr3_aa)
-    ab.log("CDR3:", ab.cdr3)
-    ab.log("CDR3 AA:", ab.cdr3_aa)
-    ab.log("CDR3 LENGTH:", ab.cdr3_length)
-
     ab.log("\n-----------")
     ab.log(" MUTATIONS")
     ab.log("-----------\n")
@@ -1026,7 +1056,7 @@ def annotate_single_sequence(
         aligned_sequence=v_global_aa.aligned_query,
         aligned_germline=v_global_aa.aligned_target,
         gapped_germline=ab.v_germline_gapped_aa,
-        germline_start=ab.v_germline_start // 3,
+        germline_start=v_germline_aa_start,
         is_aa=True,
         ab=ab,
         debug=debug,
@@ -1062,7 +1092,7 @@ def annotate_single_sequence(
     ab.log("ALIGNED QUERY AA (SEMI-GLOBAL):", v_sg_aa.aligned_query)
     ab.log("ALIGNED GERMLINE AA (SEMI-GLOBAL):", v_sg_aa.aligned_target)
     ab.log("GAPPED GERMLINE AA:", ab.v_germline_gapped_aa)
-    ab.log("GERMLINE START AA:", ab.v_germline_start // 3 + 1)
+    ab.log("GERMLINE START AA:", v_germline_aa_start + 1)
 
     for region in v_regions:
         # nucleotide region
@@ -1083,7 +1113,7 @@ def annotate_single_sequence(
             # aln=v_sg_aa,
             aln=v_global_aa,
             gapped_germline=ab.v_germline_gapped_aa,
-            germline_start=ab.v_germline_start // 3 + 1,  # needs to be 1-indexed
+            germline_start=v_germline_aa_start + 1,  # needs to be 1-indexed
             ab=ab,
             aa=True,
             nt_region_start=region_start,

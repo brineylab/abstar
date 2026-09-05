@@ -8,6 +8,7 @@ import json
 import pytest
 
 from abstar.tests import corpus
+from abstar.tests.derived import load_derived_bcr_cases
 
 
 @pytest.mark.parametrize('kind,offset,affected,replacement,expected', [
@@ -226,6 +227,190 @@ PILOT_IDS = (
 )
 
 
+@pytest.fixture(scope='module')
+def original_annotations(tmp_path_factory):
+    """Run the public API, retaining real assignment rows for internal checks."""
+    import abstar
+    import polars as pl
+    from abstar.annotation.antibody import Antibody
+    from abstar.annotation.annotator import annotate_single_sequence
+
+    cases = corpus.load_real_bcr_cases()
+    project = tmp_path_factory.mktemp('original-goldens')
+    abstar.run([case.as_sequence() for case in cases], project_path=str(project),
+               output_format='parquet', n_processes=1, mmseqs_threads=1, debug=True)
+    rows = pl.read_parquet(project / 'parquet' / 'sequences.parquet').to_dicts()
+    assert [row['sequence_id'] for row in rows] == [case.sequence_id for case in cases]
+    assignments = pl.read_parquet(project / 'tmp' / 'chunk_0.parquet').to_dicts()
+    assert [row['sequence_id'] for row in assignments] == [case.sequence_id for case in cases]
+    internal = []
+    for row, assignment in zip(rows, assignments):
+        for segment in 'vjc':
+            assert row[f'{segment}_support'] == assignment[f'{segment}_support']
+            assert row[f'{segment}_call'] == assignment[f'{segment}_call'].replace('__homo_sapiens', '')
+        receptor = assignment.pop('receptor_type')
+        ab = Antibody(**assignment)
+        ab.receptor_type = receptor
+        internal.append(annotate_single_sequence(ab, germline_database='human'))
+    return tuple(zip(cases, rows, internal))
+
+
+def reconstruct_v_evidence(ab):
+    """Invert public mutation/indel notation against the named IMGT template."""
+    from abstar.tests.test_properties import _parse_indels
+
+    numbered = [(i, base) for i, base in enumerate(ab.v_germline_gapped, 1)
+                if base != '.']
+    retained = numbered[ab.v_germline_start:ab.v_germline_end]
+    mutations = {}
+    for mutation in (ab.v_mutations or '').split('|'):
+        if mutation:
+            position, change = mutation.split(':')
+            reference, alternate = change.split('>')
+            position = int(position)
+            assert ab.v_germline_gapped[position - 1] == reference
+            assert position not in mutations
+            mutations[position] = alternate
+    assert len(mutations) == ab.v_mutation_count
+    deleted = set()
+    for start, end, bases in _parse_indels(ab.v_deletions):
+        residues = [(i, base) for i, base in retained if start <= i <= end]
+        assert ''.join(base for _, base in residues) == bases
+        assert (residues[0][0], residues[-1][0]) == (start, end)
+        assert deleted.isdisjoint(i for i, _ in residues)
+        deleted.update(i for i, _ in residues)
+    inserted_events = _parse_indels(ab.v_insertions)
+    inserted = {start: bases for start, end, bases in inserted_events}
+    assert len(inserted) == len(inserted_events)
+    preceding = numbered[ab.v_germline_start - 1][0] if ab.v_germline_start else 0
+    query = inserted.pop(preceding, '')
+    for i, base in retained:
+        if i not in deleted:
+            query += mutations.pop(i, base)
+        query += inserted.pop(i, '')
+    assert not mutations and not inserted
+    assert query == ab.v_sequence
+    return query
+
+
+def assert_emitted_evidence_reconstructs(row, ab):
+    import math
+    from Bio.Seq import Seq
+    from abstar.annotation.germline import get_germline
+
+    assert row['annotation_status'] == 'annotated'
+    assert row['failure_reason'] is None
+    assert 'row_id' not in row
+    for suffix in ('', '_aa'):
+        sequence = row[f'sequence{suffix}']
+        assert row[f'sequence_alignment{suffix}'].replace('-', '') == sequence
+        assert len(row[f'sequence_alignment{suffix}']) == len(row[f'germline_alignment{suffix}'])
+        assert len(row[f'gene_segment_mask{suffix}']) == len(sequence)
+        assert len(row[f'nongermline_mask{suffix}']) == len(sequence)
+    for segment in 'vdjc':
+        call = getattr(ab, f'{segment}_call')
+        if call is None:
+            assert getattr(ab, f'{segment}_sequence') is None
+            assert getattr(ab, f'{segment}_score') is None
+            assert getattr(ab, f'{segment}_support') is None
+            continue
+        start, end = (getattr(ab, f'{segment}_sequence_{edge}') for edge in ('start', 'end'))
+        assert 0 <= start < end <= len(ab.sequence_oriented)
+        sequence = getattr(ab, f'{segment}_sequence')
+        assert ab.sequence_oriented[start:end] == sequence
+        reference = get_germline(call.split(',')[0].split('__')[0], 'human',
+                                 receptor=ab.receptor_type, exact_match=True,
+                                 force_constant=segment == 'c').sequence
+        gl_start, gl_end = (getattr(ab, f'{segment}_germline_{edge}') for edge in ('start', 'end'))
+        assert 0 <= gl_start < gl_end <= len(reference)
+        germline = getattr(ab, f'{segment}_germline')
+        assert reference[gl_start:gl_end] == germline
+        score = getattr(ab, f'{segment}_score')
+        assert math.isfinite(score) and score > 0
+        support = getattr(ab, f'{segment}_support')
+        if segment in 'vjc':
+            assert support is not None
+        if support is not None:
+            assert math.isfinite(support) and support >= 0
+        assert 0 <= getattr(ab, f'{segment}_identity') <= 1
+        if segment == 'c':
+            query_gapped, germline_gapped = ab.c_sequence_gapped, ab.c_germline_gapped
+            assert len(query_gapped) == len(germline_gapped)
+            assert len(ab.c_sequence_gapped_aa) == len(ab.c_germline_gapped_aa)
+            assert query_gapped.replace('.', '').replace('-', '') == sequence
+            assert germline_gapped.replace('.', '').replace('-', '') == germline
+            assert ab.c_identity == sum(q == g and q not in '.-' for q, g in zip(
+                query_gapped, germline_gapped)) / sum(q != '.' or g != '.' for q, g in zip(
+                    query_gapped, germline_gapped))
+            reference_aa = str(Seq(reference[:len(reference) // 3 * 3]).translate())
+            for mutation in (ab.c_mutations_aa or '').split('|'):
+                if mutation:
+                    position, change = mutation.split(':')
+                    reference_base, alternate = change.split('>')
+                    assert reference_aa[int(position) - 1] == reference_base, (ab.sequence_id, mutation)
+    reconstruct_v_evidence(ab)
+    for suffix in ('', '_aa'):
+        regions = [getattr(ab, region + suffix)
+                   for region in ('fwr1', 'cdr1', 'fwr2', 'cdr2', 'fwr3')]
+        assert all(regions[:-1])
+        if not regions[-1]:
+            # A truncated local V can omit the complete FWR3 endpoint; these
+            # fixtures do not adjudicate partial-region extraction behavior.
+            assert ab.v_germline_end < len(ab.v_germline_gapped[:312].replace('.', ''))
+        assert getattr(ab, 'v_sequence' + suffix).startswith(''.join(regions)), ab.sequence_id
+    # Amino acid mutation positions still address the complete IMGT reference,
+    # including when the retained nucleotide V starts inside a codon.
+    template = ab.v_germline_gapped
+    reference_aa = ''.join('.' if template[i:i + 3] == '...' else str(Seq(
+        template[i:i + 3]).translate()) for i in range(0, len(template) - 2, 3))
+    for mutation in (ab.v_mutations_aa or '').split('|'):
+        if mutation:
+            position, change = mutation.split(':')
+            reference, alternate = change.split('>')
+            assert reference_aa[int(position) - 1] == reference, (ab.sequence_id, mutation)
+
+
+@pytest.mark.e2e
+def test_partial_v_codon_keeps_full_imgt_amino_acid_positions(original_annotations):
+    case, row, ab = next(item for item in original_annotations
+                         if item[0].sequence_id == 'TTTGGTTAGGTTACCT-1_contig_2')
+    assert (ab.v_sequence_start, ab.v_germline_start, ab.v_frame) == (138, 2, 2)
+    assert case.source['alignment']['coding_start'] == 139
+    assert ab.v_sequence_aa.startswith('VQLLESGGGL')
+    assert '29:T>I' in ab.v_mutations_aa.split('|')
+    assert '28:T>I' not in ab.v_mutations_aa.split('|')
+
+
+@pytest.mark.e2e
+@pytest.mark.parametrize('index', range(36))
+def test_original_emitted_segment_evidence_reconstructs(original_annotations, index):
+    case, row, ab = original_annotations[index]
+    assert_emitted_evidence_reconstructs(row, ab)
+    # Authenticate explicitly adjudicated indel payloads and query positions
+    # by decoding the serialized IMGT events against the retained source trace.
+    from abstar.tests.test_properties import _parse_indels
+    for field, is_insertion in (('v_insertions', True), ('v_deletions', False)):
+        if field not in case.expected:
+            continue
+        trace = case.source['alignment']['v']
+        numbered = [i for i, base in enumerate(ab.v_germline_gapped, 1) if base != '.']
+        query_position = trace['query_start']
+        germline_position = trace['germline_start']
+        query_at_reference = {}
+        for q, g in zip(trace['query_aligned'], trace['germline_aligned']):
+            query_at_reference.setdefault(germline_position, query_position)
+            query_position += q != '-'
+            germline_position += g != '-'
+        decoded = []
+        for start, end, bases in _parse_indels(getattr(ab, field)):
+            raw = numbered.index(start) + (1 if is_insertion else 0)
+            query_start = query_at_reference[raw]
+            decoded.append(dict(query_start=query_start,
+                                query_end=query_start + (len(bases) if is_insertion else 0),
+                                sequence=bases))
+        assert decoded == list(case.expected[field])
+
+
 @pytest.fixture(autouse=True)
 def no_external_commands(monkeypatch, request):
     if request.node.get_closest_marker('e2e') is not None:
@@ -334,8 +519,60 @@ PILOT_SHORT_D = (
     ('ACGATACCAGGTTTCA-1_contig_2', 'IGHD1-14*01__homo_sapiens', 'CCGG', 441, 445, 7, 11),
     ('CAAGATCAGAGCTTCT-1_contig_2', 'IGHD1-20*01,IGHD1-7*01', 'GAAC', 430, 434, 10, 14),
     ('GGTGCGTAGGGAAACA-1_contig_1', 'IGHD1-14*01__homo_sapiens', 'CCGG', 407, 411, 7, 11),
-    ('GTAACTGAGTATTGGA-1_contig_2', 'IGHD6-6*01__homo_sapiens', 'CGTC', 433, 437, 13, 17),
 )
+
+
+def test_pilot_short_d_old_gt_interval_retains_real_nucleotide_evidence():
+    """The old narrower V/J interval supplied a four-base fallback D match."""
+    from abstar.annotation.antibody import Antibody
+    from abstar.annotation.annotator import ALIGNMENT_PARAMS, _segment_identities
+    from abstar.annotation.germline import reassign_dgene, process_dgene_alignment
+
+    case = next(c for c in corpus.load_real_bcr_cases()
+                if c.sequence_id == 'GTAACTGAGTATTGGA-1_contig_2')
+    local = reassign_dgene(case.sequence[433:442], 'human', 'IGH', 'bcr', ALIGNMENT_PARAMS)
+    ab = process_dgene_alignment(case.sequence, 433, local, Antibody())
+    assert ab.d_call == 'IGHD6-6*01__homo_sapiens'
+    assert (ab.d_sequence_start, ab.d_sequence_end) == (433, 437)
+    assert (ab.d_germline_start, ab.d_germline_end) == (13, 17)
+    assert ab.d_sequence == ab.d_germline == 'CGTC'
+    assert ab.d_score == 12
+    assert _segment_identities(ab.d_sequence, ab.d_germline, ab.d_frame) == (1.0, None)
+
+
+@pytest.mark.e2e
+def test_corrected_v_boundary_exposes_stronger_gt_d_evidence(original_annotations):
+    case, row, ab = next(item for item in original_annotations
+                         if item[0].sequence_id == 'GTAACTGAGTATTGGA-1_contig_2')
+    assert (ab.v_sequence_end, ab.j_sequence_start) == (431, 442)
+    assert row['d_call'] == 'IGHD1-14*01__homo_sapiens'
+    assert (ab.d_sequence_start, ab.d_sequence_end) == (431, 440)
+    assert (ab.d_germline_start, ab.d_germline_end) == (6, 15)
+    assert ab.d_sequence == case.sequence[431:440] == 'ACCGTCACC'
+    assert ab.d_germline == 'ACCGGAACC'
+    assert row['d_score'] == 17
+    assert row['d_identity'] == 7 / 9
+    assert row['d_identity_aa'] == 2 / 3
+
+
+@pytest.mark.e2e
+def test_primary_j_boundary_rejects_downstream_j5_repeat(original_annotations):
+    import abutils
+    from abstar.annotation.germline import get_germline, VJ_BOUNDARY_PARAMS
+
+    case, row, ab = next(item for item in original_annotations
+                         if item[0].sequence_id == 'CCATGTCCAGTCTTCC-1_contig_1')
+    germline = get_germline('IGHJ5*02', 'human', receptor='bcr', exact_match=True)
+    downstream = abutils.tl.local_alignment(case.sequence[412:], germline, **VJ_BOUNDARY_PARAMS)
+    assert (412 + downstream.query_begin, 413 + downstream.query_end) == (487, 528)
+    assert ab.junction_start == 401
+    assert ab.junction_end == 458
+    assert 412 + downstream.query_begin >= ab.junction_end
+    assert (ab.j_sequence_start, ab.j_sequence_end) == (455, 487)
+    assert (ab.j_germline_start, ab.j_germline_end) == (17, 49)
+    assert ab.j_sequence == ab.j_germline == 'TGGGGCCAGGGAACCCTGGTCACCGTCTCCTC'
+    assert row['j_score'] == 64
+    assert corpus.normalize_gene(row['j_call']) == ('IGHJ5',)
 
 
 # These independently observed local-match/primary-J discrepancies precede the
