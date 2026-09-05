@@ -26,6 +26,7 @@ import datetime
 import difflib
 import json
 import os
+import shlex
 import shutil
 import subprocess as sp
 import sys
@@ -48,6 +49,22 @@ from ..gl import get_germline, get_germline_database_path
 from ..utils import MATRIX_PATH
 
 __all__ = ["build_germline_database"]
+
+
+class GermlineBuildExternalToolError(RuntimeError):
+    """A custom-database build command failed with inspectable diagnostics."""
+
+    def __init__(self, message, *, command=(), returncode=None, stdout="", stderr=""):
+        self.command = tuple(command)
+        self.returncode = returncode
+        self.stdout = stdout
+        self.stderr = stderr
+        if self.command:
+            message += (
+                f"\nCOMMAND: {shlex.join(self.command)}\nEXIT STATUS: {returncode}"
+                f"\nSTDOUT:\n{stdout}\nSTDERR:\n{stderr}"
+            )
+        super().__init__(message)
 
 # ===============================
 #
@@ -271,6 +288,9 @@ def build_germline_database(
                 raise FileNotFoundError(f"The file {manifest} does not exist.")
             transfer_manifest_data(manifest, staging_dir)
 
+        validate_staged_database(
+            staging_dir, receptor, require_manifest=manifest is not None
+        )
         publish_database(staging_dir, database_dir, replacing)
         staging_dir = None
     finally:
@@ -574,6 +594,83 @@ def publish_database(staging_dir: str, database_dir: str, replacing: bool) -> No
         raise
     if backup_dir is not None:
         shutil.rmtree(backup_dir)
+
+
+_MMSEQS_COMPONENT_SUFFIXES = (
+    "",
+    ".dbtype",
+    ".index",
+    "_h",
+    "_h.dbtype",
+    "_h.index",
+)
+
+
+def validate_staged_database(
+    database_dir: str, receptor: str, *, require_manifest: bool = False
+) -> None:
+    """Validate a complete custom database before it becomes discoverable."""
+    database_dir = os.path.abspath(database_dir)
+    missing = []
+    segment_components = {}
+    for segment in "vdjc":
+        components = [
+            os.path.join("imgt_gapped", f"{segment}.fasta"),
+            os.path.join("ungapped", f"{segment}.fasta"),
+            *[
+                os.path.join("mmseqs", f"{segment}{suffix}")
+                for suffix in _MMSEQS_COMPONENT_SUFFIXES
+            ],
+        ]
+        segment_components[segment] = components
+        present = any(os.path.lexists(os.path.join(database_dir, path)) for path in components)
+        if segment in "vj" or present:
+            missing.extend(
+                path for path in components
+                if not os.path.isfile(os.path.join(database_dir, path))
+            )
+    if require_manifest:
+        manifest = os.path.join(database_dir, "manifest.txt")
+        if not os.path.isfile(manifest):
+            missing.append("manifest.txt")
+        elif os.path.getsize(manifest) == 0:
+            raise ValueError("staged germline database manifest.txt is empty")
+    if missing:
+        raise ValueError(
+            "incomplete staged germline database: missing " + ", ".join(missing)
+        )
+
+    for segment, components in segment_components.items():
+        gapped_path = os.path.join(database_dir, components[0])
+        if not os.path.isfile(gapped_path):
+            continue
+        ungapped_path = os.path.join(database_dir, components[1])
+        gapped = list(abutils.io.read_fasta(gapped_path))
+        ungapped = list(abutils.io.read_fasta(ungapped_path))
+        gapped_ids = [str(sequence.id) for sequence in gapped]
+        ungapped_ids = [str(sequence.id) for sequence in ungapped]
+        if not gapped:
+            raise ValueError(
+                f"staged germline database {components[0]} contains no sequences"
+            )
+        if len(gapped_ids) != len(set(gapped_ids)):
+            raise ValueError(
+                f"staged germline database {components[0]} contains duplicate IDs"
+            )
+        if len(ungapped_ids) != len(set(ungapped_ids)):
+            raise ValueError(
+                f"staged germline database {components[1]} contains duplicate IDs"
+            )
+        if gapped_ids != ungapped_ids:
+            raise ValueError(
+                f"staged germline database {segment.upper()} gapped and ungapped IDs differ"
+            )
+        for gapped_sequence, ungapped_sequence in zip(gapped, ungapped):
+            if gapped_sequence.sequence.replace(".", "") != ungapped_sequence.sequence:
+                raise ValueError(
+                    f"staged germline database {segment.upper()} gapped and ungapped "
+                    f"sequences differ for {gapped_sequence.id}"
+                )
 
 
 def confirm_overwrite_existing_db(name: str) -> bool:
@@ -930,13 +1027,19 @@ def _run_mmseqs_command(command: list[str]) -> sp.CompletedProcess:
     try:
         return sp.run(command, check=True, capture_output=True, text=True)
     except sp.CalledProcessError as error:
-        details = "\n".join(
-            value.strip() for value in (error.stdout, error.stderr) if value
-        )
-        message = f"MMseqs command failed: {' '.join(command)}"
-        if details:
-            message = f"{message}\n{details}"
-        raise RuntimeError(message) from error
+        raise GermlineBuildExternalToolError(
+            "MMseqs command failed",
+            command=command,
+            returncode=error.returncode,
+            stdout=error.stdout or "",
+            stderr=error.stderr or "",
+        ) from error
+    except OSError as error:
+        raise GermlineBuildExternalToolError(
+            "MMseqs command could not be started",
+            command=command,
+            stderr=str(error),
+        ) from error
 
 
 # def print_segment_info(segment: str, input_file: str) -> None:
