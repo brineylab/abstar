@@ -184,7 +184,59 @@ def test_multi_record_input_with_one_annotation_returns_list(single_hc_sequence)
     result = run([single_hc_sequence, unassignable], n_processes=1)
 
     assert isinstance(result, list)
-    assert [sequence.id for sequence in result] == [single_hc_sequence.id]
+    assert [sequence.id for sequence in result] == [
+        single_hc_sequence.id,
+        "unassignable",
+    ]
+    assert result[1]["annotation_status"] == "unassigned"
+    assert result[1]["failure_reason"]
+    assert result[1]["v_call"] is None
+    assert result[1]["j_call"] is None
+
+
+@pytest.mark.e2e
+def test_single_unassignable_record_returns_explicit_sequence_outcome():
+    result = run(Sequence("N", id="only-unassignable"), n_processes=1)
+
+    assert isinstance(result, Sequence)
+    assert result.id == "only-unassignable"
+    assert result["annotation_status"] == "unassigned"
+    assert result["failure_reason"]
+    assert result["v_call"] is None
+    assert result["j_call"] is None
+    assert "row_id" not in result.annotations
+
+
+@pytest.mark.e2e
+@pytest.mark.parametrize(
+    ("n_processes", "chunksize"),
+    [(1, 1), (2, 3)],
+)
+def test_run_conserves_duplicate_opaque_ids_and_order_across_workers(
+    single_hc_sequence, n_processes, chunksize
+):
+    identifiers = ["10E8", "00123", "duplicate", "duplicate"]
+    records = [
+        Sequence(single_hc_sequence.sequence, id=sequence_id)
+        for sequence_id in identifiers
+    ]
+    records.append(Sequence("N", id="unassignable"))
+
+    result = run(records, n_processes=n_processes, chunksize=chunksize)
+
+    assert isinstance(result, list)
+    assert [sequence.id for sequence in result] == [*identifiers, "unassignable"]
+    assert [sequence["annotation_status"] for sequence in result] == [
+        "annotated",
+        "annotated",
+        "annotated",
+        "annotated",
+        "unassigned",
+    ]
+    assert result[-1]["failure_reason"]
+    assert result[-1]["v_call"] is None
+    assert result[-1]["j_call"] is None
+    assert all("row_id" not in sequence.annotations for sequence in result)
 
 
 @pytest.mark.e2e

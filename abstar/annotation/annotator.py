@@ -4,8 +4,6 @@
 
 import os
 import traceback
-from typing import Iterable
-
 import abutils
 
 # import pandas as pd
@@ -31,8 +29,9 @@ from .mutations import annotate_c_mutations, annotate_v_mutations
 from .positions import get_gapped_sequence, get_ungapped_position_from_aligned
 from .productivity import assess_productivity
 from .regions import get_region_sequence, identify_cdr3_regions
-from .schema import OUTPUT_SCHEMA
+from .schema import ANNOTATION_WORK_SCHEMA
 from .umi import parse_umis
+from ..core.results import AnnotationChunkResult, RecordFailure
 
 
 def calculate_alignment_identity(
@@ -98,7 +97,7 @@ def annotate(
     umi_pattern: str | None = None,
     umi_length: int | None = None,
     debug: bool = False,
-) -> Iterable[str | None]:
+) -> AnnotationChunkResult:
     """
     Annotates a Parquet file of V(D)J-assigned antibody sequences.
 
@@ -143,16 +142,10 @@ def annotate(
 
     Returns
     -------
-    output_file : str
-        Path to the output Parquet file containing annotated sequences.
-
-    failed_logfile : Optional[str]
-        Path to the log file for failed sequences. Only returned if
-        `log_directory` is provided
-
-    succeeded_logfile : Optional[str]
-        Path to the log file for succeeded sequences. Only returned if
-        `debug=True` and `log_directory` is provided.
+    AnnotationChunkResult
+        Paths to the annotation work output and diagnostic logs, plus any
+        structured record failures. Biological nonassignments are ordinary
+        output rows rather than failures.
 
     """
     # load the input parquet file
@@ -160,8 +153,24 @@ def annotate(
 
     # do annotations
     annotated = []
-    for r in df.iter_rows(named=True):
+    failures = []
+    for record_ordinal, r in enumerate(df.iter_rows(named=True)):
+        r.setdefault("row_id", f"abstar_0_{record_ordinal}")
+        receptor_type = r.pop("receptor_type", None)
         ab = Antibody(**r)
+        if receptor_type is not None:
+            ab.receptor_type = receptor_type
+        if ab.v_call is None or ab.j_call is None:
+            missing = "V" if ab.v_call is None else "J"
+            ab.annotation_status = "unassigned"
+            ab.failure_reason = f"no compatible {missing} gene assignment"
+            ab.productive = None
+            ab.productivity_issues = None
+            ab.sequence = ab.sequence_input
+            ab.sequence_oriented = ab.sequence_input
+            ab.germline_database = germline_database
+            annotated.append(ab)
+            continue
         try:
             ab = annotate_single_sequence(
                 ab=ab,
@@ -170,14 +179,28 @@ def annotate(
                 umi_length=umi_length,
                 debug=debug,
             )
-        except Exception as e:
-            ab.exception("ANNOTATION EXCEPTION", traceback.format_exc())
+        except Exception as error:
+            traceback_text = traceback.format_exc()
+            ab.exception("ANNOTATION EXCEPTION", traceback_text)
+            failures.append(
+                RecordFailure(
+                    row_id=str(ab.row_id),
+                    sequence_id=str(ab.sequence_id),
+                    stage="annotation",
+                    category="internal_error",
+                    message=str(error) or type(error).__name__,
+                    traceback_text=traceback_text,
+                )
+            )
         annotated.append(ab)
 
     # gather the results
     failed = [a for a in annotated if a.exceptions]
     succeeded = [a for a in annotated if not a.exceptions]
-    succeeded_df = pl.DataFrame([s.to_dict() for s in succeeded], schema=OUTPUT_SCHEMA)
+    succeeded_df = pl.DataFrame(
+        [{"row_id": str(s.row_id), **s.to_dict()} for s in succeeded],
+        schema=ANNOTATION_WORK_SCHEMA,
+    )
 
     # write logs
     basename = os.path.basename(input_file)
@@ -197,13 +220,14 @@ def annotate(
     succeeded_df.write_parquet(output_file)
 
     # returns
-    if log_directory:
-        if debug:
-            return output_file, failed_logfile, succeeded_logfile
-        else:
-            return output_file, failed_logfile, None
-    else:
-        return output_file, None, None
+    return AnnotationChunkResult(
+        output_path=output_file,
+        failures=tuple(failures),
+        failed_log_path=failed_logfile if log_directory else None,
+        succeeded_log_path=(
+            succeeded_logfile if debug and log_directory else None
+        ),
+    )
 
 
 def annotate_single_sequence(

@@ -4,10 +4,14 @@
 
 import pickle
 from dataclasses import FrozenInstanceError
+from pathlib import Path
 
+import polars as pl
 import pytest
 
+from ..annotation.annotator import annotate
 from ..core.results import AnnotationChunkResult, AnnotationRunError, RecordFailure
+from ..core.abstar import _assert_record_conservation
 
 
 def test_record_failure_is_immutable_and_pickleable():
@@ -242,3 +246,81 @@ def test_only_run_error_is_exported_from_package_root():
     assert abstar.AnnotationRunError is AnnotationRunError
     assert not hasattr(abstar, "RecordFailure")
     assert not hasattr(abstar, "AnnotationChunkResult")
+
+
+def test_record_conservation_accepts_exactly_accounted_records():
+    failure = RecordFailure(
+        row_id="abstar_0_4",
+        sequence_id="broken",
+        stage="annotation",
+        category="internal_error",
+        message="annotation failed",
+    )
+
+    _assert_record_conservation(5, 3, 1, [failure])
+
+
+def test_record_conservation_raises_structured_run_error_on_mismatch():
+    with pytest.raises(AnnotationRunError) as exc_info:
+        _assert_record_conservation(5, 3, 1, [])
+
+    assert len(exc_info.value.failures) == 1
+    failure = exc_info.value.failures[0]
+    assert failure == RecordFailure(
+        row_id="run",
+        sequence_id="<run>",
+        stage="output",
+        category="internal_error",
+        message="record conservation failed: input=5, accounted=4",
+    )
+
+
+def test_annotate_returns_structured_failure_after_writing_diagnostics(
+    tmp_path, monkeypatch
+):
+    input_path = tmp_path / "assigned.parquet"
+    output_directory = tmp_path / "output"
+    log_directory = tmp_path / "logs"
+    output_directory.mkdir()
+    log_directory.mkdir()
+    pl.DataFrame(
+        {
+            "row_id": ["abstar_0_0"],
+            "sequence_id": ["duplicate"],
+            "sequence_input": ["ACGT"],
+            "quality": [""],
+            "rev_comp": [False],
+            "v_call": ["IGHV3-23*01"],
+            "v_support": [1e-20],
+            "d_call": [None],
+            "d_support": [None],
+            "j_call": ["IGHJ4*02"],
+            "j_support": [1e-10],
+            "c_call": [None],
+            "c_support": [None],
+        }
+    ).write_parquet(input_path)
+
+    def fail_annotation(**kwargs):
+        raise RuntimeError("deliberate annotation failure")
+
+    monkeypatch.setattr(
+        "abstar.annotation.annotator.annotate_single_sequence", fail_annotation
+    )
+
+    result = annotate(
+        str(input_path),
+        str(output_directory),
+        "human",
+        log_directory=str(log_directory),
+    )
+
+    assert pl.read_parquet(result.output_path).is_empty()
+    assert len(result.failures) == 1
+    assert result.failures[0].row_id == "abstar_0_0"
+    assert result.failures[0].sequence_id == "duplicate"
+    assert result.failures[0].stage == "annotation"
+    assert result.failures[0].category == "internal_error"
+    assert "deliberate annotation failure" in result.failures[0].message
+    assert result.failed_log_path is not None
+    assert "deliberate annotation failure" in Path(result.failed_log_path).read_text()

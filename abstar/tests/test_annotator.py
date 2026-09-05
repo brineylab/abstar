@@ -123,26 +123,26 @@ def test_antibody_to_dict_include_does_not_change_later_serialization():
 
 
 def test_annotate_returns_correct_files(mock_assignment_parquet, tmp_path):
-    """Test annotate() returns (output_file, failed_logfile, succeeded_logfile)."""
+    """Test annotate() returns structured output and diagnostic paths."""
     output_dir = str(tmp_path / "output")
     log_dir = str(tmp_path / "logs")
     os.makedirs(output_dir)
     os.makedirs(log_dir)
 
-    output_file, failed, succeeded = annotate(
+    result = annotate(
         input_file=mock_assignment_parquet,
         output_directory=output_dir,
         germline_database="human",
         log_directory=log_dir,
     )
 
-    assert output_file is not None
-    assert os.path.exists(output_file)
-    assert output_file.endswith(".parquet")
+    assert result.output_path is not None
+    assert os.path.exists(result.output_path)
+    assert result.output_path.endswith(".parquet")
 
     # Failed log file should exist (may be empty)
-    assert failed is not None
-    assert os.path.exists(failed)
+    assert result.failed_log_path is not None
+    assert os.path.exists(result.failed_log_path)
 
 
 def test_annotate_creates_parquet_output(mock_assignment_parquet, tmp_path):
@@ -152,7 +152,7 @@ def test_annotate_creates_parquet_output(mock_assignment_parquet, tmp_path):
     os.makedirs(output_dir)
     os.makedirs(log_dir)
 
-    output_file, _, _ = annotate(
+    result = annotate(
         input_file=mock_assignment_parquet,
         output_directory=output_dir,
         germline_database="human",
@@ -160,7 +160,7 @@ def test_annotate_creates_parquet_output(mock_assignment_parquet, tmp_path):
     )
 
     # Read output and check columns
-    df = pl.read_parquet(output_file)
+    df = pl.read_parquet(result.output_path)
 
     # Check key columns exist
     required_columns = [
@@ -181,7 +181,7 @@ def test_annotate_with_debug_logs_succeeded(mock_assignment_parquet, tmp_path):
     os.makedirs(output_dir)
     os.makedirs(log_dir)
 
-    output_file, failed, succeeded = annotate(
+    result = annotate(
         input_file=mock_assignment_parquet,
         output_directory=output_dir,
         germline_database="human",
@@ -190,8 +190,8 @@ def test_annotate_with_debug_logs_succeeded(mock_assignment_parquet, tmp_path):
     )
 
     # With debug=True, succeeded log should be returned
-    assert succeeded is not None
-    assert os.path.exists(succeeded)
+    assert result.succeeded_log_path is not None
+    assert os.path.exists(result.succeeded_log_path)
 
 
 def test_annotate_light_chain(mock_light_chain_parquet, tmp_path):
@@ -201,14 +201,14 @@ def test_annotate_light_chain(mock_light_chain_parquet, tmp_path):
     os.makedirs(output_dir)
     os.makedirs(log_dir)
 
-    output_file, _, _ = annotate(
+    result = annotate(
         input_file=mock_light_chain_parquet,
         output_directory=output_dir,
         germline_database="human",
         log_directory=log_dir,
     )
 
-    df = pl.read_parquet(output_file)
+    df = pl.read_parquet(result.output_path)
 
     # Check it's a light chain
     if df.height > 0:

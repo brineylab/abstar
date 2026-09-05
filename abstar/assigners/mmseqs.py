@@ -16,9 +16,13 @@ from .assigner import AssignerBase
 
 
 ASSIGNMENT_SCHEMA = {
+    "row_id": pl.String,
     "sequence_id": pl.String,
     "sequence_input": pl.String,
     "quality": pl.String,
+    "receptor_type": pl.String,
+    "germline_database": pl.String,
+    "locus": pl.String,
     "rev_comp": pl.Boolean,
     "v_call": pl.String,
     "v_support": pl.Float64,
@@ -127,6 +131,7 @@ def filter_compatible_locus(
         left_on=query,
         right_on="v_query",
         how="inner",
+        validate="m:1",
     ).filter(
         pl.col(call).str.slice(0, 3) == pl.col("v_call").str.slice(0, 3)
     ).drop("v_call")
@@ -160,9 +165,13 @@ class MMseqs(AssignerBase):
 
         self.chunksize = chunksize
         self.threads = threads
+        self.sample_ordinal = 0
 
     def __call__(
-        self, sequence_file: str, sample_name: str | None = None
+        self,
+        sequence_file: str,
+        sample_name: str | None = None,
+        sample_ordinal: int = 0,
     ) -> tuple[str, int]:
         """
         Run the MMseqs assigner.
@@ -185,6 +194,7 @@ class MMseqs(AssignerBase):
         self.sample_name = sample_name or ".".join(
             os.path.basename(sequence_file).rstrip(".gz").split(".")[:-1]
         )
+        self.sample_ordinal = sample_ordinal
 
         # input files are split into 1M sequence chunks
         input_fastas, input_tsvs, sequence_count = self.prepare_input_files(
@@ -281,6 +291,30 @@ class MMseqs(AssignerBase):
             schema_overrides={"v_query": pl.String, "v_call": pl.String},
         )
         vresult_df = select_best_hits(vresult_df, "v")
+        if vresult_df.is_empty():
+            input_df = pl.read_csv(
+                input_tsv,
+                separator="\t",
+                schema_overrides=INPUT_SCHEMA,
+            )
+            no_hits = input_df.with_columns(
+                pl.lit(None, dtype=pl.Int64).alias("v_qstart"),
+                pl.lit(None, dtype=pl.Int64).alias("v_qend"),
+                *[
+                    pl.lit(None, dtype=dtype).alias(column)
+                    for column, dtype in {
+                        "v_call": pl.String,
+                        "v_support": pl.Float64,
+                        "d_call": pl.String,
+                        "d_support": pl.Float64,
+                        "j_call": pl.String,
+                        "j_support": pl.Float64,
+                        "c_call": pl.String,
+                        "c_support": pl.Float64,
+                    }.items()
+                ],
+            )
+            return self._write_assignment_outputs(no_hits, idx)
 
         # -----------
         #   J genes
@@ -335,6 +369,7 @@ class MMseqs(AssignerBase):
             left_on="v_query",
             right_on="j_query",
             how="left",
+            validate="1:1",
         )
 
         if self.debug:
@@ -400,6 +435,7 @@ class MMseqs(AssignerBase):
                     left_on="v_query",
                     right_on="d_query",
                     how="left",
+                    validate="1:1",
                 )
             else:
                 # if none of the sequences have a D gene assignment,
@@ -478,6 +514,7 @@ class MMseqs(AssignerBase):
                     left_on="v_query",
                     right_on="c_query",
                     how="left",
+                    validate="1:1",
                 )
             else:
                 # if none of the sequences have a C gene assignment,
@@ -504,11 +541,21 @@ class MMseqs(AssignerBase):
             left_on="row_id",
             right_on="v_query",
             how="left",
+            validate="1:1",
         )
 
-        # add the rev_comp column
+        return self._write_assignment_outputs(vdjcresult_df, idx)
+
+    def _write_assignment_outputs(
+        self, vdjcresult_df: pl.DataFrame, idx: str
+    ) -> tuple[str, str]:
+        """Write one conserved assignment work frame and its no-call log."""
+        # add explicit run metadata and strand orientation
         vdjcresult_df = vdjcresult_df.with_columns(
-            (pl.col("v_qstart") > pl.col("v_qend")).alias("rev_comp")
+            (pl.col("v_qstart") > pl.col("v_qend")).fill_null(False).alias("rev_comp"),
+            pl.lit(self.receptor).alias("receptor_type"),
+            pl.lit(self.germdb_name).alias("germline_database"),
+            pl.col("v_call").str.slice(0, 3).str.to_uppercase().alias("locus"),
         )
 
         if self.debug:
@@ -519,7 +566,7 @@ class MMseqs(AssignerBase):
             )
 
         # log "unassigned" sequences (no V or J gene assignment)
-        unassigned_cols = ["sequence_id", "sequence_input"]
+        unassigned_cols = ["row_id", "sequence_id", "sequence_input"]
         unassigned = vdjcresult_df.filter(
             pl.col("v_call").is_null() | pl.col("j_call").is_null()
         )
@@ -533,9 +580,13 @@ class MMseqs(AssignerBase):
 
         # write "assigned" sequence results (successful V and J gene assignment)
         assigned_cols = [
+            "row_id",
             "sequence_id",
             "sequence_input",
             "quality",
+            "receptor_type",
+            "germline_database",
+            "locus",
             "rev_comp",
             "v_call",
             "v_support",
@@ -546,10 +597,9 @@ class MMseqs(AssignerBase):
             "c_call",
             "c_support",
         ]
-        assigned = vdjcresult_df.filter(
-            ~pl.col("v_call").is_null() & ~pl.col("j_call").is_null()
-        )
-        assigned = assigned.select(assigned_cols)
+        # Keep every input row in the annotation work stream. Missing germline
+        # calls are ordinary biological nonassignments and are serialized there.
+        assigned = vdjcresult_df.select(assigned_cols)
         assigned_path = os.path.join(
             self.output_directory, f"{self.sample_name}.{idx}.parquet"
         )
@@ -603,6 +653,7 @@ class MMseqs(AssignerBase):
         # process sequence file(s)
         output_fastas = []
         output_csvs = []
+        record_ordinal = 0
         for i, sequence_file in enumerate(sequence_files):
             # set up output files
             output_fasta = os.path.join(
@@ -621,15 +672,14 @@ class MMseqs(AssignerBase):
                     writer.writerow(
                         ["row_id", "sequence_id", "sequence_input", "quality"]
                     )
-                    for row_number, seq in enumerate(
-                        abutils.io.parse_fastx(sequence_file)
-                    ):
+                    for seq in abutils.io.parse_fastx(sequence_file):
                         qual = seq.qual if seq.qual is not None else ""
                         # MMseqs sees only this immutable, unique key. User identifiers
                         # remain payload data and are restored after assignment.
-                        row_id = f"abstar_{i}_{row_number}"
+                        row_id = f"abstar_{self.sample_ordinal}_{record_ordinal}"
                         ofasta.write(f">{row_id}\n{seq.sequence}\n")
                         writer.writerow([row_id, str(seq.id), seq.sequence, qual])
+                        record_ordinal += 1
             output_fastas.append(output_fasta)
             output_csvs.append(output_csv)
 
@@ -680,6 +730,7 @@ class MMseqs(AssignerBase):
             _df = pl.scan_csv(
                 unassigned_path,
                 schema_overrides={
+                    "row_id": pl.String,
                     "sequence_id": pl.String,
                     "sequence_input": pl.String,
                 },

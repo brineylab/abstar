@@ -602,6 +602,7 @@ def test_assemble_output_files(mmseqs_instance, tmp_path):
     """Test merging multiple parquet/CSV files into single outputs."""
     # Create mock assigned parquet files
     df1 = pl.DataFrame({
+        "row_id": ["abstar_0_0"],
         "sequence_id": ["seq1"],
         "sequence_input": ["ATGC"],
         "quality": [""],
@@ -617,6 +618,7 @@ def test_assemble_output_files(mmseqs_instance, tmp_path):
     })
 
     df2 = pl.DataFrame({
+        "row_id": ["abstar_0_1"],
         "sequence_id": ["seq2"],
         "sequence_input": ["GCTA"],
         "quality": [""],
@@ -638,6 +640,7 @@ def test_assemble_output_files(mmseqs_instance, tmp_path):
 
     # Create mock unassigned CSV files
     unassigned_df = pl.DataFrame({
+        "row_id": ["abstar_0_2"],
         "sequence_id": ["unassigned1"],
         "sequence_input": ["NNNN"],
     })
@@ -659,3 +662,4 @@ def test_assemble_output_files(mmseqs_instance, tmp_path):
     assert os.path.exists(assembled_path)
     assembled_df = pl.read_parquet(assembled_path)
     assert assembled_df.height == 2  # Both sequences combined
+    assert assembled_df["row_id"].to_list() == ["abstar_0_0", "abstar_0_1"]

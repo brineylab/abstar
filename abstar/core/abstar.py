@@ -6,6 +6,7 @@ import multiprocessing as mp
 import os
 import shutil
 import tempfile
+import traceback
 from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from datetime import datetime
@@ -18,8 +19,96 @@ from natsort import natsorted
 from tqdm.auto import tqdm
 
 from ..annotation.annotator import annotate
+from ..annotation.schema import ANNOTATION_WORK_SCHEMA
 from ..assigners.mmseqs import MMseqs
 from ..preprocess.merging import merge_fastqs
+from .results import AnnotationChunkResult, AnnotationRunError, RecordFailure
+
+
+def _assert_record_conservation(
+    input_count: int,
+    annotated_count: int,
+    unassigned_count: int,
+    failures: Iterable[RecordFailure],
+) -> None:
+    """Raise when input records are missing from explicit pipeline outcomes."""
+    failures = tuple(failures)
+    accounted = annotated_count + unassigned_count + len(failures)
+    if accounted != input_count:
+        raise AnnotationRunError(
+            [
+                RecordFailure(
+                    "run",
+                    "<run>",
+                    "output",
+                    "internal_error",
+                    f"record conservation failed: input={input_count}, accounted={accounted}",
+                )
+            ]
+        )
+
+
+def _sort_annotation_workframe(frame: pl.DataFrame) -> pl.DataFrame:
+    """Sort deterministic row keys by their numeric sample and record ordinals."""
+    if frame.is_empty():
+        return frame
+    if frame["row_id"].n_unique() != frame.height:
+        raise AnnotationRunError(
+            [
+                RecordFailure(
+                    "run",
+                    "<run>",
+                    "output",
+                    "internal_error",
+                    "duplicate internal row_id in annotation output",
+                )
+            ]
+        )
+    return (
+        frame.with_columns(
+            pl.col("row_id")
+            .str.extract(r"^abstar_(\d+)_", 1)
+            .cast(pl.UInt64)
+            .alias("__sample_ordinal"),
+            pl.col("row_id")
+            .str.extract(r"_(\d+)$", 1)
+            .cast(pl.UInt64)
+            .alias("__record_ordinal"),
+        )
+        .sort("__sample_ordinal", "__record_ordinal")
+        .drop("__sample_ordinal", "__record_ordinal")
+    )
+
+
+def _chunk_failure_result(
+    input_file: str,
+    output_directory: str,
+    log_directory: str,
+    error: BaseException,
+) -> AnnotationChunkResult:
+    """Represent a crashed annotation worker as one failure per input record."""
+    input_frame = pl.read_parquet(input_file)
+    traceback_text = "".join(
+        traceback.format_exception(type(error), error, error.__traceback__)
+    )
+    failures = tuple(
+        RecordFailure(
+            row_id=str(record["row_id"]),
+            sequence_id=str(record["sequence_id"]),
+            stage="annotation",
+            category="internal_error",
+            message=str(error) or type(error).__name__,
+            traceback_text=traceback_text,
+        )
+        for record in input_frame.iter_rows(named=True)
+    )
+    basename = os.path.basename(input_file)
+    output_path = os.path.join(output_directory, f"{basename}_annotated.parquet")
+    pl.DataFrame(schema=ANNOTATION_WORK_SCHEMA).write_parquet(output_path)
+    failed_log_path = os.path.join(log_directory, f"{basename}.failed")
+    with open(failed_log_path, "w") as log:
+        log.write(traceback_text)
+    return AnnotationChunkResult(output_path, failures, failed_log_path, None)
 
 #  TODO: inputs/returns
 #  --------------------
@@ -342,7 +431,10 @@ def run(
     sequence_files = natsorted(sequence_files)
     sample_names = _get_sample_names(sequence_files)
     total_input_count = 0
-    for sequence_file in sequence_files:
+    total_annotated_count = 0
+    total_unassigned_count = 0
+    all_failures = []
+    for sample_ordinal, sequence_file in enumerate(sequence_files):
         start_time = datetime.now()
         to_delete = []
 
@@ -357,9 +449,26 @@ def run(
             logger.info("\n")
 
         # assign VDJC genes, the returned assign_file is in parquet format
-        assign_file, raw_sequence_count = assigner(
-            sequence_file, sample_name=sample_name
-        )
+        try:
+            assign_file, raw_sequence_count = assigner(
+                sequence_file,
+                sample_name=sample_name,
+                sample_ordinal=sample_ordinal,
+            )
+        except Exception as error:
+            traceback_text = traceback.format_exc()
+            failure = RecordFailure(
+                row_id=f"abstar_{sample_ordinal}_assignment",
+                sequence_id=sample_name,
+                stage="assignment",
+                category="external_tool",
+                message=str(error) or type(error).__name__,
+                traceback_text=traceback_text,
+            )
+            failed_log_file = os.path.join(log_dir, f"{sample_name}.failed")
+            with open(failed_log_file, "w") as failed_log:
+                failed_log.write(traceback_text)
+            raise AnnotationRunError([failure]) from error
         total_input_count += raw_sequence_count
         assigner.cleanup()
 
@@ -397,24 +506,63 @@ def run(
             }
             chunk_results = [None] * len(futures)
             for future in as_completed(futures):
-                chunk_results[futures[future]] = future.result()
+                result_index = futures[future]
+                try:
+                    chunk_results[result_index] = future.result()
+                except Exception as error:
+                    chunk_results[result_index] = _chunk_failure_result(
+                        split_assign_files[result_index], temp_dir, log_dir, error
+                    )
                 if verbose:
                     progress_bar.update(1)
-            for annotated, failed, succeeded in chunk_results:
-                annotated_files.append(annotated)
-                failed_log_files.append(failed)
-                succeeded_log_files.append(succeeded)
+            for result in chunk_results:
+                annotated_files.append(result.output_path)
+                failed_log_files.append(result.failed_log_path)
+                succeeded_log_files.append(result.succeeded_log_path)
+                all_failures.extend(result.failures)
         if verbose:
             progress_bar.close()
+
+        work_frames = [pl.read_parquet(path) for path in annotated_files]
+        work_df = _sort_annotation_workframe(pl.concat(work_frames, how="diagonal"))
+        sample_failures = [
+            failure for result in chunk_results for failure in result.failures
+        ]
+        annotated_count = work_df.filter(
+            pl.col("annotation_status") == "annotated"
+        ).height
+        unassigned_count = work_df.filter(
+            pl.col("annotation_status") == "unassigned"
+        ).height
+        _assert_record_conservation(
+            raw_sequence_count,
+            annotated_count,
+            unassigned_count,
+            sample_failures,
+        )
+        total_annotated_count += annotated_count
+        total_unassigned_count += unassigned_count
+        public_df = work_df.drop("row_id")
+
+        failed_log_file = os.path.join(log_dir, f"{sample_name}.failed")
+        _assemble_logs(failed_log_files, failed_log_file)
+        if debug:
+            succeeded_log_file = os.path.join(log_dir, f"{sample_name}.succeeded")
+            _assemble_logs(succeeded_log_files, succeeded_log_file)
+
+        if sample_failures:
+            raise AnnotationRunError(sample_failures, annotated_files)
 
         # get output Sequences
         if return_sequences:
             if as_dataframe:
-                sequence_df = pl.read_parquet(annotated_files)
-                dataframes_to_return.append(sequence_df)
-                sequence_count = sequence_df.height
+                dataframes_to_return.append(public_df)
+                sequence_count = public_df.height
             else:
-                annotated_sequences = abutils.io.read_parquet(annotated_files)
+                annotated_sequences = [
+                    Sequence(record, id_key="sequence_id", seq_key="sequence")
+                    for record in public_df.to_dicts()
+                ]
                 sequences_to_return.extend(annotated_sequences)
                 sequence_count = len(annotated_sequences)
 
@@ -429,25 +577,17 @@ def run(
 
         # or assemble output files (including logs)
         else:
-            output_df = pl.scan_parquet(annotated_files)
             if "airr" in output_format:
                 airr_file = os.path.join(project_path, f"airr/{sample_name}.tsv")
-                output_df.sink_csv(airr_file, separator="\t")
+                public_df.write_csv(airr_file, separator="\t")
             if "parquet" in output_format:
                 parquet_file = os.path.join(
                     project_path, f"parquet/{sample_name}.parquet"
                 )
-                output_df.sink_parquet(parquet_file)
-            # assemble logs
-            failed_log_file = os.path.join(log_dir, f"{sample_name}.failed")
-            _assemble_logs(failed_log_files, failed_log_file)
-            if debug:
-                # only log succeeded sequences if we're in debug mode
-                succeeded_log_file = os.path.join(log_dir, f"{sample_name}.succeeded")
-                _assemble_logs(succeeded_log_files, succeeded_log_file)
+                public_df.write_parquet(parquet_file)
 
             # log results summary
-            sequence_count = output_df.select(pl.len()).collect().row(0)[0]
+            sequence_count = public_df.height
             duration = datetime.now() - start_time
             _log_results_summary(
                 sequence_count=sequence_count,
@@ -467,6 +607,12 @@ def run(
         if not debug:
             _delete_files(to_delete)
 
+    _assert_record_conservation(
+        total_input_count,
+        total_annotated_count,
+        total_unassigned_count,
+        all_failures,
+    )
     if return_sequences:
         if as_dataframe:
             return pl.concat(dataframes_to_return, how="vertical")
