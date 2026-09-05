@@ -11,6 +11,19 @@ from abstar.tests import corpus
 from abstar.tests.derived import load_derived_bcr_cases
 
 
+def expected_for_selected_reference(case, field, call):
+    # The authenticated primary tract is a J4 trace, while J5 is explicitly
+    # accepted. Direct J5*02 comparison supports only its exact 32-base suffix:
+    # [455:487] / reference [17:49], score 64 with reviewed match=2. Extending
+    # to the J4 start 452 would add TAT versus CCC, three mismatches. Keep the
+    # source fixture intact and make this separately reviewed allele boundary
+    # explicit instead of applying J4 coordinates to J5.
+    if (case.sequence_id == 'CCATGTCCAGTCTTCC-1_contig_1'
+            and field == 'j_sequence_start' and call == 'IGHJ5*02'):
+        return 455
+    return case.expected[field]
+
+
 @pytest.mark.parametrize('kind,offset,affected,replacement,expected', [
     ('identity', 0, '', '', 'AACCGG'),
     ('reverse_complement', 0, '', '', 'CCGGTT'),
@@ -255,6 +268,48 @@ def original_annotations(tmp_path_factory):
     return tuple(zip(cases, rows, internal))
 
 
+@pytest.mark.e2e
+@pytest.mark.parametrize('index', range(36))
+def test_original_biological_productivity_goldens(original_annotations, index):
+    case, row, ab = original_annotations[index]
+    assert row['sequence_id'] == ab.sequence_id == case.sequence_id
+    assert row['sequence_input'] == row['sequence_oriented'] == case.sequence
+    assert row['annotation_status'] == case.expected['status']
+    assert row['failure_reason'] is None
+    assert 'row_id' not in row
+    assert ab.receptor_type == case.source['alignment']['germline_receptor']
+    assert row['germline_database'] == ab.germline_database == 'human'
+    disagreements = {}
+    for field, expected in case.expected.items():
+        if field in ('status', 'v_insertions', 'v_deletions'):
+            continue
+        actual = getattr(ab, field)
+        expected = expected_for_selected_reference(case, field, ab.j_call)
+        if field.endswith('_call') and isinstance(expected, tuple):
+            actual = corpus.normalize_gene(actual)
+            if not actual or not set(actual) <= set(expected):
+                disagreements[field] = (actual, expected)
+        elif field == 'productivity_issues':
+            actual = tuple(actual.split('|')) if actual else ()
+            if actual != expected:
+                disagreements[field] = (actual, expected)
+        elif actual != expected:
+            disagreements[field] = (actual, expected)
+    assert not disagreements, (case.sequence_id, disagreements)
+    for segment in 'vj':
+        trace = case.source['alignment'][segment]
+        if getattr(ab, f'{segment}_call') == trace['reference']:
+            expected_score = trace['score']
+            if segment == 'j' and case.expected['j_sequence_start'] > trace['query_start']:
+                # Two authenticated lambda cases explicitly give the shared
+                # V/J base to V. Their raw J trace includes one additional exact
+                # match, worth two points in the reviewed boundary score.
+                assert case.expected['j_sequence_start'] - trace['query_start'] == 1
+                assert trace['query_aligned'][0] == trace['germline_aligned'][0]
+                expected_score -= 2
+            assert getattr(ab, f'{segment}_score') == expected_score
+
+
 def reconstruct_v_evidence(ab):
     """Invert public mutation/indel notation against the named IMGT template."""
     from abstar.tests.test_properties import _parse_indels
@@ -409,6 +464,118 @@ def test_original_emitted_segment_evidence_reconstructs(original_annotations, in
                                 query_end=query_start + (len(bases) if is_insertion else 0),
                                 sequence=bases))
         assert decoded == list(case.expected[field])
+
+
+@pytest.fixture(scope='module')
+def derived_annotations(tmp_path_factory):
+    import abstar
+    import polars as pl
+    from abutils import Sequence
+    from abstar.tests.derived import load_derived_bcr_cases
+    from abstar.annotation.antibody import Antibody
+    from abstar.annotation.annotator import annotate_single_sequence
+
+    cases = load_derived_bcr_cases()
+    project = tmp_path_factory.mktemp('derived-goldens')
+    abstar.run([Sequence(case.sequence, id=case.case_id) for case in cases],
+               project_path=str(project), output_format='parquet',
+               n_processes=1, mmseqs_threads=1, debug=True)
+    rows = pl.read_parquet(project / 'parquet' / 'sequences.parquet').to_dicts()
+    assert [row['sequence_id'] for row in rows] == [case.case_id for case in cases]
+    assignments = pl.read_parquet(project / 'tmp' / 'chunk_0.parquet').to_dicts()
+    assert [row['sequence_id'] for row in assignments] == [case.case_id for case in cases]
+    internal = []
+    for assignment in assignments:
+        receptor = assignment.pop('receptor_type')
+        ab = Antibody(**assignment)
+        ab.receptor_type = receptor
+        internal.append(annotate_single_sequence(ab, germline_database='human'))
+    return tuple(zip(cases, rows, internal))
+
+
+@pytest.mark.e2e
+@pytest.mark.parametrize('case_id', [case.case_id for case in load_derived_bcr_cases()])
+def test_derived_named_invariants_and_changed_fields(derived_annotations, case_id):
+    from Bio.Seq import Seq
+
+    case, row, ab = next(item for item in derived_annotations if item[0].case_id == case_id)
+    parents = {(c.dataset, c.sequence_id): c for c in corpus.load_real_bcr_cases()}
+    parent = parents[case.parent['dataset'], case.parent['sequence_id']]
+    expected, operation = case.expected, case.operation
+    assert row['sequence_id'] == ab.sequence_id == case_id
+    assert row['sequence_input'] == case.sequence
+    assert len(row['sequence_input']) == expected['sequence_length']
+    assert len(case.sequence) - len(parent.sequence) == expected['length_delta']
+    assert row['rev_comp'] is expected['rev_comp']
+    oriented = str(Seq(case.sequence).reverse_complement()) if expected['rev_comp'] else case.sequence
+    assert row['sequence_oriented'] == oriented
+    assert row['locus'] == expected['locus']
+    assert ab.receptor_type == 'bcr'
+    assert row['germline_database'] == 'human'
+    assert sum(base not in 'ACGT' for base in oriented) == expected['ambiguous_base_count']
+    homologous = expected['homologous_junction']
+    assert oriented[homologous['oriented_start']:homologous['oriented_end']] == homologous['sequence']
+    original_span = case.sequence[homologous['input_start']:homologous['input_end']]
+    if expected['rev_comp']:
+        original_span = str(Seq(original_span).reverse_complement())
+    assert original_span == homologous['sequence']
+    assert len(original_span) % 3 == homologous['length_mod3']
+    if operation.kind not in ('identity', 'reverse_complement'):
+        a, b = operation.offset, operation.offset + len(operation.affected_bases)
+        assert parent.sequence[a:b] == operation.affected_bases
+        assert case.sequence == parent.sequence[:a] + operation.replacement_bases + parent.sequence[b:]
+    if case.context in ('v', 'junction'):
+        assert (len(operation.replacement_bases) - len(operation.affected_bases)) % 3 == expected['coding_frame_delta_mod3']
+    else:
+        assert expected['coding_frame_delta_mod3'] == 0
+    assert_emitted_evidence_reconstructs(row, ab)
+    # Pure orientation/flank edits preserve every adjudicated biological value.
+    if operation.kind in ('identity', 'reverse_complement', 'truncate_5prime', 'truncate_3prime'):
+        for field in ('junction', 'junction_aa', 'cdr3', 'cdr3_aa', 'productive'):
+            assert getattr(ab, field) == parent.expected[field], field
+        assert not ab.productivity_issues
+        for segment in 'vj':
+            assert set(corpus.normalize_gene(getattr(ab, f'{segment}_call'))) <= set(parent.expected[f'{segment}_call'])
+        assert (ab.junction_start, ab.junction_end) == (homologous['oriented_start'], homologous['oriented_end'])
+    if operation.kind == 'ambiguity':
+        assert ab.productive is False
+        assert 'ambiguous nucleotide(s)' in ab.productivity_issues.split('|')
+    if case.context == 'v':
+        # Clean derived parents have gap-free authenticated traces. Project
+        # the explicit operation onto that source reference, independently of
+        # annotator positions/indel helpers and of the selected query endpoints.
+        trace = parent.source['alignment']['v']
+        references = corpus._packaged_bcr_references()
+        template = references['imgt_gapped', 'v'][trace['reference']]
+        numbered = [i for i, base in enumerate(template, 1) if base != '.']
+        raw = trace['germline_start'] + operation.offset - trace['query_start']
+        if operation.kind == 'insert':
+            bases = operation.replacement_bases
+            marker = '!' if len(bases) % 3 else ''
+            assert ab.v_insertions == f'{numbered[raw - 1]}:{len(bases)}>{bases}{marker}'
+            assert not ab.v_deletions
+        elif operation.kind == 'delete':
+            # Repeated bases admit several equivalent gap placements. Enumerate
+            # the exact allowed representations from parent/result strings;
+            # the annotator must reconstruct the edit, not invent a unique
+            # molecular deletion position that the sequence cannot establish.
+            width = len(operation.affected_bases)
+            representations = set()
+            for offset in range(trace['query_start'], parent.expected['junction_start'] - width + 1):
+                if parent.sequence[:offset] + parent.sequence[offset + width:] != case.sequence:
+                    continue
+                first = trace['germline_start'] + offset - trace['query_start']
+                start, end = numbered[first], numbered[first + width - 1]
+                span = str(start) if start == end else f'{start}-{end}'
+                bases = parent.sequence[offset:offset + width]
+                marker = '!' if width % 3 else ''
+                representations.add(f'{span}:{width}>{bases}{marker}')
+            assert ab.v_deletions in representations
+            assert not ab.v_insertions
+        elif operation.kind in ('substitute', 'ambiguity'):
+            reference = template[numbered[raw] - 1]
+            expected_mutation = f'{numbered[raw]}:{reference}>{operation.replacement_bases}'
+            assert expected_mutation in ab.v_mutations.split('|')
 
 
 @pytest.fixture(autouse=True)
@@ -575,18 +742,6 @@ def test_primary_j_boundary_rejects_downstream_j5_repeat(original_annotations):
     assert corpus.normalize_gene(row['j_call']) == ('IGHJ5',)
 
 
-# These independently observed local-match/primary-J discrepancies precede the
-# D-identity and mask fixes. Task 12 must resolve them against cases.json; do not
-# replace the authenticated expected spans with current annotator coordinates.
-PILOT_DEFERRED_COORDINATES = {
-    'ACGATACCAGGTTTCA-1_contig_2': {'v_sequence_end'},
-    'CAAGATCAGAGCTTCT-1_contig_2': {'j_sequence_start'},
-    'CCATGTCCAGTCTTCC-1_contig_1': {'j_sequence_start', 'j_sequence_end'},
-    'CTAAGACAGCAATCTC-1_contig_2': {'v_sequence_end'},
-    'GTAACTGAGTATTGGA-1_contig_2': {'v_sequence_end', 'j_sequence_end'},
-}
-
-
 def assert_pilot_adjudicated_outcome(row, case):
     expected = case.expected
     assert row['sequence_id'] == case.sequence_id
@@ -597,21 +752,15 @@ def assert_pilot_adjudicated_outcome(row, case):
     for field in ('locus', 'rev_comp', 'v_sequence_start', 'v_sequence_end',
                   'j_sequence_start', 'j_sequence_end',
                   'junction', 'junction_aa', 'cdr3', 'cdr3_aa'):
-        if field not in PILOT_DEFERRED_COORDINATES.get(case.sequence_id, set()):
-            assert row[field] == expected[field], (case.sequence_id, field)
+        assert row[field] == expected_for_selected_reference(case, field, row['j_call']), (case.sequence_id, field)
     for field in ('v_call', 'j_call'):
         calls = {call.split('*')[0] for call in row[field].split(',')}
         assert calls and calls <= set(expected[field]), (case.sequence_id, field)
     if 'd_call' in expected:
         assert row['d_call'] == expected['d_call']
-    # Defer only the exact Task 12 frame-origin reason; every other reason must
-    # match the authenticated expectations, including the six productive cases.
     issues = row['productivity_issues'].split('|') if row['productivity_issues'] else []
-    issues = [issue for issue in issues if issue != 'V/J junction is out of frame']
     assert issues == list(expected['productivity_issues']), (case.sequence_id, 'productivity_issues')
-    # The two mutated-anchor cases still have an adjudicated false outcome.
-    if not expected['productive']:
-        assert row['productive'] is False
+    assert row['productive'] is expected['productive']
 
 
 @pytest.mark.e2e

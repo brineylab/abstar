@@ -149,12 +149,51 @@ def test_junction_must_start_in_v_reading_frame(productive_antibody):
     productive_antibody.junction = "TGTAAATGG"
     productive_antibody.frame = 1
     productive_antibody.junction_start = 1
+    productive_antibody.v_sequence_start = 0
 
     ab = assess_productivity(productive_antibody)
 
     assert not ab.productive
     assert "V/J junction is out of frame" in ab.productivity_issues
     assert ab.vj_in_frame is False
+
+
+@pytest.mark.parametrize('start,origin,frame,expected', [
+    (437, 137, 1, True), (438, 137, 1, False),
+    (438, 137, 2, True), (439, 137, 3, True),
+    (437, 137, 2, False), (300, 0, 1, True),
+])
+def test_junction_frame_uses_v_region_origin(start, origin, frame, expected):
+    from ..annotation.productivity import junction_is_in_frame
+
+    assert junction_is_in_frame(start, origin, frame) is expected
+
+
+def test_productivity_uses_v_region_frame_origin(productive_antibody):
+    productive_antibody.junction = 'TGTAAATGG'
+    productive_antibody.junction_aa = 'CKW'
+    productive_antibody.frame = 1
+    productive_antibody.v_sequence_start = 137
+    productive_antibody.junction_start = 437
+
+    ab = assess_productivity(productive_antibody)
+
+    assert ab.productive is True
+    assert ab.vj_in_frame is True
+    assert ab.productivity_issues == ''
+
+
+@pytest.mark.parametrize('frame', [-1, 0, 4])
+def test_invalid_frame_remains_nonproductive_with_v_origin(productive_antibody, frame):
+    productive_antibody.frame = frame
+    productive_antibody.v_sequence_start = 137
+    productive_antibody.junction_start = 437
+
+    ab = assess_productivity(productive_antibody)
+
+    assert ab.productive is False
+    assert ab.vj_in_frame is False
+    assert ab.productivity_issues == f'invalid reading frame ({frame})'
 
 
 @pytest.mark.parametrize("locus", ["TRA", "TRB", "TRD", "TRG"])
@@ -170,6 +209,7 @@ def test_tcr_junction_requires_terminal_phenylalanine(locus):
         frame=1,
     )
     ab.junction_start = 0
+    ab.v_sequence_start = 0
 
     assessed = assess_productivity(ab)
 
@@ -189,6 +229,7 @@ def test_tcr_junction_rejects_terminal_tryptophan():
         frame=1,
     )
     ab.junction_start = 0
+    ab.v_sequence_start = 0
 
     assessed = assess_productivity(ab)
 

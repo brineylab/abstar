@@ -388,6 +388,29 @@ constant region and do not depend on CDR3 or framework subdivisions.
 Position Coordinates
 ~~~~~~~~~~~~~~~~~~~~
 
+V/J boundaries use nucleotide Smith-Waterman alignment with match 2,
+mismatch -3, gap-open penalty 12, and gap-extension penalty 2. Boundary
+alignment uses the complete supplied query, independently of the semiglobal
+alignment used for IMGT and junction mapping. Equal optimal scores select the
+earlier query endpoint. A J-like repeat wholly downstream of the mapped
+primary junction is excluded from the primary J boundary search. Coordinates
+refer to the selected reference; an accepted alternative reference may have
+a different supported boundary.
+
+These boundary corrections can change segment identities, mutation counts,
+N-region subdivisions, and fallback D calls when the retained V–J interval
+changes. ``v_score`` and ``j_score`` describe the boundary alignments;
+``v_support`` and ``j_support`` retain search evidence. Productivity evaluates
+the junction start relative to the V-region origin and its one-based
+``frame``. Current internal coordinates remain zero-based, half-open.
+
+``c_sequence_gapped`` and ``c_germline_gapped`` now contain the retained C
+query/reference pair in the same alignment columns. Previously, the latter
+could contain the entire constant reference for a partial read. Consumers
+needing the full C reference should retrieve it from the germline database.
+Their amino acid counterparts use the C-region frame; C identity includes
+mismatch and insertion/deletion columns.
+
 .. list-table::
    :header-rows: 1
    :widths: 25 15 60

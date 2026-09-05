@@ -18,6 +18,17 @@ JUNCTION_MOTIFS = {
 }
 
 
+def junction_is_in_frame(
+    junction_start: int, v_sequence_start: int, frame: int,
+) -> bool:
+    """Compare oriented-query junction coordinates with the V-region frame.
+
+    Both starts are zero-based positions in the oriented input; ``frame`` is
+    one-based relative to the trimmed V region, not the original input.
+    """
+    return (junction_start - v_sequence_start - (frame - 1)) % 3 == 0
+
+
 def assess_productivity(ab: Antibody) -> Antibody:
     """
     Checks whether an Antibody is productive and annotates any
@@ -103,9 +114,9 @@ def assess_productivity(ab: Antibody) -> Antibody:
         if ab.frame not in (1, 2, 3):
             add_issue(f"invalid reading frame ({ab.frame})")
             junction_in_frame = False
-        elif getattr(ab, "junction_start", None) is not None and (
-            ab.junction_start - (ab.frame - 1)
-        ) % 3:
+        elif getattr(ab, "junction_start", None) is not None and not junction_is_in_frame(
+            ab.junction_start, ab.v_sequence_start, ab.frame
+        ):
             add_issue("V/J junction is out of frame")
             junction_in_frame = False
 
