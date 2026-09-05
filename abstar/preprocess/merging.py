@@ -25,7 +25,7 @@ from tqdm.auto import tqdm
 __all__ = ["merge_fastqs", "group_paired_fastqs"]
 
 
-class MergeExternalToolError(RuntimeError):
+class MergeExternalToolError(ValueError):
     """An external read-merging command failed with inspectable diagnostics."""
 
     def __init__(self, message, *, command=(), returncode=None, stdout="", stderr=""):
@@ -395,6 +395,10 @@ def merge_fastqs(
                 f"If files are supplied as a string, it must be either a directory or a file. The supplied ({files}) is neither."
             )
     make_dir(output_directory)
+    # A generator must yield the same options for every input and lane. Normalize
+    # it once at the public boundary instead of consuming it inside each process
+    # invocation.
+    merge_args = _additional_arguments(merge_args)
 
     merged_files = []
 
@@ -740,7 +744,7 @@ def merge_fastqs_fastp(
         binary_path = get_binary_path("fastp")
 
     # compile the fastp command
-    cmd = [binary_path, "-i", forward, "--merge", "--merged_out", merged]
+    cmd = [binary_path, "-i", forward, "--merge"]
     if not interleaved:
         cmd.extend(["-I", reverse])
     cmd.extend(["--overlap_len_require", str(int(minimum_overlap))])
@@ -791,26 +795,40 @@ def merge_fastqs_fastp(
     # additional CLI args
     cmd.extend(normalized_additional_args)
 
-    # merge reads
-    merged_existed = os.path.exists(merged)
+    # Merge into a unique sibling directory so publication uses an atomic
+    # same-filesystem replace and a failed rerun cannot damage an existing result.
     try:
-        result = sp.run(cmd, check=True, capture_output=True, text=True)
-    except sp.CalledProcessError as error:
-        if not merged_existed and os.path.exists(merged):
-            os.unlink(merged)
-        raise MergeExternalToolError(
-            "fastp read merge failed",
-            command=cmd,
-            returncode=error.returncode,
-            stdout=error.stdout or "",
-            stderr=error.stderr or "",
-        ) from error
-    except OSError as error:
-        if not merged_existed and os.path.exists(merged):
-            os.unlink(merged)
-        raise MergeExternalToolError(
-            "Could not execute fastp", command=cmd, stderr=str(error)
-        ) from error
+        with tempfile.TemporaryDirectory(
+            prefix=f".{os.path.basename(merged)}.fastp-", dir=out_dir
+        ) as staging_directory:
+            staged_merged = os.path.join(staging_directory, os.path.basename(merged))
+            command = [*cmd, "--merged_out", staged_merged]
+            try:
+                result = sp.run(
+                    command, check=True, capture_output=True, text=True
+                )
+            except sp.CalledProcessError as error:
+                raise MergeExternalToolError(
+                    "fastp read merge failed",
+                    command=command,
+                    returncode=error.returncode,
+                    stdout=error.stdout or "",
+                    stderr=error.stderr or "",
+                ) from error
+            except OSError as error:
+                raise MergeExternalToolError(
+                    "Could not execute fastp", command=command, stderr=str(error)
+                ) from error
+            try:
+                os.replace(staged_merged, merged)
+            except OSError as error:
+                raise MergeExternalToolError(
+                    "Could not publish fastp merged output",
+                    command=command,
+                    returncode=result.returncode,
+                    stdout=result.stdout or "",
+                    stderr=(result.stderr or "") + f"\n{error}",
+                ) from error
     finally:
         if temporary_log_directory:
             shutil.rmtree(log_directory, ignore_errors=True)

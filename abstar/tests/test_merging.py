@@ -116,6 +116,7 @@ def test_fastp_uses_checked_argument_list(monkeypatch, tmp_path):
     def fake_run(command, **kwargs):
         observed["command"] = command
         observed["kwargs"] = kwargs
+        Path(command[command.index("--merged_out") + 1]).write_text("merged")
         return subprocess.CompletedProcess(command, 0, "stdout", "stderr")
 
     monkeypatch.setattr(merging.sp, "run", fake_run)
@@ -133,7 +134,11 @@ def test_fastp_uses_checked_argument_list(monkeypatch, tmp_path):
     assert isinstance(command, list)
     assert forward in command
     assert reverse in command
-    assert str(merged) in command
+    staged = Path(command[command.index("--merged_out") + 1])
+    assert staged != merged
+    assert staged.parent.parent == tmp_path
+    assert merged.read_text() == "merged"
+    assert not staged.exists()
     assert "report; $(touch never)" in command
     assert observed["kwargs"] == {
         "check": True,
@@ -144,16 +149,16 @@ def test_fastp_uses_checked_argument_list(monkeypatch, tmp_path):
 
 def test_fastp_cleans_implicit_report_directory(monkeypatch, tmp_path):
     forward, reverse = _touch_fastqs(tmp_path, ["R1.fastq", "R2.fastq"])
-    report_directory = tmp_path / "implicit-fastp-reports"
+    observed = {}
 
     def make_report(command, **kwargs):
-        Path(command[command.index("--html") + 1]).write_text("html")
+        html = Path(command[command.index("--html") + 1])
+        observed["report_directory"] = html.parent
+        html.write_text("html")
         Path(command[command.index("--json") + 1]).write_text("json")
+        Path(command[command.index("--merged_out") + 1]).write_text("merged")
         return subprocess.CompletedProcess(command, 0, "", "")
 
-    monkeypatch.setattr(
-        merging.tempfile, "mkdtemp", lambda **kwargs: str(report_directory)
-    )
     monkeypatch.setattr(merging.sp, "run", make_report)
 
     merging.merge_fastqs_fastp(
@@ -163,7 +168,7 @@ def test_fastp_cleans_implicit_report_directory(monkeypatch, tmp_path):
         binary_path="fastp",
     )
 
-    assert not report_directory.exists()
+    assert not observed["report_directory"].exists()
 
 
 def test_fastp_failure_includes_process_diagnostics(monkeypatch, tmp_path):
@@ -192,6 +197,93 @@ def test_fastp_failure_includes_process_diagnostics(monkeypatch, tmp_path):
     assert "TASK18-STDOUT" in str(error)
     assert "TASK18-STDERR" in str(error)
     assert not (tmp_path / "merged.fastq").exists()
+
+
+def test_public_merge_failure_preserves_existing_destination_and_cleans_staging(
+    monkeypatch, paired_fastq_inputs, tmp_path,
+):
+    _, forward, reverse = paired_fastq_inputs
+    output_directory = tmp_path / "output"
+    output_directory.mkdir()
+    destination = output_directory / "sample.fastq"
+    original = b"@existing\nACGT\n+\nIIII\n"
+    destination.write_bytes(original)
+    observed = {}
+
+    def fail(command, **kwargs):
+        staged = Path(command[command.index("--merged_out") + 1])
+        observed["staged"] = staged
+        staged.write_bytes(b"partial fastp output")
+        raise subprocess.CalledProcessError(
+            19, command, output="STAGED-STDOUT", stderr="STAGED-STDERR"
+        )
+
+    monkeypatch.setattr(merging.sp, "run", fail)
+
+    with pytest.raises(ValueError) as captured:
+        pp.merge_fastqs(
+            [str(forward), str(reverse)],
+            str(output_directory),
+            binary_path="fastp",
+        )
+
+    assert isinstance(captured.value, merging.MergeExternalToolError)
+    assert observed["staged"] != destination
+    assert observed["staged"].parent.parent == output_directory
+    assert destination.read_bytes() == original
+    assert not observed["staged"].exists()
+    assert set(output_directory.iterdir()) == {destination}
+
+
+def test_multilane_merge_materializes_generator_arguments_once(monkeypatch, tmp_path):
+    files = _touch_fastqs(
+        tmp_path,
+        [
+            "sample_S1_L001_R1_001.fastq",
+            "sample_S1_L001_R2_001.fastq",
+            "sample_S1_L002_R1_001.fastq",
+            "sample_S1_L002_R2_001.fastq",
+        ],
+    )
+    observed = []
+
+    def fake_merge(forward, reverse, merged, *, additional_args, **kwargs):
+        observed.append(tuple(additional_args))
+        Path(merged).write_text(f"{Path(forward).name}\n")
+
+    monkeypatch.setattr(merging, "merge_fastqs_fastp", fake_merge)
+
+    pp.merge_fastqs(
+        files,
+        str(tmp_path / "output"),
+        merge_args=(value for value in ("--thread", "3", "--report_title", "all lanes")),
+    )
+
+    assert observed == [
+        ("--thread", "3", "--report_title", "all lanes"),
+        ("--thread", "3", "--report_title", "all lanes"),
+    ]
+
+
+def test_public_merge_preserves_string_argument_parsing(monkeypatch, paired_fastq_inputs, tmp_path):
+    _, forward, reverse = paired_fastq_inputs
+    observed = {}
+
+    def fake_merge(forward, reverse, merged, *, additional_args, **kwargs):
+        observed["additional_args"] = additional_args
+        Path(merged).write_text("merged")
+
+    monkeypatch.setattr(merging, "merge_fastqs_fastp", fake_merge)
+
+    pp.merge_fastqs(
+        [str(forward), str(reverse)],
+        str(tmp_path / "output"),
+        merge_args="--thread 2 --report_title 'string value; intact'",
+    )
+
+    assert observed["additional_args"] == [
+        "--thread", "2", "--report_title", "string value; intact",
+    ]
 
 
 @pytest.mark.integration
