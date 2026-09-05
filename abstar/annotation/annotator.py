@@ -61,23 +61,45 @@ def calculate_alignment_identity(
 def _segment_identities(
     sequence: str, germline: str, frame: int
 ) -> tuple[float | None, float | None]:
-    """Calculate nucleotide and amino-acid identity for one gene segment."""
+    """Calculate segment identities; AA identity needs a complete frame codon."""
     nt_alignment = abutils.tl.global_alignment(
         sequence, germline, **ALIGNMENT_PARAMS
     )
     sequence_aa = abutils.tl.translate(sequence, frame=frame)
     germline_aa = abutils.tl.translate(germline, frame=frame)
+    nt_identity = calculate_alignment_identity(
+        nt_alignment.aligned_query, nt_alignment.aligned_target
+    )
+    if not sequence_aa or not germline_aa:
+        return nt_identity, None
     aa_alignment = abutils.tl.global_alignment(
         sequence_aa, germline_aa, **ALIGNMENT_PARAMS
     )
     return (
-        calculate_alignment_identity(
-            nt_alignment.aligned_query, nt_alignment.aligned_target
-        ),
+        nt_identity,
         calculate_alignment_identity(
             aa_alignment.aligned_query, aa_alignment.aligned_target
         ),
     )
+
+
+def _clear_empty_d_alignment(ab: Antibody) -> Antibody:
+    """Discard absent D nucleotide evidence and retain the full V–J interval.
+
+    NP1 uses zero-based, half-open coordinates in the oriented input query.
+    Short nonempty D segments are retained even when AA identity is unavailable.
+    """
+    for field in (
+        "d_call", "d_gene", "d_score", "d_support", "d_cigar",
+        "d_identity", "d_identity_aa", "d_sequence", "d_germline", "d_frame",
+        "d_sequence_start", "d_sequence_end", "d_germline_start", "d_germline_end",
+        "cdr3_d", "cdr3_d_aa", "cdr3_n2", "cdr3_n2_aa",
+        "np2", "np2_length",
+    ):
+        setattr(ab, field, None)
+    ab.np1 = ab.sequence_oriented[ab.v_sequence_end : ab.j_sequence_start]
+    ab.np1_length = len(ab.np1)
+    return ab
 
 
 def _parse_assignment_call(call: str) -> tuple[str, str, str | None]:
@@ -534,9 +556,6 @@ def annotate_single_sequence(
         )
     # The remaining IG/TCR loci do not contain D genes.
     else:
-        ab.d_call = None
-        ab.d_gene = None
-        ab.d_score = None
         d_loc = None
     # process the d-gene alignment
     if d_loc is not None:
@@ -546,6 +565,11 @@ def annotate_single_sequence(
             local_aln=d_loc,
             ab=ab,
         )
+        if not ab.d_sequence or not ab.d_germline:
+            ab = _clear_empty_d_alignment(ab)
+            d_loc = None
+
+    if d_loc is not None:
         ab.d_identity, ab.d_identity_aa = _segment_identities(
             ab.d_sequence, ab.d_germline, ab.d_frame
         )
@@ -554,8 +578,7 @@ def annotate_single_sequence(
         ab.np1_length = len(ab.np1)
         ab.np2_length = len(ab.np2)
     else:
-        ab.np1 = ab.sequence_oriented[ab.v_sequence_end : ab.j_sequence_start]
-        ab.np1_length = len(ab.np1)
+        ab = _clear_empty_d_alignment(ab)
 
     if d_loc is not None:
         ab.log("LOCAL ALIGNMENT:")

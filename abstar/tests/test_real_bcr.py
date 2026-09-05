@@ -1,4 +1,4 @@
-"""Fixture integrity and loader contracts; these tests never annotate reads."""
+"""Fixture integrity, loader contracts, and curated real-BCR regressions."""
 
 import copy
 from dataclasses import FrozenInstanceError
@@ -227,12 +227,172 @@ PILOT_IDS = (
 
 
 @pytest.fixture(autouse=True)
-def no_external_commands(monkeypatch):
+def no_external_commands(monkeypatch, request):
+    if request.node.get_closest_marker('e2e') is not None:
+        return
     # Applies before the shared case fixtures load, as well as inside test bodies.
     import subprocess
     def forbidden(*args, **kwargs):
         raise AssertionError('fixture integrity must never launch an external command')
     monkeypatch.setattr(subprocess, 'Popen', forbidden)
+
+
+@pytest.mark.e2e
+def test_pilot_loss_cohort_has_no_internal_failures(pilot_loss_cases):
+    import abstar
+
+    result = abstar.run(
+        [case.as_sequence() for case in pilot_loss_cases],
+        n_processes=1, mmseqs_threads=1,
+    )
+    assert [row.id for row in result] == [case.sequence_id for case in pilot_loss_cases]
+    assert all(row['annotation_status'] in {'annotated', 'unassigned'} for row in result)
+
+
+@pytest.mark.parametrize('sequence,germline', [('', 'A'), ('A', ''), ('', '')])
+def test_pilot_loss_empty_d_clears_stale_evidence(sequence, germline):
+    from abstar.annotation.antibody import Antibody
+    from abstar.annotation.annotator import _clear_empty_d_alignment
+
+    ab = Antibody(
+        row_id='internal-row', sequence_id='10E8', locus='IGH', rev_comp=True,
+        germline_database='human', sequence_oriented='AAACCGGTTT',
+        v_sequence_end=3, j_sequence_start=7,
+        d_call='IGHD1-14*01', d_gene='IGHD1-14', d_score=12,
+        d_support=0.1, d_cigar='4M', d_identity=1.0, d_identity_aa=1.0,
+        d_sequence=sequence, d_germline=germline, d_frame=3,
+        cdr3_d='C', cdr3_d_aa='P', cdr3_n2='G', cdr3_n2_aa='G',
+        np1='C', np1_length=1, np2='G', np2_length=1,
+    )
+    ab.receptor_type = 'bcr'
+    ab.d_sequence_start, ab.d_sequence_end = 4, 6
+    ab.d_germline_start, ab.d_germline_end = 7, 9
+
+    result = _clear_empty_d_alignment(ab)
+
+    assert result is ab
+    assert (ab.np1, ab.np1_length, ab.np2, ab.np2_length) == ('CCGG', 4, None, None)
+    for field in (
+        'd_call', 'd_gene', 'd_score', 'd_support', 'd_cigar',
+        'd_identity', 'd_identity_aa', 'd_sequence', 'd_germline', 'd_frame',
+        'd_sequence_start', 'd_sequence_end', 'd_germline_start', 'd_germline_end',
+        'cdr3_d', 'cdr3_d_aa', 'cdr3_n2', 'cdr3_n2_aa',
+    ):
+        assert getattr(ab, field) is None, field
+    assert (ab.row_id, ab.sequence_id, ab.locus, ab.rev_comp,
+            ab.receptor_type, ab.germline_database) == (
+        'internal-row', '10E8', 'IGH', True, 'bcr', 'human',
+    )
+
+
+@pytest.mark.parametrize('sequence,germline,frame,identities', [
+    ('CCGG', 'CCGG', 3, (1.0, None)),
+    ('GAAC', 'GAAC', 3, (1.0, None)),
+    ('CGTC', 'CGTC', 3, (1.0, None)),
+    ('AC', 'AT', 1, (0.5, None)),
+    ('AAT', 'A', 1, (1 / 3, None)),
+    ('A', 'AAT', 1, (1 / 3, None)),
+    ('GCT', 'GCT', 1, (1.0, 1.0)),
+])
+def test_pilot_loss_empty_d_translation_preserves_nt_identity(sequence, germline, frame, identities):
+    from abstar.annotation.annotator import _segment_identities
+
+    assert _segment_identities(sequence, germline, frame) == identities
+
+
+PILOT_SHORT_D = (
+    ('ACGATACCAGGTTTCA-1_contig_2', 'IGHD1-14*01__homo_sapiens', 'CCGG', 441, 445, 7, 11),
+    ('CAAGATCAGAGCTTCT-1_contig_2', 'IGHD1-20*01,IGHD1-7*01', 'GAAC', 430, 434, 10, 14),
+    ('GGTGCGTAGGGAAACA-1_contig_1', 'IGHD1-14*01__homo_sapiens', 'CCGG', 407, 411, 7, 11),
+    ('GTAACTGAGTATTGGA-1_contig_2', 'IGHD6-6*01__homo_sapiens', 'CGTC', 433, 437, 13, 17),
+)
+
+
+# These independently observed local-match/primary-J discrepancies precede the
+# D-identity and mask fixes. Task 12 must resolve them against cases.json; do not
+# replace the authenticated expected spans with current annotator coordinates.
+PILOT_DEFERRED_COORDINATES = {
+    'ACGATACCAGGTTTCA-1_contig_2': {'v_sequence_end'},
+    'CAAGATCAGAGCTTCT-1_contig_2': {'j_sequence_start'},
+    'CCATGTCCAGTCTTCC-1_contig_1': {'j_sequence_start', 'j_sequence_end'},
+    'CTAAGACAGCAATCTC-1_contig_2': {'v_sequence_end'},
+    'GTAACTGAGTATTGGA-1_contig_2': {'v_sequence_end', 'j_sequence_end'},
+}
+
+
+def assert_pilot_adjudicated_outcome(row, case):
+    expected = case.expected
+    assert row['sequence_id'] == case.sequence_id
+    assert row['sequence_input'] == row['sequence_oriented'] == case.sequence
+    assert row['germline_database'] == 'human'
+    assert row['annotation_status'] == expected['status']
+    assert row['failure_reason'] is None
+    for field in ('locus', 'rev_comp', 'v_sequence_start', 'v_sequence_end',
+                  'j_sequence_start', 'j_sequence_end',
+                  'junction', 'junction_aa', 'cdr3', 'cdr3_aa'):
+        if field not in PILOT_DEFERRED_COORDINATES.get(case.sequence_id, set()):
+            assert row[field] == expected[field], (case.sequence_id, field)
+    for field in ('v_call', 'j_call'):
+        calls = {call.split('*')[0] for call in row[field].split(',')}
+        assert calls and calls <= set(expected[field]), (case.sequence_id, field)
+    if 'd_call' in expected:
+        assert row['d_call'] == expected['d_call']
+    # All eight have the separate Task 12 frame-origin reason defect. The two
+    # mutated-anchor cases still have an adjudicated nonproductive outcome.
+    if not expected['productive']:
+        assert row['productive'] is False
+        assert set(expected['productivity_issues']) <= set(row['productivity_issues'].split('|'))
+
+
+@pytest.mark.e2e
+@pytest.mark.parametrize('sequence_id,call,sequence,start,end,gl_start,gl_end', PILOT_SHORT_D)
+def test_pilot_loss_empty_d_translation_retains_nucleotide_evidence(
+    pilot_loss_cases, tmp_path, sequence_id, call, sequence, start, end, gl_start, gl_end,
+):
+    import abstar
+    import polars as pl
+    from abstar.annotation.antibody import Antibody
+    from abstar.annotation.annotator import annotate_single_sequence
+    from abstar.annotation.schema import schema_dict
+
+    case = next(case for case in pilot_loss_cases if case.sequence_id == sequence_id)
+    result = abstar.run(
+        [case.as_sequence()], project_path=str(tmp_path), n_processes=1,
+        mmseqs_threads=1, debug=True,
+    )
+    assert result is None  # An explicit project path writes public output files.
+    rows = pl.read_csv(
+        tmp_path / 'airr' / 'sequences.tsv', separator='\t',
+        schema_overrides=schema_dict,
+    ).to_dicts()
+    assert [row['sequence_id'] for row in rows] == [sequence_id]
+    row = rows[0]
+    assert_pilot_adjudicated_outcome(row, case)
+    assert row['annotation_status'] == 'annotated'
+    assert row['failure_reason'] is None
+    assert row['d_call'] == call
+    assert row['d_sequence'] == row['d_germline'] == sequence
+    assert row['d_identity'] == 1.0
+    assert row['d_identity_aa'] is None
+    assert row['d_score'] == 12
+    assert row['d_frame'] == 3
+    assert case.sequence[start:end] == sequence
+    assert 'row_id' not in row
+
+    # D coordinates are currently internal: replay the real assignment row to
+    # check their oriented-query/ungapped-germline values without changing AIRR.
+    assignment = pl.read_parquet(tmp_path / 'tmp' / 'chunk_0.parquet').row(0, named=True)
+    receptor = assignment.pop('receptor_type')
+    ab = Antibody(**assignment)
+    ab.receptor_type = receptor
+    ab = annotate_single_sequence(ab, germline_database='human')
+    assert (ab.d_sequence_start, ab.d_sequence_end) == (start, end)
+    assert (ab.d_germline_start, ab.d_germline_end) == (gl_start, gl_end)
+    assert (ab.junction_start, ab.junction_end) == (
+        case.expected['junction_start'], case.expected['junction_end'],
+    )
+    assert ab.np1 == case.sequence[ab.v_sequence_end:start]
+    assert ab.np2 == case.sequence[end:ab.j_sequence_start]
 
 
 @pytest.fixture

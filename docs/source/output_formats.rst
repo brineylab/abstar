@@ -271,6 +271,13 @@ Quality Metrics
      - Reading frame (0, 1, or 2)
 
 
+V, D, and J amino acid identities are null when either retained segment has no
+complete codon in its germline reading frame. A short nonempty nucleotide
+alignment retains its gene call, nucleotide identity, and alignment evidence.
+A D alignment with an empty nucleotide query or germline is discarded; the full
+interval between retained V and J sequences is represented as NP1.
+
+
 Mutations
 ~~~~~~~~~
 
