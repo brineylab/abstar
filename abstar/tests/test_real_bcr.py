@@ -257,6 +257,28 @@ def test_pilot_loss_cohort_has_no_internal_failures(pilot_loss_cases):
             assert len(row[f'nongermline_mask{suffix}']) == len(sequence)
 
 
+@pytest.mark.e2e
+@pytest.mark.parametrize('injected_reason', [
+    'unexpected unrelated biological failure',
+    'V/J junction is out of frame ',
+    'v/j junction is out of frame',
+])
+def test_pilot_loss_golden_helper_rejects_unrelated_reason(pilot_loss_cases, injected_reason):
+    import abstar
+
+    result = abstar.run(
+        [case.as_sequence() for case in pilot_loss_cases],
+        n_processes=1, mmseqs_threads=1,
+    )
+    assert [row.id for row in result] == [case.sequence_id for case in pilot_loss_cases]
+    for row, case in zip(result, pilot_loss_cases):
+        assert_pilot_adjudicated_outcome(row.annotations, case)
+        mutated = dict(row.annotations)
+        mutated['productivity_issues'] = f"{row['productivity_issues']}|{injected_reason}"
+        with pytest.raises(AssertionError, match='productivity_issues'):
+            assert_pilot_adjudicated_outcome(mutated, case)
+
+
 @pytest.mark.parametrize('sequence,germline', [('', 'A'), ('A', ''), ('', '')])
 def test_pilot_loss_empty_d_clears_stale_evidence(sequence, germline):
     from abstar.annotation.antibody import Antibody
@@ -345,11 +367,14 @@ def assert_pilot_adjudicated_outcome(row, case):
         assert calls and calls <= set(expected[field]), (case.sequence_id, field)
     if 'd_call' in expected:
         assert row['d_call'] == expected['d_call']
-    # All eight have the separate Task 12 frame-origin reason defect. The two
-    # mutated-anchor cases still have an adjudicated nonproductive outcome.
+    # Defer only the exact Task 12 frame-origin reason; every other reason must
+    # match the authenticated expectations, including the six productive cases.
+    issues = row['productivity_issues'].split('|') if row['productivity_issues'] else []
+    issues = [issue for issue in issues if issue != 'V/J junction is out of frame']
+    assert issues == list(expected['productivity_issues']), (case.sequence_id, 'productivity_issues')
+    # The two mutated-anchor cases still have an adjudicated false outcome.
     if not expected['productive']:
         assert row['productive'] is False
-        assert set(expected['productivity_issues']) <= set(row['productivity_issues'].split('|'))
 
 
 @pytest.mark.e2e
