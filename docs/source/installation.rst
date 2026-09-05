@@ -90,7 +90,8 @@ needed for any of these commands:
       --cov-report=json:/tmp/abstar-coverage.json -q
     python scripts/check_coverage.py /tmp/abstar-coverage.json coverage-floors.json
 
-    # Documentation warnings are errors
+    # Install documentation dependencies, then treat warnings as errors
+    python -m pip install -r docs/doc_requirements.txt
     python -m sphinx -W --keep-going -b html docs/source docs/_build/html
 
 Optional corpus discovery requires explicit read-only source paths and an output

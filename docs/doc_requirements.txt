@@ -8,7 +8,7 @@ sphinx_copybutton
 sphinx_togglebutton
 sphinx_design
 autodocsumm
-# pure python dependencies (compiled deps are mocked in conf.py)
+# Documentation imports runtime dependencies; only optional imports are mocked.
 biopython
 click
 natsort

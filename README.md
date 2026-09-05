@@ -58,10 +58,12 @@ frame = abstar.run("sequences.fasta", as_dataframe=True)
 
 One input record returns one `abutils.Sequence`; multiple records return a list,
 including when only one is assigned; `as_dataframe=True` always returns a Polars
-DataFrame. Every input record has `annotation_status`. Biological non-assignment
-produces an `unassigned` row with `failure_reason`; internal or external-tool
-failures raise `abstar.AnnotationRunError` with structured failures and retained
-artifact paths. Duplicate visible IDs and input ordering are preserved.
+DataFrame. Every returned or written row has `annotation_status`. Biological
+non-assignment produces an `unassigned` row with `failure_reason`. Internal or
+external-tool failures have no result row; they raise `abstar.AnnotationRunError`
+and appear in its structured `failures`. `partial_output_paths` contains only
+diagnostic or partial artifacts that could be retained, so it may be empty.
+Duplicate visible IDs and input ordering are preserved.
 
 AIRR TSV targets the AIRR 2.0 Rearrangement schema. It writes 1-based closed
 coordinates, `T`/`F` booleans, and empty null cells. Python returns and Parquet

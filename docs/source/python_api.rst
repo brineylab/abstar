@@ -112,11 +112,14 @@ are supported, and arbitrary iterables are consumed once. Directory inputs are
 discovered recursively in natural path order, with record order retained within
 each file. This order is stable across worker counts and annotation chunk sizes.
 
-Every record receives an ``annotation_status``. An ordinary biological
-non-assignment returns ``"unassigned"`` with a ``failure_reason``; it remains in
-the result and does not change the return shape. Internal and external-tool
-failures raise ``abstar.AnnotationRunError`` with structured ``failures`` and
-any ``partial_output_paths``. Diagnostic files are retained before raising.
+Every returned or written row receives an ``annotation_status``. An ordinary
+biological non-assignment returns ``"unassigned"`` with a ``failure_reason``;
+it remains in the result and does not change the return shape. Internal and
+external-tool failures do not have result rows. They raise
+``abstar.AnnotationRunError`` and appear in its structured ``failures``.
+``partial_output_paths`` contains only diagnostic or partial artifacts that
+could be retained; it may be empty when storage fails before an artifact can be
+preserved.
 
 Visible identifiers are data, not join keys. Duplicate identifiers, leading
 zeroes, and values such as ``10E8`` are preserved exactly. abstar uses a unique
@@ -383,17 +386,28 @@ Use ``abstar.annotation.airr.to_airr_row()`` for the explicit serialization mapp
 Migration examples
 ------------------
 
-A biological non-assignment used to be easy to lose when consumers filtered
-for rows with gene calls. Given a two-record ``mixed.fasta`` with one assignable
-antibody and one record whose query is ``N``, record conservation now makes the
-outcome explicit:
+A biological non-assignment could previously disappear from the result. Given
+a two-record ``mixed.fasta`` with an assignable antibody named ``assigned`` and
+a query ``N`` named ``unassigned``, the legacy result contained only the first
+row:
+
+.. code-block:: python
+
+    # Before
+    result = abstar.run("mixed.fasta")
+    assert result.id == "assigned"  # one object despite two input records
+
+The conserved result now contains both records in input order and makes the
+biological outcome explicit:
 
 .. code-block:: python
 
     import abstar
 
+    # After
     result = abstar.run("mixed.fasta", n_processes=1, mmseqs_threads=1)
     assert len(result) == 2
+    assert [row.id for row in result] == ["assigned", "unassigned"]
     assert [row["annotation_status"] for row in result] == ["annotated", "unassigned"]
     assert result[1]["sequence_input"] == "N"
     assert result[1]["failure_reason"] == "no compatible V gene assignment"
@@ -402,20 +416,36 @@ outcome explicit:
 If both input records use the identifier ``duplicate``, both returned IDs stay
 ``duplicate`` and remain in the same order; the private row identity is absent.
 
-Programming and external-tool failures no longer look like successful empty
-results. Catch the structured exception only when the calling application can
-report or recover from the failed run:
+An unexpected annotation exception could previously be observed only as an
+empty successful result. The old calling pattern therefore could not distinguish
+the defect from ordinary biological non-assignment:
+
+.. code-block:: python
+
+    # Before
+    result = abstar.run("input.fasta")
+    if not result:
+        print("no annotations")
+
+The same injected annotation defect now raises with an
+``annotation/internal_error`` failure. Catch it only when the calling
+application can report or recover from the failed run:
 
 .. code-block:: python
 
     import abstar
+    from pathlib import Path
 
+    # After
     try:
         abstar.run("input.fasta", "project/")
     except abstar.AnnotationRunError as error:
-        for failure in error.failures:
-            print(failure.stage, failure.category, failure.sequence_id, failure.message)
-        print("inspectable artifacts:", error.partial_output_paths)
+        internal = [failure for failure in error.failures
+                    if (failure.stage, failure.category) ==
+                    ("annotation", "internal_error")]
+        assert internal
+        artifacts = tuple(Path(path) for path in error.partial_output_paths)
+        assert all(path.exists() for path in artifacts)
         raise
 
 ``failures`` contains immutable ``RecordFailure`` values. Stages are
@@ -423,4 +453,5 @@ report or recover from the failed run:
 ``invalid_input``, ``unassigned``, ``external_tool``, or ``internal_error``.
 Ordinary unassigned rows are returned as data and do not raise. Paths in
 ``partial_output_paths`` are diagnostic or already-promoted artifacts, not a
-successful complete result.
+successful complete result. The tuple is empty when no artifact could be
+retained.
