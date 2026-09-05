@@ -294,6 +294,30 @@ def test_select_best_hits_retains_exact_allele_ties_deterministically():
     assert selected["v_qend"].item() == 100
 
 
+def test_select_best_hits_same_call_ties_choose_details_independent_of_row_order():
+    """Equal-evidence alignments for one allele must choose stable coordinates."""
+    tied = _mmseqs_hits(
+        v_call=["IGHV1-2*01", "IGHV1-2*01"],
+        v_support=[1e-20, 1e-20],
+        v_qstart=[1, 2],
+        v_qend=[60, 61],
+        v_qseq=["A" * 61, "A" * 61],
+        v_fident=[1.0, 1.0],
+        v_qcov=[0.7, 0.7],
+        v_tcov=[0.8, 0.8],
+        v_alnlen=[60, 60],
+        v_bits=[220.0, 220.0],
+    )
+    expected = {
+        "v_query": "query1", "v_call": "IGHV1-2*01", "v_support": 1e-20,
+        "v_qstart": 1, "v_qend": 60, "v_qseq": "A" * 61,
+        "v_fident": 1.0, "v_qcov": 0.7, "v_tcov": 0.8,
+        "v_alnlen": 60, "v_bits": 220.0,
+    }
+    for frame in (tied, tied.reverse(), tied.reverse().lazy()):
+        assert select_best_hits(frame, "v").to_dicts() == [expected]
+
+
 def test_filter_compatible_locus_removes_cross_locus_hits():
     v_assignments = pl.DataFrame(
         {"v_query": ["heavy", "light"], "v_call": ["IGHV1-2*01", "IGKV1-5*01"]}

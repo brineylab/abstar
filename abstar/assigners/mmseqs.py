@@ -59,7 +59,12 @@ def select_best_hits(results: pl.LazyFrame | pl.DataFrame, segment: str) -> pl.D
     quality and length. E-value, fractional identity, target/query coverage, and
     alignment length provide deterministic secondary evidence. Calls tied across
     every metric are emitted as a sorted, comma-delimited ambiguity set; alignment
-    details come from the alphabetically first tied call.
+    details come from the alphabetically first tied call. Multiple equal-evidence
+    rows for that call are ordered by ascending MMseqs query start, query end,
+    and query sequence, then by any remaining detail columns in alphabetical
+    column-name order (ascending values, nulls last). Coordinates retain their
+    original MMseqs numbering and orientation. This final ordering only chooses
+    representative details; it does not rank alleles or remove biological ties.
     """
     query = f"{segment}_query"
     call = f"{segment}_call"
@@ -92,6 +97,16 @@ def select_best_hits(results: pl.LazyFrame | pl.DataFrame, segment: str) -> pl.D
             for column in ranking
         )
     ).drop([f"__best_{column}" for column in ranking])
+    detail_columns = [
+        column for column in (f"{segment}_qstart", f"{segment}_qend", f"{segment}_qseq")
+        if column in tied.columns
+    ]
+    detail_columns += sorted(
+        set(tied.columns) - {query, call, *ranking, *detail_columns}
+    )
+    # Sort after the join/filter so their output order cannot select a different
+    # representative. All remaining rows for a query have identical evidence.
+    tied = tied.sort([query, call, *detail_columns], nulls_last=True)
     other_columns = [column for column in tied.columns if column not in (query, call)]
     return tied.group_by(query, maintain_order=True).agg(
         pl.col(call).unique().sort().str.join(",").alias(call),
