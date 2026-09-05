@@ -80,6 +80,8 @@ not proof of donor genotype. C-gene calls and unreviewed IGH D-gene calls are
 omitted from expectations. Light chains have null D. In the two no-D IGH cases,
 only four bases remain between retained V and J alignments: null D means no
 reliable assignment, not proof of a biologically D-free rearrangement.
+The exact four-base residual requirement is a gate for this curated cohort,
+not a general threshold for deciding whether a rearrangement supports D.
 
 Expected segment and junction coordinates are **zero-based, half-open in the
 oriented full original input**. Segment boundaries describe the retained local
@@ -108,6 +110,11 @@ six deliberately selected productivity disagreements have an intact ORF and
 correct anchors. Their coding-origin arithmetic is explicit, so an erroneous
 comparison of a full-query junction coordinate to a trimmed-query frame cannot
 become an expected failure.
+The loader currently requires in-frame junctions and V-to-junction coding
+displacements because all retained cases satisfy those conditions. These and
+the four-base no-D residual check are cohort-specific curation gates. Extending
+the fixture schema to other residual lengths or out-of-frame biology requires
+deliberately revising the gates, reason-code validation and regression cases.
 
 Special pilot adjudications are documented per case:
 
@@ -142,7 +149,16 @@ Every nomination is checked against retained source evidence. Expected V/J spans
 must match the recorded traces under V-priority overlap ownership; indel
 boundaries and bases must match trace gaps. Mapped anchors, coding start/end,
 translation, frame, productivity and reason codes must agree with the stored
-sequence/alignment evidence. All checks are local; default loading also validates
+sequence/alignment evidence. Every retained V/J reference trace, including the
+secondary J repeat and deleted reference columns, must equal the named allele's
+corresponding substring in the bundled human BCR FASTA. The loader reads those
+files with `importlib.resources`, independently of user database or HOME lookup.
+It checks the gapped/ungapped V pair and derives IMGT104 from gapped nucleotide
+offset 309; a second adjacent cysteine cannot replace it. The J anchor is derived
+from the unique locus-compatible W/F-G-X-G motif in its named bundled reference.
+Constant-call grammar for this human cohort retains `IGHG4A`, but excludes
+`IGHG1A`, `IGHG2A` and `IGHG3A`, which lack human packaged reference support.
+All checks are local; default loading also validates
 the complete cohort, while temporary subset loaders validate each case. They
 must never launch MMseqs. Loading the fixtures does not establish that current annotation passes
 these biological expectations; the original missing outputs remain diagnostic

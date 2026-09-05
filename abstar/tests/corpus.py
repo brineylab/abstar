@@ -14,11 +14,13 @@ import re
 from collections import Counter, defaultdict
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
+from importlib.resources import files
 from os import PathLike
 from pathlib import Path
 from types import MappingProxyType
 
 from abutils import Sequence
+from Bio import SeqIO
 from Bio.Seq import Seq
 
 import polars as pl
@@ -314,7 +316,7 @@ def _gene_pattern(locus, segment):
         return r"IGHD[1-9][0-9]*-[1-9][0-9]*" if locus == "IGH" else r"(?!)"
     if segment == "j":
         return locus + {"IGH": r"J[1-6]", "IGK": r"J[1-5]", "IGL": r"J[1-7]"}[locus]
-    return {"IGH": r"IGH(?:M|D|E|A[12]|G[1-4]A?)", "IGK": r"IGKC", "IGL": r"IGLC[1-7]"}[locus]
+    return {"IGH": r"IGH(?:M|D|E|A[12]|G[1-4]|G4A)", "IGK": r"IGKC", "IGL": r"IGLC[1-7]"}[locus]
 
 
 def _validate_expected(expected, sequence):
@@ -384,8 +386,24 @@ def _validate_expected(expected, sequence):
         raise ValueError("productivity and issue evidence disagree")
 
 
-def _trace_evidence(trace, sequence):
-    """Check a retained alignment and recover its reference-to-query mapping."""
+def _packaged_bcr_references():
+    """Read fixed package resources, never the configurable user database path."""
+    root = files("abstar").joinpath("germline_dbs").joinpath("bcr").joinpath("human")
+    references = {}
+    for kind, segment in (("ungapped", "v"), ("ungapped", "j"), ("imgt_gapped", "v")):
+        entries = {}
+        with root.joinpath(kind).joinpath(segment + ".fasta").open("r", encoding="ascii") as handle:
+            for record in SeqIO.parse(handle, "fasta"):
+                name = record.id.removesuffix("__homo_sapiens")
+                if name in entries:
+                    raise ValueError("duplicate named packaged germline reference")
+                entries[name] = str(record.seq)
+        references[kind, segment] = entries
+    return references
+
+
+def _trace_evidence(trace, sequence, references):
+    """Authenticate retained bases and recover the reference-to-query mapping."""
     if not isinstance(trace, dict):
         raise ValueError("missing retained segment trace")
     starts = (trace.get("query_start"), trace.get("germline_start"))
@@ -402,6 +420,11 @@ def _trace_evidence(trace, sequence):
             or len(germline.replace("-", "")) != ends[1] - starts[1]
             or any(q == g == "-" for q, g in zip(query, germline))):
         raise ValueError("retained trace does not match query/reference spans")
+    reference = trace.get("reference")
+    if (not isinstance(reference, str) or reference not in references
+            or ends[1] > len(references[reference])
+            or germline.replace("-", "") != references[reference][starts[1]:ends[1]]):
+        raise ValueError("retained reference trace does not match its named packaged germline")
     qpos, gpos = starts
     mapping = {}
     for q, g in zip(query, germline):
@@ -432,21 +455,15 @@ def _mapped_anchor(trace, mapping, offset, *, project=False):
     raise ValueError("anchor is not supported by the retained trace")
 
 
-def _reference_anchor_matches(trace, offset, codons):
-    germline = trace["germline_aligned"].replace("-", "")
-    start, end = trace["germline_start"], trace["germline_end"]
-    covered = [(pos - offset, germline[pos - start])
-               for pos in range(max(start, offset), min(end, offset + 3))]
-    return bool(covered) and any(all(codon[i] == base for i, base in covered) for codon in codons)
-
-
-def _validate_alignment_evidence(expected, source, sequence):
+def _validate_alignment_evidence(expected, source, sequence, references):
     oriented = str(Seq(sequence).reverse_complement()) if expected["rev_comp"] else sequence
     alignment = source["alignment"]
+    if (alignment.get("germline_receptor"), alignment.get("germline_database")) != ("bcr", "human"):
+        raise ValueError("curated references require the packaged human BCR database")
     maps, indels = {}, {}
     for segment in ("v", "j"):
         trace = alignment.get(segment)
-        maps[segment], indels[segment] = _trace_evidence(trace, oriented)
+        maps[segment], indels[segment] = _trace_evidence(trace, oriented, references["ungapped", segment])
         reference = trace.get("reference")
         call = expected[segment + "_call"]
         if not isinstance(reference, str) or not (
@@ -465,21 +482,31 @@ def _validate_alignment_evidence(expected, source, sequence):
         if field in expected and expected[field] != indels["v"][field]:
             raise ValueError("expected indel boundaries/bases disagree with retained reference trace")
     voffset, joffset = alignment.get("v_imgt104_ungapped_offset"), alignment.get("j_anchor_germline_offset")
+    if type(voffset) is not int or type(joffset) is not int:
+        raise ValueError("anchor germline offsets must be integers")
+    gapped_v = references["imgt_gapped", "v"].get(v["reference"], "")
+    if (gapped_v.replace(".", "") != references["ungapped", "v"][v["reference"]]
+            or gapped_v[309:312] not in ("TGT", "TGC")
+            or voffset != len(gapped_v[:309].replace(".", ""))):
+        raise ValueError("V anchor must be IMGT104 in the named packaged gapped reference")
+    # The short packaged J references have one locus-compatible W/F-G-X-G motif.
+    # Search nucleotide offsets directly, including J sequences starting mid-codon.
+    jreference = references["ungapped", "j"][j["reference"]]
+    anchor_pattern = ("TGG" if expected["locus"] == "IGH" else "TT[TC]") + r"GG[ACGT][ACGT]{3}GG[ACGT]"
+    joffsets = [i for i in range(len(jreference)) if re.match(anchor_pattern, jreference[i:])]
+    if (len(joffsets) != 1 or joffset != joffsets[0]
+            or alignment.get("j_anchor_germline_codon") != jreference[joffset:joffset + 3]):
+        raise ValueError("J anchor must be the W/F-G-X-G motif in its named packaged reference")
     vanchor = _mapped_anchor(v, maps["v"], voffset)
     janchor = _mapped_anchor(j, maps["j"], joffset, project=True)
     if (vanchor != expected["junction_start"] or vanchor != alignment.get("v_imgt104_query_start")
             or janchor != expected["junction_end"] - 3 or janchor != alignment.get("j_anchor_query_start")):
         raise ValueError("expected junction anchors disagree with retained mapping")
     motif = "W" if expected["locus"] == "IGH" else "F"
-    jcodon = alignment.get("j_anchor_germline_codon")
-    if (not _reference_anchor_matches(v, voffset, ("TGT", "TGC"))
-            or jcodon not in ({"TGG"} if motif == "W" else {"TTT", "TTC"})
-            or not _reference_anchor_matches(j, joffset, (jcodon,))):
-        raise ValueError("mapped germline anchors lack conserved C/W/F evidence")
     scope = alignment.get("coding_scope")
     if scope == "through_secondary_j_repeat":
         endpoint = alignment.get("j_secondary_repeat")
-        _trace_evidence(endpoint, oriented)
+        _trace_evidence(endpoint, oriented, references["ungapped", "j"])
     elif scope == "through_primary_j":
         endpoint = j
     else:
@@ -642,6 +669,7 @@ def load_real_bcr_cases(directory=None) -> tuple[RealBCRCase, ...]:
             records[-1][1] += line
     if len(records) != len(raw_cases):
         raise ValueError("FASTA/JSON record count mismatch")
+    references = _packaged_bcr_references()
     cases, seen = [], set()
     fields = set(RealBCRCase.__dataclass_fields__) - {"sequence"}
     for raw, (identifier, sequence) in zip(raw_cases, records):
@@ -664,7 +692,7 @@ def load_real_bcr_cases(directory=None) -> tuple[RealBCRCase, ...]:
                 for k in ("publication", "cellranger", "alignment")):
             raise ValueError("publication, Cell Ranger and direct alignment evidence are required")
         _validate_expected(raw["expected"], sequence)
-        _validate_alignment_evidence(raw["expected"], source, sequence)
+        _validate_alignment_evidence(raw["expected"], source, sequence, references)
         case = RealBCRCase(sequence=sequence, **raw)
         _validate_nomination(case)
         cases.append(case)

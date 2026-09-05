@@ -42,15 +42,16 @@ def schema_files(tmp_path):
                 'junction': {'abstar_nt': 'TGTAAATTT', 'abstar_aa': 'CKF'},
                 'productivity': {'abstar': True, 'cellranger': True}},
             'alignment': {
+                'germline_receptor': 'bcr', 'germline_database': 'human',
                 'v': {'reference': 'IGKV1-5*01', 'query_start': 0, 'query_end': 3,
-                      'germline_start': 0, 'germline_end': 3, 'query_aligned': 'TGT',
-                      'germline_aligned': 'TGT', 'indels': [], 'notes': ['direct comparison']},
+                      'germline_start': 261, 'germline_end': 264, 'query_aligned': 'TGT',
+                      'germline_aligned': 'TGC', 'indels': [], 'notes': ['direct comparison']},
                 'j': {'reference': 'IGKJ1*01', 'query_start': 6, 'query_end': 9,
-                      'germline_start': 0, 'germline_end': 3, 'query_aligned': 'TTT',
-                      'germline_aligned': 'TTT', 'indels': []},
-                'v_imgt104_query_start': 0, 'v_imgt104_ungapped_offset': 0,
-                'j_anchor_query_start': 6, 'j_anchor_germline_offset': 0,
-                'j_anchor_germline_codon': 'TTT', 'coding_start': 0, 'coding_end': 9,
+                      'germline_start': 7, 'germline_end': 10, 'query_aligned': 'TTT',
+                      'germline_aligned': 'TTC', 'indels': []},
+                'v_imgt104_query_start': 0, 'v_imgt104_ungapped_offset': 261,
+                'j_anchor_query_start': 6, 'j_anchor_germline_offset': 7,
+                'j_anchor_germline_codon': 'TTC', 'coding_start': 0, 'coding_end': 9,
                 'coding_scope': 'through_primary_j', 'coding_translation': 'CKF',
             },
         },
@@ -260,7 +261,7 @@ def test_loader_rejects_incompatible_locus_segment_and_names(schema_files, locus
 
 
 def set_schema_locus(raw, locus):
-    """Make a consistent tiny schema example before testing one corrupt call."""
+    """Tiny schema traces use literal packaged anchor slices, not gene assignment."""
     v = {'IGH': 'IGHV3-23', 'IGK': 'IGKV1-5', 'IGL': 'IGLV2-14'}[locus]
     j = locus + 'J1'
     codon = 'TGG' if locus == 'IGH' else 'TTT'
@@ -271,9 +272,16 @@ def set_schema_locus(raw, locus):
     source['cellranger'].update(chain=locus, v_gene=v, j_gene=j, cdr3=aa, cdr3_nt=sequence)
     source['abstar_evidence']['raw_calls']['abstar'].update(v=v+'*01', j=j+'*01')
     source['abstar_evidence']['junction'].update(abstar_nt=sequence, abstar_aa=aa)
-    source['alignment']['v']['reference'] = v+'*01'
-    source['alignment']['j'].update(reference=j+'*01', query_aligned=codon, germline_aligned=codon)
-    source['alignment'].update(j_anchor_germline_codon=codon, coding_translation=aa)
+    voffset, vcodon = {'IGH': (285, 'TGT'), 'IGK': (261, 'TGC'), 'IGL': (267, 'TGC')}[locus]
+    joffset, jcodon = (18, 'TGG') if locus == 'IGH' else (7, 'TTC')
+    source['alignment']['v'].update(reference=v+'*01', germline_start=voffset,
+                                   germline_end=voffset+3, germline_aligned=vcodon)
+    source['alignment']['j'].update(reference=j+'*01', query_aligned=codon,
+                                   germline_aligned=jcodon, germline_start=joffset,
+                                   germline_end=joffset+3)
+    source['alignment'].update(v_imgt104_ungapped_offset=voffset,
+                              j_anchor_germline_offset=joffset,
+                              j_anchor_germline_codon=jcodon, coding_translation=aa)
     raw['selection_reasons'] = ['concordant_'+locus]
     raw['sequence_sha256'] = hashlib.sha256(sequence.encode()).hexdigest()
     return '>10E8\n'+sequence+'\n'
@@ -303,9 +311,10 @@ def original_case_file(tmp_path):
     cases = json.loads((corpus.REAL_BCR_DIRECTORY / 'cases.json').read_text())
     with (corpus.REAL_BCR_DIRECTORY / 'sequences.fasta').open() as handle:
         records = list(SeqIO.parse(handle, 'fasta'))
-    def choose(reason):
+    def choose(reason, sequence_id=None):
         raw, record = next((copy.deepcopy(c), r) for c, r in zip(cases, records)
-                           if reason in c['selection_reasons'])
+                           if reason in c['selection_reasons']
+                           and (sequence_id is None or c['sequence_id'] == sequence_id))
         def write():
             (tmp_path / 'cases.json').write_text(json.dumps([raw]))
             (tmp_path / 'sequences.fasta').write_text('>'+record.id+'\n'+str(record.seq)+'\n')
@@ -452,3 +461,91 @@ def test_loader_rejects_productivity_reasons_contradicted_by_trace(original_case
     raw['expected'].update(productive=productive, productivity_issues=issues)
     with pytest.raises(ValueError):
         corpus.load_real_bcr_cases(write())
+
+
+def test_loader_rejects_coordinated_shift_to_second_cysteine(original_case_file):
+    raw, write = original_case_file('productivity_disagreement_IGL')
+    assert (raw['dataset'], raw['sequence_id']) == ('1287179', 'CATATTCTCATACGGT-1_contig_1')
+    corpus.load_real_bcr_cases(write())
+    alignment, expected = raw['source']['alignment'], raw['expected']
+    assert alignment['v']['reference'] == 'IGLV2-23*03'
+    assert (alignment['v_imgt104_ungapped_offset'], expected['junction_start']) == (267, 362)
+    alignment['v_imgt104_ungapped_offset'] = 270
+    alignment['v_imgt104_query_start'] = expected['junction_start'] = 365
+    expected['junction'] = expected['junction'][3:]
+    expected['junction_aa'] = expected['junction_aa'][1:]
+    expected['cdr3'] = expected['junction'][3:-3]
+    expected['cdr3_aa'] = expected['junction_aa'][1:-1]
+    assert expected['junction_aa'] == 'CSYAGSSTFVVF'
+    with pytest.raises(ValueError):
+        corpus.load_real_bcr_cases(write())
+
+
+def test_loader_rejects_coordinated_edit_of_deleted_reference_bases(original_case_file):
+    raw, write = original_case_file('deletion')
+    corpus.load_real_bcr_cases(write())
+    trace = raw['source']['alignment']['v']
+    column = trace['query_aligned'].index('------')
+    assert trace['germline_aligned'][column:column+6] == 'TAGTGG'
+    trace['germline_aligned'] = trace['germline_aligned'][:column]+'AAAAAA'+trace['germline_aligned'][column+6:]
+    trace['indels'][0]['sequence'] = 'AAAAAA'
+    raw['expected']['v_deletions'][0]['sequence'] = 'AAAAAA'
+    with pytest.raises(ValueError):
+        corpus.load_real_bcr_cases(write())
+
+
+@pytest.mark.parametrize('segment', ['v', 'j'])
+def test_loader_authenticates_named_reference_trace(original_case_file, segment):
+    raw, write = original_case_file('concordant_IGH')
+    corpus.load_real_bcr_cases(write())
+    trace = raw['source']['alignment'][segment]
+    original = trace['germline_aligned'][0]
+    replacement = 'A' if original != 'A' else 'C'
+    trace['germline_aligned'] = replacement+trace['germline_aligned'][1:]
+    with pytest.raises(ValueError):
+        corpus.load_real_bcr_cases(write())
+
+
+@pytest.mark.parametrize('gene', ['IGHG1A', 'IGHG2A', 'IGHG3A'])
+@pytest.mark.parametrize('exact', [True, False])
+def test_loader_rejects_invented_ighg_a_forms(schema_files, gene, exact):
+    raw, write = schema_files
+    fasta = set_schema_locus(raw, 'IGH')
+    raw['expected']['c_call'] = gene+'*01' if exact else [gene]
+    with pytest.raises(ValueError):
+        corpus.load_real_bcr_cases(write(fasta=fasta))
+
+
+def test_loader_accepts_supported_ighg4a_allowed_set(schema_files):
+    raw, write = schema_files
+    fasta = set_schema_locus(raw, 'IGH')
+    raw['expected']['c_call'] = ['IGHG4A']
+    assert corpus.load_real_bcr_cases(write(fasta=fasta))[0].expected['c_call'] == ('IGHG4A',)
+
+
+@pytest.mark.parametrize('segment', ['v', 'j'])
+def test_loader_requires_the_named_packaged_allele(original_case_file, segment):
+    raw, write = original_case_file('concordant_IGH')
+    corpus.load_real_bcr_cases(write())
+    trace = raw['source']['alignment'][segment]
+    trace['reference'] = trace['reference'].split('*')[0] + '*999'
+    with pytest.raises(ValueError, match='named packaged germline'):
+        corpus.load_real_bcr_cases(write())
+
+
+def test_loader_authenticates_secondary_j_trace(original_case_file):
+    raw, write = original_case_file('pilot_loss', 'CCATGTCCAGTCTTCC-1_contig_1')
+    corpus.load_real_bcr_cases(write())
+    trace = raw['source']['alignment']['j_secondary_repeat']
+    assert trace['reference'] == 'IGHJ5*02'
+    trace['germline_aligned'] = 'A' + trace['germline_aligned'][1:]
+    with pytest.raises(ValueError, match='named packaged germline'):
+        corpus.load_real_bcr_cases(write())
+
+
+def test_loader_uses_packaged_resources_without_home_lookup(monkeypatch):
+    from pathlib import Path
+    def forbidden(*args, **kwargs):
+        raise AssertionError('fixture germlines must not use HOME lookup')
+    monkeypatch.setattr(Path, 'home', forbidden)
+    assert len(corpus.load_real_bcr_cases()) == 36
