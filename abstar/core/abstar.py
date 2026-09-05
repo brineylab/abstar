@@ -20,7 +20,11 @@ from natsort import natsorted
 from tqdm.auto import tqdm
 
 from ..annotation.annotator import annotate
-from ..annotation.airr import write_airr_tsv
+from ..annotation.airr import (
+    translate_airr_alignment,
+    translate_airr_query,
+    write_airr_tsv,
+)
 from ..annotation.schema import ANNOTATION_WORK_SCHEMA
 from ..assigners.mmseqs import (
     AssignmentExternalToolError,
@@ -640,7 +644,20 @@ def run(
                 parquet_file = os.path.join(
                     project_path, f"parquet/{sample_name}.parquet"
                 )
-                public_df.write_parquet(parquet_file)
+                # Map official sequence fields only at the final file boundary.
+                # API objects/work Parquets retain their assembled meanings;
+                # public Parquet coordinates and all other values stay native.
+                parquet_rows = public_df.to_dicts()
+                for row in parquet_rows:
+                    row["sequence"] = row["sequence_input"]
+                    frame = row["v_frame"] if row["v_frame"] is not None else row["frame"]
+                    row["sequence_aa"] = translate_airr_query(
+                        row["sequence_oriented"], query_start=row["v_sequence_start"], frame=frame,
+                    )
+                    row["sequence_alignment_aa"], row["germline_alignment_aa"] = translate_airr_alignment(
+                        row["sequence_alignment"], row["germline_alignment"], frame=frame,
+                    )
+                pl.DataFrame(parquet_rows, schema=public_df.schema).write_parquet(parquet_file)
 
             # log results summary
             sequence_count = public_df.height

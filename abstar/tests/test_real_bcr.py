@@ -579,16 +579,21 @@ def assert_translated_segment_evidence(ab, segment):
 
 def assert_emitted_evidence_reconstructs(row, ab):
     import math
+    from abstar.tests.helpers import expected_airr_amino_acids
 
     assert row['annotation_status'] == 'annotated'
     assert row['failure_reason'] is None
     assert 'row_id' not in row
+    official = {'sequence': ab.sequence_input, **expected_airr_amino_acids(vars(ab))}
     for field, value in row.items():
         if hasattr(ab, field):
-            assert getattr(ab, field) == value, (ab.sequence_id, field)
+            expected = official[field] if field in official else getattr(ab, field)
+            assert expected == value, (ab.sequence_id, field)
     for suffix in ('', '_aa'):
-        sequence = row[f'sequence{suffix}']
-        assert row[f'sequence_alignment{suffix}'].replace('-', '') == sequence
+        # File sequence/AA fields now use official meanings. The published
+        # masks still index the same internal assembled V(D)J and translation.
+        sequence = getattr(ab, f'sequence{suffix}')
+        assert getattr(ab, f'sequence_alignment{suffix}').replace('-', '') == sequence
         assert len(row[f'sequence_alignment{suffix}']) == len(row[f'germline_alignment{suffix}'])
         assert len(row[f'gene_segment_mask{suffix}']) == len(sequence)
         assert len(row[f'nongermline_mask{suffix}']) == len(sequence)
@@ -1074,17 +1079,13 @@ def test_pilot_loss_mask_preserves_adjudicated_outcome(pilot_loss_cases, tmp_pat
     row = rows[0]
     assert_pilot_adjudicated_outcome(row, case)
     assert 'row_id' not in row
-    for suffix in ('', '_aa'):
-        sequence = row[f'sequence{suffix}']
-        assert row[f'sequence_alignment{suffix}'].replace('-', '') == sequence
-        assert len(row[f'gene_segment_mask{suffix}']) == len(sequence)
-        assert len(row[f'nongermline_mask{suffix}']) == len(sequence)
 
     assignment = pl.read_parquet(tmp_path / 'tmp' / 'chunk_0.parquet').row(0, named=True)
     receptor = assignment.pop('receptor_type')
     ab = Antibody(**assignment)
     ab.receptor_type = receptor
     ab = annotate_single_sequence(ab, germline_database='human')
+    assert_emitted_evidence_reconstructs(row, ab)
     assert ab.receptor_type == 'bcr'
     assert (ab.junction_start, ab.junction_end) == (
         case.expected['junction_start'], case.expected['junction_end'],

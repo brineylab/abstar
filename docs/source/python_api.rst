@@ -329,9 +329,11 @@ Coordinate conventions
 Python annotations, dataframe returns, and Parquet use zero-based half-open
 query/reference coordinates. Region coordinates and V/D/J/C sequence coordinates
 address ``sequence_oriented``. AIRR TSV converts these to one-based closed
-intervals and writes the original input as ``sequence``. See
+intervals. Both final file formats write the original input as ``sequence``. See
 :doc:`output_formats` for sequence, CIGAR, null, and migration details.
-The official TSV ``sequence_aa`` uses the full oriented-query coding phase;
+The official TSV/final Parquet ``sequence_aa`` uses the full oriented-query coding phase;
 its paired AA alignment fields share the nucleotide alignment columns.
-Python annotation objects retain their assembled translations for compatibility.
+Python annotation objects and dataframe returns retain their assembled
+``sequence`` and translations for compatibility. Project mode returns ``None``;
+the file mapping does not change no-project API return shapes or values.
 Use ``abstar.annotation.airr.to_airr_row()`` for the explicit serialization mapping.

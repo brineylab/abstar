@@ -136,3 +136,56 @@ def expected_airr_amino_acids(row):
     for field, sequence in (('sequence_alignment_aa', query), ('germline_alignment_aa', reference)):
         result[field] = translate(sequence[first:])
     return result
+
+
+def normalize_airr_row(row: Mapping[str, str]) -> dict[str, object]:
+    """Decode a RAW csv.DictReader TSV row to native, half-open values.
+
+    Do not pass AIRR reader objects: that reader already subtracts one from
+    coordinate starts. This helper changes representation only, never sequence
+    aliases, amino acids, calls, evidence, identifiers, or outcome meanings.
+    """
+    import polars as pl
+    from abstar.annotation.schema import OUTPUT_SCHEMA
+
+    assert set(row) == set(OUTPUT_SCHEMA), "AIRR public field set changed"
+    normalized = {}
+    for field, value in row.items():
+        assert isinstance(value, str), (field, value)
+        dtype = OUTPUT_SCHEMA[field]
+        if value == '':
+            value = None
+        elif dtype == pl.Boolean:
+            assert value in ('T', 'F'), (field, value)
+            value = value == 'T'
+        elif dtype == pl.Int64:
+            value = int(value)
+            if field.endswith('_start'):
+                assert value >= 1, (field, value)
+                value -= 1
+        elif dtype == pl.Float64:
+            value = float(value)
+        else:
+            assert dtype == pl.String, (field, dtype)
+        normalized[field] = value
+    return normalized
+
+
+def normalize_parquet_row(row: Mapping[str, object]) -> dict[str, object]:
+    """Normalize final PUBLIC Parquet null representation, keeping its values.
+
+    Public Parquet already has official sequence/AA meanings and half-open
+    coordinates. Recomputing these here would hide a file-serialization bug.
+    Only empty string versus null is reconciled with the TSV representation.
+    """
+    import polars as pl
+    from abstar.annotation.schema import OUTPUT_SCHEMA
+
+    assert set(row) == set(OUTPUT_SCHEMA), "Parquet public field set changed"
+    types = {pl.String: str, pl.Boolean: bool, pl.Int64: int, pl.Float64: float}
+    normalized = {}
+    for field, value in row.items():
+        if value is not None:
+            assert type(value) is types[OUTPUT_SCHEMA[field]], (field, value)
+        normalized[field] = None if value == '' else value
+    return normalized

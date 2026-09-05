@@ -214,7 +214,9 @@ def test_api_mixed_empty_and_valid_files_keep_the_valid_annotation(
     assert result is None
     assert [path.name for path in (project / "parquet").iterdir()] == ["sample2.parquet"]
     rows = pl.read_parquet(project / "parquet" / "sample2.parquet").to_dicts()
-    helpers.assert_same_annotations(public_bcr_baseline[:1], rows, ANNOTATION_FIELDS)
+    # Final file sequence is the input query; the API baseline stays assembled.
+    expected = [{**row, "sequence": row["sequence_input"]} for row in public_bcr_baseline[:1]]
+    helpers.assert_same_annotations(expected, rows, ANNOTATION_FIELDS)
 
 
 @pytest.mark.e2e
@@ -286,7 +288,8 @@ def test_api_project_returns_none_and_preserves_nested_input_paths(
     assert len(list((project / "input").rglob("*.fasta"))) == 3
     assert len(list((project / "parquet").glob("*.parquet"))) == 3
     assert len(list((project / "airr").glob("*.tsv"))) == 3
-    helpers.assert_same_annotations(public_bcr_baseline, rows, ANNOTATION_FIELDS)
+    expected = [{**row, "sequence": row["sequence_input"]} for row in public_bcr_baseline]
+    helpers.assert_same_annotations(expected, rows, ANNOTATION_FIELDS)
 
 
 @pytest.mark.e2e

@@ -171,7 +171,7 @@ def shared_airr_run(tmp_path_factory):
     sequences.append(Sequence('N', id='unassigned'))
     project = tmp_path_factory.mktemp('shared-airr')
     abstar.run(sequences, project_path=str(project), output_format=['airr', 'parquet'],
-               n_processes=1, chunksize=3, mmseqs_threads=1)
+               n_processes=1, chunksize=3, mmseqs_threads=1, debug=True)
     return project, sequences, selected
 
 
@@ -206,35 +206,18 @@ def test_shared_run_passes_official_validator_and_preserves_outcomes(shared_airr
 @pytest.mark.e2e
 def test_normalized_tsv_and_parquet_agree_every_public_field(shared_airr_run):
     import csv
+    from abstar.tests.helpers import (
+        assert_same_annotations, normalize_airr_row, normalize_parquet_row,
+    )
     project, _, _ = shared_airr_run
     parquet = pl.read_parquet(project / 'parquet/sequences.parquet')
     with (project / 'airr/sequences.tsv').open(newline='') as handle:
-        tsv = list(csv.DictReader(handle, delimiter='\t', quoting=csv.QUOTE_NONE))
+        tsv = list(csv.DictReader(handle, delimiter='\t'))
     assert len(tsv) == parquet.height
-    assert set(tsv[0]) == set(OUTPUT_SCHEMA)
-    coordinate_prefixes = {f'{s}_{a}' for s in 'vdjc' for a in ('sequence', 'germline')}
-    coordinate_prefixes |= {'fwr1', 'cdr1', 'fwr2', 'cdr2', 'fwr3', 'cdr3', 'fwr4'}
-    from abstar.tests.helpers import expected_airr_amino_acids
-    for source, encoded in zip(parquet.iter_rows(named=True), tsv):
-        official_aa = expected_airr_amino_acids(source)
-        for field, dtype in OUTPUT_SCHEMA.items():
-            expected = source['sequence_input'] if field == 'sequence' else source[field]
-            if field in official_aa:
-                expected = official_aa[field]
-            if field.endswith('_start') and field[:-6] in coordinate_prefixes and expected is not None:
-                expected += 1
-            value = encoded[field]
-            if expected is None or expected == '':
-                assert value == '', (source['sequence_id'], field)
-                continue
-            if dtype == pl.Boolean:
-                assert value in ('T', 'F')
-                value = value == 'T'
-            elif dtype == pl.Int64:
-                value = int(value)
-            elif dtype == pl.Float64:
-                value = float(value)
-            assert value == expected, (source['sequence_id'], field, value, expected)
+    assert set(tsv[0]) == set(parquet.columns) == set(OUTPUT_SCHEMA)
+    assert_same_annotations([normalize_airr_row(row) for row in tsv],
+                            [normalize_parquet_row(row) for row in parquet.to_dicts()],
+                            tuple(OUTPUT_SCHEMA))
 
 
 def replay_cigar(cigar, query, reference):
@@ -527,10 +510,21 @@ def test_unassigned_official_amino_acids_are_null(serialization, tmp_path):
 
 @pytest.mark.e2e
 def test_public_official_amino_acids_map_to_source_nt_and_preserve_internals(shared_airr_run):
-    from abstar.tests.helpers import expected_airr_amino_acids
+    from abstar.tests.helpers import assert_same_annotations, expected_airr_amino_acids
     from Bio.Data import CodonTable
     project, inputs, _ = shared_airr_run
-    internal = pl.read_parquet(project / 'parquet/sequences.parquet').to_dicts()
+    # Final Parquet now carries official fields. Retained work chunks are the
+    # actual internal annotation data consumed by API returns and masks.
+    internal = sorted(
+        (row for path in (project / 'tmp').glob('*_annotated.parquet')
+         for row in pl.read_parquet(path).to_dicts()),
+        key=lambda row: int(row['row_id'].rsplit('_', 1)[1]),
+    )
+    final_parquet = pl.read_parquet(project / 'parquet/sequences.parquet').to_dicts()
+    unchanged_fields = tuple(field for field in OUTPUT_SCHEMA if field not in (
+        'sequence', 'sequence_aa', 'sequence_alignment_aa', 'germline_alignment_aa',
+    ))
+    assert_same_annotations(internal, final_parquet, unchanged_fields)
     official = read_validated(project / 'airr/sequences.tsv')
     assert len(internal) == len(official) == len(inputs) == 15
     assert [row['sequence_id'] for row in internal] == [row['sequence_id'] for row in official]
@@ -544,7 +538,7 @@ def test_public_official_amino_acids_map_to_source_nt_and_preserve_internals(sha
         if source['annotation_status'] == 'unassigned':
             assert set(expected.values()) == {None}
             continue
-        # Python/Parquet legacy translations still match their assembled VDJ,
+        # Internal legacy translations still match their assembled VDJ,
         # preserving the inputs used by existing productivity and masks.
         assembled = source['sequence'][source['frame'] - 1:]
         assert source['sequence_aa'] == ''.join(codons.get(assembled[i:i + 3], 'X')

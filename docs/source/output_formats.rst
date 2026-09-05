@@ -25,8 +25,8 @@ This applies to V/D/J/C query and germline coordinates and to
 ``fwr1/cdr1/fwr2/cdr2/fwr3/cdr3/fwr4_start/end``.
 
 Query coordinates address ``sequence_oriented``. Germline coordinates address
-the ungapped reference of the corresponding gene. In AIRR TSV, ``sequence``
-is always the original ``sequence_input``. When ``rev_comp`` is true, all
+the ungapped reference of the corresponding gene. In both final file formats,
+``sequence`` is always the original ``sequence_input``. When ``rev_comp`` is true, all
 alignments and query coordinates refer to its reverse complement. Opaque
 identifiers, including duplicate IDs and leading zeroes, retain their input
 order. The private internal ``row_id`` is never serialized.
@@ -56,7 +56,8 @@ The C CIGAR describes the separately retained constant-region alignment.
 Official Amino-acid Fields
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-In AIRR TSV, ``sequence_aa`` translates the full ``sequence_oriented`` query.
+In AIRR TSV and final Parquet files, ``sequence_aa`` translates the full
+``sequence_oriented`` query.
 The retained V frame is one-based within ``v_sequence``. Its first complete
 codon starts at the internal oriented-query offset
 ``v_sequence_start + v_frame - 1``; the full-query translation therefore starts
@@ -95,27 +96,33 @@ Compatibility note
 
 Earlier TSV output exposed Python coordinate offsets, Python boolean text,
 and the assembled V(D)J sequence as ``sequence``. Consumers must use the AIRR
-conventions above for TSV. Python/Parquet ``sequence`` remains the assembled
-V(D)J sequence; ``germline``, the ``*_gapped`` and ``*_vdjc`` assembly fields
+conventions above for TSV. Final Parquet files now also expose the original
+input as ``sequence`` and derive the three official AA fields from their
+corresponding nucleotide query/alignment fields. Consumers of older Parquet
+files must account for these four changed field meanings. Parquet booleans
+and nulls remain native, and its coordinates remain zero-based half-open.
+
+Python annotation objects, dataframe returns, and temporary work Parquets
+retain the assembled V(D)J ``sequence``, its ``sequence_aa``, and their existing
+AA alignments for compatibility with masks and productivity. The ``germline``,
+``*_gapped`` and ``*_vdjc`` assembly fields in both file formats
 remain abstar extensions, including their legacy NP content. They must not be
 used as substitutes for the paired AIRR alignment fields. ``cdr3_length`` is
 also an abstar extension and counts amino acids.
 
-AIRR TSV now derives its three official AA fields from the corresponding
-nucleotide query/alignment fields. Python annotations and current Parquet
-retain their existing assembled ``sequence_aa`` and AA alignments for
-compatibility with masks and productivity. The assembly extensions such as
+The assembly extensions such as
 ``sequence_vdjc_aa`` and ``germline_vdjc_aa`` retain their existing meanings;
 no AA fields are silently changed inside annotation objects.
 
-When comparing the two formats, normalize TSV starts by subtracting one,
-decode ``T``/``F`` and empty cells, and compare TSV ``sequence`` with Parquet
-``sequence_input``. The official ``airr.read_rearrangement(..., validate=True)``
-reader already normalizes known coordinate starts to Python offsets. For the
-three AA fields, derive the official values from the retained nucleotide
-columns and full-query frame above before comparing. The pure
-``abstar.annotation.airr.to_airr_row()`` mapper applies these sequence,
-coordinate and AA transformations to an internal/Parquet row.
+When comparing the two final formats, decode raw TSV numeric cells and
+``T``/``F``, reconcile empty strings with nulls, and subtract one from raw TSV
+starts. All shared fields, including the four official sequence fields, then
+compare directly without recomputing translations or changing gene calls,
+evidence, identifiers, order, or outcome reasons. The official
+``airr.read_rearrangement(..., validate=True)`` reader already normalizes known
+coordinate starts to Python offsets; do not subtract again. The pure
+``abstar.annotation.airr.to_airr_row()`` mapper converts an internal annotation
+row to AIRR sequence, coordinate and AA conventions.
 
 
 Specifying Output Format
@@ -435,13 +442,13 @@ Sequences
      - Description
    * - ``sequence``
      - String
-     - AIRR TSV: original input query. Python/Parquet: assembled V(D)J sequence.
+     - AIRR TSV/final Parquet: original input query. Python returns: assembled V(D)J sequence.
    * - ``germline``
      - String
      - Corresponding germline sequence
    * - ``sequence_aa``
      - String
-     - AIRR TSV: full oriented query in the V-derived coding phase. Python/Parquet: assembled V(D)J translation.
+     - AIRR TSV/final Parquet: full oriented query in the V-derived coding phase. Python returns: assembled V(D)J translation.
    * - ``germline_aa``
      - String
      - Germline amino acid sequence
@@ -484,9 +491,10 @@ Masks
 
 
 Gene-segment masks contain one label per nucleotide or amino acid in the
-ungapped assembled V(D)J sequence (the Python/Parquet ``sequence`` or
-``sequence_aa``). AIRR TSV query fields include input flanks, so these masks
-are not indexed over the full TSV ``sequence`` or ``sequence_aa``. Nucleotide labels follow the
+ungapped assembled V(D)J sequence (the Python-returned ``sequence`` or
+``sequence_aa``). Both final file formats' query fields include input flanks,
+so these masks are not indexed over their full ``sequence`` or ``sequence_aa``.
+Nucleotide labels follow the
 retained V, NP1, optional D/NP2, and J spans. Amino acid labels use complete
 codons in the assembled query reading frame; a codon receives V, D, or J only
 when all three nucleotides belong to that segment. These masks exclude the
