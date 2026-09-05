@@ -7,10 +7,16 @@ Tests for the main abstar run() pipeline function.
 """
 
 import os
+import hashlib
+import re
+from pathlib import Path
 
 import polars as pl
 import pytest
 from abutils import Sequence
+from Bio.Seq import Seq
+
+from .helpers import read_fasta_records
 
 from ..core.abstar import (
     _copy_inputs_to_project,
@@ -388,6 +394,67 @@ def test_run_with_human_database(single_hc_sequence):
 
     assert isinstance(result, Sequence)
     assert result["v_gene"] is not None
+
+
+# Repository-owned construction: V[0:floor(len(V)/3)*3] + payload + J[0:-1].
+# V is the lexicographically first packaged allele; J is the first with the
+# same locus and (when encoded in the ID) species. GCC encodes alanine; the
+# additional AA in mouse cases completes the codon before the J reading frame.
+# These exercise database routing, not cross-species annotation accuracy.
+BCR_DATABASE_SMOKE = (
+    ("human", "IGHV1-18*01__homo_sapiens", "IGHJ1*01__homo_sapiens", "homo_sapiens", "GCC", "343c7fe66731452ac59856b9e414205843d8fd8de0b38d1186181f4121787620"),
+    ("macaque", "IGHV1-105*01", "IGHJ1-1*01", "macaque", "GCC", "b3c381c869825a6f012cadcb496c1caa24c927389232295d853db6cac694ed57"),
+    ("c57bl6", "IGHV0-24BS*00__mus_musculus", "IGHJ0-32C2*00__mus_musculus", "mus_musculus", "GCCAA", "bffe8eabfb43378a37383d714c696ebf4c7a8833612bfc8bee3fb999baf439e7"),
+    ("balbc", "IGHV0-22XF*00__mus_musculus", "IGHJ0-G76U*00__mus_musculus", "mus_musculus", "GCCAA", "7226f1c29e28a0818a6a43d156c965c8c3c3089ac0a5d5455792a367f257921d"),
+    ("human+c57bl6", "IGHV0-24BS*00__mus_musculus", "IGHJ0-32C2*00__mus_musculus", "mus_musculus", "GCCAA", "bffe8eabfb43378a37383d714c696ebf4c7a8833612bfc8bee3fb999baf439e7"),
+)
+
+
+@pytest.mark.e2e
+@pytest.mark.parametrize("database,v_allele,j_allele,species,payload,digest", BCR_DATABASE_SMOKE,
+                         ids=[case[0] for case in BCR_DATABASE_SMOKE])
+def test_run_with_each_packaged_bcr_database(
+    database, v_allele, j_allele, species, payload, digest, monkeypatch, tmp_path,
+):
+    """A reproducible compatible input must retain its requested DB identity."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    root = Path(__file__).parents[1] / "germline_dbs" / "bcr" / database
+    references = {segment: read_fasta_records(root / "ungapped" / f"{segment}.fasta")
+                  for segment in ("v", "j")}
+    assert v_allele == min(references["v"])
+    compatible_j = [name for name in references["j"] if name[:3] == v_allele[:3]
+                    and ("__" not in v_allele or name.split("__")[-1] == species)]
+    assert j_allele == min(compatible_j)
+    for segment, allele in (("v", v_allele), ("j", j_allele)):
+        gapped = read_fasta_records(root / "imgt_gapped" / f"{segment}.fasta")
+        assert gapped[allele].replace(".", "") == references[segment][allele]
+    v, j = references["v"][v_allele], references["j"][j_allele]
+    sequence = v[:len(v) // 3 * 3] + payload + j[:-1]
+    assert hashlib.sha256(sequence.encode()).hexdigest() == digest
+    v_anchor = max(i for i in range(0, len(v), 3) if v[i:i+3] in ("TGT", "TGC"))
+    j_anchors = [i for i in range(len(j)) if re.match(r"TGGGG[ACGT][ACGT]{3}GG[ACGT]", j[i:])]
+    assert len(j_anchors) == 1
+    junction_end = len(v) // 3 * 3 + len(payload) + j_anchors[0] + 3
+    assert (junction_end - v_anchor) % 3 == 0
+    assert len(sequence) % 3 == 0 and "*" not in str(Seq(sequence).translate())
+    sequence_id = "smoke_" + database
+    row = run(Sequence(sequence, id=sequence_id), receptor="bcr", germline_database=database,
+              n_processes=1, mmseqs_threads=1)
+    assert isinstance(row, Sequence)
+    assert row.id == row["sequence_id"] == sequence_id
+    assert row["annotation_status"] == "annotated"
+    assert row["failure_reason"] is None
+    assert row["germline_database"] == database
+    assert row["species"] == species
+    assert row["locus"] == "IGH"
+    assert row["rev_comp"] is False
+    assert "row_id" not in row.annotations
+    for segment in ("v", "j"):
+        assert row[f"{segment}_call"]
+        calls = row[f"{segment}_call"].split(",")
+        assert calls == sorted(set(calls))
+        assert set(calls) <= {name.split("__")[0] for name in references[segment]}
+        assert all(call.startswith("IGH") for call in calls)
 
 
 # =============================================
