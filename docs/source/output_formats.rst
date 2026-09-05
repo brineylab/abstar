@@ -383,10 +383,10 @@ Quality Metrics
      - Constant-region amino acid alignment identity, including indel columns
    * - ``frame``
      - Integer
-     - Reading frame (0, 1, or 2)
+     - One-based reading frame within the retained V sequence (1, 2, or 3)
 
 
-V, D, and J amino acid identities are null when either retained segment has no
+D and J amino acid identities are null when either retained alignment row has no
 complete codon in its germline reading frame. A short nonempty nucleotide
 alignment retains its gene call, nucleotide identity, and alignment evidence.
 A D alignment with an empty nucleotide query or germline is discarded; the full

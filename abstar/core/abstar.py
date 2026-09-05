@@ -422,7 +422,8 @@ def run(
 
     germline_database : str = "human",
         Name of the germline database to be used for assignment/annotation. Built-in options are
-        "human", "mouse", and "macaque" and "humouse".
+        BCR: "human", "macaque", "c57bl6", "balbc", and "human+c57bl6".
+        The built-in TCR database is "human".
 
     receptor : str = "bcr",
         Name of the receptor to be used for assignment/annotation. Options are "bcr" and "tcr".
