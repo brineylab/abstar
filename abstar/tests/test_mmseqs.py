@@ -14,6 +14,8 @@ import polars as pl
 import pytest
 
 from ..assigners.mmseqs import (
+    AssignmentExternalToolError,
+    AssignmentInputError,
     INPUT_SCHEMA,
     MMseqs,
     filter_compatible_locus,
@@ -207,6 +209,43 @@ def test_prepare_input_files_preserves_opaque_and_duplicate_ids(
             line.rstrip("\n") for line in fasta_file if line.startswith(">")
         ]
     assert fasta_headers == [f">abstar_0_{i}" for i in range(len(identifiers))]
+
+
+def test_prepare_input_files_rejects_non_iupac_nucleotide(
+    mmseqs_instance, tmp_path
+):
+    input_path = tmp_path / "invalid.fasta"
+    input_path.write_text(">invalid\nACGTX\n")
+    mmseqs_instance.sample_name = "invalid"
+
+    with pytest.raises(AssignmentInputError, match="non-IUPAC characters: X"):
+        mmseqs_instance.prepare_input_files(str(input_path), chunksize=1000)
+
+
+def test_mmseqs_search_wraps_external_runtime_error(mmseqs_instance, monkeypatch):
+    def fail_search(**kwargs):
+        raise RuntimeError("command exited nonzero")
+
+    monkeypatch.setattr(
+        "abstar.assigners.mmseqs.abutils.tl.mmseqs_search", fail_search
+    )
+
+    with pytest.raises(AssignmentExternalToolError, match="command exited nonzero"):
+        mmseqs_instance._run_mmseqs_search(query="input.fasta")
+
+
+def test_mmseqs_search_does_not_reclassify_programming_error(
+    mmseqs_instance, monkeypatch
+):
+    def fail_search(**kwargs):
+        raise ValueError("bad wrapper argument")
+
+    monkeypatch.setattr(
+        "abstar.assigners.mmseqs.abutils.tl.mmseqs_search", fail_search
+    )
+
+    with pytest.raises(ValueError, match="bad wrapper argument"):
+        mmseqs_instance._run_mmseqs_search(query="input.fasta")
 
 
 def test_prepare_input_files_multiple_sequences(mmseqs_instance, multi_sequence_fasta_file):

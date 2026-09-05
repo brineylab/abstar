@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: MIT
 
 import pickle
+from concurrent.futures import Future
 from dataclasses import FrozenInstanceError
 from pathlib import Path
 
@@ -324,3 +325,129 @@ def test_annotate_returns_structured_failure_after_writing_diagnostics(
     assert "deliberate annotation failure" in result.failures[0].message
     assert result.failed_log_path is not None
     assert "deliberate annotation failure" in Path(result.failed_log_path).read_text()
+
+
+def test_unassigned_reverse_strand_preserves_oriented_sequence(tmp_path):
+    input_path = tmp_path / "reverse-unassigned.parquet"
+    output_directory = tmp_path / "output"
+    output_directory.mkdir()
+    pl.DataFrame(
+        {
+            "row_id": ["abstar_0_0"],
+            "sequence_id": ["reverse-unassigned"],
+            "sequence_input": ["AACCGT"],
+            "quality": [""],
+            "rev_comp": [True],
+            "v_call": ["IGHV3-23*01"],
+            "v_support": [1e-20],
+            "d_call": [None],
+            "d_support": [None],
+            "j_call": [None],
+            "j_support": [None],
+            "c_call": [None],
+            "c_support": [None],
+        }
+    ).write_parquet(input_path)
+
+    result = annotate(str(input_path), str(output_directory), "human")
+    record = pl.read_parquet(result.output_path).row(0, named=True)
+
+    assert record["annotation_status"] == "unassigned"
+    assert record["sequence_oriented"] == "ACGGTT"
+    assert record["sequence"] == "ACGGTT"
+
+
+def _assert_assignment_failure_category(
+    monkeypatch, tmp_path, error, stage, category
+):
+    def fail_assignment(*args, **kwargs):
+        raise error
+
+    monkeypatch.setattr("abstar.core.abstar.MMseqs.__call__", fail_assignment)
+    project_path = tmp_path / category
+    with pytest.raises(AnnotationRunError) as exc_info:
+        from ..core.abstar import run
+
+        run("ACGT", project_path=str(project_path), n_processes=1)
+
+    assert len(exc_info.value.failures) == 1
+    assert exc_info.value.failures[0].stage == stage
+    assert exc_info.value.failures[0].category == category
+    failure_log = project_path / "logs" / "sequences.failed"
+    assert failure_log.is_file()
+    assert str(error) in failure_log.read_text()
+
+
+def test_controller_classifies_assignment_programming_error_as_internal(
+    monkeypatch, tmp_path
+):
+    _assert_assignment_failure_category(
+        monkeypatch,
+        tmp_path,
+        ValueError("dataframe cardinality bug"),
+        "assignment",
+        "internal_error",
+    )
+
+
+def test_controller_classifies_input_error_at_input_boundary(monkeypatch, tmp_path):
+    from ..assigners.mmseqs import AssignmentInputError
+
+    _assert_assignment_failure_category(
+        monkeypatch,
+        tmp_path,
+        AssignmentInputError("malformed FASTQ"),
+        "preprocess",
+        "invalid_input",
+    )
+
+
+def test_controller_classifies_tool_error_at_external_boundary(monkeypatch, tmp_path):
+    from ..assigners.mmseqs import AssignmentExternalToolError
+
+    _assert_assignment_failure_category(
+        monkeypatch,
+        tmp_path,
+        AssignmentExternalToolError("MMseqs exited nonzero"),
+        "assignment",
+        "external_tool",
+    )
+
+
+def test_controller_worker_failure_keeps_diagnostics_and_partial_work(
+    monkeypatch, tmp_path, single_hc_sequence
+):
+    class FailingExecutor:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def submit(self, *args, **kwargs):
+            future = Future()
+            future.set_exception(RuntimeError("worker process crashed"))
+            return future
+
+    monkeypatch.setattr("abstar.core.abstar.ProcessPoolExecutor", FailingExecutor)
+    project_path = tmp_path / "worker-failure"
+
+    with pytest.raises(AnnotationRunError) as exc_info:
+        from ..core.abstar import run
+
+        run(
+            single_hc_sequence,
+            project_path=str(project_path),
+            n_processes=1,
+        )
+
+    assert len(exc_info.value.failures) == 1
+    assert exc_info.value.failures[0].stage == "annotation"
+    assert exc_info.value.failures[0].category == "internal_error"
+    assert all(Path(path).is_file() for path in exc_info.value.partial_output_paths)
+    failure_log = project_path / "logs" / "sequences.failed"
+    assert failure_log.is_file()
+    assert "worker process crashed" in failure_log.read_text()

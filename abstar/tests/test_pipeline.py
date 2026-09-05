@@ -210,7 +210,7 @@ def test_single_unassignable_record_returns_explicit_sequence_outcome():
 @pytest.mark.e2e
 @pytest.mark.parametrize(
     ("n_processes", "chunksize"),
-    [(1, 1), (2, 3)],
+    [(1, 1), (1, 3), (2, 1), (2, 3)],
 )
 def test_run_conserves_duplicate_opaque_ids_and_order_across_workers(
     single_hc_sequence, n_processes, chunksize
@@ -233,10 +233,32 @@ def test_run_conserves_duplicate_opaque_ids_and_order_across_workers(
         "annotated",
         "unassigned",
     ]
+    assert [sequence["failure_reason"] for sequence in result[:-1]] == [
+        None,
+        None,
+        None,
+        None,
+    ]
     assert result[-1]["failure_reason"]
     assert result[-1]["v_call"] is None
     assert result[-1]["j_call"] is None
     assert all("row_id" not in sequence.annotations for sequence in result)
+
+
+@pytest.mark.e2e
+def test_v_assigned_j_unassigned_record_skips_empty_downstream_search(
+    single_hc_sequence,
+):
+    v_only = Sequence(single_hc_sequence.sequence[:280], id="v-only")
+
+    result = run(v_only, n_processes=1)
+
+    assert isinstance(result, Sequence)
+    assert result.id == "v-only"
+    assert result["annotation_status"] == "unassigned"
+    assert result["failure_reason"] == "no compatible J gene assignment"
+    assert result["v_call"] is not None
+    assert result["j_call"] is None
 
 
 @pytest.mark.e2e

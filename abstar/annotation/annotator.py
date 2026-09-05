@@ -166,8 +166,12 @@ def annotate(
             ab.failure_reason = f"no compatible {missing} gene assignment"
             ab.productive = None
             ab.productivity_issues = None
-            ab.sequence = ab.sequence_input
-            ab.sequence_oriented = ab.sequence_input
+            ab.sequence_oriented = (
+                abutils.tl.reverse_complement(ab.sequence_input)
+                if ab.rev_comp
+                else ab.sequence_input
+            )
+            ab.sequence = ab.sequence_oriented
             ab.germline_database = germline_database
             annotated.append(ab)
             continue

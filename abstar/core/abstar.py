@@ -20,7 +20,11 @@ from tqdm.auto import tqdm
 
 from ..annotation.annotator import annotate
 from ..annotation.schema import ANNOTATION_WORK_SCHEMA
-from ..assigners.mmseqs import MMseqs
+from ..assigners.mmseqs import (
+    AssignmentExternalToolError,
+    AssignmentInputError,
+    MMseqs,
+)
 from ..preprocess.merging import merge_fastqs
 from .results import AnnotationChunkResult, AnnotationRunError, RecordFailure
 
@@ -109,6 +113,31 @@ def _chunk_failure_result(
     with open(failed_log_path, "w") as log:
         log.write(traceback_text)
     return AnnotationChunkResult(output_path, failures, failed_log_path, None)
+
+
+def _raise_assignment_failure(
+    error: Exception,
+    *,
+    sample_ordinal: int,
+    sample_name: str,
+    log_directory: str,
+    stage: str,
+    category: str,
+) -> None:
+    """Persist an assignment-boundary diagnostic before raising its run error."""
+    traceback_text = traceback.format_exc()
+    failure = RecordFailure(
+        row_id=f"abstar_{sample_ordinal}_assignment",
+        sequence_id=sample_name,
+        stage=stage,
+        category=category,
+        message=str(error) or type(error).__name__,
+        traceback_text=traceback_text,
+    )
+    failed_log_file = os.path.join(log_directory, f"{sample_name}.failed")
+    with open(failed_log_file, "w") as failed_log:
+        failed_log.write(traceback_text)
+    raise AnnotationRunError([failure]) from error
 
 #  TODO: inputs/returns
 #  --------------------
@@ -455,20 +484,33 @@ def run(
                 sample_name=sample_name,
                 sample_ordinal=sample_ordinal,
             )
-        except Exception as error:
-            traceback_text = traceback.format_exc()
-            failure = RecordFailure(
-                row_id=f"abstar_{sample_ordinal}_assignment",
-                sequence_id=sample_name,
+        except AssignmentInputError as error:
+            _raise_assignment_failure(
+                error,
+                sample_ordinal=sample_ordinal,
+                sample_name=sample_name,
+                log_directory=log_dir,
+                stage="preprocess",
+                category="invalid_input",
+            )
+        except AssignmentExternalToolError as error:
+            _raise_assignment_failure(
+                error,
+                sample_ordinal=sample_ordinal,
+                sample_name=sample_name,
+                log_directory=log_dir,
                 stage="assignment",
                 category="external_tool",
-                message=str(error) or type(error).__name__,
-                traceback_text=traceback_text,
             )
-            failed_log_file = os.path.join(log_dir, f"{sample_name}.failed")
-            with open(failed_log_file, "w") as failed_log:
-                failed_log.write(traceback_text)
-            raise AnnotationRunError([failure]) from error
+        except Exception as error:
+            _raise_assignment_failure(
+                error,
+                sample_ordinal=sample_ordinal,
+                sample_name=sample_name,
+                log_directory=log_dir,
+                stage="assignment",
+                category="internal_error",
+            )
         total_input_count += raw_sequence_count
         assigner.cleanup()
 

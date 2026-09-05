@@ -56,6 +56,33 @@ MMSEQS_FORMAT_FIELDS = [
 ]
 
 
+class AssignmentInputError(ValueError):
+    """The assignment input is not valid nucleotide FASTA/FASTQ data."""
+
+
+class AssignmentExternalToolError(RuntimeError):
+    """An external assignment command failed."""
+
+
+def _empty_mmseqs_results(segment: str) -> pl.DataFrame:
+    """Return an empty MMseqs result with the columns downstream joins require."""
+    return pl.DataFrame(
+        schema={
+            f"{segment}_query": pl.String,
+            f"{segment}_call": pl.String,
+            f"{segment}_support": pl.Float64,
+            f"{segment}_qstart": pl.Int64,
+            f"{segment}_qend": pl.Int64,
+            f"{segment}_qseq": pl.String,
+            f"{segment}_fident": pl.Float64,
+            f"{segment}_qcov": pl.Float64,
+            f"{segment}_tcov": pl.Float64,
+            f"{segment}_alnlen": pl.Int64,
+            f"{segment}_bits": pl.Float64,
+        }
+    )
+
+
 def select_best_hits(results: pl.LazyFrame | pl.DataFrame, segment: str) -> pl.DataFrame:
     """Select the strongest MMseqs hit and retain exact assignment ties.
 
@@ -167,6 +194,14 @@ class MMseqs(AssignerBase):
         self.threads = threads
         self.sample_ordinal = 0
 
+    @staticmethod
+    def _run_mmseqs_search(**kwargs) -> None:
+        """Run MMseqs and mark errors raised at this external-tool boundary."""
+        try:
+            abutils.tl.mmseqs_search(**kwargs)
+        except (RuntimeError, OSError) as error:
+            raise AssignmentExternalToolError(str(error)) from error
+
     def __call__(
         self,
         sequence_file: str,
@@ -263,7 +298,7 @@ class MMseqs(AssignerBase):
         if not self.debug:
             self.to_delete.append(vresult_path)
         # assign V genes
-        abutils.tl.mmseqs_search(
+        self._run_mmseqs_search(
             query=input_fasta,
             target=v_germdb,
             output_path=vresult_path,
@@ -334,35 +369,38 @@ class MMseqs(AssignerBase):
         # self.build_jquery_fasta(vresult_df, jquery_path)
         self.build_jquery_fasta(vresult_df, jquery_path)
         # assign J genes
-        abutils.tl.mmseqs_search(
-            query=jquery_path,
-            target=j_germdb,
-            output_path=jresult_path,
-            search_type=3,
-            max_seqs=25,
-            max_evalue=1000.0,
-            format_mode=4,
-            additional_cli_args="--min-aln-len 12 -k 5 --alignment-mode 3",
-            format_output=mmseqs_format_output,
-            log_to=os.path.join(
-                self.log_directory, f"{self.sample_name}.j_assignment.log"
-            ),
-            threads=self.threads,
-            debug=self.debug,
-        )
-        # read the results
-        jresult_df = pl.scan_csv(
-            jresult_path,
-            separator="\t",
-            with_column_names=lambda x: [
-                f"j_{_x}".replace("target", "call").replace("evalue", "support")
-                for _x in x
-            ],
-            schema_overrides={"j_query": pl.String, "j_call": pl.String},
-        )
+        if abutils.io.determine_fastx_format(jquery_path) == "fasta":
+            self._run_mmseqs_search(
+                query=jquery_path,
+                target=j_germdb,
+                output_path=jresult_path,
+                search_type=3,
+                max_seqs=25,
+                max_evalue=1000.0,
+                format_mode=4,
+                additional_cli_args="--min-aln-len 12 -k 5 --alignment-mode 3",
+                format_output=mmseqs_format_output,
+                log_to=os.path.join(
+                    self.log_directory, f"{self.sample_name}.j_assignment.log"
+                ),
+                threads=self.threads,
+                debug=self.debug,
+            )
+            # read the results
+            jresult_df = pl.scan_csv(
+                jresult_path,
+                separator="\t",
+                with_column_names=lambda x: [
+                    f"j_{_x}".replace("target", "call").replace("evalue", "support")
+                    for _x in x
+                ],
+                schema_overrides={"j_query": pl.String, "j_call": pl.String},
+            )
 
-        jresult_df = filter_compatible_locus(jresult_df, vresult_df, "j")
-        jresult_df = select_best_hits(jresult_df, "j")
+            jresult_df = filter_compatible_locus(jresult_df, vresult_df, "j")
+            jresult_df = select_best_hits(jresult_df, "j")
+        else:
+            jresult_df = _empty_mmseqs_results("j")
         # join the V and J assignment results
         vjresult_df = vresult_df.join(
             jresult_df,
@@ -400,7 +438,7 @@ class MMseqs(AssignerBase):
         # if os.path.exists(dquery_path):
         if abutils.io.determine_fastx_format(dquery_path) == "fasta":
             # assign D genes
-            abutils.tl.mmseqs_search(
+            self._run_mmseqs_search(
                 query=dquery_path,
                 target=d_germdb,
                 output_path=dresult_path,
@@ -478,47 +516,51 @@ class MMseqs(AssignerBase):
                 self.to_delete.extend([cresult_path, cquery_path])
             # make the input FASTA file for C gene assignment
             self.build_cquery_fasta(vjresult_df, cquery_path)
-            # assign C genes
-            abutils.tl.mmseqs_search(
-                query=cquery_path,
-                target=c_germdb,
-                output_path=cresult_path,
-                search_type=3,
-                # max_seqs=25,
-                max_evalue=10.0,
-                format_mode=4,
-                additional_cli_args="--min-aln-len 12 -k 5 --alignment-mode 3",
-                format_output=mmseqs_format_output,
-                log_to=os.path.join(
-                    self.log_directory, f"{self.sample_name}.c_assignment.log"
-                ),
-                threads=self.threads,
-                debug=self.debug,
-            )
-            # read the results
-            cresult_df = pl.scan_csv(
-                cresult_path,
-                separator="\t",
-                with_column_names=lambda x: [
-                    f"c_{_x}".replace("target", "call").replace("evalue", "support")
-                    for _x in x
-                ],
-                schema_overrides={"c_query": pl.String, "c_call": pl.String},
-            )
-            cresult_df = filter_compatible_locus(cresult_df, vjresult_df, "c")
-            cresult_df = select_best_hits(cresult_df, "c")
-            if cresult_df.shape[0] > 0:
-                # join the C and VDJ assignment results
-                vdjcresult_df = vdjresult_df.join(
-                    cresult_df,
-                    left_on="v_query",
-                    right_on="c_query",
-                    how="left",
-                    validate="1:1",
+            if abutils.io.determine_fastx_format(cquery_path) == "fasta":
+                # assign C genes
+                self._run_mmseqs_search(
+                    query=cquery_path,
+                    target=c_germdb,
+                    output_path=cresult_path,
+                    search_type=3,
+                    # max_seqs=25,
+                    max_evalue=10.0,
+                    format_mode=4,
+                    additional_cli_args="--min-aln-len 12 -k 5 --alignment-mode 3",
+                    format_output=mmseqs_format_output,
+                    log_to=os.path.join(
+                        self.log_directory, f"{self.sample_name}.c_assignment.log"
+                    ),
+                    threads=self.threads,
+                    debug=self.debug,
                 )
+                # read the results
+                cresult_df = pl.scan_csv(
+                    cresult_path,
+                    separator="\t",
+                    with_column_names=lambda x: [
+                        f"c_{_x}".replace("target", "call").replace("evalue", "support")
+                        for _x in x
+                    ],
+                    schema_overrides={"c_query": pl.String, "c_call": pl.String},
+                )
+                cresult_df = filter_compatible_locus(cresult_df, vjresult_df, "c")
+                cresult_df = select_best_hits(cresult_df, "c")
+                if cresult_df.shape[0] > 0:
+                    # join the C and VDJ assignment results
+                    vdjcresult_df = vdjresult_df.join(
+                        cresult_df,
+                        left_on="v_query",
+                        right_on="c_query",
+                        how="left",
+                        validate="1:1",
+                    )
+                else:
+                    vdjcresult_df = vdjresult_df.with_columns(
+                        pl.lit(None).alias("c_call"),
+                        pl.lit(None).alias("c_support"),
+                    )
             else:
-                # if none of the sequences have a C gene assignment,
-                # set the C gene columns to None
                 vdjcresult_df = vdjresult_df.with_columns(
                     pl.lit(None).alias("c_call"),
                     pl.lit(None).alias("c_support"),
@@ -637,8 +679,19 @@ class MMseqs(AssignerBase):
         """
         # count input sequences
         sequence_count = 0
-        for seq in abutils.io.parse_fastx(sequence_file):
-            sequence_count += 1
+        try:
+            for seq in abutils.io.parse_fastx(sequence_file):
+                invalid = set(seq.sequence.upper()) - set("ACGTRYSWKMBDHVN")
+                if invalid:
+                    chars = "".join(sorted(invalid))
+                    raise AssignmentInputError(
+                        f"sequence {seq.id!s} contains non-IUPAC characters: {chars}"
+                    )
+                sequence_count += 1
+        except AssignmentInputError:
+            raise
+        except (OSError, ValueError) as error:
+            raise AssignmentInputError(f"could not parse input: {error}") from error
 
         # split input file, if necessary
         if sequence_count > chunksize:
@@ -878,8 +931,9 @@ class MMseqs(AssignerBase):
                 query = seq[: end - 1]
             else:
                 query = seq[end:]
-            fasta = f">{name}\n{query}"
-            fastas.append(fasta)
+            if query:
+                fasta = f">{name}\n{query}"
+                fastas.append(fasta)
 
         # write the FASTA file
         with open(fasta_path, "w") as f:
