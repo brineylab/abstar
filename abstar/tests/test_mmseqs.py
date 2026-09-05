@@ -164,15 +164,16 @@ def test_prepare_input_files_fasta(mmseqs_instance, small_fasta_file):
     assert "quality" in df.columns
 
 
-@pytest.mark.parametrize("readonly", [False, True])
+@pytest.mark.parametrize("readonly,collision", [(False, True), (True, True), (False, False)])
 def test_prepare_chunks_preserves_caller_siblings_and_order(
-    mmseqs_instance, tmp_path, readonly
+    mmseqs_instance, tmp_path, readonly, collision
 ):
     source = tmp_path / "caller"
     source.mkdir()
     reads = source / "reads.fasta"
     reads.write_text("".join(f">{name}\nACGT\n" for name in ["10E8", "0001", "1e3", "雪", "10E8"]))
-    (source / "reads_0.fasta").write_text("caller-owned collision\n")
+    if collision:
+        (source / "reads_0.fasta").write_text("caller-owned collision\n")
     before = {path.name: path.read_bytes() for path in source.iterdir()}
     if readonly:
         source.chmod(0o555)

@@ -387,7 +387,9 @@ def test_run_reports_fastp_failure_as_structured_preprocess_error(
     assert "EXIT STATUS: 41" in failure.message
     assert "PUBLIC-STDOUT" in failure.message
     assert "PUBLIC-STDERR" in failure.message
-    assert captured.value.partial_output_paths == ()
+    assert captured.value.partial_output_paths == (
+        str(project / "logs" / "merge_fastqs.failed"),
+    )
     assert not list((project / "merged").glob("*.fastq"))
     failure_log = project / "logs" / "merge_fastqs.failed"
     assert failure_log.is_file()
