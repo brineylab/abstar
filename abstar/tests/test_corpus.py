@@ -225,3 +225,210 @@ def test_loader_rejects_invalid_source_identity(annotations, identifier):
     write_csv(paths["00123"], fields, [{**rows[0], "contig_id": identifier}])
     with pytest.raises(ValueError, match="contig_id"):
         load_cellranger_annotations(manifest, paths)
+
+
+@pytest.fixture
+def discovery_module():
+    import importlib.util
+    from pathlib import Path
+
+    path = Path(__file__).resolve().parents[2] / "scripts" / "discover_bcr_cases.py"
+    assert path.is_file(), "optional discovery command is missing"
+    spec = importlib.util.spec_from_file_location("discover_bcr_cases", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+@pytest.fixture
+def discovery_corpus(tmp_path, annotations):
+    manifest, paths, fields, rows = annotations
+    fasta_dir = tmp_path / "fastas"
+    fasta_dir.mkdir()
+    root = tmp_path / "raw"
+    for dataset in paths:
+        target = root / "test_data" / dataset / "outs" / "per_sample_outs" / dataset / "vdj_b"
+        target.mkdir(parents=True)
+        write_csv(target / "filtered_contig_annotations.csv", fields, rows)
+        (fasta_dir / f"{dataset}.fasta").write_text(
+            ">10E8\nACGT\n>00123\nTGCA\n", encoding="utf-8"
+        )
+    return fasta_dir, manifest, root
+
+
+@pytest.mark.integration
+def test_discovery_cli_is_path_free_and_discovery_order_invariant(
+    discovery_module, discovery_corpus, tmp_path, monkeypatch
+):
+    """Real file/CSV/report boundary; annotation is deliberately injected."""
+    import json
+    module = discovery_module
+    fasta_dir, manifest, root = discovery_corpus
+    report = tmp_path / "candidates.jsonl"
+
+    def annotate(records, **kwargs):
+        return {r.row_key: {"status": "annotated", "exception_category": None,
+                "annotation": {"v_call": "IGHV1-2*02,IGHV1-2*01", "j_call": "IGHJ4*02",
+                               "productive": True, "junction_aa": "CAR", "junction": "TGTGCTCGT",
+                               "cdr3_aa": "A", "cdr3": "GCT", "v_insertions": "3:AAA"}}
+                for r in records}
+
+    monkeypatch.setattr(module, "annotate_records", annotate)
+    args = ["--fasta-dir", str(fasta_dir), "--manifest", str(manifest),
+            "--cellranger-root", str(root), "--output", str(report),
+            "--per-dataset", "2", "--seed", "fixture-seed", "--n-processes", "1"]
+    assert module.main(args) == 0
+    first = report.read_bytes()
+    scan = module.discover_annotation_files
+    monkeypatch.setattr(module, "discover_annotation_files", lambda root: list(reversed(scan(root))))
+    assert module.main(args) == 0
+    assert report.read_bytes() == first
+    assert b"/home/" not in first and str(tmp_path).encode() not in first
+    header, *candidates = [json.loads(line) for line in first.splitlines()]
+    assert header["schema_version"] == 1
+    assert header["selection"] == {"algorithm_version": 1, "seed": "fixture-seed", "per_dataset": 2}
+    assert header["receptor"] == "bcr" and header["database"] == "human"
+    assert header["abstar"]["version"] and header["abstar"]["git_revision"]
+    assert all(header["dependencies"][key] for key in ("abutils", "polars", "pyarrow", "parasail"))
+    assert header["external_tools"]["mmseqs"]["version"]
+    assert len(header["external_tools"]["mmseqs"]["sha256"]) == 64
+    assert len(header["germline_manifests"]) >= 1
+    assert all(len(item["sha256"]) == 64 for item in header["germline_manifests"])
+    assert len(candidates) == 4
+    assert {(r["source"]["dataset"], r["source"]["sequence_id"]) for r in candidates} == {
+        (d, s) for d in ("00123", "10E8") for s in ("00123", "10E8")}
+    for row in candidates:
+        assert row["status"] == "annotated"
+        assert row["source"]["reads"] == "00123"
+        assert row["source"]["umis"] == "10E8"
+        assert row["normalized_calls"]["abstar"]["v"] == ["IGHV1-2"]
+        assert row["comparisons"]["junction_aa"] is True
+        assert row["comparisons"]["cdr3_aa"] is False
+        assert row["comparisons"]["productive"] is True
+        assert row["no_d"] == {"abstar": True, "cellranger": True}
+        assert row["ties"]["abstar"]["v"] == ["IGHV1-2*01", "IGHV1-2*02"]
+        assert row["indels"]["v_insertions"] == "3:AAA"
+        assert row["selection_reasons"]
+        assert row["lengths"]["input_nt"] == 4
+        assert row["sequence_sha256"] == hashlib.sha256(row["sequence"].encode()).hexdigest()
+
+
+@pytest.mark.parametrize("mode, expected", [
+    ("missing", ["annotated", "exception"]),
+    ("raise", ["exception", "exception"]),
+    ("duplicate", ["exception", "exception"]),
+    ("unknown", ["exception", "exception"]),
+])
+def test_discovery_annotation_accounts_for_every_selected_identity(
+    discovery_module, tmp_path, monkeypatch, mode, expected
+):
+    """Unit test of missing/exception/cardinality accounting at abstar.run boundary."""
+    import polars as pl
+    module = discovery_module
+    records = [CorpusRecord("d", identifier, "ACGT", "donor", "IgG", "IGH")
+               for identifier in ("10E8", "00123")]
+    projects = []
+
+    def run(sequences, project_path, **kwargs):
+        from pathlib import Path
+        projects.append(Path(project_path))
+        assert kwargs["receptor"] == "bcr" and kwargs["germline_database"] == "human"
+        assert kwargs["n_processes"] == 1 and kwargs["output_format"] == "parquet"
+        ids = [s.id for s in sequences]
+        assert len(set(ids)) == 2 and all(i not in ("10E8", "00123") for i in ids)
+        if mode == "raise":
+            raise RuntimeError("/home/private/input must never be serialized")
+        out = Path(project_path) / "parquet"
+        out.mkdir()
+        result_ids = [ids[0]] if mode == "missing" else [ids[0], ids[0]] if mode == "duplicate" else ["unknown"]
+        pl.DataFrame({"sequence_id": result_ids, "v_call": ["IGHV1-2*01"] * len(result_ids),
+                      "j_call": ["IGHJ4*02"] * len(result_ids)}).write_parquet(out / "sequences.parquet")
+
+    monkeypatch.setattr(module.abstar, "run", run)
+    outcomes = module.annotate_records(records, n_processes=1, germline_database="human")
+    assert list(outcomes) == [r.row_key for r in records]
+    assert [v["status"] for v in outcomes.values()] == expected
+    categories = [v["exception_category"] for v in outcomes.values()]
+    assert categories == {"missing": [None, "missing_output"], "raise": ["RuntimeError"] * 2,
+                          "duplicate": ["output_cardinality"] * 2,
+                          "unknown": ["output_cardinality"] * 2}[mode]
+    assert all(not p.exists() for p in projects)
+
+
+@pytest.mark.parametrize("problem", ["missing_fasta", "ambiguous_csv", "duplicate_fasta_id", "output_in_source", "unmatched_fasta_id", "invalid_processes"])
+@pytest.mark.integration
+def test_discovery_rejects_invalid_inputs_before_annotation(
+    discovery_module, discovery_corpus, tmp_path, monkeypatch, problem
+):
+    module = discovery_module
+    fasta_dir, manifest, root = discovery_corpus
+    report = tmp_path / "report.jsonl"
+    n_processes = "1"
+    if problem == "missing_fasta":
+        (fasta_dir / "00123.fasta").unlink()
+    elif problem == "ambiguous_csv":
+        target = root / "00123"
+        target.mkdir()
+        (target / "filtered_contig_annotations.csv").write_text("contig_id\n")
+    elif problem == "duplicate_fasta_id":
+        with (fasta_dir / "00123.fasta").open("a") as handle:
+            handle.write(">10E8\nAAAA\n")
+    elif problem == "unmatched_fasta_id":
+        with (fasta_dir / "00123.fasta").open("a") as handle:
+            handle.write(">missing\nAAAA\n")
+    elif problem == "output_in_source":
+        report = fasta_dir / "report.jsonl"
+    else:
+        n_processes = "0"
+    def unexpected(*args, **kwargs):
+        pytest.fail("invalid inputs reached annotation")
+    monkeypatch.setattr(module, "annotate_records", unexpected)
+    with pytest.raises((ValueError, FileNotFoundError)):
+        module.main(["--fasta-dir", str(fasta_dir), "--manifest", str(manifest),
+                     "--cellranger-root", str(root), "--output", str(report),
+                     "--n-processes", n_processes])
+    assert not report.exists()
+
+
+@pytest.mark.e2e
+def test_discovery_real_annotation_preserves_source_identity(discovery_module, single_hc_sequence):
+    """The real abstar.run boundary must return an accounted, nonempty annotation."""
+    record = CorpusRecord("00123", "10E8", single_hc_sequence.sequence, "001", "IgG", "IGH")
+    outcomes = discovery_module.annotate_records([record], n_processes=1, germline_database="human")
+    assert list(outcomes) == ["00123\0" + "10E8"]
+    outcome = outcomes[record.row_key]
+    assert outcome["status"] == "annotated"
+    assert outcome["exception_category"] is None
+    assert normalize_gene(outcome["annotation"]["v_call"]) == ("IGHV3-15",)
+    assert normalize_gene(outcome["annotation"]["j_call"]) == ("IGHJ1",)
+    assert outcome["annotation"]["junction_aa"] == "CARTGKYYDFWSGYPPGEEYFQDW"
+
+
+def test_discovery_hash_supports_python_310(discovery_module, tmp_path, monkeypatch):
+    """Python 3.10 has no hashlib.file_digest; file hashing must stay portable."""
+    path = tmp_path / "source"
+    path.write_bytes(b"ACGT\n")
+    monkeypatch.delattr(hashlib, "file_digest", raising=False)
+    assert discovery_module.sha256(path) == hashlib.sha256(b"ACGT\n").hexdigest()
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("mode", ["valid", "missing", "failed", "empty"])
+def test_discovery_records_checked_mmseqs_provenance(discovery_module, tmp_path, monkeypatch, mode):
+    """Resolve/hash an executable and check its actual version subprocess."""
+    import subprocess
+    executable = tmp_path / "mmseqs"
+    contents = {"valid": b'#!/bin/sh\nprintf "fixture-mmseqs-1\\n"\n',
+                "failed": b'#!/bin/sh\nexit 7\n', "empty": b'#!/bin/sh\nexit 0\n'}
+    if mode != "missing":
+        executable.write_bytes(contents[mode])
+        executable.chmod(0o700)
+    monkeypatch.setattr(discovery_module, "get_binary_path", lambda name: str(executable))
+    if mode == "valid":
+        assert discovery_module.mmseqs_metadata() == {
+            "version": "fixture-mmseqs-1", "sha256": hashlib.sha256(contents[mode]).hexdigest()}
+    else:
+        exception = {"missing": FileNotFoundError, "failed": subprocess.CalledProcessError,
+                     "empty": ValueError}[mode]
+        with pytest.raises(exception):
+            discovery_module.mmseqs_metadata()
