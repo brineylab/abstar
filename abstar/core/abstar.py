@@ -341,12 +341,18 @@ def run(
         raise ValueError(
             f"Unsupported output format: {invalid}. Supported formats are 'airr' and 'parquet'."
         )
-    if not isinstance(chunksize, int) or chunksize <= 0:
+    if isinstance(chunksize, bool) or not isinstance(chunksize, int) or chunksize <= 0:
         raise ValueError("chunksize must be a positive integer")
-    if not isinstance(mmseqs_chunksize, int) or mmseqs_chunksize <= 0:
+    if (
+        isinstance(mmseqs_chunksize, bool)
+        or not isinstance(mmseqs_chunksize, int)
+        or mmseqs_chunksize <= 0
+    ):
         raise ValueError("mmseqs_chunksize must be a positive integer")
     if n_processes is not None and (
-        not isinstance(n_processes, int) or n_processes <= 0
+        isinstance(n_processes, bool)
+        or not isinstance(n_processes, int)
+        or n_processes <= 0
     ):
         raise ValueError("n_processes must be a positive integer or None")
 
@@ -361,8 +367,11 @@ def run(
         output_format = ["parquet"]
         project_path = tempfile.TemporaryDirectory(prefix="abstar", dir="/tmp").name
     log_dir = os.path.join(project_path, "logs")
-    abutils.io.make_dir(log_dir)
     temp_dir = os.path.join(project_path, "tmp")
+    # Discover files and validate/materialize iterable inputs before creating
+    # the project. _process_inputs writes only after finding a nonempty input.
+    sequence_files = _process_inputs(sequences, temp_dir)
+    abutils.io.make_dir(log_dir)
     abutils.io.make_dir(temp_dir)
     for fmt in output_format:
         abutils.io.make_dir(os.path.join(project_path, fmt))
@@ -400,10 +409,13 @@ def run(
             debug=debug,
         )
 
-    # process input sequences
-    sequence_files = _process_inputs(sequences, temp_dir)
     if copy_inputs_to_project:
-        _copy_inputs_to_project(sequence_files, project_path)
+        input_root = (
+            sequences
+            if isinstance(sequences, str) and os.path.isdir(sequences)
+            else None
+        )
+        _copy_inputs_to_project(sequence_files, project_path, input_root=input_root)
 
     # merge FASTQ files
     if merge or interleaved_fastq:
@@ -708,6 +720,7 @@ def _process_inputs(
         # input is a Sequence or an iterable of Sequences
         if not sequences:
             raise ValueError("Input sequences cannot be empty.")
+        abutils.io.make_dir(temp_dir)
         temp_file = open(os.path.join(temp_dir, "sequences.fasta"), "w")
         fastas = [seq.fasta for seq in sequences]
         temp_file.write("\n".join(fastas))
@@ -723,7 +736,9 @@ def _process_inputs(
     return sequence_files
 
 
-def _copy_inputs_to_project(sequence_files: Iterable[str], project_path: str) -> None:
+def _copy_inputs_to_project(
+    sequence_files: Iterable[str], project_path: str, input_root: str | None = None
+) -> None:
     """
     Copy input sequences to the project directory.
 
@@ -734,12 +749,19 @@ def _copy_inputs_to_project(sequence_files: Iterable[str], project_path: str) ->
 
     project_path : str
         The path to the project directory.
+
+    input_root : Optional[str]
+        Original input directory, used to preserve all nested relative paths.
     """
     inputs_path = os.path.join(project_path, "input")
     abutils.io.make_dir(inputs_path)
     sequence_files = [os.path.abspath(path) for path in sequence_files]
-    common_root = os.path.commonpath(sequence_files)
-    if len(sequence_files) == 1 or os.path.isfile(common_root):
+    common_root = (
+        os.path.abspath(input_root)
+        if input_root is not None
+        else os.path.commonpath(sequence_files)
+    )
+    if input_root is None and (len(sequence_files) == 1 or os.path.isfile(common_root)):
         common_root = os.path.dirname(common_root)
     for f in sequence_files:
         relative_path = os.path.relpath(f, common_root)

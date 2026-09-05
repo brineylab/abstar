@@ -4,7 +4,27 @@
 
 """Shared helpers for the abstar test suite."""
 
+from collections.abc import Mapping, Sequence
 from pathlib import Path
+
+
+def assert_same_annotations(
+    left: Sequence[Mapping[str, object]],
+    right: Sequence[Mapping[str, object]],
+    fields: Sequence[str],
+) -> None:
+    """Compare exact values and types in input order; missing fields fail."""
+    assert len(left) == len(right), f"record count: {len(left)} != {len(right)}"
+    for index, (expected, actual) in enumerate(zip(left, right)):
+        for field in fields:
+            assert field in expected and field in actual, f"row {index}: missing {field}"
+            assert type(expected[field]) is type(actual[field]), (
+                f"row {index}, {field}: types differ "
+                f"({type(expected[field]).__name__}, {type(actual[field]).__name__})"
+            )
+            assert expected[field] == actual[field], (
+                f"row {index}, {field}: {expected[field]!r} != {actual[field]!r}"
+            )
 
 
 def read_fasta_records(path: Path) -> dict[str, str]:

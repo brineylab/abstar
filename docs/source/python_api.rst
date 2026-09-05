@@ -88,6 +88,11 @@ Parameters
 ``n_processes``
     Parallel annotation workers. Default: CPU count
 
+``copy_inputs_to_project``
+    Copy source files into ``project_path/input/``. Default: ``False`` in
+    Python (the CLI defaults to copying). For directory inputs, preserve paths
+    relative to the original input directory, including nested directories.
+
 ``verbose``
     Print progress information. Default: ``False``
 
@@ -100,7 +105,19 @@ Return Types
 
 **When project_path is None (default):**
 
-Returns annotated ``abutils.Sequence`` objects:
+One input record returns an ``abutils.Sequence``; multiple input records return
+a list of ``Sequence`` objects in input order. Lists, iterators, and generators
+are supported, and arbitrary iterables are consumed once. Directory inputs are
+discovered recursively in natural path order, with record order retained within
+each file. This order is stable across worker counts and annotation chunk sizes.
+
+Every record receives an ``annotation_status``. An ordinary biological
+non-assignment returns ``"unassigned"`` with a ``failure_reason``; it remains in
+the result and does not change the return shape. Internal and external-tool
+failures raise ``abstar.AnnotationRunError`` with structured ``failures`` and
+any ``partial_output_paths``. Diagnostic files are retained before raising.
+
+For a file containing multiple records:
 
 .. code-block:: python
 
@@ -113,7 +130,7 @@ Returns annotated ``abutils.Sequence`` objects:
 
 **When as_dataframe=True:**
 
-Returns a polars DataFrame:
+Returns a polars DataFrame, including for one input record:
 
 .. code-block:: python
 
@@ -138,6 +155,12 @@ Returns ``None``; writes files to project directory:
     # Output files:
     #   project/airr/input.tsv
     #   project/logs/abstar.log
+
+Empty input iterables and directories without supported FASTA/FASTQ files raise
+``ValueError`` before creating the requested project directory. Process and chunk
+counts must be positive integers (not Booleans); ``n_processes=None`` selects the
+CPU count. Unsupported or empty output formats also raise before project
+creation.
 
 
 Module Namespaces

@@ -106,3 +106,57 @@ def pilot_loss_cases():
     from abstar.tests.corpus import PILOT_LOSS_IDS, load_real_bcr_cases
     return tuple(case for case in load_real_bcr_cases()
                  if case.dataset == '1279068' and case.sequence_id in PILOT_LOSS_IDS)
+
+
+@pytest.fixture(scope="module")
+def public_bcr_cases():
+    """Authenticated concordant IGH, IGK and IGL controls, in input order."""
+    from abstar.tests.corpus import load_real_bcr_cases
+
+    cases = {(case.dataset, case.sequence_id): case for case in load_real_bcr_cases()}
+    return tuple(cases[key] for key in (
+        ("1287199", "GCTGCGAGTCCTGCTT-1_contig_1"),
+        ("1287191", "AAAGCAACAATCGAAA-1_contig_3"),
+        ("1287157", "CTCATTAAGGATCGCA-1_contig_1"),
+    ))
+
+
+@pytest.fixture
+def public_bcr_inputs(public_bcr_cases, tmp_path):
+    """Fresh iterables and equivalent files; filenames define the same order."""
+    def sequence_list():
+        return [case.as_sequence() for case in public_bcr_cases]
+
+    def sequence_iterator():
+        return iter(sequence_list())
+
+    def sequence_generator():
+        return (case.as_sequence() for case in public_bcr_cases)
+
+    fasta = tmp_path / "controls.fasta"
+    fastq = tmp_path / "controls.fastq"
+    fasta.write_text("".join(f">{case.sequence_id}\n{case.sequence}\n"
+                             for case in public_bcr_cases))
+    fastq.write_text("".join(f"@{case.sequence_id}\n{case.sequence}\n+\n"
+                             f"{'I' * len(case.sequence)}\n"
+                             for case in public_bcr_cases))
+    flat = tmp_path / "flat"
+    nested = tmp_path / "nested"
+    # Create files out of input order and use 2/10 to distinguish natural
+    # from lexical sorting. The shared parent must survive copying too.
+    for index in (2, 0, 1):
+        ordinal = (1, 2, 10)[index]
+        case = public_bcr_cases[index]
+        for path in (flat / f"sample{ordinal}.fasta",
+                     nested / "batch" / f"sample{ordinal}" / "reads.fasta"):
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(f">{case.sequence_id}\n{case.sequence}\n")
+    return {
+        "list": sequence_list,
+        "iterator": sequence_iterator,
+        "generator": sequence_generator,
+        "fasta": lambda: str(fasta),
+        "fastq": lambda: str(fastq),
+        "flat_directory": lambda: str(flat),
+        "nested_directory": lambda: str(nested),
+    }

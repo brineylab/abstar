@@ -84,6 +84,13 @@ Output Options
 
 ``--copy-inputs/--no-copy-inputs``
     Copy input files to project directory. Default: ``--copy-inputs``
+    Directory inputs retain their paths relative to the original input directory
+    under ``PROJECT_PATH/input/``.
+
+If assignment or annotation fails internally or in an external tool, the command
+exits nonzero and prints a structured stage/category summary followed by paths to
+retained failure artifacts. Ordinary biological non-assignment is recorded in the
+output as ``annotation_status=unassigned`` with a ``failure_reason``.
 
 
 UMI Options
