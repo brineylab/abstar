@@ -33,7 +33,7 @@ from ..assigners.mmseqs import (
     AssignmentInputError,
     MMseqs,
 )
-from ..preprocess.merging import merge_fastqs
+from ..preprocess.merging import MergeExternalToolError, merge_fastqs
 from .results import AnnotationChunkResult, AnnotationRunError, RecordFailure
 
 
@@ -589,14 +589,24 @@ def run(
                 logger.info("============\n")
                 logger.info(f"merge directory: {merge_dir}\n")
                 # merging
-            sequence_files = merge_fastqs(
-                sequence_files,
-                merge_dir,
-                interleaved=interleaved_fastq,
-                show_progress=verbose,
-                log_directory=merge_log_dir,
-                **(merge_kwargs or {}),
-            )
+            try:
+                sequence_files = merge_fastqs(
+                    sequence_files,
+                    merge_dir,
+                    interleaved=interleaved_fastq,
+                    show_progress=verbose,
+                    log_directory=merge_log_dir,
+                    **(merge_kwargs or {}),
+                )
+            except MergeExternalToolError as error:
+                _raise_pipeline_failure(
+                    error,
+                    sample_ordinal=0,
+                    sample_name="merge_fastqs",
+                    log_directory=log_dir,
+                    stage="preprocess",
+                    category="external_tool",
+                )
 
         # print sequence file info
         if started_from_cli:
