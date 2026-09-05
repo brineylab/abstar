@@ -1163,7 +1163,7 @@ def _log_results_summary(
     )
 
 
-ABSTAR_SPLASH = """
+ABSTAR_SPLASH = r"""
          __         __ 
   ____ _/ /_  _____/ /_____ ______
  / __ `/ __ \/ ___/ __/ __ `/ ___/

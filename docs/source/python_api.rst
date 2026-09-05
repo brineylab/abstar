@@ -28,8 +28,8 @@ The main entry point for annotation:
     # TCR annotation
     sequences = abstar.run("tcr.fasta", receptor="tcr")
 
-    # Mouse sequences with custom germline database
-    sequences = abstar.run("sequences.fasta", germline_database="mouse")
+    # C57BL/6 mouse sequences
+    sequences = abstar.run("sequences.fasta", germline_database="c57bl6")
 
 
 Parameters
@@ -51,7 +51,8 @@ Parameters
 ``germline_database``
     Germline database name. Default: ``"human"``
 
-    Built-in options: ``human``, ``mouse``, ``macaque``, ``humouse``
+    BCR options: ``human``, ``macaque``, ``c57bl6``, ``balbc``, and
+    ``human+c57bl6``. TCR currently provides ``human``.
 
 ``receptor``
     Receptor type: ``"bcr"`` (default) or ``"tcr"``
@@ -116,6 +117,12 @@ non-assignment returns ``"unassigned"`` with a ``failure_reason``; it remains in
 the result and does not change the return shape. Internal and external-tool
 failures raise ``abstar.AnnotationRunError`` with structured ``failures`` and
 any ``partial_output_paths``. Diagnostic files are retained before raising.
+
+Visible identifiers are data, not join keys. Duplicate identifiers, leading
+zeroes, and values such as ``10E8`` are preserved exactly. abstar uses a unique
+private ``row_id`` while work is split and joined, then removes it at the public
+boundary. Results remain in deterministic input order across process counts and
+chunk sizes.
 
 The required ``abutils.tl.translate`` capability is checked before starting
 workers or creating a project; an incompatible installation raises
@@ -371,3 +378,49 @@ Python annotation objects and dataframe returns retain their assembled
 ``sequence`` and translations for compatibility. Project mode returns ``None``;
 the file mapping does not change no-project API return shapes or values.
 Use ``abstar.annotation.airr.to_airr_row()`` for the explicit serialization mapping.
+
+
+Migration examples
+------------------
+
+A biological non-assignment used to be easy to lose when consumers filtered
+for rows with gene calls. Given a two-record ``mixed.fasta`` with one assignable
+antibody and one record whose query is ``N``, record conservation now makes the
+outcome explicit:
+
+.. code-block:: python
+
+    import abstar
+
+    result = abstar.run("mixed.fasta", n_processes=1, mmseqs_threads=1)
+    assert len(result) == 2
+    assert [row["annotation_status"] for row in result] == ["annotated", "unassigned"]
+    assert result[1]["sequence_input"] == "N"
+    assert result[1]["failure_reason"] == "no compatible V gene assignment"
+    assert result[1]["v_call"] is result[1]["j_call"] is None
+
+If both input records use the identifier ``duplicate``, both returned IDs stay
+``duplicate`` and remain in the same order; the private row identity is absent.
+
+Programming and external-tool failures no longer look like successful empty
+results. Catch the structured exception only when the calling application can
+report or recover from the failed run:
+
+.. code-block:: python
+
+    import abstar
+
+    try:
+        abstar.run("input.fasta", "project/")
+    except abstar.AnnotationRunError as error:
+        for failure in error.failures:
+            print(failure.stage, failure.category, failure.sequence_id, failure.message)
+        print("inspectable artifacts:", error.partial_output_paths)
+        raise
+
+``failures`` contains immutable ``RecordFailure`` values. Stages are
+``preprocess``, ``assignment``, ``annotation``, or ``output``; categories are
+``invalid_input``, ``unassigned``, ``external_tool``, or ``internal_error``.
+Ordinary unassigned rows are returned as data and do not raise. Paths in
+``partial_output_paths`` are diagnostic or already-promoted artifacts, not a
+successful complete result.

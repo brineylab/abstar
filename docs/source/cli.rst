@@ -38,8 +38,8 @@ Annotate antibody or TCR sequences.
     # Directory of files
     abstar run fastq_directory/ output_dir/
 
-    # Mouse sequences
-    abstar run sequences.fasta output_dir/ --germline_database mouse
+    # C57BL/6 mouse sequences
+    abstar run sequences.fasta output_dir/ --germline_database c57bl6
 
     # TCR sequences
     abstar run tcr.fasta output_dir/ --receptor tcr
@@ -51,13 +51,14 @@ Germline and Receptor Options
 ``--germline_database TEXT``
     Name of the germline database for assignment.
 
-    Built-in options: ``human`` (default), ``mouse``, ``macaque``, ``humouse``
+    BCR options are ``human`` (default), ``macaque``, ``c57bl6``, ``balbc``,
+    and ``human+c57bl6``. TCR currently provides ``human``.
 
     Custom databases in ``~/.abstar/germline_dbs/`` are also available.
 
     .. code-block:: bash
 
-        abstar run seqs.fasta out/ --germline_database mouse
+        abstar run seqs.fasta out/ --germline_database c57bl6
 
 ``--receptor [bcr|tcr]``
     Receptor type. Default: ``bcr``
@@ -104,6 +105,16 @@ sample fails.
 Project setup failures also use ``output/internal_error``. If caller project
 storage cannot hold a diagnostic, the command reports a surviving fallback log
 in the system temporary directory.
+
+For example, a two-record input containing an assignable antibody followed by
+``N`` writes two rows in the same order. The first has
+``annotation_status=annotated`` and an empty ``failure_reason``. The second has
+``annotation_status=unassigned``, ``no compatible V gene assignment`` as its
+reason, null biological calls, and the original identifier and query. A failed
+MMseqs process instead exits nonzero and writes no successful output for that
+sample;
+its summary includes ``assignment/external_tool`` and its artifact paths lead
+to the command diagnostics.
 
 
 UMI Options

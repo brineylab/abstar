@@ -79,6 +79,47 @@ coverage.py's combined statement-and-branch `percent_covered` value. Raise
 floors when measured coverage increases, and never lower them without treating
 the change as a release-gate regression.
 
+The supported pytest scopes are:
+
+```bash
+# fast unit/property scope used on every supported Python
+python -m pytest -m "not integration and not e2e and not slow" -q
+
+# real component boundaries, complete public entry points, and slow checks
+python -m pytest -m "integration" -q
+python -m pytest -m "e2e" -q
+python -m pytest -m "slow" -q
+
+# combined real integration/end-to-end CI gate and complete local suite
+python -m pytest -m "integration or e2e" -q
+python -m pytest -q
+```
+
+Focused release gates are:
+
+```bash
+python -m pytest abstar/tests/test_airr.py -q
+python -m pytest abstar/tests/test_database_integrity.py -q
+python -m sphinx -W --keep-going -b html docs/source docs/_build/html
+```
+
+Broader discovery against the published BCR corpus is optional and never part
+of ordinary push or pull-request CI. It requires all input paths explicitly and
+must write outside the source and input trees:
+
+```bash
+python scripts/discover_bcr_cases.py \
+  --fasta-dir /path/to/bcr_fastas \
+  --manifest /path/to/sample_manifest.csv \
+  --cellranger-root /path/to/cellranger \
+  --output /tmp/abstar-bcr-candidates.jsonl \
+  --per-dataset 25 --n-processes 2
+```
+
+The scheduled nightly workflow is distinct from ordinary CI: it downloads an
+explicitly provisioned artifact containing `bcr_fastas/`,
+`sample_manifest.csv`, and `cellranger/`, then runs a bounded cohort.
+
 Useful CLI checks after an editable install:
 
 ```bash
@@ -253,6 +294,17 @@ nonempty input.
   changing arguments.
 - AIRR coordinates, field meanings, nulls, booleans, and sequence semantics
   must follow the targeted AIRR schema, not only match a Polars dtype.
+- Internal Python/dataframe coordinates and raw Parquet coordinates are
+  zero-based half-open. AIRR TSV converts once to one-based closed intervals,
+  writes booleans as `T`/`F` and nulls as empty cells, and retains the original
+  query in `sequence`. `rev_comp` means annotation coordinates and alignments
+  address its reverse complement. NP bases align to gaps in
+  `germline_alignment`.
+- Final Parquet uses the official `sequence`, `sequence_aa`,
+  `sequence_alignment_aa`, and `germline_alignment_aa` meanings while retaining
+  native booleans/nulls and internal coordinate offsets. No-project Python
+  objects and dataframe returns retain the legacy assembled V(D)J meanings for
+  those sequence and amino-acid fields.
 - Changes to schemas must be reflected in serializers, dataframe return paths,
   documentation, and compatibility tests.
 - Preserve backward compatibility deliberately. If a behavioral break is

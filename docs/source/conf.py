@@ -20,12 +20,15 @@ from pathlib import Path
 
 HERE = Path(__file__).parent
 
-# Mock modules that require compilation or have compiled dependencies
-# These fail to build on ReadTheDocs
+# Autodoc imports plotting dependencies. Keep their cache outside the source
+# tree and usable in restricted build environments unless the caller selected
+# another location (as CI does).
+os.environ.setdefault("MPLCONFIGDIR", "/tmp/abstar-docs-matplotlib")
+
+# Mock optional compiled modules that are not runtime dependencies. Runtime
+# dependencies must stay real so autodoc can evaluate their exported types.
 autodoc_mock_imports = [
-    "abutils",
     "pyfamsa",
-    "parasail",
     "pyhmmer",
     "mmseqs",
 ]

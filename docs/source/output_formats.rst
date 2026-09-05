@@ -18,7 +18,8 @@ AIRR TSV and Python Coordinates
 -------------------------------
 
 AIRR TSV uses **1-based closed intervals**. Python annotations, dataframe
-returns, and Parquet retain **0-based half-open intervals**. For example, an
+returns, and final or temporary Parquet retain **0-based half-open intervals**.
+For example, an
 internal interval ``[137, 439)`` is written as start ``138``, end ``439``;
 ``[0, 1)`` is written as ``1, 1``. Missing intervals have empty start/end cells.
 This applies to V/D/J/C query and germline coordinates and to
@@ -26,7 +27,8 @@ This applies to V/D/J/C query and germline coordinates and to
 
 Query coordinates address ``sequence_oriented``. Germline coordinates address
 the ungapped reference of the corresponding gene. In both final file formats,
-``sequence`` is always the original ``sequence_input``. When ``rev_comp`` is true, all
+``sequence`` is always the original, unmodified ``sequence_input``. When
+``rev_comp`` is true, all
 alignments and query coordinates refer to its reverse complement. Opaque
 identifiers, including duplicate IDs and leading zeroes, retain their input
 order. The private internal ``row_id`` is never serialized.
@@ -54,7 +56,7 @@ The C CIGAR describes the separately retained constant-region alignment.
 
 
 Official Amino-acid Fields
-~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 In AIRR TSV and final Parquet files, ``sequence_aa`` translates the full
 ``sequence_oriented`` query.
