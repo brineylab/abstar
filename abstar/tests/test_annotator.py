@@ -98,6 +98,30 @@ def annotated_heavy_chain_result(single_hc_sequence):
 # =============================================
 
 
+def test_antibody_defaults_to_annotated_public_outcome():
+    antibody = Antibody(row_id="internal-row", sequence_id="public-sequence")
+
+    assert antibody.annotation_status == "annotated"
+    assert antibody.failure_reason is None
+    assert "row_id" not in antibody.airr_fields
+    assert "row_id" not in antibody.to_dict()
+    assert "row_id" not in antibody.to_dict(include=["row_id"])
+    assert antibody.to_dict()["annotation_status"] == "annotated"
+    assert antibody.to_dict()["failure_reason"] is None
+
+
+def test_antibody_to_dict_include_does_not_change_later_serialization():
+    antibody = Antibody(sequence_id="public-sequence")
+    antibody.custom_annotation = "custom-value"
+    original_fields = list(antibody.airr_fields)
+
+    included = antibody.to_dict(include=["custom_annotation"])
+
+    assert included["custom_annotation"] == "custom-value"
+    assert antibody.airr_fields == original_fields
+    assert "custom_annotation" not in antibody.to_dict()
+
+
 def test_annotate_returns_correct_files(mock_assignment_parquet, tmp_path):
     """Test annotate() returns (output_file, failed_logfile, succeeded_logfile)."""
     output_dir = str(tmp_path / "output")

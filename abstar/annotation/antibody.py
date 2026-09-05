@@ -19,6 +19,9 @@ class Antibody(LoggingMixin):
 
     """
 
+    # internal metadata
+    row_id: str = None
+
     # most useful info up front
     sequence_id: str = None
     v_gene: str = None
@@ -36,6 +39,8 @@ class Antibody(LoggingMixin):
     productive: bool = True
     vj_in_frame: bool = None
     complete_vdj: bool = False
+    annotation_status: str = "annotated"
+    failure_reason: str = None
 
     # everything else
     sequence: str = None
@@ -177,7 +182,7 @@ class Antibody(LoggingMixin):
 
     def __post_init__(self):
         # establish the list of AIRR output fields
-        self.airr_fields = list(self.__dict__.keys())
+        self.airr_fields = [field for field in self.__dict__ if field != "row_id"]
 
         # initialize the LoggingMixin
         super().__init__()
@@ -203,7 +208,7 @@ class Antibody(LoggingMixin):
         dict: The dictionary representation of the antibody.
 
         """
-        airr_fields = self.airr_fields
+        airr_fields = list(self.airr_fields)
 
         # excluded fields
         if exclude is not None:
@@ -215,6 +220,6 @@ class Antibody(LoggingMixin):
         if include is not None:
             if isinstance(include, str):
                 include = [include]
-            airr_fields.extend(include)
+            airr_fields.extend(field for field in include if field != "row_id")
 
         return {k: self.__dict__.get(k, None) for k in airr_fields}

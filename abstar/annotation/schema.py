@@ -32,6 +32,8 @@ schema_dict = {
     "productive": pl.Boolean,
     "vj_in_frame": pl.Boolean,
     "complete_vdj": pl.Boolean,
+    "annotation_status": pl.String,
+    "failure_reason": pl.String,
     "sequence": pl.String,
     "germline": pl.String,
     "sequence_vdjc": pl.String,
@@ -172,3 +174,4 @@ schema_dict = {
 
 
 OUTPUT_SCHEMA = NoneDict(schema_dict)
+ANNOTATION_WORK_SCHEMA = {"row_id": pl.String, **OUTPUT_SCHEMA}

@@ -7,7 +7,7 @@ from pathlib import Path
 import polars as pl
 import pytest
 
-from ..annotation.schema import OUTPUT_SCHEMA, NoneDict
+from ..annotation.schema import ANNOTATION_WORK_SCHEMA, OUTPUT_SCHEMA, NoneDict
 
 
 def test_noneddict_missing_key_returns_none():
@@ -24,6 +24,22 @@ def test_output_schema_is_polars_schema_like():
         schema=NoneDict(subset),
     )
     assert df.shape == (1, 3)
+
+
+def test_output_schema_exposes_annotation_outcome_without_internal_row_id():
+    assert OUTPUT_SCHEMA["annotation_status"] == pl.String
+    assert OUTPUT_SCHEMA["failure_reason"] == pl.String
+    assert "row_id" not in OUTPUT_SCHEMA
+
+
+def test_annotation_work_schema_adds_internal_row_id_to_public_output_schema():
+    assert list(ANNOTATION_WORK_SCHEMA) == ["row_id", *OUTPUT_SCHEMA]
+    assert ANNOTATION_WORK_SCHEMA["row_id"] == pl.String
+    assert {
+        field: dtype
+        for field, dtype in ANNOTATION_WORK_SCHEMA.items()
+        if field != "row_id"
+    } == OUTPUT_SCHEMA
 
 
 def test_pytest_configuration_registers_test_scopes(pytestconfig):
