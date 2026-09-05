@@ -683,6 +683,101 @@ def test_lock_symlink_is_rejected_before_windows_backend_open(
     assert target.read_text() == "external\n"
 
 
+def test_unlock_failure_after_publication_is_logged_and_descriptor_is_closed(
+    tmp_path, monkeypatch, custom_genes, fake_mmseqs, caplog
+):
+    database = tmp_path / ".abstar" / "germline_dbs" / "bcr" / "custom"
+    closed = []
+    close = os.close
+
+    def record_close(descriptor):
+        closed.append(descriptor)
+        close(descriptor)
+
+    monkeypatch.setattr(
+        germline, "_unlock_database_descriptor",
+        lambda descriptor: (_ for _ in ()).throw(OSError("TASK19-UNLOCK")),
+    )
+    monkeypatch.setattr(germline.os, "close", record_close)
+
+    with caplog.at_level("WARNING", logger=germline.__name__):
+        result = germline.build_germline_database(
+            "custom", fastas=str(custom_genes), include_species_in_name=False,
+            verbose=False,
+        )
+
+    assert result is None
+    assert database.is_dir()
+    assert (database / "mmseqs" / "j.index").is_file()
+    assert len(closed) == 1
+    with pytest.raises(OSError):
+        os.fstat(closed[0])
+    assert "TASK19-UNLOCK" in caplog.text
+    assert ".custom.lock" in caplog.text
+
+
+def test_unlock_failure_during_body_error_preserves_body_and_closes_descriptor(
+    tmp_path, monkeypatch, caplog
+):
+    closed = []
+    close = os.close
+
+    def record_close(descriptor):
+        closed.append(descriptor)
+        close(descriptor)
+
+    monkeypatch.setattr(
+        germline, "_unlock_database_descriptor",
+        lambda descriptor: (_ for _ in ()).throw(OSError("TASK19-UNLOCK")),
+    )
+    monkeypatch.setattr(germline.os, "close", record_close)
+    cause = ValueError("TASK19-BODY-CAUSE")
+    body_error = RuntimeError("TASK19-BODY")
+    body_error.__cause__ = cause
+
+    with caplog.at_level("WARNING", logger=germline.__name__):
+        with pytest.raises(RuntimeError) as captured:
+            with germline.database_build_lock(str(tmp_path), "custom"):
+                raise body_error
+
+    assert captured.value is body_error
+    assert captured.value.__cause__ is cause
+    assert len(closed) == 1
+    with pytest.raises(OSError):
+        os.fstat(closed[0])
+    assert "TASK19-UNLOCK" in caplog.text
+
+
+@pytest.mark.parametrize("body_fails", (False, True), ids=("success", "body-error"))
+def test_close_failure_is_logged_without_changing_body_outcome(
+    tmp_path, monkeypatch, caplog, body_fails
+):
+    close = os.close
+    closed = []
+
+    def fail_after_close(descriptor):
+        close(descriptor)
+        closed.append(descriptor)
+        raise OSError("TASK19-CLOSE")
+
+    monkeypatch.setattr(germline.os, "close", fail_after_close)
+    body_error = RuntimeError("TASK19-BODY")
+
+    with caplog.at_level("WARNING", logger=germline.__name__):
+        if body_fails:
+            with pytest.raises(RuntimeError) as captured:
+                with germline.database_build_lock(str(tmp_path), "custom"):
+                    raise body_error
+            assert captured.value is body_error
+        else:
+            with germline.database_build_lock(str(tmp_path), "custom"):
+                pass
+
+    assert len(closed) == 1
+    assert "TASK19-CLOSE" in caplog.text
+    assert ".custom.lock" in caplog.text
+
+
 def test_header_only_staged_fasta_record_is_rejected(
     tmp_path, monkeypatch, custom_genes, fake_mmseqs
 ):

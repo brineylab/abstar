@@ -643,16 +643,20 @@ def publish_database(staging_dir: str, database_dir: str, replacing: bool) -> No
 
 def _log_retained_backup(backup_dir: str, error: OSError) -> None:
     """Report recoverable cleanup trouble without changing publication success."""
+    _safe_log_warning(
+        "Database published successfully, but backup cleanup failed: %s; "
+        "retained backup at %s",
+        error,
+        backup_dir,
+    )
+
+
+def _safe_log_warning(message: str, *args) -> None:
+    """Emit a secondary diagnostic without changing a completed operation."""
     try:
-        logger.warning(
-            "Database published successfully, but backup cleanup failed: %s; "
-            "retained backup at %s",
-            error,
-            backup_dir,
-        )
+        logger.warning(message, *args)
     except Exception:
-        # Publication already succeeded. A broken logging handler cannot safely
-        # turn that completed filesystem transaction into a reported failure.
+        # A broken logging handler cannot replace the operation's real outcome.
         pass
 
 
@@ -699,11 +703,27 @@ def database_build_lock(database_root: str, name: str):
         locked = True
         yield lock_path
     finally:
-        try:
-            if locked:
+        if locked:
+            try:
                 _unlock_database_descriptor(descriptor)
-        finally:
+            except Exception as error:
+                _safe_log_warning(
+                    "Database build lock unlock failed for %s: %s; descriptor "
+                    "close will still be attempted and the publication outcome "
+                    "is unchanged",
+                    lock_path,
+                    error,
+                )
+        try:
             os.close(descriptor)
+        except Exception as error:
+            _safe_log_warning(
+                "Database build lock descriptor close failed for %s: %s; OS-level "
+                "descriptor cleanup may be required and the publication outcome "
+                "is unchanged",
+                lock_path,
+                error,
+            )
 
 
 def _lock_database_descriptor(descriptor: int) -> None:
