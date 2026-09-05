@@ -44,6 +44,8 @@
         "status": "missing_output"
       },
       "alignment": {
+        "coding_end": 491,
+        "coding_scope": "through_primary_j",
         "coding_start": 137,
         "coding_translation": "EVQLVESGGGLVKPGGSLRLSCAASGFTFSTTWMNWVRQAPGKGLEWVGRIKIKSDGGATDYAAPVKGRFTISRDDSKNTLYLQMNSLNTEDTALYYCTTHPGWNYAWGQGTLVTVSS",
         "coordinate_space": "zero-based half-open oriented original query",
@@ -97,6 +99,8 @@
             ]
           ]
         },
+        "j_anchor_germline_codon": "TGG",
+        "j_anchor_germline_offset": 17,
         "j_anchor_query_start": 458,
         "method": "Exhaustive locus-compatible ungapped V and J nucleotide Smith-Waterman; match 2, mismatch -3, gap open 12, extension 2. Both strands compared for V. J searched downstream of mapped V-anchor codon. Independent review also used gap open 5, extension 1. No abstar annotation code was used for these alignments.",
         "reverse_v_score": 23,
@@ -263,6 +267,8 @@
         "status": "missing_output"
       },
       "alignment": {
+        "coding_end": 506,
+        "coding_scope": "through_primary_j",
         "coding_start": 137,
         "coding_translation": "QVHLVESGGGSVKPGGSLRLSCAASGFTFSANYMSWIRQAPGKGLEWVSFVSYSGNTIYYADSVKGRFTISRDNIKKSLSLQMNNLRADDTAVYYCARNLRGCSHTACYADSWGQGTLVTVSS",
         "coordinate_space": "zero-based half-open oriented original query",
@@ -316,6 +322,8 @@
             ]
           ]
         },
+        "j_anchor_germline_codon": "TGG",
+        "j_anchor_germline_offset": 14,
         "j_anchor_query_start": 473,
         "method": "Exhaustive locus-compatible ungapped V and J nucleotide Smith-Waterman; match 2, mismatch -3, gap open 12, extension 2. Both strands compared for V. J searched downstream of mapped V-anchor codon. Independent review also used gap open 5, extension 1. No abstar annotation code was used for these alignments.",
         "reverse_v_score": 29,
@@ -443,7 +451,8 @@
       "Original 1279068/CCATGTCCAGTCTTCC-1_contig_1 FASTA and matching source CSV row were re-read and checked against the discovery sequence. Forward V score 512 exceeds reverse score 25; compatible V/J loci support IGH.",
       "Reviewed V/J nucleotide traces and packaged IMGT-gapped V reference map the V anchor to 401 and J anchor to 455. Original query [401:458] translates to CVRHGFMTGYTTNWYVLYW; CDR3 excludes the two three-base anchor codons.",
       "The first complete V codon begins at query 116; junction displacement is divisible by three, the V-through-J coding translation contains no stop, and the original bases are unambiguous. Both locus-appropriate anchor residues are intact.",
-      "Gene-level allowed sets retain reviewed homology uncertainty; no exact alleles, C calls, or unreviewed IGH D calls are asserted. The original read contains two in-frame WGQG-containing J-like tracts. The first complete motif starts at 455 and directly follows the V-connected junction; use that primary J boundary, not the higher-scoring downstream repeat at 494. Direct first-tract comparison gives J4 score 65 and J5 score 64 over query 452:487. Retain both gene possibilities. The downstream repeat is preserved in the input and evidence; its molecular origin is unresolved."
+      "Gene-level allowed sets retain reviewed homology uncertainty; no exact alleles, C calls, or unreviewed IGH D calls are asserted. The original read contains two in-frame WGQG-containing J-like tracts. The first complete motif starts at 455 and directly follows the V-connected junction; use that primary J boundary, not the higher-scoring downstream repeat at 494. Direct first-tract comparison gives J4 score 65 and J5 score 64 over query 452:487. Retain both gene possibilities. The downstream repeat is preserved in the input and evidence; its molecular origin is unresolved.",
+      "Coding-translation scope is oriented query [116:527], through the secondary J-like repeat. The secondary retained J trace ends at 528, so its final incomplete codon is excluded. The primary expected J trace is [452:487]; its distinct endpoint does not define this longer stored coding translation."
     ],
     "expected": {
       "cdr3": "GTGAGACACGGATTTATGACCGGATATACCACCAACTGGTACGTCTTGTAT",
@@ -482,6 +491,8 @@
         "status": "missing_output"
       },
       "alignment": {
+        "coding_end": 527,
+        "coding_scope": "through_secondary_j_repeat",
         "coding_start": 116,
         "coding_translation": "EVQLVQSGAEVKKPGDSLKISCKGSGYSFTSYWIGWVRQMPGKGLEWMASIYPADSATRYSPSFEGQVTISADKSVTTAYLQWTGLKASDTAIYYCVRHGFMTGYTTNWYVLYWGQGTLVTVSSVPWGQGPLVTVSS",
         "coordinate_space": "zero-based half-open oriented original query",
@@ -519,6 +530,8 @@
             ]
           ]
         },
+        "j_anchor_germline_codon": "TGG",
+        "j_anchor_germline_offset": 14,
         "j_anchor_query_start": 455,
         "j_secondary_repeat": {
           "germline_aligned": "CGACCCCTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG",
@@ -728,6 +741,8 @@
         "status": "missing_output"
       },
       "alignment": {
+        "coding_end": 425,
+        "coding_scope": "through_primary_j",
         "coding_start": 104,
         "coding_translation": "EIVLTQSPGTLSLSPGERATLSCRASQSVNTMYLAWYQQKPGQAPRLLIYGTSSRATGIPDRFSGSGSGADFTLTISRLEPEDFAVYYCQQYGHTSSIGGGTKVEVK",
         "coordinate_space": "zero-based half-open oriented original query",
@@ -782,6 +797,8 @@
             ]
           ]
         },
+        "j_anchor_germline_codon": "TTC",
+        "j_anchor_germline_offset": 7,
         "j_anchor_query_start": 395,
         "method": "Exhaustive locus-compatible ungapped V and J nucleotide Smith-Waterman; match 2, mismatch -3, gap open 12, extension 2. Both strands compared for V. J searched downstream of mapped V-anchor codon. Independent review also used gap open 5, extension 1. No abstar annotation code was used for these alignments.",
         "reverse_v_score": 26,
@@ -909,7 +926,7 @@
       "Original 1279068/CTGTTTACAGGTGCCT-1_contig_1 FASTA and matching source CSV row were re-read and checked against the discovery sequence. Forward V score 522 exceeds reverse score 24; compatible V/J loci support IGH.",
       "Reviewed V/J nucleotide traces and packaged IMGT-gapped V reference map the V anchor to 410 and J anchor to 431. Original query [410:434] translates to CTRDIKEV; CDR3 excludes the two three-base anchor codons.",
       "The first complete V codon begins at query 125; junction displacement is divisible by three, the V-through-J coding translation contains no stop, and the original bases are unambiguous. Required anchor residue failure: junction does not end with conserved W.",
-      "Gene-level allowed sets retain reviewed homology uncertainty; no exact alleles, C calls, or unreviewed IGH D calls are asserted. The short J-aligned suffix is shared by J4 and J5 (64 each), with J1 close (59). The homologous W anchor is GTT (V) at 431. Project two bases before the local J start from the uninterrupted J suffix. Retain the observed CTRDIKEV and flag loss of W."
+      "Gene-level allowed sets retain reviewed homology uncertainty; no exact alleles, C calls, or unreviewed IGH D calls are asserted. The short J-aligned suffix is shared by J4 and J5 (64 each), with J1 close (59). The homologous W anchor is GTG (V) at 431. Project two bases before the local J start from the uninterrupted J suffix. Retain the observed CTRDIKEV and flag loss of W."
     ],
     "expected": {
       "cdr3": "ACAAGAGATATCAAGGAG",
@@ -951,6 +968,8 @@
         "status": "missing_output"
       },
       "alignment": {
+        "coding_end": 464,
+        "coding_scope": "through_primary_j",
         "coding_start": 125,
         "coding_translation": "EVQLVESGGGLVQPGGSLTLSCAASGFTFSNYYMHWVRQAPGKGLVWVSRINTDGSIINYADSVKGRFTISRDNAKNTLYLQMSSLRAEDTAVYYCTRDIKEVGQGTLVTVSS",
         "coordinate_space": "zero-based half-open oriented original query",
@@ -1005,6 +1024,8 @@
             ]
           ]
         },
+        "j_anchor_germline_codon": "TGG",
+        "j_anchor_germline_offset": 14,
         "j_anchor_query_start": 431,
         "method": "Exhaustive locus-compatible ungapped V and J nucleotide Smith-Waterman; match 2, mismatch -3, gap open 12, extension 2. Both strands compared for V. J searched downstream of mapped V-anchor codon. Independent review also used gap open 5, extension 1. No abstar annotation code was used for these alignments.",
         "reverse_v_score": 24,
@@ -1170,6 +1191,8 @@
         "status": "missing_output"
       },
       "alignment": {
+        "coding_end": 449,
+        "coding_scope": "through_primary_j",
         "coding_start": 95,
         "coding_translation": "QVLLQESGPRLVKPSETLSLTCAVSGPSISGVYYWGWIRQSPGKGLEWIGTFSRTGTTYYNPSLKTRVTISEDTSQNQFSLKLNSVTAADVAVYYCLLNNGDLTFDYWGQGTLVTVSS",
         "coordinate_space": "zero-based half-open oriented original query",
@@ -1223,6 +1246,8 @@
             ]
           ]
         },
+        "j_anchor_germline_codon": "TGG",
+        "j_anchor_germline_offset": 14,
         "j_anchor_query_start": 416,
         "method": "Exhaustive locus-compatible ungapped V and J nucleotide Smith-Waterman; match 2, mismatch -3, gap open 12, extension 2. Both strands compared for V. J searched downstream of mapped V-anchor codon. Independent review also used gap open 5, extension 1. No abstar annotation code was used for these alignments.",
         "reverse_v_score": 27,
@@ -1388,6 +1413,8 @@
         "status": "missing_output"
       },
       "alignment": {
+        "coding_end": 455,
+        "coding_scope": "through_primary_j",
         "coding_start": 98,
         "coding_translation": "QLQLQESGPGLVKPSETLSLTCTVSGGSVSSISGTRYSWGWIRQPPGRGLEWIGTFFYSGTTYYNPSLKSRVTMSIDTSNNQFSLKLSSVTAADTAVYYCARHPDLDYWGQGTLVTVSS",
         "coordinate_space": "zero-based half-open oriented original query",
@@ -1441,6 +1468,8 @@
             ]
           ]
         },
+        "j_anchor_germline_codon": "TGG",
+        "j_anchor_germline_offset": 14,
         "j_anchor_query_start": 422,
         "method": "Exhaustive locus-compatible ungapped V and J nucleotide Smith-Waterman; match 2, mismatch -3, gap open 12, extension 2. Both strands compared for V. J searched downstream of mapped V-anchor codon. Independent review also used gap open 5, extension 1. No abstar annotation code was used for these alignments.",
         "reverse_v_score": 27,
@@ -1613,6 +1642,8 @@
         "status": "missing_output"
       },
       "alignment": {
+        "coding_end": 494,
+        "coding_scope": "through_primary_j",
         "coding_start": 137,
         "coding_translation": "EVQLVESGGGLVQPGGSLRLSCAASGFTFSDHYMDWVRQAPGKGLEWVGRTRNKVNSYTTEYAASVKGRFTISRDDSKNSVHLQMNSLKTEDTAVYYCTVTRYYYMDVWGKGTTVTVSS",
         "coordinate_space": "zero-based half-open oriented original query",
@@ -1666,6 +1697,8 @@
             ]
           ]
         },
+        "j_anchor_germline_codon": "TGG",
+        "j_anchor_germline_offset": 29,
         "j_anchor_query_start": 461,
         "method": "Exhaustive locus-compatible ungapped V and J nucleotide Smith-Waterman; match 2, mismatch -3, gap open 12, extension 2. Both strands compared for V. J searched downstream of mapped V-anchor codon. Independent review also used gap open 5, extension 1. No abstar annotation code was used for these alignments.",
         "reverse_v_score": 24,
@@ -1834,6 +1867,8 @@
         "v_call": "IGLV2-14*01,IGLV2-14*03"
       },
       "alignment": {
+        "coding_end": 443,
+        "coding_scope": "through_primary_j",
         "coding_start": 98,
         "coding_translation": "QSALTQPASVSGSPGQSITISCTGTSSDVGGYNYVSWYQQHPGKAPKLMIYEVSSRPSGVSNRFSGSKSGNTASLTISGLQAEDEADYYCSSYCNSYTSSSTLYVFGTGTKVTVQ",
         "coordinate_space": "zero-based half-open oriented original query",
@@ -1895,6 +1930,8 @@
             ]
           ]
         },
+        "j_anchor_germline_codon": "TTC",
+        "j_anchor_germline_offset": 7,
         "j_anchor_query_start": 413,
         "method": "Exhaustive locus-compatible ungapped V and J nucleotide Smith-Waterman; match 2, mismatch -3, gap open 12, extension 2. Both strands compared for V. J searched downstream of mapped V-anchor codon. Independent review also used gap open 5, extension 1. No abstar annotation code was used for these alignments.",
         "reverse_v_score": 29,
@@ -2071,6 +2108,8 @@
         "v_call": "IGHV3-48*01"
       },
       "alignment": {
+        "coding_end": 526,
+        "coding_scope": "through_primary_j",
         "coding_start": 136,
         "coding_translation": "EVQLVESGGGLVQPGGSLRLSCAASGFIFSSYSMNWIRQAPGKGLEWISYISSSTNTIYYADSVKGRFTISRDNAKTSLYLQMSSLRAEDTAVYYGARDEGWSGCSESYCSSYRIDFDYWGQGTLVTVSS",
         "coordinate_space": "zero-based half-open oriented original query",
@@ -2124,6 +2163,8 @@
             ]
           ]
         },
+        "j_anchor_germline_codon": "TGG",
+        "j_anchor_germline_offset": 14,
         "j_anchor_query_start": 493,
         "method": "Exhaustive locus-compatible ungapped V and J nucleotide Smith-Waterman; match 2, mismatch -3, gap open 12, extension 2. Both strands compared for V. J searched downstream of mapped V-anchor codon. Independent review also used gap open 5, extension 1. No abstar annotation code was used for these alignments.",
         "reverse_v_score": 23,
@@ -2319,6 +2360,8 @@
         "status": "annotated"
       },
       "alignment": {
+        "coding_end": 499,
+        "coding_scope": "through_primary_j",
         "coding_start": 124,
         "coding_translation": "QVQLVESGGGVVQPGRSLRLSCAASGFTFSSYAMHWVRQAPGKGLEWVTVISYDGSNKYYADSVKGRFTFSRDNSKNTLYLQMNSLRAEDTAVYYCARGYPYSSSAPVRWRFDFWGQGTLVTVSS",
         "coordinate_space": "zero-based half-open oriented original query",
@@ -2372,6 +2415,8 @@
             ]
           ]
         },
+        "j_anchor_germline_codon": "TGG",
+        "j_anchor_germline_offset": 14,
         "j_anchor_query_start": 466,
         "method": "Exhaustive locus-compatible ungapped V and J nucleotide Smith-Waterman; match 2, mismatch -3, gap open 12, extension 2. Both strands compared for V. J searched downstream of mapped V-anchor codon. Independent review also used gap open 5, extension 1. No abstar annotation code was used for these alignments.",
         "reverse_v_score": 24,
@@ -2569,6 +2614,8 @@
         "status": "annotated"
       },
       "alignment": {
+        "coding_end": 428,
+        "coding_scope": "through_primary_j",
         "coding_start": 95,
         "coding_translation": "QSALTQPASVSGSPGQSITISCTGTSSDVGSYNLVSWYQQHPGKAPKLMIYEGSKRPSGVSNRFSGSKSGNTASLTISGLQAEDEADYYCCSYAGSSTFVVFGGGTKLTVL",
         "coordinate_space": "zero-based half-open oriented original query",
@@ -2630,6 +2677,8 @@
             ]
           ]
         },
+        "j_anchor_germline_codon": "TTC",
+        "j_anchor_germline_offset": 7,
         "j_anchor_query_start": 398,
         "method": "Exhaustive locus-compatible ungapped V and J nucleotide Smith-Waterman; match 2, mismatch -3, gap open 12, extension 2. Both strands compared for V. J searched downstream of mapped V-anchor codon. Independent review also used gap open 5, extension 1. No abstar annotation code was used for these alignments.",
         "reverse_v_score": 29,
@@ -2826,6 +2875,8 @@
         "status": "annotated"
       },
       "alignment": {
+        "coding_end": 484,
+        "coding_scope": "through_primary_j",
         "coding_start": 115,
         "coding_translation": "QVQLVQSGAEVKKPGSSVKVSCKASGGTFSSYAISWVRQAPGQGLEWMGGIIPIFGTANYAQKFQGRVTITADESTSTAYMELSSLRSEDTAVYYCARESNSSSRRSSPMDVWGQGTTVTVSS",
         "coordinate_space": "zero-based half-open oriented original query",
@@ -2879,6 +2930,8 @@
             ]
           ]
         },
+        "j_anchor_germline_codon": "TGG",
+        "j_anchor_germline_offset": 29,
         "j_anchor_query_start": 451,
         "method": "Exhaustive locus-compatible ungapped V and J nucleotide Smith-Waterman; match 2, mismatch -3, gap open 12, extension 2. Both strands compared for V. J searched downstream of mapped V-anchor codon. Independent review also used gap open 5, extension 1. No abstar annotation code was used for these alignments.",
         "reverse_v_score": 24,
@@ -3076,6 +3129,8 @@
         "status": "annotated"
       },
       "alignment": {
+        "coding_end": 424,
+        "coding_scope": "through_primary_j",
         "coding_start": 97,
         "coding_translation": "SSELTQDPAVSVALGQTVRITCQGDSLRSYYASWYQQKPGQAPVLVIYGKNNRPSGIPDRFSGSSSGNTASLTITGAQAEDEADYYCNSRDSSGNHPWVFGGGTKLTVL",
         "coordinate_space": "zero-based half-open oriented original query",
@@ -3137,6 +3192,8 @@
             ]
           ]
         },
+        "j_anchor_germline_codon": "TTC",
+        "j_anchor_germline_offset": 7,
         "j_anchor_query_start": 394,
         "method": "Exhaustive locus-compatible ungapped V and J nucleotide Smith-Waterman; match 2, mismatch -3, gap open 12, extension 2. Both strands compared for V. J searched downstream of mapped V-anchor codon. Independent review also used gap open 5, extension 1. No abstar annotation code was used for these alignments.",
         "reverse_v_score": 30,
@@ -3333,6 +3390,8 @@
         "status": "annotated"
       },
       "alignment": {
+        "coding_end": 505,
+        "coding_scope": "through_primary_j",
         "coding_start": 136,
         "coding_translation": "EVQLVESGGGLVKPGGSLRLSCVGSGFRFSDYYVNWVRQAPGKGLEWISGISGGGGQIYFADSLKGRFTISRDNAKNSLFLQMDSLRAEDTAMYYCVRSCVAVGASCYGGDYWGQGTLVTVSS",
         "coordinate_space": "zero-based half-open oriented original query",
@@ -3386,6 +3445,8 @@
             ]
           ]
         },
+        "j_anchor_germline_codon": "TGG",
+        "j_anchor_germline_offset": 14,
         "j_anchor_query_start": 472,
         "method": "Exhaustive locus-compatible ungapped V and J nucleotide Smith-Waterman; match 2, mismatch -3, gap open 12, extension 2. Both strands compared for V. J searched downstream of mapped V-anchor codon. Independent review also used gap open 5, extension 1. No abstar annotation code was used for these alignments.",
         "reverse_v_score": 23,
@@ -3583,6 +3644,8 @@
         "status": "annotated"
       },
       "alignment": {
+        "coding_end": 419,
+        "coding_scope": "through_primary_j",
         "coding_start": 98,
         "coding_translation": "DIQMTQSPSSLSASVGDRVTITCRASQSISSYLNWYQQKPGKAPKLLIYAASSLQSGVPSRFSGSGSGTDFTLTISSLQPEDFATYYCQQSYSTPRTFGQGTKLEIK",
         "coordinate_space": "zero-based half-open oriented original query",
@@ -3636,6 +3699,8 @@
             ]
           ]
         },
+        "j_anchor_germline_codon": "TTT",
+        "j_anchor_germline_offset": 8,
         "j_anchor_query_start": 389,
         "method": "Exhaustive locus-compatible ungapped V and J nucleotide Smith-Waterman; match 2, mismatch -3, gap open 12, extension 2. Both strands compared for V. J searched downstream of mapped V-anchor codon. Independent review also used gap open 5, extension 1. No abstar annotation code was used for these alignments.",
         "reverse_v_score": 27,
@@ -3833,6 +3898,8 @@
         "status": "annotated"
       },
       "alignment": {
+        "coding_end": 503,
+        "coding_scope": "through_primary_j",
         "coding_start": 179,
         "coding_translation": "EIVLTQSPGTLSLSPGERATLSCRANQSVSSTYLAWYQQKPGQAPRLLISGVSSRATGIPDRFSGSGSGTDFTLSISRLEPEDFAVYYCQQYGSPPLTFGGGTKVEIK",
         "coordinate_space": "zero-based half-open oriented original query",
@@ -3886,6 +3953,8 @@
             ]
           ]
         },
+        "j_anchor_germline_codon": "TTC",
+        "j_anchor_germline_offset": 7,
         "j_anchor_query_start": 473,
         "method": "Exhaustive locus-compatible ungapped V and J nucleotide Smith-Waterman; match 2, mismatch -3, gap open 12, extension 2. Both strands compared for V. J searched downstream of mapped V-anchor codon. Independent review also used gap open 5, extension 1. No abstar annotation code was used for these alignments.",
         "reverse_v_score": 23,
@@ -4082,6 +4151,8 @@
         "status": "annotated"
       },
       "alignment": {
+        "coding_end": 420,
+        "coding_scope": "through_primary_j",
         "coding_start": 96,
         "coding_translation": "EIVLTQSPGTLSLSPGETATLSCRASQSVPSTYLAWYQQKPAQAPRLLIYGASSRATGIPDKFRGSGSGTDFTLTINRLEPEDFAVYYCQQYANTPYTFGQGTKLEIK",
         "coordinate_space": "zero-based half-open oriented original query",
@@ -4135,6 +4206,8 @@
             ]
           ]
         },
+        "j_anchor_germline_codon": "TTT",
+        "j_anchor_germline_offset": 8,
         "j_anchor_query_start": 390,
         "method": "Exhaustive locus-compatible ungapped V and J nucleotide Smith-Waterman; match 2, mismatch -3, gap open 12, extension 2. Both strands compared for V. J searched downstream of mapped V-anchor codon. Independent review also used gap open 5, extension 1. No abstar annotation code was used for these alignments.",
         "reverse_v_score": 23,
@@ -4331,6 +4404,8 @@
         "status": "annotated"
       },
       "alignment": {
+        "coding_end": 426,
+        "coding_scope": "through_primary_j",
         "coding_start": 93,
         "coding_translation": "NFMLTQPHSVSESPGKTVTISCTGSSGSIASNYVQWYQQRPGSAPTTVIYEDNQRPSGVPDRFSGSIDSSSNSASLTISGLKTEDEADYYCQSYDSSNVWVFGGGTKLTVL",
         "coordinate_space": "zero-based half-open oriented original query",
@@ -4392,6 +4467,8 @@
             ]
           ]
         },
+        "j_anchor_germline_codon": "TTC",
+        "j_anchor_germline_offset": 7,
         "j_anchor_query_start": 396,
         "method": "Exhaustive locus-compatible ungapped V and J nucleotide Smith-Waterman; match 2, mismatch -3, gap open 12, extension 2. Both strands compared for V. J searched downstream of mapped V-anchor codon. Independent review also used gap open 5, extension 1. No abstar annotation code was used for these alignments.",
         "reverse_v_score": 24,
@@ -4587,6 +4664,8 @@
         "status": "annotated"
       },
       "alignment": {
+        "coding_end": 480,
+        "coding_scope": "through_primary_j",
         "coding_start": 120,
         "coding_translation": "QVQLLQSGAEVKKPGASVKVSCKASGYTFTNYDIEWVRRASGQGPEWMGWMNPNTGKTGFAQKFQGRVTMTWSTSISTAYMELNSLRSDDTAVYYCARYHPVLRNGFDVWGQGTVVTVSS",
         "coordinate_space": "zero-based half-open oriented original query",
@@ -4640,6 +4719,8 @@
             ]
           ]
         },
+        "j_anchor_germline_codon": "TGG",
+        "j_anchor_germline_offset": 16,
         "j_anchor_query_start": 447,
         "method": "Exhaustive locus-compatible ungapped V and J nucleotide Smith-Waterman; match 2, mismatch -3, gap open 12, extension 2. Both strands compared for V. J searched downstream of mapped V-anchor codon. Independent review also used gap open 5, extension 1. No abstar annotation code was used for these alignments.",
         "reverse_v_score": 24,
@@ -4836,6 +4917,8 @@
         "status": "annotated"
       },
       "alignment": {
+        "coding_end": 460,
+        "coding_scope": "through_primary_j",
         "coding_start": 94,
         "coding_translation": "QVQLQESGPGLVKPSGTLSLTCTVSGDSISRNYWGWIRQSPRVGLEWLGYVHYSGNTNYNPSLKSRVTMSVDTSKNQFSLKLTSVTSEDTAVYYCTRGFYDSRGYSSPFDCWGQGTLVTVSS",
         "coordinate_space": "zero-based half-open oriented original query",
@@ -4889,6 +4972,8 @@
             ]
           ]
         },
+        "j_anchor_germline_codon": "TGG",
+        "j_anchor_germline_offset": 14,
         "j_anchor_query_start": 427,
         "method": "Exhaustive locus-compatible ungapped V and J nucleotide Smith-Waterman; match 2, mismatch -3, gap open 12, extension 2. Both strands compared for V. J searched downstream of mapped V-anchor codon. Independent review also used gap open 5, extension 1. No abstar annotation code was used for these alignments.",
         "reverse_v_score": 25,
@@ -5084,6 +5169,8 @@
         "status": "annotated"
       },
       "alignment": {
+        "coding_end": 459,
+        "coding_scope": "through_primary_j",
         "coding_start": 99,
         "coding_translation": "QVQLQESGPGLVKPSETLSLSCAVSGYSISSGYYWGWFRQPPGKGLEFIGSIYHSGSTYYNPSLKSRVTISVDTSKNQISLKLISVTAADTAVYFCARRYLNSVNAFDIWGQGTMVTVSS",
         "coordinate_space": "zero-based half-open oriented original query",
@@ -5137,6 +5224,8 @@
             ]
           ]
         },
+        "j_anchor_germline_codon": "TGG",
+        "j_anchor_germline_offset": 16,
         "j_anchor_query_start": 426,
         "method": "Exhaustive locus-compatible ungapped V and J nucleotide Smith-Waterman; match 2, mismatch -3, gap open 12, extension 2. Both strands compared for V. J searched downstream of mapped V-anchor codon. Independent review also used gap open 5, extension 1. No abstar annotation code was used for these alignments.",
         "reverse_v_score": 23,
@@ -5333,6 +5422,8 @@
         "status": "annotated"
       },
       "alignment": {
+        "coding_end": 429,
+        "coding_scope": "through_primary_j",
         "coding_start": 99,
         "coding_translation": "QSALTQPRSVSGSPGQSVTISCTGTSSDVGGYNYVSWYQQHPGKAPKLMIYDVSKRPSGVPDRFSGSKSGNTASLTISGLQAEDEADYYCCSYAGSYTLVFGGGTKLTVL",
         "coordinate_space": "zero-based half-open oriented original query",
@@ -5394,6 +5485,8 @@
             ]
           ]
         },
+        "j_anchor_germline_codon": "TTC",
+        "j_anchor_germline_offset": 7,
         "j_anchor_query_start": 399,
         "method": "Exhaustive locus-compatible ungapped V and J nucleotide Smith-Waterman; match 2, mismatch -3, gap open 12, extension 2. Both strands compared for V. J searched downstream of mapped V-anchor codon. Independent review also used gap open 5, extension 1. No abstar annotation code was used for these alignments.",
         "reverse_v_score": 28,
@@ -5590,6 +5683,8 @@
         "status": "annotated"
       },
       "alignment": {
+        "coding_end": 426,
+        "coding_scope": "through_primary_j",
         "coding_start": 90,
         "coding_translation": "DIVMTQSPLSLPVTPGEPASISCRSSQSLLHSNGYNYLDWYLQKPGQSPQLLIYLGSNRASGVPDRFSGSGSGTDFTLKISRVEAEDVGVYYCMQALQTPITFGQGTRLEIK",
         "coordinate_space": "zero-based half-open oriented original query",
@@ -5643,6 +5738,8 @@
             ]
           ]
         },
+        "j_anchor_germline_codon": "TTC",
+        "j_anchor_germline_offset": 7,
         "j_anchor_query_start": 396,
         "method": "Exhaustive locus-compatible ungapped V and J nucleotide Smith-Waterman; match 2, mismatch -3, gap open 12, extension 2. Both strands compared for V. J searched downstream of mapped V-anchor codon. Independent review also used gap open 5, extension 1. No abstar annotation code was used for these alignments.",
         "reverse_v_score": 30,
@@ -5846,6 +5943,8 @@
         "status": "annotated"
       },
       "alignment": {
+        "coding_end": 432,
+        "coding_scope": "through_primary_j",
         "coding_start": 102,
         "coding_translation": "QSALTQPASVSGSPGQSITISCTGTSSDVGGRYHYVSWYQQHPGKAPKLLIYDVTYRPSGVSNRFSGSKSGSTASLTISGLQSEDEADYYCSSYTASTTWVFGGGTQLTV",
         "coordinate_space": "zero-based half-open oriented original query",
@@ -5907,6 +6006,8 @@
             ]
           ]
         },
+        "j_anchor_germline_codon": "TTC",
+        "j_anchor_germline_offset": 7,
         "j_anchor_query_start": 405,
         "method": "Exhaustive locus-compatible ungapped V and J nucleotide Smith-Waterman; match 2, mismatch -3, gap open 12, extension 2. Both strands compared for V. J searched downstream of mapped V-anchor codon. Independent review also used gap open 5, extension 1. No abstar annotation code was used for these alignments.",
         "reverse_v_score": 28,
@@ -6112,6 +6213,8 @@
         "status": "annotated"
       },
       "alignment": {
+        "coding_end": 465,
+        "coding_scope": "through_primary_j",
         "coding_start": 135,
         "coding_translation": "QSALTQPASVSGSPGQSITISCTGTSSDIGGYNYVSWYQHHPGKAPKLMIYDVSNRPSGVSNRFSGSKSGNTASLTISGLQAEDEADYYCSSYTSSSTRVFGGGTKLTVL",
         "coordinate_space": "zero-based half-open oriented original query",
@@ -6173,6 +6276,8 @@
             ]
           ]
         },
+        "j_anchor_germline_codon": "TTC",
+        "j_anchor_germline_offset": 7,
         "j_anchor_query_start": 435,
         "method": "Exhaustive locus-compatible ungapped V and J nucleotide Smith-Waterman; match 2, mismatch -3, gap open 12, extension 2. Both strands compared for V. J searched downstream of mapped V-anchor codon. Independent review also used gap open 5, extension 1. No abstar annotation code was used for these alignments.",
         "reverse_v_score": 28,
@@ -6370,6 +6475,8 @@
         "status": "annotated"
       },
       "alignment": {
+        "coding_end": 435,
+        "coding_scope": "through_primary_j",
         "coding_start": 105,
         "coding_translation": "QSVLTQPPSASGTPGQRVTISCSGSSSNIGRNYVYWYQQVPGTAPKFLIYRNNQRPSGVPDRFSGSKSGTSASLAISGLRSEDEADYYCAAWDDGLSGVVFGGGTKLTVL",
         "coordinate_space": "zero-based half-open oriented original query",
@@ -6431,6 +6538,8 @@
             ]
           ]
         },
+        "j_anchor_germline_codon": "TTC",
+        "j_anchor_germline_offset": 7,
         "j_anchor_query_start": 405,
         "method": "Exhaustive locus-compatible ungapped V and J nucleotide Smith-Waterman; match 2, mismatch -3, gap open 12, extension 2. Both strands compared for V. J searched downstream of mapped V-anchor codon. Independent review also used gap open 5, extension 1. No abstar annotation code was used for these alignments.",
         "reverse_v_score": 26,
@@ -6629,6 +6738,8 @@
         "status": "annotated"
       },
       "alignment": {
+        "coding_end": 438,
+        "coding_scope": "through_primary_j",
         "coding_start": 117,
         "coding_translation": "AIQLTQSPSSLSASVGDRVTITCRASQGISSALAWYQQKPGKAPKLLIYDASSLESGVPSRFSGSGSGTDFTLTISSLQPEDFATYYCQQFNNYPWTFGQGTKVEIK",
         "coordinate_space": "zero-based half-open oriented original query",
@@ -6682,6 +6793,8 @@
             ]
           ]
         },
+        "j_anchor_germline_codon": "TTC",
+        "j_anchor_germline_offset": 7,
         "j_anchor_query_start": 408,
         "method": "Exhaustive locus-compatible ungapped V and J nucleotide Smith-Waterman; match 2, mismatch -3, gap open 12, extension 2. Both strands compared for V. J searched downstream of mapped V-anchor codon. Independent review also used gap open 5, extension 1. No abstar annotation code was used for these alignments.",
         "reverse_v_score": 29,
@@ -6884,6 +6997,8 @@
         "status": "annotated"
       },
       "alignment": {
+        "coding_end": 464,
+        "coding_scope": "through_primary_j",
         "coding_start": 95,
         "coding_translation": "QVQLQESGPGLVKPSETLSLTCAVSDFSISSSGYYWGWIRQPPGKGLEWIAFMYHSGSSYYNPSLKSRVTISVDTSKNQFSLRVSRVTAADTAVYYCARIPLDPYRSGRFDYWGQGTLVTVSS",
         "coordinate_space": "zero-based half-open oriented original query",
@@ -6937,6 +7052,8 @@
             ]
           ]
         },
+        "j_anchor_germline_codon": "TGG",
+        "j_anchor_germline_offset": 14,
         "j_anchor_query_start": 431,
         "method": "Exhaustive locus-compatible ungapped V and J nucleotide Smith-Waterman; match 2, mismatch -3, gap open 12, extension 2. Both strands compared for V. J searched downstream of mapped V-anchor codon. Independent review also used gap open 5, extension 1. No abstar annotation code was used for these alignments.",
         "reverse_v_score": 24,
@@ -7140,6 +7257,8 @@
         "status": "annotated"
       },
       "alignment": {
+        "coding_end": 431,
+        "coding_scope": "through_primary_j",
         "coding_start": 95,
         "coding_translation": "QVQLQQWGAGLLKPSETLSLTCAVYGGSFSGYYWSWIRQPPGKGLEWIGEINHSGSTNYNPSLKSRVTISVDTSKNQFSLKLSSVTAADTAVYYCARTLDYWGQGTLVTVSS",
         "coordinate_space": "zero-based half-open oriented original query",
@@ -7203,6 +7322,8 @@
             ]
           ]
         },
+        "j_anchor_germline_codon": "TGG",
+        "j_anchor_germline_offset": 14,
         "j_anchor_query_start": 398,
         "method": "Exhaustive locus-compatible ungapped V and J nucleotide Smith-Waterman; match 2, mismatch -3, gap open 12, extension 2. Both strands compared for V. J searched downstream of mapped V-anchor codon. Independent review also used gap open 5, extension 1. No abstar annotation code was used for these alignments.",
         "reverse_v_score": 27,
@@ -7399,6 +7520,8 @@
         "status": "annotated"
       },
       "alignment": {
+        "coding_end": 478,
+        "coding_scope": "through_primary_j",
         "coding_start": 136,
         "coding_translation": "EVQLVESGGGLVQPGGSLRLSCVASGFTFSNYWMGWVRQAPGKGLEWVAIIKQDGREKYYVDSVKGRFTISRDNAKNSLYLQMNSLRADDTAVYYCARPTFDIWGQGTVVTVSS",
         "coordinate_space": "zero-based half-open oriented original query",
@@ -7459,6 +7582,8 @@
             ]
           ]
         },
+        "j_anchor_germline_codon": "TGG",
+        "j_anchor_germline_offset": 16,
         "j_anchor_query_start": 445,
         "method": "Exhaustive locus-compatible ungapped V and J nucleotide Smith-Waterman; match 2, mismatch -3, gap open 12, extension 2. Both strands compared for V. J searched downstream of mapped V-anchor codon. Independent review also used gap open 5, extension 1. No abstar annotation code was used for these alignments.",
         "reverse_v_score": 27,
@@ -7662,6 +7787,8 @@
         "status": "annotated"
       },
       "alignment": {
+        "coding_end": 481,
+        "coding_scope": "through_primary_j",
         "coding_start": 139,
         "coding_translation": "VQLLESGGGLVQPGGSLRLSCAASGFIFSSHAMVWVRQAPGKGLEWVSGISGGSTHYADSVKGRFTISRDNSKNTLYLQMNSLTADDTAVYYCVTHPAVVQTSWGQGTLVSVSS",
         "coordinate_space": "zero-based half-open oriented original query",
@@ -7715,6 +7842,8 @@
             ]
           ]
         },
+        "j_anchor_germline_codon": "TGG",
+        "j_anchor_germline_offset": 14,
         "j_anchor_query_start": 448,
         "method": "Exhaustive locus-compatible ungapped V and J nucleotide Smith-Waterman; match 2, mismatch -3, gap open 12, extension 2. Both strands compared for V. J searched downstream of mapped V-anchor codon. Independent review also used gap open 5, extension 1. No abstar annotation code was used for these alignments.",
         "reverse_v_score": 23,
@@ -7918,6 +8047,8 @@
         "status": "annotated"
       },
       "alignment": {
+        "coding_end": 403,
+        "coding_scope": "through_primary_j",
         "coding_start": 97,
         "coding_translation": "DIQMTQSPSSLSASVGDRVTITCQASQDISNYLNWYQQKPGKAPKLLIYDASNLETGVPSRFSGSGSGTDFTFTISSLQPEDIATYYCLPGTFGQGTKVEIK",
         "coordinate_space": "zero-based half-open oriented original query",
@@ -7971,6 +8102,8 @@
             ]
           ]
         },
+        "j_anchor_germline_codon": "TTC",
+        "j_anchor_germline_offset": 7,
         "j_anchor_query_start": 373,
         "method": "Exhaustive locus-compatible ungapped V and J nucleotide Smith-Waterman; match 2, mismatch -3, gap open 12, extension 2. Both strands compared for V. J searched downstream of mapped V-anchor codon. Independent review also used gap open 5, extension 1. No abstar annotation code was used for these alignments.",
         "reverse_v_score": 25,
@@ -8168,6 +8301,8 @@
         "status": "annotated"
       },
       "alignment": {
+        "coding_end": 411,
+        "coding_scope": "through_primary_j",
         "coding_start": 93,
         "coding_translation": "DIQMTQSPSTLSASAGDRVTITCRASQSIDTWLAWYQQKPGKAPKLLIHKASTLQSGVPPRFSGAGAETEFTLTISSLHPDDFATYYCQQYKTYPVTFGQGTRLEI",
         "coordinate_space": "zero-based half-open oriented original query",
@@ -8221,6 +8356,8 @@
             ]
           ]
         },
+        "j_anchor_germline_codon": "TTT",
+        "j_anchor_germline_offset": 8,
         "j_anchor_query_start": 384,
         "method": "Exhaustive locus-compatible ungapped V and J nucleotide Smith-Waterman; match 2, mismatch -3, gap open 12, extension 2. Both strands compared for V. J searched downstream of mapped V-anchor codon. Independent review also used gap open 5, extension 1. No abstar annotation code was used for these alignments.",
         "reverse_v_score": 37,
@@ -8350,7 +8487,8 @@
       "Original 1279068/TGGTTAGAGGGTATCG-1_contig_2 FASTA and matching source CSV row were re-read and checked against the discovery sequence. Forward V score 368 exceeds reverse score 26; compatible V/J loci support IGH.",
       "Reviewed V/J nucleotide traces and packaged IMGT-gapped V reference map the V anchor to 415 and J anchor to 469. Original query [415:472] translates to CARDRRSRNLNFVGLVDSW; CDR3 excludes the two three-base anchor codons.",
       "The first complete V codon begins at query 136; junction displacement is divisible by three, the V-through-J coding translation contains no stop, and the original bases are unambiguous. Both locus-appropriate anchor residues are intact.",
-      "Gene-level allowed sets retain reviewed homology uncertainty; no exact alleles, C calls, or unreviewed IGH D calls are asserted. A six-base V loss is retained as one deletion in optimal stronger-penalty alignments. Repeat-related alternative placements are not unique molecular histories; encode the leftmost optimal placement at query boundary 282, removing AGCTAT from the representative germline."
+      "Gene-level allowed sets retain reviewed homology uncertainty; no exact alleles, C calls, or unreviewed IGH D calls are asserted. A six-base V loss is retained as one deletion in optimal stronger-penalty alignments. Repeat-related alternative placements are not unique molecular histories; encode the leftmost optimal placement at query boundary 282, removing AGCTAT from the representative germline.",
+      "Gap-penalty sensitivity: match 2/mismatch -3 with open 5/extension 1 scores 381 and splits the six-base loss into AG at query boundary 282 and TATT at 283. Open 12/extension 2 scores 368 and retains the single leftmost AGCTAT deletion at 282. This accepted case asserts the documented stronger-penalty reference-trace convention; it does not assert penalty-invariant gap structure. Like the rejected three-base candidate, it is placement-sensitive; it is retained explicitly as a convention-dependent six-base stress case."
     ],
     "expected": {
       "cdr3": "GCGAGAGATCGTCGGTCCCGTAACCTGAATTTTGTGGGTCTTGTCGACTCC",
@@ -8423,6 +8561,8 @@
         "status": "annotated"
       },
       "alignment": {
+        "coding_end": 502,
+        "coding_scope": "through_primary_j",
         "coding_start": 136,
         "coding_translation": "EVQLLESGGALVQPGGSLRLSCAASGFIFSDFAMFWMRQAPGKGLEWVSTVRPGSKDYADSVKGRFTISRDNSKNTVYLQMNRLRAEDTATYYCARDRRSRNLNFVGLVDSWGQGTLVAVFS",
         "coordinate_space": "zero-based half-open oriented original query",
@@ -8476,6 +8616,8 @@
             ]
           ]
         },
+        "j_anchor_germline_codon": "TGG",
+        "j_anchor_germline_offset": 17,
         "j_anchor_query_start": 469,
         "method": "Exhaustive locus-compatible ungapped V and J nucleotide Smith-Waterman; match 2, mismatch -3, gap open 12, extension 2. Both strands compared for V. J searched downstream of mapped V-anchor codon. Independent review also used gap open 5, extension 1. No abstar annotation code was used for these alignments.",
         "reverse_v_score": 26,
@@ -8538,6 +8680,25 @@
               "IGHV3-38*03"
             ]
           ]
+        },
+        "v_gap_sensitivity": {
+          "deletions": [
+            {
+              "query_end": 282,
+              "query_start": 282,
+              "sequence": "AG"
+            },
+            {
+              "query_end": 283,
+              "query_start": 283,
+              "sequence": "TATT"
+            }
+          ],
+          "gap_extend": 1,
+          "gap_open": 5,
+          "match": 2,
+          "mismatch": -3,
+          "score": 381
         },
         "v_imgt104_query_start": 415,
         "v_imgt104_ungapped_offset": 285
@@ -8678,6 +8839,8 @@
         "status": "annotated"
       },
       "alignment": {
+        "coding_end": 505,
+        "coding_scope": "through_primary_j",
         "coding_start": 82,
         "coding_translation": "QITLKESGPTLVKPTQTLTLTCTFSGFSLSTSGVGVGWIRQPPGKALEWLALIYWNDDKRYSPSLKSRLTITKDTSKNQVVLTMTNMDPVDTATYYCAHRLVEVYDYIWGSYRYTGDNSFYEGDPYYFDYWGQGTLVTVSS",
         "coordinate_space": "zero-based half-open oriented original query",
@@ -8731,6 +8894,8 @@
             ]
           ]
         },
+        "j_anchor_germline_codon": "TGG",
+        "j_anchor_germline_offset": 14,
         "j_anchor_query_start": 472,
         "method": "Exhaustive locus-compatible ungapped V and J nucleotide Smith-Waterman; match 2, mismatch -3, gap open 12, extension 2. Both strands compared for V. J searched downstream of mapped V-anchor codon. Independent review also used gap open 5, extension 1. No abstar annotation code was used for these alignments.",
         "reverse_v_score": 25,

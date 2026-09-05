@@ -11,7 +11,7 @@ Cell Ranger values are comparison evidence, retained without type inference.
 import hashlib
 import json
 import re
-from collections import defaultdict
+from collections import Counter, defaultdict
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from os import PathLike
@@ -307,6 +307,16 @@ def _nonempty_strings(value, field, *, allow_empty=False):
         raise ValueError(f"{field} must contain nonempty strings")
 
 
+def _gene_pattern(locus, segment):
+    if segment == "v":
+        return locus + r"V[1-9][0-9]*D?-(?:[1-9][0-9]*(?:-[1-9][0-9]*)?D?|NL[1-9][0-9]*)"
+    if segment == "d":
+        return r"IGHD[1-9][0-9]*-[1-9][0-9]*" if locus == "IGH" else r"(?!)"
+    if segment == "j":
+        return locus + {"IGH": r"J[1-6]", "IGK": r"J[1-5]", "IGL": r"J[1-7]"}[locus]
+    return {"IGH": r"IGH(?:M|D|E|A[12]|G[1-4]A?)", "IGK": r"IGKC", "IGL": r"IGLC[1-7]"}[locus]
+
+
 def _validate_expected(expected, sequence):
     if not isinstance(expected, dict) or not _REQUIRED_EXPECTED <= expected.keys():
         raise ValueError("missing required expected fields")
@@ -325,12 +335,13 @@ def _validate_expected(expected, sequence):
         call = expected[field]
         if call is None and field in ("d_call", "c_call"):
             continue
+        pattern = _gene_pattern(expected["locus"], field[0])
         if isinstance(call, str):
-            valid = re.fullmatch(r"IG[HKL][A-Za-z0-9/.-]+\*[A-Za-z0-9_]+", call)
+            valid = re.fullmatch(pattern + r"\*(?:[0-9]{2,}|i[0-9]{2,})(?:_[acgt][0-9]+[acgt])*", call)
         else:
             valid = (isinstance(call, list) and bool(call)
                      and all(isinstance(gene, str) and re.fullmatch(
-                         r"IG[HKL][A-Za-z0-9/.-]+", gene) for gene in call)
+                         pattern, gene) for gene in call)
                      and call == sorted(set(call)))
         if not valid:
             raise ValueError(f"{field} requires an exact allele or sorted gene-level allowed set")
@@ -373,6 +384,241 @@ def _validate_expected(expected, sequence):
         raise ValueError("productivity and issue evidence disagree")
 
 
+def _trace_evidence(trace, sequence):
+    """Check a retained alignment and recover its reference-to-query mapping."""
+    if not isinstance(trace, dict):
+        raise ValueError("missing retained segment trace")
+    starts = (trace.get("query_start"), trace.get("germline_start"))
+    ends = (trace.get("query_end"), trace.get("germline_end"))
+    if any(type(x) is not int for x in (*starts, *ends)) or not (
+        0 <= starts[0] < ends[0] <= len(sequence) and 0 <= starts[1] < ends[1]
+    ):
+        raise ValueError("invalid retained trace coordinates")
+    query, germline = trace.get("query_aligned"), trace.get("germline_aligned")
+    if (not isinstance(query, str) or not isinstance(germline, str)
+            or not re.fullmatch(r"[ACGTN-]+", query) or not re.fullmatch(r"[ACGTN-]+", germline)
+            or len(query) != len(germline)
+            or query.replace("-", "") != sequence[starts[0]:ends[0]]
+            or len(germline.replace("-", "")) != ends[1] - starts[1]
+            or any(q == g == "-" for q, g in zip(query, germline))):
+        raise ValueError("retained trace does not match query/reference spans")
+    qpos, gpos = starts
+    mapping = {}
+    for q, g in zip(query, germline):
+        if g != "-":
+            mapping[gpos] = qpos if q != "-" else None
+            gpos += 1
+        if q != "-":
+            qpos += 1
+    indels = {"v_insertions": [], "v_deletions": []}
+    for field, gapped, bases in (("v_insertions", germline, query),
+                                  ("v_deletions", query, germline)):
+        for match in re.finditer("-+", gapped):
+            start = starts[0] + len(query[:match.start()].replace("-", ""))
+            end = start + len(match[0]) if field == "v_insertions" else start
+            indels[field].append({"query_start": start, "query_end": end,
+                                  "sequence": bases[match.start():match.end()]})
+    return mapping, indels
+
+
+def _mapped_anchor(trace, mapping, offset, *, project=False):
+    if type(offset) is not int:
+        raise ValueError("anchor germline offset must be an integer")
+    if offset in mapping and mapping[offset] is not None:
+        return mapping[offset]
+    distance = trace["germline_start"] - offset
+    if project and distance in (1, 2) and trace.get("anchor_projection"):
+        return trace["query_start"] - distance
+    raise ValueError("anchor is not supported by the retained trace")
+
+
+def _reference_anchor_matches(trace, offset, codons):
+    germline = trace["germline_aligned"].replace("-", "")
+    start, end = trace["germline_start"], trace["germline_end"]
+    covered = [(pos - offset, germline[pos - start])
+               for pos in range(max(start, offset), min(end, offset + 3))]
+    return bool(covered) and any(all(codon[i] == base for i, base in covered) for codon in codons)
+
+
+def _validate_alignment_evidence(expected, source, sequence):
+    oriented = str(Seq(sequence).reverse_complement()) if expected["rev_comp"] else sequence
+    alignment = source["alignment"]
+    maps, indels = {}, {}
+    for segment in ("v", "j"):
+        trace = alignment.get(segment)
+        maps[segment], indels[segment] = _trace_evidence(trace, oriented)
+        reference = trace.get("reference")
+        call = expected[segment + "_call"]
+        if not isinstance(reference, str) or not (
+            reference == call if isinstance(call, str) else reference.split("*", 1)[0] in call
+        ):
+            raise ValueError("expected call does not include the retained reference")
+    v, j = alignment["v"], alignment["j"]
+    if ((expected["v_sequence_start"], expected["v_sequence_end"])
+            != (v["query_start"], v["query_end"])
+            or (expected["j_sequence_start"], expected["j_sequence_end"])
+            != (max(v["query_end"], j["query_start"]), j["query_end"])):
+        raise ValueError("expected segment spans disagree with retained traces and V-priority ownership")
+    if not expected["v_sequence_end"] <= expected["j_sequence_start"] < expected["j_sequence_end"]:
+        raise ValueError("expected V/J spans are out of order")
+    for field in ("v_insertions", "v_deletions"):
+        if field in expected and expected[field] != indels["v"][field]:
+            raise ValueError("expected indel boundaries/bases disagree with retained reference trace")
+    voffset, joffset = alignment.get("v_imgt104_ungapped_offset"), alignment.get("j_anchor_germline_offset")
+    vanchor = _mapped_anchor(v, maps["v"], voffset)
+    janchor = _mapped_anchor(j, maps["j"], joffset, project=True)
+    if (vanchor != expected["junction_start"] or vanchor != alignment.get("v_imgt104_query_start")
+            or janchor != expected["junction_end"] - 3 or janchor != alignment.get("j_anchor_query_start")):
+        raise ValueError("expected junction anchors disagree with retained mapping")
+    motif = "W" if expected["locus"] == "IGH" else "F"
+    jcodon = alignment.get("j_anchor_germline_codon")
+    if (not _reference_anchor_matches(v, voffset, ("TGT", "TGC"))
+            or jcodon not in ({"TGG"} if motif == "W" else {"TTT", "TTC"})
+            or not _reference_anchor_matches(j, joffset, (jcodon,))):
+        raise ValueError("mapped germline anchors lack conserved C/W/F evidence")
+    scope = alignment.get("coding_scope")
+    if scope == "through_secondary_j_repeat":
+        endpoint = alignment.get("j_secondary_repeat")
+        _trace_evidence(endpoint, oriented)
+    elif scope == "through_primary_j":
+        endpoint = j
+    else:
+        raise ValueError("coding scope must name the primary or retained secondary J trace")
+    start, end = alignment.get("coding_start"), alignment.get("coding_end")
+    if (type(start) is not int or type(end) is not int
+            or start != v["query_start"] + (-v["germline_start"] % 3)
+            or end != endpoint["query_end"] - (endpoint["query_end"] - start) % 3
+            or not 0 <= start <= vanchor < janchor + 3 <= end <= len(oriented)
+            or (vanchor - start) % 3
+            or str(Seq(oriented[start:end]).translate()) != alignment.get("coding_translation")):
+        raise ValueError("coding origin, endpoint, translation or junction frame lacks trace support")
+    issues = []
+    if "*" in alignment["coding_translation"]:
+        issues.append("stop codon(s)")
+    if set(oriented) - set("ACGT"):
+        issues.append("ambiguous nucleotide(s)")
+    if expected["junction_aa"][0] != "C":
+        issues.append("junction does not start with conserved C")
+    if expected["junction_aa"][-1] != motif:
+        issues.append("junction does not end with conserved " + motif)
+    if expected["productivity_issues"] != issues or expected["productive"] != (not issues):
+        raise ValueError("productivity/reason codes disagree with the retained ORF and anchor evidence")
+
+
+PILOT_JUNCTION_IDS = frozenset({
+    "ATCATCTTCAGCAACT-1_contig_1", "GTTACAGCACATAACC-1_contig_2",
+})
+_REQUIRED_BUCKETS = {
+    "pilot_loss": 8, "pilot_junction_disagreement": 2,
+    "concordant_IGH": 2, "concordant_IGK": 2, "concordant_IGL": 2,
+    "productivity_disagreement_IGH": 2, "productivity_disagreement_IGK": 2,
+    "productivity_disagreement_IGL": 2, "tied_call_IGH": 2, "tied_call_IGK": 2,
+    "tied_call_IGL": 2, "insertion": 2, "deletion": 2, "no_d_IGH": 2,
+    "shortest_junction": 1, "longest_junction": 1,
+}
+
+
+def _validate_nomination(case):
+    """Verify bucket evidence locally; labels alone cannot nominate a record."""
+    if len(case.selection_reasons) != 1 or case.selection_reasons[0] not in _REQUIRED_BUCKETS:
+        raise ValueError("each case requires one supported nomination bucket")
+    reason = case.selection_reasons[0]
+    expected, source = case.expected, case.source
+    cr, observed = source["cellranger"], source.get("abstar_evidence", {})
+    if not isinstance(observed, Mapping):
+        raise ValueError("reported nomination evidence must be a mapping")
+    if cr.get("chain") != expected["locus"]:
+        raise ValueError("nomination locus disagrees with source and expected locus")
+    if reason == "pilot_loss":
+        valid = (case.dataset == "1279068" and case.sequence_id in PILOT_LOSS_IDS
+                 and observed.get("status") == "missing_output" and observed.get("scope") == "record")
+    elif reason == "pilot_junction_disagreement":
+        valid = (case.dataset == "1279068" and case.sequence_id in PILOT_JUNCTION_IDS
+                 and isinstance(observed.get("junction"), str) and bool(cr.get("cdr3_nt"))
+                 and observed["junction"] != cr["cdr3_nt"]
+                 and observed["junction"] == expected["junction"])
+    else:
+        raw_calls, junction_evidence, productivity = (
+            observed.get(field) for field in ("raw_calls", "junction", "productivity")
+        )
+        if not all(isinstance(value, Mapping) for value in (raw_calls, junction_evidence, productivity)):
+            raise ValueError("calls, junction and productivity nomination evidence must be mappings")
+        calls = raw_calls.get("abstar")
+        if not isinstance(calls, Mapping):
+            raise ValueError("abstar nomination calls must be a mapping")
+        junction = junction_evidence.get("abstar_nt")
+        reported_productive = productivity.get("abstar")
+        raw_productive = cr.get("productive")
+        if (observed.get("status") != "annotated" or type(reported_productive) is not bool
+                or raw_productive not in ("true", "false")
+                or productivity.get("cellranger") is not (raw_productive == "true")):
+            raise ValueError("missing or inconsistent reported nomination evidence")
+        cr_productive = raw_productive == "true"
+        junction_agrees = bool(junction) and junction == cr.get("cdr3_nt") == expected["junction"]
+        if reason.startswith("concordant_"):
+            valid = (reason == "concordant_" + expected["locus"] and junction_agrees
+                     and reported_productive == cr_productive == expected["productive"]
+                     and all(normalize_gene(calls.get(s)) == normalize_gene(cr.get(s + "_gene"))
+                             and bool(normalize_gene(calls.get(s))) for s in ("v", "j")))
+        elif reason.startswith("productivity_disagreement_"):
+            valid = (reason == "productivity_disagreement_" + expected["locus"]
+                     and reported_productive != cr_productive)
+        elif reason.startswith("tied_call_"):
+            valid = (reason == "tied_call_" + expected["locus"]
+                     and any(isinstance(calls.get(s), str)
+                             and len({x.strip() for x in calls[s].split(",") if x.strip()}) > 1
+                             for s in ("v", "j")))
+        elif reason in ("insertion", "deletion"):
+            field = "v_" + reason + "s"
+            reported_indels = observed.get("indels")
+            if not isinstance(reported_indels, Mapping):
+                raise ValueError("reported nomination indels must be a mapping")
+            raw = reported_indels.get(field)
+            parsed = re.fullmatch(r"[0-9]+(?:-[0-9]+)?:([1-9][0-9]*)>([ACGT]+)", raw or "")
+            retained = expected.get(field, ())
+            valid = (parsed is not None and bool(retained)
+                     and int(parsed[1]) == len(parsed[2]) == sum(len(x["sequence"]) for x in retained))
+        elif reason == "no_d_IGH":
+            residual = source["alignment"].get("d_residual", {})
+            if not isinstance(residual, Mapping):
+                raise ValueError("no-D residual evidence must be a mapping")
+            start, end = expected["v_sequence_end"], expected["j_sequence_start"]
+            oriented = str(Seq(case.sequence).reverse_complement()) if expected["rev_comp"] else case.sequence
+            valid = (expected["locus"] == "IGH" and "d_call" in expected and expected["d_call"] is None
+                     and not normalize_gene(calls.get("d")) and not normalize_gene(cr.get("d_gene"))
+                     and 0 < end - start <= 4 and residual.get("query_start") == start
+                     and residual.get("query_end") == end and residual.get("sequence") == oriented[start:end])
+        else:
+            positions = source.get("selection", {}).get("bucket_positions", {})
+            valid = (junction_agrees and type(positions.get(reason)) is int and positions[reason] > 0)
+    if not valid:
+        raise ValueError(f"unsupported {reason} nomination for {case.dataset}/{case.sequence_id}")
+
+
+def validate_real_bcr_cohort(cases):
+    """Check all required buckets and original pilot identities without annotation."""
+    cases = tuple(cases)
+    keys = {(case.dataset, case.sequence_id) for case in cases}
+    if len(keys) != len(cases):
+        raise ValueError("cohort contains duplicated source records")
+    for case in cases:
+        _validate_nomination(case)
+    counts = Counter(reason for case in cases for reason in case.selection_reasons)
+    if counts != _REQUIRED_BUCKETS:
+        raise ValueError("cohort does not contain every required bucket count")
+    for reason, ids in (("pilot_loss", PILOT_LOSS_IDS), ("pilot_junction_disagreement", PILOT_JUNCTION_IDS)):
+        actual = {(case.dataset, case.sequence_id) for case in cases if reason in case.selection_reasons}
+        if actual != {("1279068", identifier) for identifier in ids}:
+            raise ValueError("cohort does not contain the exact original pilot identities")
+    lengths = [len(case.expected["junction"]) for case in cases]
+    for case in cases:
+        reason = case.selection_reasons[0]
+        if reason in ("shortest_junction", "longest_junction"):
+            endpoint = min(lengths) if reason == "shortest_junction" else max(lengths)
+            if len(case.expected["junction"]) != endpoint:
+                raise ValueError("selected junction extreme disagrees with the retained cohort")
+
+
 def load_real_bcr_cases(directory=None) -> tuple[RealBCRCase, ...]:
     """Load checked, recursively immutable cases without annotation or MMseqs.
 
@@ -381,7 +627,8 @@ def load_real_bcr_cases(directory=None) -> tuple[RealBCRCase, ...]:
     input query (zero-based, half-open), never the trimmed VDJ or AIRR space.
     Every call reparses files and returns fresh cases and immutable containers.
     """
-    directory = REAL_BCR_DIRECTORY if directory is None else Path(directory)
+    complete_cohort = directory is None
+    directory = REAL_BCR_DIRECTORY if complete_cohort else Path(directory)
     raw_cases = json.loads((directory / "cases.json").read_text(encoding="utf-8"))
     if not isinstance(raw_cases, list) or not raw_cases:
         raise ValueError("cases must be a nonempty ordered JSON list")
@@ -417,5 +664,10 @@ def load_real_bcr_cases(directory=None) -> tuple[RealBCRCase, ...]:
                 for k in ("publication", "cellranger", "alignment")):
             raise ValueError("publication, Cell Ranger and direct alignment evidence are required")
         _validate_expected(raw["expected"], sequence)
-        cases.append(RealBCRCase(sequence=sequence, **raw))
+        _validate_alignment_evidence(raw["expected"], source, sequence)
+        case = RealBCRCase(sequence=sequence, **raw)
+        _validate_nomination(case)
+        cases.append(case)
+    if complete_cohort:
+        validate_real_bcr_cohort(cases)
     return tuple(cases)

@@ -44,8 +44,14 @@ positions are in `source.selection`. The first deletion candidate,
 `1287189/CATGGCGCAGCGTTCG-1_contig_2`, was rejected: permissive nucleotide
 alignment split the loss into one- and two-base gaps, whereas stronger penalties
 placed a contiguous three-base loss beside substitutions. The retained deletion
-representatives are ranks two and three. Repeat-related shifts of an intact
-indel remain inspectable in the evidence; their coordinates use the leftmost
+representatives are ranks two and three. Rank three,
+`1279068/TGGTTAGAGGGTATCG-1_contig_2`, is also penalty-sensitive: open
+5/extension 1 splits its loss into AG at query 282 and TATT at 283. Its accepted
+single AGCTAT deletion at 282 is explicitly conditional on the retained open
+12/extension 2 alignment and leftmost placement. It is retained as a six-base
+convention-dependent stress case; acceptance does not claim penalty-invariant
+gap structure or greater biological certainty than the rejected candidate.
+Repeat-related shifts of an intact indel remain inspectable in the evidence; their coordinates use the leftmost
 optimal placement under the documented stronger-penalty alignment.
 
 The reviewed historical discovery report was schema version 1, SHA-256
@@ -110,11 +116,15 @@ Special pilot adjudications are documented per case:
 - `GTTACAGCACATAACC-1_contig_2`: four optimal insertion placements all map
   the conserved C to query 365, supporting `CSSYCNSYTSSSTLYVF`.
 - `CTAAGACAGCAATCTC-1_contig_2`: the J F anchor is ATC (isoleucine).
-- `CTGTTTACAGGTGCCT-1_contig_1`: the J W anchor is GTT (valine).
+- `CTGTTTACAGGTGCCT-1_contig_1`: the J W anchor is GTG (valine).
 - `CCATGTCCAGTCTTCC-1_contig_1`: two in-frame J-like tracts occur in the
   original sequence. The primary junction ends at the first complete J motif
   (W at 455); the later repeat is kept in evidence. Both IGHJ4 and IGHJ5 are
-  compatible with the primary tract. The duplication's molecular origin remains
+  compatible with the primary tract. Stored `coding_translation` covers query
+  `[116:527]`, through the secondary repeat whose trace ends at 528; its final
+  incomplete codon is excluded. This scope differs from the primary expected
+  J interval `[452:487]`. All cases now state `coding_end` and `coding_scope`.
+  The duplication's molecular origin remains
   unresolved; the fixture does not claim to resolve it.
 
 Indel expectations are structured lists with `query_start`, `query_end` and
@@ -127,7 +137,13 @@ repeat rotations require normalization before a consumer compares them.
 
 Run `python -m pytest abstar/tests/test_real_bcr.py -m "not e2e" -q`.
 Integrity tests check record conservation, ordering, immutable state, provenance,
-hashes, expectation types and mandatory membership. They must never launch
-MMseqs. Loading the fixtures does not establish that current annotation passes
+hashes, locus/segment-compatible call names and the full required bucket counts.
+Every nomination is checked against retained source evidence. Expected V/J spans
+must match the recorded traces under V-priority overlap ownership; indel
+boundaries and bases must match trace gaps. Mapped anchors, coding start/end,
+translation, frame, productivity and reason codes must agree with the stored
+sequence/alignment evidence. All checks are local; default loading also validates
+the complete cohort, while temporary subset loaders validate each case. They
+must never launch MMseqs. Loading the fixtures does not establish that current annotation passes
 these biological expectations; the original missing outputs remain diagnostic
 regression targets.
