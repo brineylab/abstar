@@ -162,7 +162,7 @@ def _raise_pipeline_failure(
                 f"\nCould not persist diagnostics: {log_error}; "
                 f"fallback diagnostic failed: {fallback_error}"
             )
-    if os.path.isfile(failed_log_file):
+    else:
         partial_output_paths.append(failed_log_file)
     failure = RecordFailure(
         row_id=f"abstar_{sample_ordinal}_{stage}",

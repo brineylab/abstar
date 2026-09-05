@@ -922,6 +922,36 @@ def test_debug_api_error_exposes_surviving_diagnostic(monkeypatch, tmp_path, sin
     assert list(tmp_path.glob("abstar-debug-*"))
 
 
+def test_failed_diagnostic_storage_does_not_list_stale_same_sample_log(monkeypatch, tmp_path):
+    import builtins
+    from ..core.abstar import _raise_pipeline_failure
+
+    log = tmp_path / "sample.failed"
+    log.write_text("previous run")
+    original_open = builtins.open
+
+    def open_log(path, *args, **kwargs):
+        if Path(path) == log:
+            raise PermissionError("project log is read-only")
+        return original_open(path, *args, **kwargs)
+
+    def no_fallback(*args, **kwargs):
+        raise OSError("fallback allocation failed")
+
+    monkeypatch.setattr(builtins, "open", open_log)
+    monkeypatch.setattr(tempfile, "mkdtemp", no_fallback)
+    with pytest.raises(AnnotationRunError) as captured:
+        try:
+            raise RuntimeError("current failure")
+        except RuntimeError as error:
+            _raise_pipeline_failure(error, sample_ordinal=0, sample_name="sample",
+                                    log_directory=str(tmp_path), stage="output", category="internal_error")
+    assert captured.value.partial_output_paths == ()
+    assert "current failure" in captured.value.failures[0].message
+    assert "fallback allocation failed" in captured.value.failures[0].message
+    assert log.read_text() == "previous run"
+
+
 def test_real_mmseqs_accepts_quoted_project_paths(tmp_path, public_bcr_cases):
     project = tmp_path / "quotes ' and spaces; literal $(false)"
     abstar.run(public_bcr_cases[0].as_sequence(), project_path=str(project),
