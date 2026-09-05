@@ -91,3 +91,18 @@ def multi_sequence_fasta_file(tmp_path, multiple_hc_sequences):
         for seq in multiple_hc_sequences:
             f.write(f">{seq.id}\n{seq.sequence}\n")
     return str(fasta_path)
+
+
+@pytest.fixture
+def real_bcr_cases():
+    """Fresh immutable published BCR cases; loading never invokes annotation."""
+    from abstar.tests.corpus import load_real_bcr_cases
+    return load_real_bcr_cases()
+
+
+@pytest.fixture
+def pilot_loss_cases():
+    """Fresh cases for the eight original dataset 1279068 annotation losses."""
+    from abstar.tests.corpus import PILOT_LOSS_IDS, load_real_bcr_cases
+    return tuple(case for case in load_real_bcr_cases()
+                 if case.dataset == '1279068' and case.sequence_id in PILOT_LOSS_IDS)
