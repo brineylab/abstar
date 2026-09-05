@@ -759,52 +759,53 @@ class MMseqs(AssignerBase):
         except (OSError, ValueError) as error:
             raise AssignmentInputError(f"could not parse input: {error}") from error
 
-        # split input file, if necessary
-        if sequence_count > chunksize:
-            sequence_files = abutils.io.split_fastx(
-                sequence_file,
-                output_directory=os.path.dirname(sequence_file),
-                chunksize=chunksize,
-            )
-        else:
-            sequence_files = [sequence_file]
+        # Raw split chunks are private to this preparation call, including when
+        # parsing or splitting fails. Caller inputs and siblings are read-only.
+        with tempfile.TemporaryDirectory(
+            prefix="input-chunks-", dir=self.output_directory,
+        ) as split_directory:
+            # split input file, if necessary
+            if sequence_count > chunksize:
+                sequence_files = abutils.io.split_fastx(
+                    sequence_file,
+                    output_directory=split_directory,
+                    chunksize=chunksize,
+                )
+            else:
+                sequence_files = [sequence_file]
 
-        # process sequence file(s)
-        output_fastas = []
-        output_csvs = []
-        record_ordinal = 0
-        for i, sequence_file in enumerate(sequence_files):
-            # set up output files
-            output_fasta = os.path.join(
-                self.output_directory, f"{self.sample_name}.{i}.fasta"
-            )
-            output_csv = os.path.join(
-                self.output_directory, f"{self.sample_name}.{i}.tsv"
-            )
-            if not self.debug:
-                self.to_delete.extend([output_fasta, output_csv])
+            # process sequence file(s)
+            output_fastas = []
+            output_csvs = []
+            record_ordinal = 0
+            for i, sequence_file in enumerate(sequence_files):
+                # set up output files
+                output_fasta = os.path.join(
+                    self.output_directory, f"{self.sample_name}.{i}.fasta"
+                )
+                output_csv = os.path.join(
+                    self.output_directory, f"{self.sample_name}.{i}.tsv"
+                )
+                if not self.debug:
+                    self.to_delete.extend([output_fasta, output_csv])
 
-            # process input file
-            with open(output_fasta, "w") as ofasta:
-                with open(output_csv, "w") as ocsv:
-                    writer = csv.writer(ocsv, delimiter="\t", lineterminator="\n")
-                    writer.writerow(
-                        ["row_id", "sequence_id", "sequence_input", "quality"]
-                    )
-                    for seq in abutils.io.parse_fastx(sequence_file):
-                        qual = seq.qual if seq.qual is not None else ""
-                        # MMseqs sees only this immutable, unique key. User identifiers
-                        # remain payload data and are restored after assignment.
-                        row_id = f"abstar_{self.sample_ordinal}_{record_ordinal}"
-                        ofasta.write(f">{row_id}\n{seq.sequence}\n")
-                        writer.writerow([row_id, str(seq.id), seq.sequence, qual])
-                        record_ordinal += 1
-            output_fastas.append(output_fasta)
-            output_csvs.append(output_csv)
-
-        # delete chunked sequence files (if there's only one file, it hasn't been chunked)
-        if len(sequence_files) > 1:
-            abutils.io.delete_files(sequence_files)
+                # process input file
+                with open(output_fasta, "w") as ofasta:
+                    with open(output_csv, "w") as ocsv:
+                        writer = csv.writer(ocsv, delimiter="\t", lineterminator="\n")
+                        writer.writerow(
+                            ["row_id", "sequence_id", "sequence_input", "quality"]
+                        )
+                        for seq in abutils.io.parse_fastx(sequence_file):
+                            qual = seq.qual if seq.qual is not None else ""
+                            # MMseqs sees only this immutable, unique key. User identifiers
+                            # remain payload data and are restored after assignment.
+                            row_id = f"abstar_{self.sample_ordinal}_{record_ordinal}"
+                            ofasta.write(f">{row_id}\n{seq.sequence}\n")
+                            writer.writerow([row_id, str(seq.id), seq.sequence, qual])
+                            record_ordinal += 1
+                output_fastas.append(output_fasta)
+                output_csvs.append(output_csv)
 
         return output_fastas, output_csvs, sequence_count
 

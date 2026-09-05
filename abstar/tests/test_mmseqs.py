@@ -164,6 +164,59 @@ def test_prepare_input_files_fasta(mmseqs_instance, small_fasta_file):
     assert "quality" in df.columns
 
 
+@pytest.mark.parametrize("readonly", [False, True])
+def test_prepare_chunks_preserves_caller_siblings_and_order(
+    mmseqs_instance, tmp_path, readonly
+):
+    source = tmp_path / "caller"
+    source.mkdir()
+    reads = source / "reads.fasta"
+    reads.write_text("".join(f">{name}\nACGT\n" for name in ["10E8", "0001", "1e3", "雪", "10E8"]))
+    (source / "reads_0.fasta").write_text("caller-owned collision\n")
+    before = {path.name: path.read_bytes() for path in source.iterdir()}
+    if readonly:
+        source.chmod(0o555)
+        for path in source.iterdir():
+            path.chmod(0o444)
+    mmseqs_instance.sample_name = "reads"
+    try:
+        fastas, tsvs, count = mmseqs_instance.prepare_input_files(str(reads), chunksize=2)
+        assert count == 5
+        assert len(fastas) == len(tsvs) == 3
+        rows = pl.concat([pl.read_csv(path, separator="\t", schema_overrides=INPUT_SCHEMA) for path in tsvs])
+        assert rows["sequence_id"].to_list() == ["10E8", "0001", "1e3", "雪", "10E8"]
+        assert rows["row_id"].to_list() == [f"abstar_0_{i}" for i in range(5)]
+        assert {path.name: path.read_bytes() for path in source.iterdir()} == before
+        assert all(Path(path).is_relative_to(mmseqs_instance.output_directory) for path in fastas + tsvs)
+        assert not list(Path(mmseqs_instance.output_directory).glob("input-chunks-*"))
+        mmseqs_instance.cleanup()
+        assert not any(Path(path).exists() for path in fastas + tsvs)
+        assert {path.name: path.read_bytes() for path in source.iterdir()} == before
+    finally:
+        source.chmod(0o755)
+        for path in source.iterdir():
+            path.chmod(0o644)
+
+
+def test_prepare_chunks_cleans_partial_split_after_failure(
+    mmseqs_instance, tmp_path, monkeypatch
+):
+    reads = tmp_path / "reads.fasta"
+    reads.write_text(">one\nACGT\n>two\nACGT\n")
+    mmseqs_instance.sample_name = "reads"
+
+    def fail_split(sequence_file, *, output_directory, chunksize):
+        (Path(output_directory) / "reads_0.fasta").write_text("partial split")
+        raise OSError("split write failed")
+
+    monkeypatch.setattr("abstar.assigners.mmseqs.abutils.io.split_fastx", fail_split)
+    with pytest.raises(OSError, match="split write failed"):
+        mmseqs_instance.prepare_input_files(str(reads), chunksize=1)
+    assert reads.read_text() == ">one\nACGT\n>two\nACGT\n"
+    assert not (tmp_path / "reads_0.fasta").exists()
+    assert not list(Path(mmseqs_instance.output_directory).glob("input-chunks-*"))
+
+
 def test_prepare_input_files_preserves_opaque_and_duplicate_ids(
     mmseqs_instance, tmp_path, monkeypatch
 ):
