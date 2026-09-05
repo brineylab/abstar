@@ -5,6 +5,7 @@
 """Integrity checks for packaged germline databases."""
 
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -67,6 +68,11 @@ def test_packaged_germline_database_integrity(
     database_path = Path(
         get_germline_database_path(germdb_name=database, receptor=receptor)
     )
+    validate_packaged_segment(database_path, receptor, segment, expected_count)
+
+
+def validate_packaged_segment(database_path, receptor, segment, expected_count):
+    """Validate one source/index family, usable with mutated temporary copies."""
     ungapped = read_fasta_records(database_path / "ungapped" / f"{segment}.fasta")
     gapped = read_fasta_records(database_path / "imgt_gapped" / f"{segment}.fasta")
 
@@ -78,7 +84,52 @@ def test_packaged_germline_database_integrity(
     for suffix in MMSEQS_SUFFIXES:
         assert (database_path / "mmseqs" / f"{segment}{suffix}").is_file()
 
-    expected_prefix = "IG" if receptor == "bcr" else "TR"
-    assert all(identifier.startswith(expected_prefix) for identifier in ungapped)
-    if segment == "d":
-        assert {identifier[:3] for identifier in ungapped} <= {"IGH", "TRB", "TRD"}
+    patterns = {
+        "bcr": {
+            "v": r"IG[HKL]V[0-9][A-Z0-9_/-]*",
+            "d": r"IGHD[0-9][A-Z0-9/-]*",
+            "j": r"IG[HKL]J[0-9][A-Z0-9/-]*",
+            # IGHD (delta constant) differs from IGHD1-1 (diversity).
+            "c": r"(?:IGH(?:[DME]|A[0-9]*|G[0-9]+[A-Z]?)|IGKC|IGLC[0-9]+[A-Z]?)",
+        },
+        "tcr": {
+            "v": r"TR[ABDG]V[0-9][A-Z0-9_/-]*",
+            "d": r"TR[BD]D[0-9][A-Z0-9/-]*",
+            "j": r"TR[ABDG]J(?:[0-9][A-Z0-9/-]*|P[0-9]*)",
+            "c": r"TR[ABDG]C[0-9]*",
+        },
+    }
+    for identifier in ungapped:
+        gene = identifier.split("*")[0]
+        assert re.fullmatch(patterns[receptor][segment], gene), (
+            f"{identifier!r} is not a {receptor} {segment} segment ID"
+        )
+
+
+@pytest.mark.parametrize("receptor,segment,replacement", [
+    ("bcr", "v", "IGHJ1*01"), ("bcr", "j", "IGHV1-2*01"),
+    ("bcr", "d", "IGHD*01"), ("bcr", "d", "IGKD1*01"),
+    ("bcr", "c", "IGHD1-1*01"), ("bcr", "c", "IGLJ1*01"),
+    ("tcr", "v", "TRAC*01"), ("tcr", "j", "TRDV1*01"),
+    ("tcr", "d", "TRDC*01"), ("tcr", "d", "TRAD1*01"),
+    ("tcr", "c", "TRDD1*01"), ("tcr", "c", "IGHM*01"),
+])
+def test_packaged_validator_rejects_wrong_segment_ids(tmp_path, receptor, segment, replacement):
+    import shutil
+
+    source = Path(get_germline_database_path("human", receptor=receptor))
+    # Copy only this segment family; packaged FASTAs and binary indexes stay untouched.
+    for directory in ("ungapped", "imgt_gapped", "mmseqs"):
+        (tmp_path / directory).mkdir()
+    shutil.copy2(source / "manifest.txt", tmp_path / "manifest.txt")
+    for suffix in MMSEQS_SUFFIXES:
+        shutil.copy2(source / "mmseqs" / f"{segment}{suffix}", tmp_path / "mmseqs" / f"{segment}{suffix}")
+    for directory in ("ungapped", "imgt_gapped"):
+        path = source / directory / f"{segment}.fasta"
+        contents = path.read_text()
+        original = contents.splitlines()[0]
+        assert original.startswith(">")
+        (tmp_path / directory / path.name).write_text(contents.replace(original, ">" + replacement, 1))
+    expected_count = json.loads(COUNT_SNAPSHOT_PATH.read_text())[receptor]["human"][segment]
+    with pytest.raises(AssertionError, match="segment"):
+        validate_packaged_segment(tmp_path, receptor, segment, expected_count)
