@@ -19,6 +19,8 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
+from Bio.Seq import Seq
+
 from abstar.tests import corpus
 
 
@@ -121,9 +123,9 @@ def _validate_context(parent, operation, context):
 def _project_expectations(parent, operation, sequence, context):
     """Check literal expectations using only sequence arithmetic and parent anchors.
 
-    These are homologous-anchor projections, NOT annotation output assertions.
-    In particular, frameshifting indels do not justify claims about the selected
-    alignment, translated junction, productivity, or exact gene/indel calls.
+    Segment endpoints and gene/indel calls are not implied by these projections.
+    The separately authenticated annotation consequences use preserved junction
+    anchors and direct codon translation, without choosing segment alignments.
     coding_frame_delta_mod3 is the signed coding-length change modulo three,
     measured between the retained V coding origin and conserved J anchor.
     Truncations remove only flanks outside those retained coding traces.
@@ -141,7 +143,7 @@ def _project_expectations(parent, operation, sequence, context):
     if rev_comp:
         input_start, input_end = len(sequence) - junction_end, len(sequence) - junction_start
     junction = oriented[junction_start:junction_end]
-    return {
+    expected = {
         'sequence_length': len(sequence), 'length_delta': delta,
         'rev_comp': rev_comp, 'locus': parent.expected['locus'],
         'homologous_junction': {
@@ -151,6 +153,62 @@ def _project_expectations(parent, operation, sequence, context):
         },
         'coding_frame_delta_mod3': delta % 3 if context in ('v', 'junction') else 0,
         'ambiguous_base_count': sum(base not in 'ACGT' for base in sequence),
+    }
+    expected['annotation'] = _annotation_consequences(parent, operation, oriented, context, expected)
+    return expected
+
+
+def _annotation_consequences(parent, operation, oriented, context, projected):
+    """Independent oracle: translate edited source bases between known anchors.
+
+    The three clean parents have authenticated gap-free coding traces. Every
+    edit preserves both anchor codons. Translation starts at the source V ORF
+    origin; junction AA starts at the homologous cysteine and omits any terminal
+    partial triplet. A local segment endpoint can clip a junction edit, so its
+    V-indel flag is conditional, while frame, stop and motif consequences are
+    determined by the complete edited query and do not depend on that flag.
+    """
+    delta = projected['length_delta']
+    coding_start = parent.source['alignment']['coding_start']
+    if context == '5prime':
+        coding_start += delta
+    coding_end = parent.expected['j_sequence_end']
+    if context in ('5prime', 'v', 'junction'):
+        coding_end += delta
+    coding_nt = oriented[coding_start:coding_end]
+    coding_aa = str(Seq(coding_nt[:len(coding_nt) // 3 * 3]).translate())
+    junction = projected['homologous_junction']['sequence']
+    junction_aa = str(Seq(junction[:len(junction) // 3 * 3]).translate())
+    start = projected['homologous_junction']['oriented_start']
+    start_in_frame = (start - coding_start) % 3 == 0
+    stop = '*' in coding_aa
+    issues = []
+    if context == 'v' and delta % 3:
+        issues.append('out-of-frame indel(s)')
+    if stop:
+        issues.append('stop codon(s)')
+    if set(coding_nt) - set('ACGT'):
+        issues.append('ambiguous nucleotide(s)')
+    motif = 'W' if parent.expected['locus'] == 'IGH' else 'F'
+    if junction_aa[-1] != motif:
+        issues.append(f'junction does not end with conserved {motif}')
+    if len(junction) % 3:
+        issues.append('junction length is not a multiple of 3')
+    if set(junction) - set('ACGT'):
+        issues.append('ambiguous nucleotide(s) in junction')
+    if not start_in_frame:
+        issues.append('V/J junction is out of frame')
+    # No exact local V endpoint is adjudicated for these modified reads.
+    conditional = []
+    if context == 'junction' and delta % 3 and operation.offset < parent.expected['v_sequence_end']:
+        conditional = ['out-of-frame indel(s)']
+    return {
+        'coding_origin_mod3': coding_start % 3,
+        'junction': junction, 'junction_aa': junction_aa,
+        'productive': not issues, 'stop_codon': stop,
+        'vj_in_frame': start_in_frame and len(junction) % 3 == 0,
+        'productivity_issues': sorted(issues),
+        'alignment_dependent_issues': conditional,
     }
 
 

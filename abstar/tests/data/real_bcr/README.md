@@ -163,3 +163,35 @@ the complete cohort, while temporary subset loaders validate each case. They
 must never launch MMseqs. Loading the fixtures does not establish that current annotation passes
 these biological expectations; the original missing outputs remain diagnostic
 regression targets.
+
+## Derived annotation consequences
+
+`derived_cases.json` contains 20 edits for each of three clean IGH/IGK/IGL
+parents. In addition to input hashes and homologous-anchor projections, every
+case carries an `expected.annotation` oracle. The loader authenticates these
+literals using the original parental coding origin, preserved C/W/F anchor
+codons, and standard-code translation of the edited query through the primary
+J tract. No annotation output generates those expectations.
+
+The real public pipeline must match the expected nucleotide/AA junction,
+coding-origin phase, `vj_in_frame`, `stop_codon`, productivity, and reason codes
+for all 60 cases. The internal junction boundaries must match the preserved
+anchors. This covers V and junction insertions/deletions of one, two, and three
+bases, substitutions, ambiguities, flank truncations, and reverse complements
+in all three loci. Light-chain outputs must retain null D calls. Mutation tests
+prove the gate rejects incorrect public fields and corrupted expected values.
+
+One- and two-base edits disrupt frame, but do not invariably introduce a stop:
+the IGH and IGK junction two-base insertions and one-base deletions are
+stop-free across the known V-through-J tract and still nonproductive. The
+three-base variants preserve frame and productivity. Junction AA translation
+starts at the homologous C and drops a terminal incomplete codon; after a
+frameshift the final translated residue need not be the original W/F.
+
+Local V/J alignment endpoints and unreviewed IGH D/C calls remain unadjudicated.
+For frameshifts in the V-contributed part of the junction only,
+`alignment_dependent_issues` permits `out-of-frame indel(s)` because a local V
+alignment can clip that edit. All other reason codes are exact; any emitted
+indel reason must agree with `v_frameshift`. The complete query still determines
+the exact junction, frame and productivity consequences regardless of this
+local-alignment distinction.

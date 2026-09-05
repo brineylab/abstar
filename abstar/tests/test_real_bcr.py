@@ -797,6 +797,57 @@ def test_derived_named_invariants_and_changed_fields(derived_annotations, case_i
             assert expected_mutation in ab.v_mutations.split('|')
 
 
+def assert_derived_annotation_consequences(case, row):
+    expected = case.expected['annotation']
+    assert row['annotation_status'] == 'annotated'
+    for field in ('junction', 'junction_aa', 'productive', 'vj_in_frame', 'stop_codon'):
+        assert row[field] == expected[field], (case.case_id, field, row[field], expected[field])
+    assert (row['v_sequence_start'] + row['frame'] - 1) % 3 == expected['coding_origin_mod3']
+    issues = set((row['productivity_issues'] or '').split('|')) - {''}
+    conditional = set(expected['alignment_dependent_issues'])
+    assert issues - conditional == set(expected['productivity_issues']), (case.case_id, issues, expected)
+    assert ('out-of-frame indel(s)' in issues) is row['v_frameshift']
+    if case.expected['locus'] in ('IGK', 'IGL'):
+        assert row['d_call'] is None
+
+
+@pytest.mark.e2e
+@pytest.mark.parametrize('case_id', [case.case_id for case in load_derived_bcr_cases()])
+def test_derived_biological_consequences_match_public_annotation(derived_annotations, case_id):
+    case, row, ab = next(item for item in derived_annotations if item[0].case_id == case_id)
+    assert_derived_annotation_consequences(case, row)
+    homologous = case.expected['homologous_junction']
+    assert (ab.junction_start, ab.junction_end) == (homologous['oriented_start'], homologous['oriented_end'])
+
+
+@pytest.mark.parametrize('field', ['productive', 'vj_in_frame', 'stop_codon', 'junction', 'junction_aa',
+                                 'productivity_issues', 'coding_origin_mod3', 'alignment_dependent_issues'])
+def test_derived_loader_authenticates_annotation_consequences(derived_case_file, field):
+    document, write = derived_case_file
+    case = next(case for case in document['cases'] if case['case_id'] == 'IGK-junction-insert-2')
+    expected = case['expected']['annotation']
+    value = expected[field]
+    expected[field] = not value if isinstance(value, bool) else 'corrupted'
+    with pytest.raises(ValueError, match='expectations disagree'):
+        load_derived_bcr_cases(write())
+
+
+@pytest.mark.e2e
+@pytest.mark.parametrize('field', ['productive', 'vj_in_frame', 'stop_codon', 'junction', 'junction_aa', 'productivity_issues', 'frame'])
+def test_derived_consequence_gate_rejects_corrupted_public_output(derived_annotations, field):
+    case, original, _ = next(item for item in derived_annotations if item[0].case_id == 'IGK-junction-insert-2')
+    row = dict(original)
+    assert_derived_annotation_consequences(case, row)
+    if field == 'frame':
+        row[field] = row[field] % 3 + 1
+    elif isinstance(row[field], bool):
+        row[field] = not row[field]
+    else:
+        row[field] = 'corrupted'
+    with pytest.raises(AssertionError):
+        assert_derived_annotation_consequences(case, row)
+
+
 @pytest.fixture(autouse=True)
 def no_external_commands(monkeypatch, request):
     if request.node.get_closest_marker('e2e') is not None:
