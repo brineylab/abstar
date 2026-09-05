@@ -1011,18 +1011,17 @@ def test_pilot_loss_empty_d_translation_retains_nucleotide_evidence(
     import polars as pl
     from abstar.annotation.antibody import Antibody
     from abstar.annotation.annotator import annotate_single_sequence
-    from abstar.annotation.schema import schema_dict
+    from abstar.annotation.schema import OUTPUT_SCHEMA
+    from abstar.tests.helpers import assert_airr_matches_annotations
 
     case = next(case for case in pilot_loss_cases if case.sequence_id == sequence_id)
     result = abstar.run(
         [case.as_sequence()], project_path=str(tmp_path), n_processes=1,
-        mmseqs_threads=1, debug=True,
+        mmseqs_threads=1, debug=True, output_format=['airr', 'parquet'],
     )
     assert result is None  # An explicit project path writes public output files.
-    rows = pl.read_csv(
-        tmp_path / 'airr' / 'sequences.tsv', separator='\t',
-        schema_overrides=schema_dict,
-    ).to_dicts()
+    rows = pl.read_parquet(tmp_path / 'parquet' / 'sequences.parquet').to_dicts()
+    assert_airr_matches_annotations(rows, tmp_path / 'airr' / 'sequences.tsv', tuple(OUTPUT_SCHEMA))
     assert [row['sequence_id'] for row in rows] == [sequence_id]
     row = rows[0]
     assert_pilot_adjudicated_outcome(row, case)
@@ -1037,8 +1036,9 @@ def test_pilot_loss_empty_d_translation_retains_nucleotide_evidence(
     assert case.sequence[start:end] == sequence
     assert 'row_id' not in row
 
-    # D coordinates are currently internal: replay the real assignment row to
-    # check their oriented-query/ungapped-germline values without changing AIRR.
+    assert (row['d_sequence_start'], row['d_sequence_end']) == (start, end)
+    assert (row['d_germline_start'], row['d_germline_end']) == (gl_start, gl_end)
+    # Replay the assignment for the internal junction boundaries too.
     assignment = pl.read_parquet(tmp_path / 'tmp' / 'chunk_0.parquet').row(0, named=True)
     receptor = assignment.pop('receptor_type')
     ab = Antibody(**assignment)

@@ -11,6 +11,7 @@ import polars as pl
 from typing import NamedTuple
 
 from .antibody import Antibody
+from .airr import build_cigar
 from .germline import (
     VJ_BOUNDARY_PARAMS,
     translated_reference_start,
@@ -46,6 +47,19 @@ class RetainedAlignment(NamedTuple):
     aligned_target: str
 
 
+def region_alignment_to_query_interval(
+    aligned_query: str, start: int | None, end: int | None, query_origin: int,
+) -> tuple[int | None, int | None]:
+    """Map inclusive region alignment columns to oriented-query [start, end)."""
+    if start is None or end is None:
+        return None, None
+    query_start = query_origin + len(aligned_query[:start].replace("-", ""))
+    query_end = query_origin + len(aligned_query[:end + 1].replace("-", ""))
+    if query_end == query_start:
+        return None, None
+    return query_start, query_end
+
+
 def calculate_alignment_identity(
     aligned_query: str, aligned_germline: str
 ) -> float | None:
@@ -71,12 +85,15 @@ def calculate_alignment_identity(
 
 
 def _segment_identities(
-    sequence: str, germline: str, frame: int
+    sequence: str, germline: str, frame: int, nt_alignment: RetainedAlignment | None = None
 ) -> tuple[float | None, float | None]:
-    """Calculate segment identities; AA identity needs a complete frame codon."""
-    nt_alignment = abutils.tl.global_alignment(
-        sequence, germline, **ALIGNMENT_PARAMS
-    )
+    """Calculate identities using retained NT evidence when available.
+
+    Standalone callers without a retained trace use a global NT alignment.
+    AA identity needs a complete frame codon.
+    """
+    if nt_alignment is None:
+        nt_alignment = abutils.tl.global_alignment(sequence, germline, **ALIGNMENT_PARAMS)
     sequence_aa = abutils.tl.translate(sequence, frame=frame)
     germline_aa = abutils.tl.translate(germline, frame=frame)
     nt_identity = calculate_alignment_identity(
@@ -401,6 +418,9 @@ def annotate_single_sequence(
     v_retained = RetainedAlignment(
         v_loc.aligned_query[first:last], v_loc.aligned_target[first:last],
     )
+    ab.v_cigar = build_cigar(
+        *v_retained, query_start=ab.v_sequence_start, germline_start=ab.v_germline_start,
+    )
     ab.log("RETAINED V ALIGNMENT:")
     ab.log(f"     QUERY: {v_retained.aligned_query}")
     ab.log(f"  GERMLINE: {v_retained.aligned_target}")
@@ -681,9 +701,21 @@ def annotate_single_sequence(
         ab.log("PRIMARY J BOUNDARY GERMLINE:", j_loc.aligned_target)
         ab.log("PRIMARY J BOUNDARY SCORE:", j_loc.score)
 
+    first, last = alignment_columns_for_span(
+        j_loc.aligned_query, j_loc.aligned_target,
+        ab.v_sequence_end + j_loc.query_begin, j_loc.target_begin,
+        ab.j_sequence_start, ab.j_sequence_end,
+        ab.j_germline_start, ab.j_germline_end,
+    )
+    j_retained = RetainedAlignment(
+        j_loc.aligned_query[first:last], j_loc.aligned_target[first:last],
+    )
+    ab.j_cigar = build_cigar(
+        *j_retained, query_start=ab.j_sequence_start, germline_start=ab.j_germline_start,
+    )
     j_frame = (3 - (ab.j_germline_start % 3)) % 3 + 1
     ab.j_identity, ab.j_identity_aa = _segment_identities(
-        ab.j_sequence, ab.j_germline, j_frame
+        ab.j_sequence, ab.j_germline, j_frame, j_retained
     )
     ab.log("J IDENTITY:", ab.j_identity)
     ab.log("J IDENTITY AA:", ab.j_identity_aa)
@@ -737,8 +769,12 @@ def annotate_single_sequence(
             d_loc = None
 
     if d_loc is not None:
+        d_retained = RetainedAlignment(d_loc.aligned_query, d_loc.aligned_target)
+        ab.d_cigar = build_cigar(
+            *d_retained, query_start=ab.d_sequence_start, germline_start=ab.d_germline_start,
+        )
         ab.d_identity, ab.d_identity_aa = _segment_identities(
-            ab.d_sequence, ab.d_germline, ab.d_frame
+            ab.d_sequence, ab.d_germline, ab.d_frame, d_retained
         )
         ab.np1 = ab.sequence_oriented[ab.v_sequence_end : ab.d_sequence_start]
         ab.np2 = ab.sequence_oriented[ab.d_sequence_end : ab.j_sequence_start]
@@ -814,20 +850,19 @@ def annotate_single_sequence(
         ab.log("C SEQUENCE AA:", ab.c_sequence_aa)
         ab.log("C GERMLINE AA:", ab.c_germline_aa)
 
-        if all(
-            [
-                ab.c_sequence,
-                ab.c_germline,
-                ab.c_sequence_aa,
-                ab.c_germline_aa,
-            ]
-        ):
-            # global nucleotide alignment
+        if ab.c_sequence and ab.c_germline:
+            # Retain the same nucleotide columns used for C events and identity.
             c_global = abutils.tl.global_alignment(
-                ab.c_sequence,
-                ab.c_germline,
-                **ALIGNMENT_PARAMS,
+                ab.c_sequence, ab.c_germline, **ALIGNMENT_PARAMS,
             )
+            ab.c_cigar = build_cigar(
+                c_global.aligned_query, c_global.aligned_target,
+                query_start=ab.c_sequence_start, germline_start=ab.c_germline_start,
+            )
+            ab.c_identity = calculate_alignment_identity(
+                c_global.aligned_query, c_global.aligned_target,
+            )
+        if all((ab.c_sequence, ab.c_germline, ab.c_sequence_aa, ab.c_germline_aa)):
             ab.log("GLOBAL ALIGNMENT:")
             ab.log(f"     QUERY: {c_global.aligned_query}")
             ab.log(f"            {c_global.alignment_midline}")
@@ -1010,21 +1045,19 @@ def annotate_single_sequence(
     # ab.log("GAPPED VDJC SEQUENCE AA:", ab.sequence_vdjc_gapped_aa)
     # ab.log("GAPPED VDJC GERMLINE AA:", ab.germline_vdjc_gapped_aa)
 
-    # align assembled V(D)J and germline nucleotide sequences
-    nt_aln = abutils.tl.global_alignment(
-        query=ab.sequence,
-        target=ab.germline,
-        **ALIGNMENT_PARAMS,
-    )
-    ab.sequence_alignment = nt_aln.aligned_query
-    ab.germline_alignment = nt_aln.aligned_target
-    ab.log(
-        "SEQUENCE ALIGNMENT:",
-        f"     QUERY: {nt_aln.aligned_query}",
-        f"            {nt_aln.alignment_midline}",
-        f"  GERMLINE: {nt_aln.aligned_target}",
-        separator="\n",
-    )
+    # Preserve retained V/D/J columns. NP query bases occupy reference-gap
+    # columns; the legacy assembled germline remains an abstar extension.
+    query_parts = [v_retained.aligned_query, ab.np1]
+    germline_parts = [v_retained.aligned_target, "-" * len(ab.np1)]
+    if d_loc is not None:
+        query_parts.extend((d_retained.aligned_query, ab.np2))
+        germline_parts.extend((d_retained.aligned_target, "-" * len(ab.np2)))
+    query_parts.append(j_retained.aligned_query)
+    germline_parts.append(j_retained.aligned_target)
+    ab.sequence_alignment = "".join(query_parts)
+    ab.germline_alignment = "".join(germline_parts)
+    ab.log("SEQUENCE ALIGNMENT:", ab.sequence_alignment)
+    ab.log("GERMLINE ALIGNMENT:", ab.germline_alignment)
 
     # align assembled V(D)J and germline amino acid sequences
     aa_aln = abutils.tl.global_alignment(
@@ -1117,7 +1150,12 @@ def annotate_single_sequence(
             germline_start=ab.v_germline_start + 1,  # needs to be 1-indexed
             ab=ab,
         )
-        setattr(ab, f"{region}", region_sequence)
+        setattr(ab, region, region_sequence)
+        query_start, query_end = region_alignment_to_query_interval(
+            v_retained.aligned_query, region_start, region_end, ab.v_sequence_start,
+        )
+        setattr(ab, f"{region}_start", query_start)
+        setattr(ab, f"{region}_end", query_end)
         ab.log(f"{region.upper()} SEQUENCE:", region_sequence)
 
         # amino acid region
@@ -1135,9 +1173,13 @@ def annotate_single_sequence(
         ab.log(f"{region.upper()} SEQUENCE AA:", region_sequence_aa)
 
     # J regions
-    fwr4_start = fr4_sg.query_begin
-    fwr4_end = fr4_sg.query_end + 1  # python end-slicing is exclusive
-    ab.fwr4 = fr4_sg.aligned_query[fwr4_start:fwr4_end]
+    ab.fwr4_start = ab.junction_start + fr4_sg.query_begin
+    ab.fwr4_end = ab.junction_start + fr4_sg.query_end + 1
+    ab.fwr4 = ab.sequence_oriented[ab.fwr4_start:ab.fwr4_end]
+    ab.cdr3_start = ab.junction_start + 3
+    ab.cdr3_end = ab.junction_end - 3
+    if not ab.cdr3:
+        ab.cdr3_start = ab.cdr3_end = None
     ab.fwr4_aa = abutils.tl.translate(ab.fwr4)
     ab.log("FR4 SEQUENCE:", ab.fwr4)
     ab.log("FR4 SEQUENCE AA:", ab.fwr4_aa)

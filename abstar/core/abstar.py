@@ -20,6 +20,7 @@ from natsort import natsorted
 from tqdm.auto import tqdm
 
 from ..annotation.annotator import annotate
+from ..annotation.airr import write_airr_tsv
 from ..annotation.schema import ANNOTATION_WORK_SCHEMA
 from ..assigners.mmseqs import (
     AssignmentExternalToolError,
@@ -634,7 +635,7 @@ def run(
         else:
             if "airr" in output_format:
                 airr_file = os.path.join(project_path, f"airr/{sample_name}.tsv")
-                public_df.write_csv(airr_file, separator="\t")
+                write_airr_tsv(public_df, airr_file)
             if "parquet" in output_format:
                 parquet_file = os.path.join(
                     project_path, f"parquet/{sample_name}.parquet"

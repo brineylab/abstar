@@ -53,3 +53,43 @@ def read_fasta_records(path: Path) -> dict[str, str]:
     if identifier is not None:
         records[identifier] = "".join(sequence)
     return records
+
+
+def assert_airr_matches_annotations(expected, path, fields):
+    """Compare through AIRR's explicit sequence, null and coordinate boundary.
+
+    The reference reader inversely converts known AIRR starts to Python offsets.
+    Public extensions are parsed using their declared annotation types.
+    """
+    import airr
+    import polars as pl
+    from abstar.annotation.schema import OUTPUT_SCHEMA
+
+    reader = airr.read_rearrangement(str(path), validate=True)
+    try:
+        actual = list(reader)
+    finally:
+        reader.close()
+    assert all('row_id' not in row for row in actual)
+    normalized_expected, normalized_actual = [], []
+    for rows, destination, is_airr in ((expected, normalized_expected, False),
+                                       (actual, normalized_actual, True)):
+        for row in rows:
+            normalized = {}
+            for field in fields:
+                assert field in row
+                value = row['sequence_input'] if field == 'sequence' and not is_airr else row[field]
+                if value == '' or value is None:
+                    value = None
+                elif is_airr:
+                    dtype = OUTPUT_SCHEMA[field]
+                    if dtype == pl.Boolean and not isinstance(value, bool):
+                        assert value in ('T', 'F')
+                        value = value == 'T'
+                    elif dtype == pl.Int64:
+                        value = int(value)
+                    elif dtype == pl.Float64:
+                        value = float(value)
+                normalized[field] = value
+            destination.append(normalized)
+    assert_same_annotations(normalized_expected, normalized_actual, fields)

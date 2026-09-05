@@ -321,3 +321,13 @@ Examples
         .sort("len", descending=True)
     )
     print(v_usage)
+
+
+Coordinate conventions
+----------------------
+
+Python annotations, dataframe returns, and Parquet use zero-based half-open
+query/reference coordinates. Region coordinates and V/D/J/C sequence coordinates
+address ``sequence_oriented``. AIRR TSV converts these to one-based closed
+intervals and writes the original input as ``sequence``. See
+:doc:`output_formats` for sequence, CIGAR, null, and migration details.

@@ -3,13 +3,73 @@
 Output Formats
 ==============
 
-abstar outputs annotations in `AIRR-compatible format`_. Two file formats
+abstar targets the `AIRR Data Standards 2.0 Rearrangement schema`_. The test
+suite validates TSV output with the official AIRR Python library 2.0.0 and
+checks biological coordinate and alignment semantics. Two file formats
 are supported:
 
 - ``airr``: Tab-delimited TSV file with header row
 - ``parquet``: Columnar binary format, more space-efficient for large datasets
 
-.. _AIRR-compatible format: https://docs.airr-community.org/en/stable/datarep/rearrangements.html
+.. _AIRR Data Standards 2.0 Rearrangement schema: https://docs.airr-community.org/en/stable/datarep/rearrangements.html
+
+
+AIRR TSV and Python Coordinates
+-------------------------------
+
+AIRR TSV uses **1-based closed intervals**. Python annotations, dataframe
+returns, and Parquet retain **0-based half-open intervals**. For example, an
+internal interval ``[137, 439)`` is written as start ``138``, end ``439``;
+``[0, 1)`` is written as ``1, 1``. Missing intervals have empty start/end cells.
+This applies to V/D/J/C query and germline coordinates and to
+``fwr1/cdr1/fwr2/cdr2/fwr3/cdr3/fwr4_start/end``.
+
+Query coordinates address ``sequence_oriented``. Germline coordinates address
+the ungapped reference of the corresponding gene. In AIRR TSV, ``sequence``
+is always the original ``sequence_input``. When ``rev_comp`` is true, all
+alignments and query coordinates refer to its reverse complement. Opaque
+identifiers, including duplicate IDs and leading zeroes, retain their input
+order. The private internal ``row_id`` is never serialized.
+
+The first TSV columns, in order, are ``sequence_id``, ``sequence``, ``rev_comp``,
+``productive``, ``v_call``, ``d_call``, ``j_call``, ``sequence_alignment``,
+``germline_alignment``, ``junction``, ``junction_aa``, ``v_cigar``, ``d_cigar``,
+and ``j_cigar``. All remaining public fields follow in the declared output
+schema order, without duplicates. Boolean values are ``T`` or ``F``, nulls
+are empty cells, and lines end with LF. Values containing a tab, newline or
+carriage return raise ``ValueError``.
+
+``sequence_alignment`` and ``germline_alignment`` retain the same V/D/J
+alignment columns used as annotation evidence. Non-templated NP query bases
+align to germline gaps. Segment CIGARs use ``M`` for aligned residue pairs
+(including substitutions), ``I`` for query insertions, and ``D`` for query
+deletions. Leading ``S`` operations skip query bases and leading ``N``
+operations skip reference bases. For example, ``AC-GT`` aligned to ``ACCGT``
+at query offset 2 and reference offset 1 produces ``2S1N2M1D2M``.
+The C CIGAR describes the separately retained constant-region alignment.
+``junction`` includes the conserved endpoint codons; ``cdr3`` excludes them.
+
+Unassigned records retain ``sequence_input``, ``sequence_oriented``,
+``annotation_status=unassigned``, and an inspectable ``failure_reason``.
+Their ``productive`` value and unavailable annotation fields remain null.
+Internal annotation errors raise a structured run error instead of producing
+successful empty output.
+
+Compatibility note
+~~~~~~~~~~~~~~~~~~
+
+Earlier TSV output exposed Python coordinate offsets, Python boolean text,
+and the assembled V(D)J sequence as ``sequence``. Consumers must use the AIRR
+conventions above for TSV. Python/Parquet ``sequence`` remains the assembled
+V(D)J sequence; ``germline``, the ``*_gapped`` and ``*_vdjc`` assembly fields
+remain abstar extensions, including their legacy NP content. They must not be
+used as substitutes for the paired AIRR alignment fields. ``cdr3_length`` is
+also an abstar extension and counts amino acids.
+
+When comparing the two formats, normalize TSV starts by subtracting one,
+decode ``T``/``F`` and empty cells, and compare TSV ``sequence`` with Parquet
+``sequence_input``. The official ``airr.read_rearrangement(..., validate=True)``
+reader already normalizes known coordinate starts to Python offsets.
 
 
 Specifying Output Format

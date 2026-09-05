@@ -279,10 +279,9 @@ def test_api_project_returns_none_and_preserves_nested_input_paths(
         assert (project / "input" / relative).read_bytes() == (source / relative).read_bytes()
         name = f"sample{ordinal}__reads"
         parquet = pl.read_parquet(project / "parquet" / f"{name}.parquet")
-        airr = pl.read_csv(project / "airr" / f"{name}.tsv", separator="\t",
-                           schema_overrides=OUTPUT_SCHEMA)
-        helpers.assert_same_annotations(parquet.to_dicts(), airr.to_dicts(), ANNOTATION_FIELDS)
-        assert "row_id" not in parquet.columns and "row_id" not in airr.columns
+        helpers.assert_airr_matches_annotations(
+            parquet.to_dicts(), project / "airr" / f"{name}.tsv", ANNOTATION_FIELDS)
+        assert "row_id" not in parquet.columns
         rows.extend(parquet.to_dicts())
     assert len(list((project / "input").rglob("*.fasta"))) == 3
     assert len(list((project / "parquet").glob("*.parquet"))) == 3
@@ -309,10 +308,8 @@ def test_cli_real_airr_run_matches_api(public_bcr_inputs, public_bcr_baseline, t
                                     "--output_format", "airr", "--n_processes", "2",
                                     "--chunksize", "2", "--mmseqs_threads", "1", "--quiet"])
     assert result.exit_code == 0, (result.output, result.exception)
-    rows = pl.read_csv(project / "airr" / "controls.tsv", separator="\t",
-                       schema_overrides=OUTPUT_SCHEMA).to_dicts()
-    helpers.assert_same_annotations(public_bcr_baseline, rows, ANNOTATION_FIELDS)
-    assert all("row_id" not in row for row in rows)
+    helpers.assert_airr_matches_annotations(
+        public_bcr_baseline, project / "airr" / "controls.tsv", ANNOTATION_FIELDS)
     assert (project / "input" / "controls.fastq").read_bytes() == Path(
         public_bcr_inputs["fastq"]()).read_bytes()
 
