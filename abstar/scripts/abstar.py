@@ -194,8 +194,7 @@ def run(
             debug=debug,
         )
     except AnnotationRunError as error:
-        artifacts = sorted((Path(project_path).resolve() / "logs").glob("*.failed"))
-        artifacts.extend(Path(path) for path in error.partial_output_paths)
+        artifacts = [Path(path) for path in error.partial_output_paths]
         details = "\n".join(str(path) for path in artifacts if path.is_file())
         message = str(error)
         if details:

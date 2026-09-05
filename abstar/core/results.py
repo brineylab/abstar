@@ -115,6 +115,7 @@ class AnnotationRunError(RuntimeError):
         partial_output_paths: Iterable[str] = (),
     ):
         self.failures = _normalize_failures(failures)
+        self.retention_diagnostics: tuple[str, ...] = ()
         self.partial_output_paths = _normalize_paths(
             partial_output_paths, "partial_output_paths"
         )

@@ -695,7 +695,8 @@ def test_public_mixed_worker_failures_account_for_every_row(
         assert failure.row_id in diagnostic
         assert failure.sequence_id in diagnostic
     assert error.partial_output_paths
-    survivors = pl.concat([pl.read_parquet(path) for path in error.partial_output_paths])
+    survivors = pl.concat([pl.read_parquet(path) for path in error.partial_output_paths
+                           if Path(path).suffix == ".parquet"])
     assert survivors["row_id"].to_list() == [
         f"abstar_0_{i}" for i in range(2) if i not in failed_indices]
     assert survivors.height + len(error.failures) == 2
@@ -829,6 +830,96 @@ def test_cli_output_failure_reports_surviving_diagnostic(monkeypatch, tmp_path, 
     assert str(diagnostic) in result.output
     assert "TASK17-CLI-OUTPUT" in diagnostic.read_text()
     _assert_no_final_outputs(project)
+
+
+@pytest.mark.parametrize("debug", [False, True])
+@pytest.mark.parametrize("retention_failure", ["allocation", "move", "partial_move"])
+def test_workspace_retention_preserves_original_error_and_surviving_paths(
+    monkeypatch, tmp_path, debug, retention_failure
+):
+    from ..core.abstar import _project_workspace
+    import shutil
+
+    original_mkdtemp = tempfile.mkdtemp
+    original_move = shutil.move
+    failure = RecordFailure("abstar_0_0", "caller-id", "annotation", "internal_error", "original worker failure")
+    caller_file = tmp_path / "caller.txt"
+    caller_file.write_text("caller content")
+    error = AnnotationRunError([failure], [str(caller_file), str(tmp_path / "missing")])
+
+    def allocate(*args, **kwargs):
+        if kwargs.get("prefix") == "abstar-failed-" and retention_failure == "allocation":
+            raise OSError("retention allocation failed")
+        kwargs.setdefault("dir", tmp_path)
+        return original_mkdtemp(*args, **kwargs)
+
+    def move(source, destination):
+        if retention_failure == "partial_move":
+            original_move(source, destination)
+        raise OSError("retention move failed")
+
+    monkeypatch.setattr(tempfile, "mkdtemp", allocate)
+    monkeypatch.setattr(shutil, "move", move)
+    with pytest.raises(AnnotationRunError) as captured:
+        with _project_workspace(None, debug, []) as workspace:
+            logs = Path(workspace) / "logs"
+            logs.mkdir()
+            (logs / "sequences.failed").write_text("original worker failure")
+            raise error
+
+    assert captured.value is error
+    assert error.failures == (failure,)
+    artifacts = [Path(path) for path in error.partial_output_paths]
+    assert all(path.is_file() for path in artifacts)
+    assert caller_file in artifacts
+    assert caller_file.read_text() == "caller content"
+    assert any(path.suffix == ".failed" and "original worker failure" in path.read_text() for path in artifacts)
+    if debug:
+        assert error.retention_diagnostics == ()
+    else:
+        expected = "retention allocation failed" if retention_failure == "allocation" else "retention move failed"
+        assert expected in "\n".join(error.retention_diagnostics)
+        assert expected in str(error)
+
+
+@pytest.mark.e2e
+def test_cli_reused_project_reports_only_current_failure_logs(monkeypatch, tmp_path, small_fasta_file):
+    from ..assigners.mmseqs import AssignmentExternalToolError
+
+    project = tmp_path / "reused-project"
+    logs = project / "logs"
+    logs.mkdir(parents=True)
+    historical = logs / "historical.failed"
+    historical.write_text("prior run failure")
+
+    def fail_search(*args, **kwargs):
+        raise AssignmentExternalToolError("current search failed")
+
+    monkeypatch.setattr("abstar.assigners.mmseqs.MMseqs._run_mmseqs_search", fail_search)
+    result = CliRunner().invoke(cli, ["run", small_fasta_file, str(project), "--n_processes", "1", "--quiet"])
+    assert result.exit_code != 0
+    assert "assignment/external_tool=1" in result.output
+    assert str(logs / "test_sequences.failed") in result.output
+    assert str(historical) not in result.output
+    assert historical.read_text() == "prior run failure"
+
+
+@pytest.mark.e2e
+def test_debug_api_error_exposes_surviving_diagnostic(monkeypatch, tmp_path, single_hc_sequence):
+    from ..assigners.mmseqs import AssignmentExternalToolError
+
+    monkeypatch.setattr(tempfile, "tempdir", str(tmp_path))
+
+    def fail_search(*args, **kwargs):
+        raise AssignmentExternalToolError("debug search failed")
+
+    monkeypatch.setattr("abstar.assigners.mmseqs.MMseqs._run_mmseqs_search", fail_search)
+    with pytest.raises(AnnotationRunError) as captured:
+        abstar.run(single_hc_sequence, debug=True, n_processes=1, verbose=False)
+    artifacts = [Path(path) for path in captured.value.partial_output_paths]
+    assert artifacts and all(path.is_file() for path in artifacts)
+    assert any(path.suffix == ".failed" and "debug search failed" in path.read_text() for path in artifacts)
+    assert list(tmp_path.glob("abstar-debug-*"))
 
 
 def test_real_mmseqs_accepts_quoted_project_paths(tmp_path, public_bcr_cases):

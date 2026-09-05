@@ -162,6 +162,8 @@ def _raise_pipeline_failure(
                 f"\nCould not persist diagnostics: {log_error}; "
                 f"fallback diagnostic failed: {fallback_error}"
             )
+    if os.path.isfile(failed_log_file):
+        partial_output_paths.append(failed_log_file)
     failure = RecordFailure(
         row_id=f"abstar_{sample_ordinal}_{stage}",
         sequence_id=sample_name,
@@ -220,37 +222,47 @@ def _write_sample_outputs(
 
 @contextmanager
 def _project_workspace(project_path, debug, published_outputs):
-    """Own an API workspace through all workers, retaining inspectable failures."""
-    if project_path is not None:
-        try:
-            yield os.path.abspath(project_path)
-        except AnnotationRunError as error:
-            error.partial_output_paths = tuple(dict.fromkeys(
-                [*error.partial_output_paths, *published_outputs]
-            ))
-            raise
-        return
-    if debug:
-        # Debug explicitly retains the complete workspace, including on success.
-        yield tempfile.mkdtemp(prefix="abstar-debug-")
-        return
-    with tempfile.TemporaryDirectory(prefix="abstar-") as workspace:
-        try:
-            yield workspace
-        except AnnotationRunError as error:
-            # Transfer ownership of diagnostic/partial work before the ephemeral
-            # context exits. A failed API run has no caller project to retain it.
-            retained_root = tempfile.mkdtemp(prefix="abstar-failed-")
-            retained = os.path.join(retained_root, "project")
-            shutil.move(workspace, retained)
-            paths = [
-                os.path.join(retained, os.path.relpath(path, workspace))
-                if Path(path).is_relative_to(workspace) else path
-                for path in error.partial_output_paths
-            ]
-            paths.extend(str(path) for path in sorted((Path(retained) / "logs").glob("*.failed")))
-            error.partial_output_paths = tuple(dict.fromkeys(paths))
-            raise
+    """Own API scratch; secondary retention errors never replace run failures."""
+    owned = project_path is None
+    workspace = (
+        tempfile.mkdtemp(prefix="abstar-debug-" if debug else "abstar-")
+        if owned else os.path.abspath(project_path)
+    )
+    keep_workspace = debug or not owned
+    try:
+        yield workspace
+    except AnnotationRunError as error:
+        paths = [*error.partial_output_paths, *published_outputs]
+        if owned:
+            # This workspace belongs only to this run, so these cannot be
+            # historical project diagnostics. Debug retains the same paths.
+            paths.extend(str(path) for path in sorted((Path(workspace) / "logs").glob("*.failed")))
+            keep_workspace = True
+            if not debug:
+                retained = None
+                try:
+                    retained_root = tempfile.mkdtemp(prefix="abstar-failed-")
+                    retained = os.path.join(retained_root, "project")
+                    shutil.move(workspace, retained)
+                except OSError as retention_error:
+                    diagnostic = f"Could not retain failed workspace: {retention_error}"
+                    error.retention_diagnostics += (diagnostic,)
+                    error.args = (f"{error}\n{diagnostic}",)
+                    # The move may have transferred some or all files before
+                    # failing. Keep both owned locations; list actual survivors.
+                if retained is not None:
+                    paths.extend(
+                        os.path.join(retained, os.path.relpath(path, workspace))
+                        for path in tuple(paths)
+                        if Path(path).is_relative_to(workspace)
+                    )
+        error.partial_output_paths = tuple(dict.fromkeys(
+            path for path in paths if os.path.isfile(path)
+        ))
+        raise
+    finally:
+        if owned and not keep_workspace:
+            shutil.rmtree(workspace, ignore_errors=True)
 
 
 def _validate_assignment_database(assigner: MMseqs) -> None:
@@ -790,7 +802,7 @@ def run(
                             f"\nROW ID: {failure.row_id}\nSEQUENCE ID: {failure.sequence_id}\n"
                             f"{failure.stage}/{failure.category}: {failure.message}\n"
                         )
-                raise AnnotationRunError(sample_failures, annotated_files)
+                raise AnnotationRunError(sample_failures, [*annotated_files, failed_log_file])
 
             # get output Sequences
             if return_sequences:

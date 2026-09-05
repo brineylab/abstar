@@ -147,11 +147,17 @@ Files published for earlier samples are also listed as partial if a later
 sample fails.
 
 Without a caller project, ordinary temporary workspaces are cleaned after
-success or failure. Failed work and logs are transferred to an
+success. Failed work and logs are transferred to an
 ``abstar-failed-*`` directory in the system temporary directory, and the
 surviving partial files and failure logs are listed in ``partial_output_paths``.
-Caller projects retain their diagnostic and partial work files. ``debug=True``
-retains the complete API workspace, including on success.
+If that transfer fails, abstar keeps the surviving owned workspace files and
+preserves the original structured error and its ``failures``. The error's
+``retention_diagnostics`` tuple and message describe the secondary storage
+failure. Only surviving files are listed in ``partial_output_paths``.
+Caller projects retain their diagnostic and partial work files; current-run
+logs are listed without including historical failures from earlier runs.
+``debug=True`` retains the complete API workspace, including on success, and
+lists surviving failure logs when the run raises.
 
 Initial project, log, temporary, and output directory failures use
 ``output/internal_error``. If the project cannot store its diagnostic, abstar
