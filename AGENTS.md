@@ -16,8 +16,11 @@ detailed V(D)J annotations. Its public surfaces are:
 - bundled BCR and TCR germline databases.
 
 The package requires Python 3.10 or newer. Core dependencies include
-`abutils`, Polars, PyArrow, Parasail, and Click. MMseqs searches are delegated
-through `abutils`; read merging uses binaries exposed by `abutils`.
+`abutils`, Biopython, Polars, PyArrow, Parasail, and Click. MMseqs searches use
+checked argument-list subprocesses with binaries resolved by the public
+`abutils.bin.get_path` accessor; read merging uses binaries exposed by `abutils`.
+Biopython's strict FASTQ iterator validates complete, potentially multiline
+records before the normal input parser and assignment run.
 
 ## Repository map
 

@@ -4,13 +4,18 @@
 
 
 import csv
+import gzip
 import logging
 import os
+import shlex
+import subprocess
 import sys
+import tempfile
 from typing import Iterable
 
 import abutils
 import polars as pl
+from Bio.SeqIO.QualityIO import FastqGeneralIterator
 
 from .assigner import AssignerBase
 
@@ -62,6 +67,18 @@ class AssignmentInputError(ValueError):
 
 class AssignmentExternalToolError(RuntimeError):
     """An external assignment command failed."""
+
+    def __init__(self, message, *, command=(), returncode=None, stdout="", stderr=""):
+        self.command = tuple(command)
+        self.returncode = returncode
+        self.stdout = stdout
+        self.stderr = stderr
+        if self.command:
+            message += (
+                f"\nCOMMAND: {shlex.join(self.command)}\nEXIT STATUS: {returncode}"
+                f"\nSTDOUT:\n{stdout}\nSTDERR:\n{stderr}"
+            )
+        super().__init__(message)
 
 
 def _empty_mmseqs_results(segment: str) -> pl.DataFrame:
@@ -195,12 +212,53 @@ class MMseqs(AssignerBase):
         self.sample_ordinal = 0
 
     @staticmethod
-    def _run_mmseqs_search(**kwargs) -> None:
-        """Run MMseqs and mark errors raised at this external-tool boundary."""
-        try:
-            abutils.tl.mmseqs_search(**kwargs)
-        except (RuntimeError, OSError) as error:
-            raise AssignmentExternalToolError(str(error)) from error
+    def _run_mmseqs_search(
+        *, query, target, output_path, search_type=3, sensitivity=None,
+        max_seqs=None, max_evalue=None, format_mode=None, format_output=None,
+        threads=None, additional_cli_args=None, log_to=None, debug=False,
+    ) -> None:
+        """Run checked argv with owned scratch and complete process diagnostics."""
+        # get_path is the public accessor exported by abutils.bin.
+        from abutils.bin import get_path
+
+        binary = get_path("mmseqs")
+        with tempfile.TemporaryDirectory(
+            prefix="mmseqs-", dir=os.path.dirname(output_path),
+        ) as scratch:
+            command = [binary, "easy-search", query, target, output_path, scratch]
+            for option, value in (
+                ("--search-type", search_type), ("-s", sensitivity),
+                ("--max-seqs", max_seqs), ("-e", max_evalue),
+                ("--format-mode", format_mode), ("--format-output", format_output),
+                ("--threads", threads),
+            ):
+                if value is not None:
+                    command.extend([option, str(value)])
+            if additional_cli_args is not None:
+                command.extend(shlex.split(additional_cli_args))
+            try:
+                completed = subprocess.run(
+                    command, check=True, capture_output=True, text=True,
+                )
+            except subprocess.CalledProcessError as error:
+                raise AssignmentExternalToolError(
+                    "MMseqs search failed", command=command,
+                    returncode=error.returncode, stdout=error.stdout or "",
+                    stderr=error.stderr or "",
+                ) from error
+            except OSError as error:
+                raise AssignmentExternalToolError(
+                    "Could not execute MMseqs", command=command, stderr=str(error),
+                ) from error
+            diagnostic = (
+                f"COMMAND: {shlex.join(command)}\nEXIT STATUS: {completed.returncode}"
+                f"\nSTDOUT:\n{completed.stdout}\nSTDERR:\n{completed.stderr}"
+            )
+            if log_to is not None:
+                with open(log_to, "w") as log:
+                    log.write(diagnostic)
+            if debug:
+                print(diagnostic)
 
     def __call__(
         self,
@@ -680,6 +738,14 @@ class MMseqs(AssignerBase):
         # count input sequences
         sequence_count = 0
         try:
+            if abutils.io.determine_fastx_format(sequence_file) == "fastq":
+                # pyfastx can silently drop a truncated FASTQ record. Validate
+                # the complete stream first, including multiline sequences and
+                # qualities, before any assignment can report success.
+                open_input = gzip.open if sequence_file.endswith(".gz") else open
+                with open_input(sequence_file, "rt") as handle:
+                    for _ in FastqGeneralIterator(handle):
+                        pass
             for seq in abutils.io.parse_fastx(sequence_file):
                 invalid = set(seq.sequence.upper()) - set("ACGTRYSWKMBDHVN")
                 if invalid:

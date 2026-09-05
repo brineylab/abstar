@@ -92,6 +92,16 @@ exits nonzero and prints a structured stage/category summary followed by paths t
 retained failure artifacts. Ordinary biological non-assignment is recorded in the
 output as ``annotation_status=unassigned`` with a ``failure_reason``.
 
+MMseqs failure diagnostics include the safely rendered argument list, exit
+status, stdout, and stderr. Searches use checked subprocesses and the public
+``abutils.bin.get_path`` executable accessor; each search owns and cleans its
+scratch directory. Worker diagnostics identify every failed internal row key
+and original sequence ID. Final output errors use ``output/internal_error``;
+staging failures publish no AIRR or Parquet success file. Any file already
+promoted when publication fails is explicitly listed among the partial artifacts.
+Completed files from earlier samples are likewise listed as partial when a later
+sample fails.
+
 
 UMI Options
 ~~~~~~~~~~~

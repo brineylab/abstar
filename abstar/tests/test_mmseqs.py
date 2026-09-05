@@ -222,30 +222,35 @@ def test_prepare_input_files_rejects_non_iupac_nucleotide(
         mmseqs_instance.prepare_input_files(str(input_path), chunksize=1000)
 
 
-def test_mmseqs_search_wraps_external_runtime_error(mmseqs_instance, monkeypatch):
-    def fail_search(**kwargs):
-        raise RuntimeError("command exited nonzero")
+def test_mmseqs_search_wraps_external_os_error(mmseqs_instance, monkeypatch, tmp_path):
+    def fail_search(*args, **kwargs):
+        raise OSError("executable unavailable")
 
     monkeypatch.setattr(
-        "abstar.assigners.mmseqs.abutils.tl.mmseqs_search", fail_search
+        "abstar.assigners.mmseqs.subprocess.run", fail_search
     )
 
-    with pytest.raises(AssignmentExternalToolError, match="command exited nonzero"):
-        mmseqs_instance._run_mmseqs_search(query="input.fasta")
+    with pytest.raises(AssignmentExternalToolError, match="executable unavailable"):
+        mmseqs_instance._run_mmseqs_search(
+            query="input.fasta", target="database", output_path=str(tmp_path / "hits.tsv"),
+        )
 
 
+@pytest.mark.parametrize("error_type", (ValueError, RuntimeError))
 def test_mmseqs_search_does_not_reclassify_programming_error(
-    mmseqs_instance, monkeypatch
+    mmseqs_instance, monkeypatch, tmp_path, error_type,
 ):
-    def fail_search(**kwargs):
-        raise ValueError("bad wrapper argument")
+    def fail_search(*args, **kwargs):
+        raise error_type("bad wrapper argument")
 
     monkeypatch.setattr(
-        "abstar.assigners.mmseqs.abutils.tl.mmseqs_search", fail_search
+        "abstar.assigners.mmseqs.subprocess.run", fail_search
     )
 
-    with pytest.raises(ValueError, match="bad wrapper argument"):
-        mmseqs_instance._run_mmseqs_search(query="input.fasta")
+    with pytest.raises(error_type, match="bad wrapper argument"):
+        mmseqs_instance._run_mmseqs_search(
+            query="input.fasta", target="database", output_path=str(tmp_path / "hits.tsv"),
+        )
 
 
 def test_prepare_input_files_multiple_sequences(mmseqs_instance, multi_sequence_fasta_file):

@@ -1,4 +1,5 @@
 abutils>=0.5.1
+biopython>=1.80
 click
 matplotlib
 numpy

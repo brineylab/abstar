@@ -117,6 +117,32 @@ the result and does not change the return shape. Internal and external-tool
 failures raise ``abstar.AnnotationRunError`` with structured ``failures`` and
 any ``partial_output_paths``. Diagnostic files are retained before raising.
 
+The required ``abutils.tl.translate`` capability is checked before starting
+workers or creating a project; an incompatible installation raises
+``preprocess/internal_error`` with installation guidance in the failure's
+``message``. Malformed nonempty FASTA/FASTQ and non-IUPAC bases raise
+``preprocess/invalid_input``. The accepted nucleotide alphabet is
+``ACGTRYSWKMBDHVN`` (case-insensitive). FASTQ validation uses Biopython and supports
+multiline sequence and quality data. Missing required components in the selected
+germline database raise ``assignment/invalid_input``, naming the database,
+receptor, and component. Content-empty inputs still raise ``ValueError`` before
+creating a caller project.
+
+Final writer failures raise ``output/internal_error``. AIRR and Parquet files
+are staged together before publication; failed staging files are removed, while
+annotation work and diagnostics remain inspectable. If publication itself fails
+after a file was promoted, that file is listed in ``partial_output_paths`` and
+must be treated as partial run output.
+Files published for earlier samples are also listed as partial if a later
+sample fails.
+
+Without a caller project, ordinary temporary workspaces are cleaned after
+success or failure. Failed work and logs are transferred to an
+``abstar-failed-*`` directory in the system temporary directory, and the
+surviving partial files and failure logs are listed in ``partial_output_paths``.
+Caller projects retain their diagnostic and partial work files. ``debug=True``
+retains the complete API workspace, including on success.
+
 For a file containing multiple records:
 
 .. code-block:: python
