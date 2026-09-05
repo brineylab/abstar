@@ -36,7 +36,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Verify checked-out commit
-        run: test "$(git rev-parse HEAD)" = "${{ github.sha }}"
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
@@ -57,6 +59,10 @@ jobs:
           case "$PER_DATASET" in
             ''|*[!0-9]*|0) echo "per_dataset must be a positive integer" | tee nightly-output/analysis.log; exit 1 ;;
           esac
+          if [ "$PER_DATASET" -lt 1 ]; then
+            echo "per_dataset must be a positive integer" | tee nightly-output/analysis.log
+            exit 1
+          fi
           if [ "$PER_DATASET" -gt 100 ]; then
             echo "per_dataset must not exceed 100" | tee nightly-output/analysis.log
             exit 1

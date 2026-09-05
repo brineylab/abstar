@@ -4,11 +4,6 @@ on:
   push:
   pull_request:
   workflow_call:
-    inputs:
-      ref:
-        description: Immutable commit SHA to test
-        required: false
-        type: string
 
 permissions:
   contents: read
@@ -27,9 +22,11 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.ref || github.sha }}
+          ref: ${{ github.sha }}
       - name: Verify checked-out commit
-        run: test "$(git rev-parse HEAD)" = "${{ inputs.ref || github.sha }}"
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
       - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
@@ -56,9 +53,11 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.ref || github.sha }}
+          ref: ${{ github.sha }}
       - name: Verify checked-out commit
-        run: test "$(git rev-parse HEAD)" = "${{ inputs.ref || github.sha }}"
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
       - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
@@ -88,9 +87,11 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.ref || github.sha }}
+          ref: ${{ github.sha }}
       - name: Verify checked-out commit
-        run: test "$(git rev-parse HEAD)" = "${{ inputs.ref || github.sha }}"
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
       - uses: actions/setup-python@v7
         with:
           python-version: "3.10"
@@ -145,9 +146,11 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.ref || github.sha }}
+          ref: ${{ github.sha }}
       - name: Verify checked-out commit
-        run: test "$(git rev-parse HEAD)" = "${{ inputs.ref || github.sha }}"
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
       - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
@@ -155,7 +158,9 @@ jobs:
       - name: Install test environment
         run: python -m pip install -r requirements-test.txt
       - name: Run focused conformance suite
-        run: python -m pytest ${{ matrix.tests }} -q
+        env:
+          TEST_PATH: ${{ matrix.tests }}
+        run: python -m pytest "$TEST_PATH" -q
 
   coverage:
     name: statement and branch coverage
@@ -163,9 +168,11 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.ref || github.sha }}
+          ref: ${{ github.sha }}
       - name: Verify checked-out commit
-        run: test "$(git rev-parse HEAD)" = "${{ inputs.ref || github.sha }}"
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
@@ -192,9 +199,11 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.ref || github.sha }}
+          ref: ${{ github.sha }}
       - name: Verify checked-out commit
-        run: test "$(git rev-parse HEAD)" = "${{ inputs.ref || github.sha }}"
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
@@ -211,9 +220,11 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.ref || github.sha }}
+          ref: ${{ github.sha }}
       - name: Verify checked-out commit
-        run: test "$(git rev-parse HEAD)" = "${{ inputs.ref || github.sha }}"
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"

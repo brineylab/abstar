@@ -13,8 +13,6 @@ jobs:
     permissions:
       contents: read
     uses: ./.github/workflows/pytest.yml
-    with:
-      ref: ${{ github.sha }}
 
   pypi-publish:
     name: publish exact tested distributions
