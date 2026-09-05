@@ -2,6 +2,7 @@
 # Distributed under the terms of the MIT License.
 # SPDX-License-Identifier: MIT
 
+import gzip
 import multiprocessing as mp
 import os
 import shutil
@@ -677,6 +678,21 @@ def run(
         return
 
 
+def _has_input_content(path: str) -> bool:
+    """Check for nonwhitespace bytes without parsing or materializing records."""
+    open_input = gzip.open if path.endswith(".gz") else open
+    try:
+        with open_input(path, "rb") as handle:
+            while chunk := handle.read(8192):
+                if chunk.strip():
+                    return True
+    except (OSError, EOFError):
+        # Unreadable/corrupt files still belong to the assigner's input boundary,
+        # which classifies the error and persists diagnostics before raising.
+        return True
+    return False
+
+
 def _process_inputs(
     sequences: str | Sequence | Iterable[Sequence],
     temp_dir: str,
@@ -699,6 +715,8 @@ def _process_inputs(
     """
     sequence_files = None
     if isinstance(sequences, str):
+        if not sequences.strip():
+            raise ValueError("Input sequences cannot be empty.")
         # input is a string -- either a file/directory path or a raw sequence string
         if os.path.isfile(sequences):
             sequence_files = [os.path.abspath(sequences)]
@@ -733,6 +751,9 @@ def _process_inputs(
     sequence_files = natsorted(os.path.abspath(path) for path in sequence_files)
     if not sequence_files:
         raise ValueError("No supported FASTA or FASTQ files were found in the input directory.")
+    sequence_files = [path for path in sequence_files if _has_input_content(path)]
+    if not sequence_files:
+        raise ValueError("Input sequence files cannot be empty.")
     return sequence_files
 
 

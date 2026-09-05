@@ -1,5 +1,6 @@
 """Public input, ordering, return-shape and CLI contracts on accepted BCRs."""
 
+import gzip
 from pathlib import Path
 
 import abstar
@@ -155,6 +156,83 @@ def test_api_empty_inputs_raise_before_creating_project(tmp_path, input_form):
     with pytest.raises(ValueError, match="empty|No supported FASTA or FASTQ"):
         abstar.run(inputs[input_form], project_path=str(project), n_processes=1)
     assert not project.exists()
+
+
+@pytest.mark.e2e
+@pytest.mark.parametrize("input_text", ("", " \t\n"))
+def test_api_content_empty_string_raises_before_creating_project(tmp_path, input_text):
+    project = tmp_path / "must-not-exist"
+    with pytest.raises(ValueError, match="empty"):
+        abstar.run(input_text, project_path=str(project), n_processes=1)
+    assert not project.exists()
+
+
+def _write_public_input(path, content):
+    if path.suffix == ".gz":
+        with gzip.open(path, "wt") as handle:
+            handle.write(content)
+    else:
+        path.write_text(content)
+
+
+@pytest.mark.e2e
+@pytest.mark.parametrize("suffix", ("fasta", "fastq", "fasta.gz", "fastq.gz"))
+@pytest.mark.parametrize("content", ("", " \t\r\n\n"), ids=("zero-bytes", "whitespace"))
+@pytest.mark.parametrize("directory_input", (False, True), ids=("file", "directory"))
+def test_api_content_empty_files_raise_before_creating_project(
+    tmp_path, suffix, content, directory_input,
+):
+    source = tmp_path / "inputs"
+    source.mkdir()
+    path = source / f"empty.{suffix}"
+    _write_public_input(path, content)
+    project = tmp_path / "must-not-exist"
+    with pytest.raises(ValueError, match="empty"):
+        abstar.run(str(source if directory_input else path),
+                   project_path=str(project), n_processes=1)
+    assert not project.exists()
+
+
+@pytest.mark.e2e
+@pytest.mark.parametrize("suffix", ("fasta", "fastq", "fasta.gz", "fastq.gz"))
+@pytest.mark.parametrize("empty_ordinal", (1, 10))
+def test_api_mixed_empty_and_valid_files_keep_the_valid_annotation(
+    public_bcr_cases, public_bcr_baseline, tmp_path, suffix, empty_ordinal,
+):
+    source = tmp_path / "inputs"
+    source.mkdir()
+    _write_public_input(source / f"sample{empty_ordinal}.{suffix}", " \t\n")
+    case = public_bcr_cases[0]
+    if suffix.startswith("fastq"):
+        content = f"@{case.sequence_id}\n{case.sequence}\n+\n{'I' * len(case.sequence)}\n"
+    else:
+        content = f">{case.sequence_id}\n{case.sequence}\n"
+    _write_public_input(source / f"sample2.{suffix}", content)
+    project = tmp_path / "project"
+    result = abstar.run(str(source), project_path=str(project), output_format="parquet",
+                        n_processes=1, mmseqs_threads=1)
+    assert result is None
+    assert [path.name for path in (project / "parquet").iterdir()] == ["sample2.parquet"]
+    rows = pl.read_parquet(project / "parquet" / "sample2.parquet").to_dicts()
+    helpers.assert_same_annotations(public_bcr_baseline[:1], rows, ANNOTATION_FIELDS)
+
+
+@pytest.mark.e2e
+@pytest.mark.parametrize("suffix", ("fasta", "fastq", "fasta.gz", "fastq.gz"))
+def test_api_nonempty_malformed_files_keep_structured_failure_artifacts(tmp_path, suffix):
+    source = tmp_path / f"malformed.{suffix}"
+    _write_public_input(source, "not FASTA or FASTQ\n")
+    project = tmp_path / "failed-project"
+    with pytest.raises(abstar.AnnotationRunError) as captured:
+        abstar.run(str(source), project_path=str(project), n_processes=1)
+    assert len(captured.value.failures) == 1
+    failure = captured.value.failures[0]
+    assert failure.stage == "preprocess"
+    assert failure.category == "invalid_input"
+    assert "Unsupported file format" in failure.message
+    artifact = project / "logs" / "malformed.failed"
+    assert artifact.is_file()
+    assert failure.message in artifact.read_text()
 
 
 @pytest.mark.e2e

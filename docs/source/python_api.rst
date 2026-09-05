@@ -156,11 +156,17 @@ Returns ``None``; writes files to project directory:
     #   project/airr/input.tsv
     #   project/logs/abstar.log
 
-Empty input iterables and directories without supported FASTA/FASTQ files raise
-``ValueError`` before creating the requested project directory. Process and chunk
-counts must be positive integers (not Booleans); ``n_processes=None`` selects the
-CPU count. Unsupported or empty output formats also raise before project
-creation.
+Empty input iterables, empty or whitespace-only raw strings, and directories
+without supported FASTA/FASTQ files raise ``ValueError`` before creating the
+requested project directory. Files containing only whitespace or no content
+(including gzip-compressed files) are skipped; if no nonempty files remain, the
+run also raises before project creation. This preflight does not parse sequence
+records: malformed nonempty files continue through the parser and retain their
+structured failure diagnostics.
+
+Process and chunk counts must be positive integers (not Booleans);
+``n_processes=None`` selects the CPU count. Unsupported or empty output formats
+also raise before project creation.
 
 
 Module Namespaces
