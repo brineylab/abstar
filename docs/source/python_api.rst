@@ -143,6 +143,14 @@ surviving partial files and failure logs are listed in ``partial_output_paths``.
 Caller projects retain their diagnostic and partial work files. ``debug=True``
 retains the complete API workspace, including on success.
 
+Initial project, log, temporary, and output directory failures use
+``output/internal_error``. If the project cannot store its diagnostic, abstar
+retains a fallback log in an ``abstar-failed-*`` temporary directory and lists
+its path in ``partial_output_paths``. If fallback storage also fails, the
+original structured failure and exception cause remain available; its message
+also describes the diagnostic storage errors, and no incomplete fallback file
+is reported.
+
 For a file containing multiple records:
 
 .. code-block:: python

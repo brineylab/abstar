@@ -868,3 +868,168 @@ def test_later_sample_failure_reports_earlier_files_as_partial(
         assert str(path) in captured.value.partial_output_paths
     assert not (project / "airr" / "sample1.tsv").exists()
     assert not (project / "parquet" / "sample1.parquet").exists()
+
+
+@pytest.mark.parametrize("segment", ("d", "c"))
+@pytest.mark.parametrize("remaining", ("other-components", "gapped-only", "sidecar-only"))
+def test_partial_optional_database_segment_is_invalid_input(
+    monkeypatch, tmp_path, small_fasta_file, segment, remaining,
+):
+    from ..annotation.germline import get_germline_database_path
+
+    source = Path(get_germline_database_path("human", "bcr"))
+    database = tmp_path / "incomplete"
+    kept = {"gapped-only": f"imgt_gapped/{segment}.fasta",
+            "sidecar-only": f"mmseqs/{segment}.lookup"}
+    for directory in ("ungapped", "imgt_gapped", "mmseqs"):
+        (database / directory).mkdir(parents=True)
+        for path in (source / directory).iterdir():
+            relative = f"{directory}/{path.name}"
+            optional = path.name == segment or path.name.startswith((f"{segment}.", f"{segment}_"))
+            if optional:
+                if remaining == "other-components":
+                    if relative in (f"ungapped/{segment}.fasta", f"mmseqs/{segment}"):
+                        continue
+                elif relative != kept[remaining]:
+                    continue
+            (database / directory / path.name).symlink_to(path)
+    monkeypatch.setattr(
+        "abstar.assigners.assigner.get_germline_database_path",
+        lambda germdb_name, receptor: str(database),
+    )
+    project = tmp_path / "failed-project"
+    with pytest.raises(AnnotationRunError) as captured:
+        abstar.run(small_fasta_file, project_path=str(project), germline_database="incomplete",
+                   receptor="bcr", n_processes=1, mmseqs_threads=1)
+    failure, = captured.value.failures
+    assert (failure.stage, failure.category) == ("assignment", "invalid_input")
+    for detail in ("incomplete", "bcr", f"ungapped/{segment}.fasta", f"mmseqs/{segment}"):
+        assert detail in failure.message
+        assert detail in (project / "logs" / "test_sequences.failed").read_text()
+    _assert_no_final_outputs(project)
+
+
+@pytest.mark.parametrize("receptor,locus", (("bcr", "IGK"), ("bcr", "IGL"), ("tcr", "TRA"), ("tcr", "TRG")))
+def test_vj_only_database_without_optional_components_annotates_vj_chains(
+    monkeypatch, tmp_path, public_bcr_cases, receptor, locus,
+):
+    from ..annotation.germline import get_germline_database_path
+
+    source = Path(get_germline_database_path("human", receptor))
+    database = tmp_path / "vj-only"
+    for directory in ("ungapped", "imgt_gapped", "mmseqs"):
+        (database / directory).mkdir(parents=True)
+        for path in (source / directory).iterdir():
+            if path.name[0] in ("v", "j"):
+                (database / directory / path.name).symlink_to(path)
+    monkeypatch.setattr(
+        "abstar.assigners.assigner.get_germline_database_path",
+        lambda germdb_name, receptor: str(database),
+    )
+    if receptor == "bcr":
+        case = public_bcr_cases[1 if locus == "IGK" else 2]
+        expected = case.expected
+    else:
+        from .test_tcr_e2e import load_tcr_cases
+        case = next(case for case in load_tcr_cases() if case.locus == locus)
+        expected = {"junction": case.junction, "productive": case.productive}
+    # The selected assignment sources are the unchanged human V/J genes; the
+    # spawn worker uses their same packaged gapped counterparts for realignment.
+    row = abstar.run(case.as_sequence(), as_dataframe=True, germline_database="human",
+                     receptor=receptor, n_processes=1, mmseqs_threads=1).row(0, named=True)
+    assert row["sequence_id"] == case.sequence_id
+    assert row["locus"] == locus
+    assert row["d_call"] is None and row["c_call"] is None
+    assert row["annotation_status"] == "annotated"
+    assert row["germline_database"] == "human"
+    for field in ("junction", "productive"):
+        assert row[field] == expected[field]
+
+
+@pytest.mark.parametrize("blocked", ("project", "logs", "tmp"))
+@pytest.mark.parametrize("entrypoint", ("api-file", "api-sequence", "cli"))
+def test_initial_project_storage_failure_is_structured_and_preserves_caller_file(
+    monkeypatch, tmp_path, small_fasta_file, single_hc_sequence, blocked, entrypoint,
+):
+    monkeypatch.setattr(tempfile, "tempdir", str(tmp_path))
+    project = tmp_path / "blocked-project"
+    if blocked == "project":
+        blocker = project
+    else:
+        project.mkdir()
+        blocker = project / blocked
+    original_bytes = b"caller-owned\x00file\nunchanged"
+    blocker.write_bytes(original_bytes)
+    if entrypoint == "cli":
+        result = CliRunner().invoke(cli, [
+            "run", small_fasta_file, str(project), "--n_processes", "1", "--quiet",
+        ])
+        assert result.exit_code != 0
+        assert "output/internal_error=1" in result.output
+        error = result.exception
+        while error is not None and not isinstance(error, AnnotationRunError):
+            error = error.__cause__ or error.__context__
+        assert isinstance(error, AnnotationRunError)
+    else:
+        with pytest.raises(AnnotationRunError) as captured:
+            abstar.run(small_fasta_file if entrypoint == "api-file" else single_hc_sequence,
+                       project_path=str(project), n_processes=1)
+        error = captured.value
+    failure, = error.failures
+    assert (failure.stage, failure.category) == ("output", "internal_error")
+    assert str(blocker) in failure.message
+    assert isinstance(error.__cause__, OSError)
+    assert blocker.read_bytes() == original_bytes
+    artifacts = [Path(path) for path in error.partial_output_paths]
+    if blocked in ("project", "logs"):
+        assert artifacts
+        assert all(not path.is_relative_to(project) for path in artifacts)
+    else:
+        artifacts.extend((project / "logs").glob("*.failed"))
+    assert artifacts and all(path.is_file() for path in artifacts)
+    assert any(failure.message in path.read_text() for path in artifacts)
+    if entrypoint == "cli":
+        assert any(str(path) in result.output for path in artifacts)
+    _assert_no_final_outputs(project)
+
+
+@pytest.mark.parametrize("failure_point", ("allocate", "write"))
+def test_fallback_diagnostic_failure_preserves_original_output_error(
+    monkeypatch, tmp_path, small_fasta_file, failure_point,
+):
+    import builtins
+
+    monkeypatch.setattr(tempfile, "tempdir", str(tmp_path))
+    project = tmp_path / "blocked-project"
+    project.write_bytes(b"caller file")
+    if failure_point == "allocate":
+        def fail_allocation(*args, **kwargs):
+            raise PermissionError("TASK17-FALLBACK-ALLOCATION")
+
+        monkeypatch.setattr(tempfile, "mkdtemp", fail_allocation)
+        sentinel = "TASK17-FALLBACK-ALLOCATION"
+    else:
+        original_open = builtins.open
+
+        def fail_fallback_write(path, *args, **kwargs):
+            if Path(path).parent.name.startswith("abstar-failed-"):
+                with original_open(path, "w") as handle:
+                    handle.write("partial diagnostic")
+                raise PermissionError("TASK17-FALLBACK-WRITE")
+            return original_open(path, *args, **kwargs)
+
+        monkeypatch.setattr(builtins, "open", fail_fallback_write)
+        sentinel = "TASK17-FALLBACK-WRITE"
+    with pytest.raises(AnnotationRunError) as captured:
+        abstar.run(small_fasta_file, project_path=str(project), n_processes=1)
+    error = captured.value
+    failure, = error.failures
+    assert (failure.stage, failure.category) == ("output", "internal_error")
+    assert isinstance(error.__cause__, NotADirectoryError)
+    assert str(project) in failure.message
+    assert sentinel in failure.message
+    assert str(project) in failure.traceback_text
+    assert "NotADirectoryError" in failure.traceback_text
+    assert error.partial_output_paths == ()
+    assert not list(tmp_path.glob("abstar-failed-*"))
+    assert project.read_bytes() == b"caller file"

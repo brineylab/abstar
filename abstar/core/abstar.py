@@ -135,17 +135,41 @@ def _raise_pipeline_failure(
 ) -> None:
     """Persist a pipeline-boundary diagnostic before raising its run error."""
     traceback_text = traceback.format_exc()
+    message = str(error) or type(error).__name__
+    partial_output_paths = list(partial_output_paths)
+    failed_log_file = os.path.join(log_directory, f"{sample_name}.failed")
+    try:
+        os.makedirs(log_directory, exist_ok=True)
+        with open(failed_log_file, "w") as failed_log:
+            failed_log.write(traceback_text)
+    except OSError as log_error:
+        # A caller project may itself be unwritable or a regular file. Retain
+        # its failure in a separate directory, independent of caller storage.
+        retained_directory = None
+        try:
+            retained_directory = tempfile.mkdtemp(prefix="abstar-failed-")
+            failed_log_file = os.path.join(retained_directory, f"{sample_name}.failed")
+            with open(failed_log_file, "w") as failed_log:
+                failed_log.write(traceback_text)
+                failed_log.write(f"\nCould not write the project diagnostic: {log_error}\n")
+            partial_output_paths.append(failed_log_file)
+        except OSError as fallback_error:
+            # Preserve the original failure even when both diagnostic stores
+            # are unavailable. Never report an incomplete fallback artifact.
+            if retained_directory is not None:
+                shutil.rmtree(retained_directory, ignore_errors=True)
+            message += (
+                f"\nCould not persist diagnostics: {log_error}; "
+                f"fallback diagnostic failed: {fallback_error}"
+            )
     failure = RecordFailure(
         row_id=f"abstar_{sample_ordinal}_{stage}",
         sequence_id=sample_name,
         stage=stage,
         category=category,
-        message=str(error) or type(error).__name__,
+        message=message,
         traceback_text=traceback_text,
     )
-    failed_log_file = os.path.join(log_directory, f"{sample_name}.failed")
-    with open(failed_log_file, "w") as failed_log:
-        failed_log.write(traceback_text)
     raise AnnotationRunError([failure], partial_output_paths) from error
 
 
@@ -232,20 +256,29 @@ def _project_workspace(project_path, debug, published_outputs):
 def _validate_assignment_database(assigner: MMseqs) -> None:
     """Check required source and index components in the resolved database."""
     components = []
+    index_names = [path.name for path in (Path(assigner.germdb_path) / "mmseqs").glob("*")]
     for segment in ("v", "j", "d", "c"):
-        source = os.path.join("ungapped", f"{segment}.fasta")
-        # Custom VJ-only databases may omit D/C entirely. Once a segment is
-        # present its source and search components must be available together.
-        if segment in ("d", "c") and not any(
-            os.path.exists(os.path.join(assigner.germdb_path, component))
-            for component in (source, os.path.join("mmseqs", segment))
-        ):
-            continue
-        components.extend([source, os.path.join("imgt_gapped", f"{segment}.fasta")])
-        components.extend(
+        segment_components = [
+            os.path.join(directory, f"{segment}.fasta")
+            for directory in ("ungapped", "imgt_gapped")
+        ]
+        segment_components.extend(
             os.path.join("mmseqs", f"{segment}{suffix}")
             for suffix in ("", ".dbtype", ".index", "_h", "_h.dbtype", "_h.index")
         )
+        # Custom VJ-only databases may omit D/C entirely. Once a segment is
+        # present its source and search components must be available together.
+        if segment in ("d", "c"):
+            present = any(
+                os.path.lexists(os.path.join(assigner.germdb_path, component))
+                for component in segment_components
+            ) or any(
+                name == segment or name.startswith((f"{segment}.", f"{segment}_"))
+                for name in index_names
+            )
+            if not present:
+                continue
+        components.extend(segment_components)
     missing = [component for component in components
                if not os.path.isfile(os.path.join(assigner.germdb_path, component))]
     if missing:
@@ -490,10 +523,10 @@ def run(
         temp_dir = os.path.join(project_path, "tmp")
         # Discover files and validate/materialize iterable inputs before creating
         # the project. _process_inputs writes only after finding a nonempty input.
-        sequence_files = _process_inputs(sequences, temp_dir)
-        abutils.io.make_dir(log_dir)
-        abutils.io.make_dir(temp_dir)
         try:
+            sequence_files = _process_inputs(sequences, temp_dir)
+            os.makedirs(log_dir, exist_ok=True)
+            os.makedirs(temp_dir, exist_ok=True)
             for fmt in output_format:
                 os.makedirs(os.path.join(project_path, fmt), exist_ok=True)
         except OSError as error:

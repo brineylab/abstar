@@ -101,6 +101,9 @@ staging failures publish no AIRR or Parquet success file. Any file already
 promoted when publication fails is explicitly listed among the partial artifacts.
 Completed files from earlier samples are likewise listed as partial when a later
 sample fails.
+Project setup failures also use ``output/internal_error``. If caller project
+storage cannot hold a diagnostic, the command reports a surviving fallback log
+in the system temporary directory.
 
 
 UMI Options
