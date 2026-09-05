@@ -28,12 +28,15 @@ jobs:
   corpus-sentinel:
     name: bounded external corpus analysis
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     env:
       CORPUS_RUN_ID: ${{ inputs.corpus_run_id || vars.ABSTAR_NIGHTLY_CORPUS_RUN_ID }}
       CORPUS_ARTIFACT: ${{ inputs.corpus_artifact || vars.ABSTAR_NIGHTLY_CORPUS_ARTIFACT }}
       PER_DATASET: ${{ inputs.per_dataset || '25' }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
+      - name: Verify checked-out commit
+        run: test "$(git rev-parse HEAD)" = "${{ github.sha }}"
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
@@ -54,6 +57,10 @@ jobs:
           case "$PER_DATASET" in
             ''|*[!0-9]*|0) echo "per_dataset must be a positive integer" | tee nightly-output/analysis.log; exit 1 ;;
           esac
+          if [ "$PER_DATASET" -gt 100 ]; then
+            echo "per_dataset must not exceed 100" | tee nightly-output/analysis.log
+            exit 1
+          fi
       - name: Download provisioned corpus
         uses: actions/download-artifact@v8
         with:

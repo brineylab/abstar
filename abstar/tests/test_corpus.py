@@ -134,10 +134,9 @@ def test_normalize_gene_preserves_distinct_genes_and_removes_only_alleles(raw, e
 
 def write_csv(path, fields, rows):
     with path.open("w", newline="", encoding="utf-8") as handle:
-        # Python 3.10's CSV writer rejects embedded NULs under the default
-        # minimal-quoting dialect before the loader can validate the fixture.
-        writer = csv.DictWriter(handle, fieldnames=fields, quoting=csv.QUOTE_ALL,
-                                escapechar="\\")
+        # Python 3.10 requires an escape character for an embedded NUL. Keep
+        # the default minimal quoting because tests also edit the raw header.
+        writer = csv.DictWriter(handle, fieldnames=fields, escapechar="\\")
         writer.writeheader()
         writer.writerows(rows)
 

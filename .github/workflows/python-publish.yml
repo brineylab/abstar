@@ -14,7 +14,7 @@ jobs:
       contents: read
     uses: ./.github/workflows/pytest.yml
     with:
-      ref: ${{ github.event.release.tag_name }}
+      ref: ${{ github.sha }}
 
   pypi-publish:
     name: publish exact tested distributions
