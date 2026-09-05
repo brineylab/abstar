@@ -76,9 +76,12 @@ def assert_airr_matches_annotations(expected, path, fields):
                                        (actual, normalized_actual, True)):
         for row in rows:
             normalized = {}
+            official_aa = expected_airr_amino_acids(row) if not is_airr else {}
             for field in fields:
                 assert field in row
                 value = row['sequence_input'] if field == 'sequence' and not is_airr else row[field]
+                if field in official_aa:
+                    value = official_aa[field]
                 if value == '' or value is None:
                     value = None
                 elif is_airr:
@@ -93,3 +96,43 @@ def assert_airr_matches_annotations(expected, path, fields):
                 normalized[field] = value
             destination.append(normalized)
     assert_same_annotations(normalized_expected, normalized_actual, fields)
+
+
+def expected_airr_amino_acids(row):
+    """Independent column/codon oracle using Bio's standard genetic code.
+
+    Literal AA cases in test_airr protect this oracle; it does not call the
+    production serializer or its translation helpers.
+    """
+    from Bio.Data import CodonTable
+    from Bio.Seq import Seq
+
+    table = CodonTable.unambiguous_dna_by_id[1]
+    codons = {**table.forward_table, **dict.fromkeys(table.stop_codons, '*'),
+              '---': '-', '...': '.'}
+
+    def translate(sequence):
+        return ''.join(codons.get(sequence[i:i + 3], 'X')
+                       for i in range(0, len(sequence) - 2, 3)) or None
+
+    result = dict.fromkeys(('sequence_aa', 'sequence_alignment_aa', 'germline_alignment_aa'))
+    frame = row.get('v_frame')
+    if frame is None:
+        frame = row.get('frame')
+    if frame is None:
+        return result
+    origin = row.get('v_sequence_start')
+    if origin is not None and row.get('sequence_oriented') is not None:
+        original = Seq(row['sequence_input'])
+        oriented = str(original.reverse_complement() if row['rev_comp'] else original)
+        result['sequence_aa'] = translate(oriented[(origin + frame - 1) % 3:])
+    query, reference = row.get('sequence_alignment'), row.get('germline_alignment')
+    if query is None or reference is None:
+        return result
+    residues = [column for column, base in enumerate(query) if base not in '.-']
+    if len(residues) < frame - 1:
+        return result
+    first = residues[frame - 2] + 1 if frame > 1 else 0
+    for field, sequence in (('sequence_alignment_aa', query), ('germline_alignment_aa', reference)):
+        result[field] = translate(sequence[first:])
+    return result

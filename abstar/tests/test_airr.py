@@ -159,11 +159,13 @@ def shared_airr_run(tmp_path_factory):
                 for reason in ('concordant_IGH', 'concordant_IGK', 'concordant_IGL',
                                'insertion', 'deletion')]
     selected.append(next(case for case in originals if not case.expected['productive']))
+    selected.append(next(case for case in originals if case.sequence_id == 'TTTGGTTAGGTTACCT-1_contig_2'))
     variants = [case for case in load_derived_bcr_cases()
-                if case.case_id in ('IGH-reverse', 'IGH-truncate-5prime', 'IGH-truncate-3prime')]
-    assert len(variants) == 3
+                if case.case_id in ('IGH-reverse', 'IGH-truncate-5prime', 'IGH-truncate-3prime',
+                                   'IGH-v-insert-1', 'IGH-v-delete-1', 'IGH-v-insert-3', 'IGH-v-delete-3')]
+    assert len(variants) == 7
     # Opaque and duplicated public IDs must survive both formats in input order.
-    ids = ['10E8', '00123', 'same', 'same', 'del', 'nonproductive']
+    ids = ['10E8', '00123', 'same', 'same', 'del', 'nonproductive', 'partial-V-codon']
     sequences = [Sequence(case.sequence, id=identifier) for case, identifier in zip(selected, ids)]
     sequences += [Sequence(case.sequence, id=case.case_id) for case in variants]
     sequences.append(Sequence('N', id='unassigned'))
@@ -179,7 +181,7 @@ def test_shared_run_passes_official_validator_and_preserves_outcomes(shared_airr
     project, sequences, selected = shared_airr_run
     assert version('airr') == '2.0.0'
     rows = read_validated(project / 'airr/sequences.tsv')
-    assert len(rows) == len(sequences) == 10
+    assert len(rows) == len(sequences) == 15
     assert [r['sequence_id'] for r in rows] == [s.id for s in sequences]
     for row, sequence in zip(rows, sequences):
         assert row['sequence'] == sequence.sequence
@@ -212,9 +214,13 @@ def test_normalized_tsv_and_parquet_agree_every_public_field(shared_airr_run):
     assert set(tsv[0]) == set(OUTPUT_SCHEMA)
     coordinate_prefixes = {f'{s}_{a}' for s in 'vdjc' for a in ('sequence', 'germline')}
     coordinate_prefixes |= {'fwr1', 'cdr1', 'fwr2', 'cdr2', 'fwr3', 'cdr3', 'fwr4'}
+    from abstar.tests.helpers import expected_airr_amino_acids
     for source, encoded in zip(parquet.iter_rows(named=True), tsv):
+        official_aa = expected_airr_amino_acids(source)
         for field, dtype in OUTPUT_SCHEMA.items():
             expected = source['sequence_input'] if field == 'sequence' else source[field]
+            if field in official_aa:
+                expected = official_aa[field]
             if field.endswith('_start') and field[:-6] in coordinate_prefixes and expected is not None:
                 expected += 1
             value = encoded[field]
@@ -361,3 +367,209 @@ def test_gap_free_region_coordinates_match_independent_imgt_projection(shared_ai
             case.expected['junction_start'] + 3, case.expected['junction_end'] - 3)
         assert (row['fwr4_start'], row['fwr4_end']) == (
             case.expected['junction_end'] - 3, case.expected['j_sequence_end'])
+
+
+@pytest.mark.parametrize('identifier', ['"quoted"', '"unterminated', '"', 'a"b'])
+def test_literal_quotes_round_trip_all_fields_and_rows(serialization, tmp_path, identifier):
+    import csv
+    rows = [
+        {'sequence_id': identifier, 'sequence_input': 'AACG', 'sequence_oriented': 'AACG',
+         'rev_comp': False, 'productive': None, 'annotation_status': 'unassigned',
+         'failure_reason': '"no compatible V gene assignment'},
+        {'sequence_id': '00123', 'sequence_input': 'N', 'sequence_oriented': 'N',
+         'rev_comp': False, 'productive': False, 'annotation_status': 'unassigned'},
+    ]
+    frame = pl.DataFrame(rows, schema=OUTPUT_SCHEMA)
+    path = tmp_path / 'quotes.tsv'
+    serialization.write_airr_tsv(frame, path)
+    validated = read_validated(path)
+    assert len(validated) == 2
+    assert [row['sequence_id'] for row in validated] == [identifier, '00123']
+    with path.open(newline='') as handle:
+        raw = list(csv.DictReader(handle, delimiter='\t'))
+    for source, encoded, official in zip(frame.to_dicts(), raw, validated):
+        expected = serialization.to_airr_row(source)
+        assert set(encoded) == set(official) == set(expected)
+        for field, value in expected.items():
+            literal = '' if value is None else ('T' if value else 'F') if isinstance(value, bool) else str(value)
+            assert encoded[field] == literal, field
+            if RearrangementSchema.type(field) in ('boolean', 'integer', 'number'):
+                assert official[field] is value
+            else:
+                assert official[field] == literal, field
+    assert b'\r' not in path.read_bytes()
+    assert len(path.read_text().splitlines()) == 3
+
+
+@pytest.mark.parametrize('delimiter', ['\t', '\n', '\r'])
+@pytest.mark.parametrize('existing', [False, True])
+def test_delimiter_prevalidation_does_not_create_or_truncate_file(serialization, tmp_path, delimiter, existing):
+    path = tmp_path / 'unsafe.tsv'
+    if existing:
+        path.write_bytes(b'existing output\n')
+    frame = pl.DataFrame([
+        {'sequence_id': 'good', 'sequence_input': 'N'},
+        {'sequence_id': '"quoted"', 'failure_reason': 'bad' + delimiter + 'field'},
+    ], schema=OUTPUT_SCHEMA)
+    with pytest.raises(ValueError, match='forbidden delimiter'):
+        serialization.write_airr_tsv(frame, path)
+    if existing:
+        assert path.read_bytes() == b'existing output\n'
+    else:
+        assert not path.exists()
+
+
+@pytest.mark.parametrize('query,germline,frame,expected', [
+    ('ATGAAACCC', 'ATGAAACCC', 1, ('MKP', 'MKP')),
+    ('ATGAAACCC', 'ATG---CCC', 1, ('MKP', 'M-P')),
+    # NP starts inside a query codon; no copied NP residues can be inferred.
+    ('ATGAAACCCGGG', 'ATGA----CGGG', 1, ('MKPG', 'MXXG')),
+    # In-frame insertion at and within codons keeps both rows on the same columns.
+    ('ATGGGGAAACCC', 'ATG---AAACCC', 1, ('MGKP', 'M-KP')),
+    ('AAGGGACCC', 'AA---ACCC', 1, ('KGP', 'XXP')),
+    ('ATG---AAACCC', 'ATGGGGAAACCC', 1, ('M-KP', 'MGKP')),
+    # Non-triplet gaps explicitly mark disrupted alignment codons.
+    ('ATG-AACCC', 'ATGTAACCC', 1, ('MXP', 'M*P')),
+    ('ATGAAACCCG', 'ATG-AACCCG', 1, ('MKP', 'MXP')),
+    ('AATGAAAC', 'AATG---C', 2, ('MK', 'M-')),
+    ('AAATGAAACC', 'AAATG---CC', 3, ('MK', 'M-')),
+    ('ATGNNNCCC', 'ATG---CCC', 1, ('MXP', 'M-P')),
+    ('ATG...CCC', 'ATG...CCC', 1, ('M.P', 'M.P')),
+    ('AA', 'AA', 1, (None, None)),
+    (None, None, 1, (None, None)),
+    ('ATG', 'ATG', None, (None, None)),
+])
+def test_official_paired_amino_acids_follow_shared_codon_columns(serialization, tmp_path, query, germline, frame, expected):
+    translate = getattr(serialization, 'translate_airr_alignment', None)
+    assert callable(translate), 'paired AIRR codon translation is missing'
+    assert translate(query, germline, frame=frame) == expected
+    original = query.replace('-', '').replace('.', '') if query is not None else None
+    source = {'sequence_id': 'codon-case', 'sequence_input': original,
+              'sequence_oriented': original, 'rev_comp': False, 'frame': frame,
+              'v_sequence_start': 0 if original else None,
+              'v_sequence_end': len(original) if original else None,
+              'sequence_alignment': query, 'germline_alignment': germline,
+              'sequence_alignment_aa': 'LEGACY', 'germline_alignment_aa': 'LEGACY'}
+    path = tmp_path / 'codons.tsv'
+    serialization.write_airr_tsv(pl.DataFrame([source], schema=OUTPUT_SCHEMA), path)
+    parsed = read_validated(path)
+    assert len(parsed) == 1
+    assert (parsed[0]['sequence_alignment_aa'], parsed[0]['germline_alignment_aa']) == tuple(
+        value or '' for value in expected)
+    from abstar.tests.helpers import expected_airr_amino_acids
+    oracle = expected_airr_amino_acids(source)
+    assert (oracle['sequence_alignment_aa'], oracle['germline_alignment_aa']) == expected
+
+
+@pytest.mark.parametrize('query,germline,frame', [
+    ('ATG', 'AT', 1), ('ATG', 'ATG', 0), ('ATG', 'ATG', 4),
+    ('ATG', 'ATG', True), ('ATG', 'ATG', 1.0), ('AT-', 'AT-', 1),
+])
+def test_official_paired_translation_rejects_invalid_evidence(serialization, query, germline, frame):
+    translate = getattr(serialization, 'translate_airr_alignment', None)
+    assert callable(translate), 'paired AIRR codon translation is missing'
+    with pytest.raises(ValueError):
+        translate(query, germline, frame=frame)
+
+
+@pytest.mark.parametrize('reverse', [False, True])
+@pytest.mark.parametrize('origin,frame,oriented,expected', [
+    # The V coding origin at query position 4 has phase 1 in the full query.
+    (4, 1, 'CATGAAACCCGGGTAA', 'MKPG*'),
+    (2, 3, 'CATGAAACCCGGGTAA', 'MKPG*'),
+    (3, 1, 'CCCATGAAACCCTAA', 'PMKP*'),
+    # Read starts within the previous codon; skip just the leading partial codon.
+    (0, 2, 'AATGAAACC', 'MK'),
+])
+def test_official_query_translation_uses_input_phase_and_orientation(serialization, reverse, origin, frame, oriented, expected):
+    from Bio.Seq import Seq
+    source = {'sequence_id': 'full-query', 'sequence_input': str(Seq(oriented).reverse_complement()) if reverse else oriented,
+              'sequence_oriented': oriented, 'rev_comp': reverse, 'v_sequence_start': origin,
+              'v_sequence_end': len(oriented), 'v_frame': frame, 'frame': frame,
+              'sequence': 'assembled', 'sequence_aa': 'LEGACY',
+              'sequence_alignment': 'ATGAAACCC', 'germline_alignment': 'ATG---CCC',
+              'sequence_alignment_aa': 'LEGACY', 'germline_alignment_aa': 'LEGACY',
+              'sequence_vdjc_aa': 'UNCHANGED'}
+    before = deepcopy(source)
+    result = serialization.to_airr_row(source)
+    assert result['sequence_aa'] == expected
+    assert result['sequence'] == source['sequence_input']
+    assert result['sequence_vdjc_aa'] == 'UNCHANGED'
+    assert result['sequence_alignment_aa'] != 'LEGACY'
+    assert result['germline_alignment_aa'] != 'LEGACY'
+    assert source == before
+
+
+@pytest.mark.parametrize('missing', ['frame', 'v_sequence_start', 'sequence_oriented'])
+def test_unknown_query_translation_context_emits_null(serialization, missing):
+    source = {'sequence_input': 'ATG', 'sequence_oriented': 'ATG',
+              'v_sequence_start': 0, 'v_sequence_end': 3, 'frame': 1,
+              'sequence_aa': 'LEGACY'}
+    source.pop(missing)
+    assert serialization.to_airr_row(source)['sequence_aa'] is None
+
+
+def test_unassigned_official_amino_acids_are_null(serialization, tmp_path):
+    source = {'sequence_id': 'unassigned', 'sequence_input': 'NNN',
+              'sequence_oriented': 'NNN', 'annotation_status': 'unassigned',
+              'rev_comp': False, 'productive': None,
+              'sequence_aa': 'LEGACY', 'sequence_alignment_aa': 'LEGACY',
+              'germline_alignment_aa': 'LEGACY'}
+    row = serialization.to_airr_row(source)
+    for field in ('sequence_aa', 'sequence_alignment_aa', 'germline_alignment_aa'):
+        assert row[field] is None
+    path = tmp_path / 'unassigned-aa.tsv'
+    serialization.write_airr_tsv(pl.DataFrame([source], schema=OUTPUT_SCHEMA), path)
+    parsed = read_validated(path)
+    assert len(parsed) == 1 and parsed[0]['sequence_id'] == 'unassigned'
+    assert all(parsed[0][field] == '' for field in ('sequence_aa', 'sequence_alignment_aa', 'germline_alignment_aa'))
+
+
+@pytest.mark.e2e
+def test_public_official_amino_acids_map_to_source_nt_and_preserve_internals(shared_airr_run):
+    from abstar.tests.helpers import expected_airr_amino_acids
+    from Bio.Data import CodonTable
+    project, inputs, _ = shared_airr_run
+    internal = pl.read_parquet(project / 'parquet/sequences.parquet').to_dicts()
+    official = read_validated(project / 'airr/sequences.tsv')
+    assert len(internal) == len(official) == len(inputs) == 15
+    assert [row['sequence_id'] for row in internal] == [row['sequence_id'] for row in official]
+    table = CodonTable.unambiguous_dna_by_id[1]
+    codons = {**table.forward_table, **dict.fromkeys(table.stop_codons, '*')}
+    checked_np_gap = checked_mixed_np = False
+    for source, published in zip(internal, official):
+        expected = expected_airr_amino_acids(source)
+        for field, value in expected.items():
+            assert published[field] == (value or ''), (source['sequence_id'], field)
+        if source['annotation_status'] == 'unassigned':
+            assert set(expected.values()) == {None}
+            continue
+        # Python/Parquet legacy translations still match their assembled VDJ,
+        # preserving the inputs used by existing productivity and masks.
+        assembled = source['sequence'][source['frame'] - 1:]
+        assert source['sequence_aa'] == ''.join(codons.get(assembled[i:i + 3], 'X')
+                                               for i in range(0, len(assembled) - 2, 3))
+        assert len(source['gene_segment_mask_aa']) == len(source['sequence_aa'])
+        assert len(published['sequence_alignment_aa']) == len(published['germline_alignment_aa'])
+        assert published['sequence_aa'] != source['sequence_aa'] or source['sequence'] == source['sequence_oriented']
+        first = source['frame'] - 1
+        aligned_query, aligned_germline = source['sequence_alignment'], source['germline_alignment']
+        # All selected retained V traces start with residues in both rows.
+        assert '-' not in aligned_query[:first]
+        for column, aa in zip(range(first, len(aligned_germline) - 2, 3), published['germline_alignment_aa']):
+            triplet = aligned_germline[column:column + 3]
+            if triplet == '---':
+                assert aa == '-'
+                checked_np_gap = True
+            elif '-' in triplet:
+                assert aa == 'X'
+                checked_mixed_np = True
+    assert checked_np_gap and checked_mixed_np
+    by_id = {row['sequence_id']: row for row in official}
+    assert by_id['10E8']['sequence_aa'] == by_id['IGH-reverse']['sequence_aa']
+    assert by_id['10E8']['sequence_alignment_aa'] == by_id['IGH-reverse']['sequence_alignment_aa']
+    assert by_id['10E8']['germline_alignment_aa'] == by_id['IGH-reverse']['germline_alignment_aa']
+    partial = next(row for row in internal if row['sequence_id'] == 'partial-V-codon')
+    assert (partial['v_sequence_start'], partial['v_germline_start'], partial['frame']) == (138, 2, 2)
+    assert by_id['IGH-v-insert-1']['productive'] is False
+    assert by_id['IGH-v-delete-1']['productive'] is False
