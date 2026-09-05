@@ -268,6 +268,7 @@ def test_discovery_cli_is_path_free_and_discovery_order_invariant(
 
     def annotate(records, **kwargs):
         return {r.row_key: {"status": "annotated", "exception_category": None,
+                "failure_scope": None, "failure_group": None,
                 "annotation": {"v_call": "IGHV1-2*02,IGHV1-2*01", "j_call": "IGHJ4*02",
                                "productive": True, "junction_aa": "CAR", "junction": "TGTGCTCGT",
                                "cdr3_aa": "A", "cdr3": "GCT", "v_insertions": "3:AAA"}}
@@ -285,7 +286,7 @@ def test_discovery_cli_is_path_free_and_discovery_order_invariant(
     assert report.read_bytes() == first
     assert b"/home/" not in first and str(tmp_path).encode() not in first
     header, *candidates = [json.loads(line) for line in first.splitlines()]
-    assert header["schema_version"] == 1
+    assert header["schema_version"] == 2
     assert header["selection"] == {"algorithm_version": 1, "seed": "fixture-seed", "per_dataset": 2}
     assert header["receptor"] == "bcr" and header["database"] == "human"
     assert header["abstar"]["version"] and header["abstar"]["git_revision"]
@@ -299,6 +300,7 @@ def test_discovery_cli_is_path_free_and_discovery_order_invariant(
         (d, s) for d in ("00123", "10E8") for s in ("00123", "10E8")}
     for row in candidates:
         assert row["status"] == "annotated"
+        assert row["failure_scope"] is None and row["failure_group"] is None
         assert row["source"]["reads"] == "00123"
         assert row["source"]["umis"] == "10E8"
         assert row["normalized_calls"]["abstar"]["v"] == ["IGHV1-2"]
@@ -316,8 +318,9 @@ def test_discovery_cli_is_path_free_and_discovery_order_invariant(
 @pytest.mark.parametrize("mode, expected", [
     ("missing", ["annotated", "exception"]),
     ("raise", ["exception", "exception"]),
-    ("duplicate", ["exception", "exception"]),
+    ("duplicate", ["exception", "annotated"]),
     ("unknown", ["exception", "exception"]),
+    ("unassigned", ["unassigned", "unassigned"]),
 ])
 def test_discovery_annotation_accounts_for_every_selected_identity(
     discovery_module, tmp_path, monkeypatch, mode, expected
@@ -340,9 +343,9 @@ def test_discovery_annotation_accounts_for_every_selected_identity(
             raise RuntimeError("/home/private/input must never be serialized")
         out = Path(project_path) / "parquet"
         out.mkdir()
-        result_ids = [ids[0]] if mode == "missing" else [ids[0], ids[0]] if mode == "duplicate" else ["unknown"]
-        pl.DataFrame({"sequence_id": result_ids, "v_call": ["IGHV1-2*01"] * len(result_ids),
-                      "j_call": ["IGHJ4*02"] * len(result_ids)}).write_parquet(out / "sequences.parquet")
+        result_ids = [ids[0]] if mode == "missing" else [ids[0], ids[0], ids[1]] if mode == "duplicate" else ids if mode == "unassigned" else ["unknown"]
+        pl.DataFrame({"sequence_id": result_ids, "v_call": [None if mode == "unassigned" else "IGHV1-2*01"] * len(result_ids),
+                      "j_call": [None if mode == "unassigned" else "IGHJ4*02"] * len(result_ids)}).write_parquet(out / "sequences.parquet")
 
     monkeypatch.setattr(module.abstar, "run", run)
     outcomes = module.annotate_records(records, n_processes=1, germline_database="human")
@@ -350,8 +353,27 @@ def test_discovery_annotation_accounts_for_every_selected_identity(
     assert [v["status"] for v in outcomes.values()] == expected
     categories = [v["exception_category"] for v in outcomes.values()]
     assert categories == {"missing": [None, "missing_output"], "raise": ["RuntimeError"] * 2,
-                          "duplicate": ["output_cardinality"] * 2,
-                          "unknown": ["output_cardinality"] * 2}[mode]
+                          "duplicate": ["output_cardinality", None],
+                          "unknown": ["output_cardinality"] * 2, "unassigned": [None, None]}[mode]
+    assert [v["failure_scope"] for v in outcomes.values()] == {
+        "missing": [None, "record"], "raise": ["batch", "batch"],
+        "duplicate": ["record", None], "unknown": ["batch", "batch"],
+        "unassigned": [None, None]}[mode]
+    groups = [v["failure_group"] for v in outcomes.values()]
+    if mode in ("raise", "unknown"):
+        assert groups[0] == groups[1] and groups[0].startswith("batch-")
+    else:
+        assert groups == [None, None]
+    from .corpus import CandidateEvidence
+    for record in records:
+        outcome = outcomes[record.row_key]
+        source = CandidateEvidence(record.dataset, record.sequence_id, record.donor, record.flow_class,
+                                   record.chain, None, None, None, None, None, None, None, None, None)
+        candidate = module._candidate(record, source, outcome, "fixture-seed")
+        assert candidate["failure_scope"] == outcome["failure_scope"]
+        assert candidate["failure_group"] == outcome["failure_group"]
+        if outcome["failure_scope"]:
+            assert f"annotation_{outcome['failure_scope']}_failure" in candidate["selection_reasons"]
     assert all(not p.exists() for p in projects)
 
 
@@ -432,3 +454,59 @@ def test_discovery_records_checked_mmseqs_provenance(discovery_module, tmp_path,
                      "empty": ValueError}[mode]
         with pytest.raises(exception):
             discovery_module.mmseqs_metadata()
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("database", ["/home/private/database", "../human", "human/../other", "human/child", "human\\child", ".", ".."])
+def test_discovery_rejects_database_paths(discovery_module, discovery_corpus, tmp_path, monkeypatch, database):
+    """A database argument must never become a serialized filesystem path."""
+    fasta_dir, manifest, root = discovery_corpus
+    output = tmp_path / "report.jsonl"
+    def unexpected(*args, **kwargs):
+        pytest.fail("database path reached discovery/annotation")
+    monkeypatch.setattr(discovery_module, "_select", unexpected)
+    with pytest.raises(ValueError, match="logical database name"):
+        discovery_module.main(["--fasta-dir", str(fasta_dir), "--manifest", str(manifest),
+                               "--cellranger-root", str(root), "--output", str(output),
+                               "--germline-database", database])
+    assert not output.exists()
+
+
+def test_discovery_mixed_batch_failure_does_not_blame_valid_record(discovery_module, monkeypatch):
+    """A valid record is affected by a batch exception, not labeled its cause."""
+    import json
+    import polars as pl
+    from pathlib import Path
+    from .corpus import CandidateEvidence
+    module = discovery_module
+    records = [CorpusRecord("d", "valid", "ACGT", "donor", "IgG", "IGH"),
+               CorpusRecord("d", "bad", "NNNN", "donor", "IgG", "IGH")]
+    def run(sequences, project_path, **kwargs):
+        good = [s for s in sequences if s.sequence == "ACGT"]
+        out = Path(project_path) / "parquet"
+        out.mkdir()
+        pl.DataFrame({"sequence_id": [s.id for s in good],
+                      "v_call": ["IGHV1-2*01"] * len(good),
+                      "j_call": ["IGHJ4*02"] * len(good)}).write_parquet(out / "sequences.parquet")
+        if any(s.sequence == "NNNN" for s in sequences):
+            raise RuntimeError("failure on second input /home/private/corpus")
+    monkeypatch.setattr(module.abstar, "run", run)
+    alone = module.annotate_records(records[:1], n_processes=1, germline_database="human")
+    assert alone[records[0].row_key]["status"] == "annotated"
+    combined = module.annotate_records(records, n_processes=1, germline_database="human")
+    reversed_outcomes = module.annotate_records(reversed(records), n_processes=1, germline_database="human")
+    for record in records:
+        outcome = combined[record.row_key]
+        assert outcome["failure_scope"] == "batch"
+        assert outcome["failure_group"] == reversed_outcomes[record.row_key]["failure_group"]
+        assert outcome["failure_group"] == combined[records[0].row_key]["failure_group"]
+        assert outcome["exception_category"] == "RuntimeError"
+        source = CandidateEvidence(record.dataset, record.sequence_id, record.donor, record.flow_class,
+                                   record.chain, "IGHV1-2", None, "IGHJ4", None, "True",
+                                   "CAR", "TGTGCTCGT", "1", "1")
+        candidate = module._candidate(record, source, outcome, "fixture-seed")
+        assert candidate["failure_scope"] == "batch"
+        assert candidate["failure_group"] == outcome["failure_group"]
+        assert "annotation_batch_failure" in candidate["selection_reasons"]
+        assert "annotation_exception" not in candidate["selection_reasons"]
+        assert "/home/" not in json.dumps(candidate, sort_keys=True)

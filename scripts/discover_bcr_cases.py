@@ -11,6 +11,8 @@ below a directory component equal to each manifest dataset. Cell Ranger calls
 are comparison evidence, never expected answers. Output is external JSONL:
 one reproducibility header and one outcome per selected original contig.
 No timestamp, runtime, source path or exception message enters the report.
+Schema v2 distinguishes record failures from failures affecting an entire batch;
+a batch group identifies affected records, not the cause of the failure.
 """
 
 import argparse
@@ -21,6 +23,7 @@ import json
 import os
 from pathlib import Path
 import platform
+import re
 import subprocess
 import sys
 import tempfile
@@ -57,6 +60,10 @@ def discover_annotation_files(root):
 
 
 def _paths(args):
+    database = args.germline_database
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.+-]*", database) or ".." in database:
+        raise ValueError("germline_database must be a logical database name without path separators or traversal")
+    args.germline_database = database.lower()
     fasta_dir = Path(args.fasta_dir).resolve(strict=True)
     manifest = Path(args.manifest).resolve(strict=True)
     root = Path(args.cellranger_root).resolve(strict=True)
@@ -146,8 +153,9 @@ def annotate_records(records, *, n_processes, germline_database):
 
     Replace external IDs only at the annotation boundary with unique ASCII row
     tokens. Restore source identity using the explicit token map, never inferred
-    dataframe keys. A batch exception/cardinality error invalidates its entire
-    batch; a silent omission is explicitly missing_output, not non-assignment.
+    dataframe keys. A raised exception or unmappable output identity affects
+    the batch, with an explicit shared group; it does not identify a causal row.
+    Duplicate mapped tokens and missing outputs are record-scoped failures.
     Exception messages may contain paths, so only class/category is retained.
     """
     records = list(records)
@@ -158,7 +166,9 @@ def annotate_records(records, *, n_processes, germline_database):
         batch = records[start:start + BATCH_SIZE]
         tokens = {f"discovery{start + i:09d}": r.row_key for i, r in enumerate(batch)}
         queries = [AbSequence(r.sequence, id=token) for token, r in zip(tokens, batch)]
-        rows, category = {}, None
+        group_payload = "annotation-batch-v1\0" + json.dumps(sorted(tokens.values()), separators=(",", ":"))
+        group = "batch-" + hashlib.sha256(group_payload.encode()).hexdigest()
+        rows, category, duplicates = {}, None, set()
         with tempfile.TemporaryDirectory(prefix="abstar-discovery-annotation-") as project:
             try:
                 abstar.run(queries, project_path=project, receptor="bcr",
@@ -167,10 +177,13 @@ def annotate_records(records, *, n_processes, germline_database):
                 for path in sorted((Path(project) / "parquet").glob("*.parquet")):
                     for row in pl.read_parquet(path).iter_rows(named=True):
                         token = row.get("sequence_id")
-                        if not isinstance(token, str) or token not in tokens or token in rows:
+                        if not isinstance(token, str) or token not in tokens:
                             category = "output_cardinality"
                             break
-                        rows[token] = row
+                        if token in rows:
+                            duplicates.add(token)
+                        else:
+                            rows[token] = row
                     if category:
                         break
             except Exception as error:
@@ -179,10 +192,13 @@ def annotate_records(records, *, n_processes, germline_database):
                 category = type(error).__name__
         for token, key in tokens.items():
             row = rows.get(token)
-            exception = category or ("missing_output" if row is None else None)
+            exception = category or ("output_cardinality" if token in duplicates else
+                                     "missing_output" if row is None else None)
             outcomes[key] = {
                 "status": "exception" if exception else "annotated" if row.get("v_call") and row.get("j_call") else "unassigned",
                 "exception_category": exception,
+                "failure_scope": "batch" if category else "record" if exception else None,
+                "failure_group": group if category else None,
                 "annotation": None if exception else row,
             }
         print(f"Accounted for {min(start + BATCH_SIZE, len(records))}/{len(records)} selected records", file=sys.stderr)
@@ -224,7 +240,7 @@ def _metadata(args, manifest, sources):
             if requirement.marker is None or requirement.marker.evaluate():
                 pending.append(requirement.name)
     return {
-        "type": "metadata", "schema_version": 1,
+        "type": "metadata", "schema_version": 2,
         "selection": selection_metadata(per_dataset=args.per_dataset, seed=args.seed),
         "abstar": {"version": importlib.metadata.version("abstar"), "git_revision": git.stdout.strip()},
         "python": platform.python_version(), "dependencies": dependencies,
@@ -265,12 +281,13 @@ def _candidate(record, source, outcome, seed):
     comparisons["productive"] = _equal(annotation.get("productive"), _productive(source.productive))
     reasons = ["deterministic_stratified_sweep"]
     if outcome["exception_category"]:
-        reasons.append("annotation_exception")
+        reasons.append(f"annotation_{outcome['failure_scope']}_failure")
     reasons.extend(f"{key}_disagreement" for key, value in comparisons.items() if value is False)
     return {
         "type": "candidate", "row_key": record.row_key, "source": asdict(source),
         "sequence": record.sequence, "sequence_sha256": hashlib.sha256(record.sequence.encode()).hexdigest(),
         "status": outcome["status"], "exception_category": outcome["exception_category"],
+        "failure_scope": outcome["failure_scope"], "failure_group": outcome["failure_group"],
         "raw_calls": raw, "normalized_calls": normalized, "comparisons": comparisons,
         "junction": {"abstar_nt": annotation.get("junction"), "abstar_aa": annotation.get("junction_aa"),
                      "cellranger_nt": source.cdr3_nt, "cellranger_aa": source.cdr3},
@@ -294,7 +311,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--per-dataset", type=int, default=200)
     parser.add_argument("--seed", default="abstar-real-bcr-v1")
     parser.add_argument("--n-processes", type=int, default=1)
-    parser.add_argument("--germline-database", default="human")
+    parser.add_argument("--germline-database", default="human",
+                        help="Logical database name (default: human); paths are rejected.")
     args = parser.parse_args(argv)
     manifest, output, samples, paths = _paths(args)
     records, evidence, sources = _select(samples, paths, per_dataset=args.per_dataset, seed=args.seed)
