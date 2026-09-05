@@ -71,11 +71,13 @@ python -m pytest --cov=abstar --cov-branch --cov-report=term-missing --cov-repor
 python scripts/check_coverage.py /tmp/abstar-coverage.json coverage-floors.json
 ```
 
-The first command enforces the package floor in `.coveragerc`; the second
-enforces the critical-module floors in `coverage-floors.json`. Both floors use
-coverage.py's combined statement-and-branch `percent_covered` value rounded
-down to an integer. Raise floors when measured coverage increases, and never
-lower them without treating the change as a release-gate regression.
+The first command enforces the package floor in `.coveragerc`; coverage.py
+compares that total at the configured two-decimal precision. The second
+enforces the critical-module floors in `coverage-floors.json` against raw JSON
+percentages. Both stored floors are selected by mathematically rounding down
+coverage.py's combined statement-and-branch `percent_covered` value. Raise
+floors when measured coverage increases, and never lower them without treating
+the change as a release-gate regression.
 
 Useful CLI checks after an editable install:
 

@@ -3,6 +3,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 from scripts.check_coverage import check_coverage
 
 
@@ -32,11 +34,25 @@ def _floors(files):
 def test_check_coverage_accepts_modules_at_or_above_floor(tmp_path):
     report = _write_json(
         tmp_path / "coverage.json",
-        _report({"abstar/a.py": 80, "abstar/b.py": 91.125}),
+        _report(
+            {
+                "abstar/a.py": 80,
+                "abstar/b.py": 91.125,
+                "abstar/zero.py": 0,
+                "abstar/full.py": 100,
+            }
+        ),
     )
     floors = _write_json(
         tmp_path / "floors.json",
-        _floors({"abstar/a.py": 80, "abstar/b.py": 91}),
+        _floors(
+            {
+                "abstar/a.py": 80,
+                "abstar/b.py": 91,
+                "abstar/zero.py": 0,
+                "abstar/full.py": 100,
+            }
+        ),
     )
 
     assert check_coverage(report, floors) == []
@@ -69,6 +85,42 @@ def test_check_coverage_normalizes_file_keys_across_platforms(tmp_path):
     )
 
     assert check_coverage(report, floors) == []
+
+
+@pytest.mark.parametrize("source", ["report", "floors"])
+def test_check_coverage_rejects_normalized_path_aliases(tmp_path, source):
+    report = _write_json(
+        tmp_path / "coverage.json",
+        _report(
+            {
+                r"abstar\annotation\umi.py": 80,
+                "abstar/annotation/umi.py": 81,
+            }
+        ),
+    )
+    floors = _write_json(
+        tmp_path / "floors.json",
+        _floors({"abstar/annotation/umi.py": 80}),
+    )
+    if source == "floors":
+        report = _write_json(
+            tmp_path / "coverage.json",
+            _report({"abstar/annotation/umi.py": 80}),
+        )
+        floors = _write_json(
+            tmp_path / "floors.json",
+            _floors(
+                {
+                    r"abstar\annotation\umi.py": 80,
+                    "abstar/annotation/umi.py": 81,
+                }
+            ),
+        )
+
+    assert check_coverage(report, floors) == [
+        f"coverage {source} contains duplicate normalized path: "
+        "abstar/annotation/umi.py"
+    ]
 
 
 def test_check_coverage_reports_missing_and_malformed_inputs(tmp_path):
@@ -108,8 +160,119 @@ def test_check_coverage_rejects_invalid_floor_and_report_percentage(tmp_path):
         _floors({"abstar/a.py": 80}),
     )
     assert check_coverage(report, floors) == [
-        "coverage report percentage for abstar/a.py must be a number"
+        "coverage report percentage for abstar/a.py must be a number from 0 through 100"
     ]
+
+
+@pytest.mark.parametrize(
+    ("source", "value", "expected"),
+    [
+        (
+            "report",
+            True,
+            "coverage report percentage for abstar/a.py must be a number from 0 through 100",
+        ),
+        (
+            "report",
+            -0.01,
+            "coverage report percentage for abstar/a.py must be a number from 0 through 100",
+        ),
+        (
+            "report",
+            100.01,
+            "coverage report percentage for abstar/a.py must be a number from 0 through 100",
+        ),
+        (
+            "floors",
+            True,
+            "coverage floor for abstar/a.py must be an integer from 0 through 100",
+        ),
+        (
+            "floors",
+            -1,
+            "coverage floor for abstar/a.py must be an integer from 0 through 100",
+        ),
+        (
+            "floors",
+            101,
+            "coverage floor for abstar/a.py must be an integer from 0 through 100",
+        ),
+    ],
+)
+def test_check_coverage_rejects_boolean_and_out_of_range_values(
+    tmp_path, source, value, expected
+):
+    report_value = value if source == "report" else 80
+    floor_value = value if source == "floors" else 80
+    report = _write_json(
+        tmp_path / "coverage.json", _report({"abstar/a.py": report_value})
+    )
+    floors = _write_json(
+        tmp_path / "floors.json", _floors({"abstar/a.py": floor_value})
+    )
+
+    assert check_coverage(report, floors) == [expected]
+
+
+@pytest.mark.parametrize("source", ["report", "floors"])
+@pytest.mark.parametrize("constant", ["NaN", "Infinity", "-Infinity"])
+def test_check_coverage_rejects_nonfinite_json_numbers(tmp_path, source, constant):
+    report = tmp_path / "coverage.json"
+    report.write_text(
+        '{"meta":{"branch_coverage":true},"files":{"abstar/a.py":'
+        '{"summary":{"percent_covered":80}}}}',
+        encoding="utf-8",
+    )
+    floors = tmp_path / "floors.json"
+    floors.write_text('{"files":{"abstar/a.py":80}}', encoding="utf-8")
+    target = report if source == "report" else floors
+    target.write_text(
+        target.read_text(encoding="utf-8").replace("80", constant),
+        encoding="utf-8",
+    )
+
+    assert check_coverage(report, floors) == [
+        f"coverage {source} contains invalid JSON number: {constant}"
+    ]
+
+
+@pytest.mark.parametrize(
+    ("source", "content", "duplicate"),
+    [
+        (
+            "report",
+            '{"meta":{"branch_coverage":true},"files":{},"files":{}}',
+            "files",
+        ),
+        (
+            "report",
+            '{"meta":{"branch_coverage":true},"files":{"abstar/a.py":'
+            '{"summary":{"percent_covered":80,"percent_covered":81}}}}',
+            "percent_covered",
+        ),
+        ("floors", '{"files":{"abstar/a.py":80,"abstar/a.py":81}}', "abstar/a.py"),
+    ],
+)
+def test_check_coverage_rejects_literal_duplicate_json_keys(
+    tmp_path, source, content, duplicate
+):
+    report = _write_json(tmp_path / "coverage.json", _report({"abstar/a.py": 80}))
+    floors = _write_json(tmp_path / "floors.json", _floors({"abstar/a.py": 80}))
+    target = report if source == "report" else floors
+    target.write_text(content, encoding="utf-8")
+
+    expected = f"coverage {source} contains duplicate JSON object key: {duplicate}"
+    assert check_coverage(report, floors) == [expected]
+
+    failed = subprocess.run(
+        [sys.executable, str(CHECKER), str(report), str(floors)],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert failed.returncode == 1
+    assert failed.stdout == expected + "\n"
+    assert failed.stderr == ""
 
 
 def test_check_coverage_cli_prints_sorted_failures_and_sets_status(tmp_path):

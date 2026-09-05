@@ -10,12 +10,44 @@ from pathlib import Path
 from typing import Any
 
 
+class _DuplicateKeyError(ValueError):
+    pass
+
+
+class _InvalidConstantError(ValueError):
+    pass
+
+
+def _unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    value = {}
+    for key, item in pairs:
+        if key in value:
+            raise _DuplicateKeyError(key)
+        value[key] = item
+    return value
+
+
+def _reject_constant(value: str):
+    raise _InvalidConstantError(value)
+
+
 def _load_json(path: Path, label: str) -> tuple[Any | None, str | None]:
     try:
         with path.open(encoding="utf-8") as handle:
-            return json.load(handle), None
+            return (
+                json.load(
+                    handle,
+                    object_pairs_hook=_unique_object,
+                    parse_constant=_reject_constant,
+                ),
+                None,
+            )
     except FileNotFoundError:
         return None, f"{label} not found: {path}"
+    except _DuplicateKeyError as error:
+        return None, f"{label} contains duplicate JSON object key: {error}"
+    except _InvalidConstantError as error:
+        return None, f"{label} contains invalid JSON number: {error}"
     except json.JSONDecodeError:
         return None, f"{label} is not valid JSON: {path}"
     except (OSError, UnicodeError) as error:
@@ -113,8 +145,11 @@ def check_coverage(report_path, floors_path) -> list[str]:
             isinstance(percent, bool)
             or not isinstance(percent, (int, float))
             or not math.isfinite(percent)
+            or not 0 <= percent <= 100
         ):
-            return [f"coverage report percentage for {name} must be a number"]
+            return [
+                f"coverage report percentage for {name} must be a number from 0 through 100"
+            ]
         if percent < floor:
             diagnostics.append(f"{name}: {percent}% is below {floor}% floor")
     return sorted(diagnostics)
