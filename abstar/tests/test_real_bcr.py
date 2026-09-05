@@ -247,6 +247,14 @@ def test_pilot_loss_cohort_has_no_internal_failures(pilot_loss_cases):
     )
     assert [row.id for row in result] == [case.sequence_id for case in pilot_loss_cases]
     assert all(row['annotation_status'] in {'annotated', 'unassigned'} for row in result)
+    for row, case in zip(result, pilot_loss_cases):
+        assert_pilot_adjudicated_outcome(row.annotations, case)
+        assert 'row_id' not in row.annotations
+        for suffix in ('', '_aa'):
+            sequence = row[f'sequence{suffix}']
+            assert row[f'sequence_alignment{suffix}'].replace('-', '') == sequence
+            assert len(row[f'gene_segment_mask{suffix}']) == len(sequence)
+            assert len(row[f'nongermline_mask{suffix}']) == len(sequence)
 
 
 @pytest.mark.parametrize('sequence,germline', [('', 'A'), ('A', ''), ('', '')])
@@ -393,6 +401,44 @@ def test_pilot_loss_empty_d_translation_retains_nucleotide_evidence(
     )
     assert ab.np1 == case.sequence[ab.v_sequence_end:start]
     assert ab.np2 == case.sequence[end:ab.j_sequence_start]
+
+
+@pytest.mark.e2e
+@pytest.mark.parametrize('sequence_id', [
+    'CCATGTCCAGTCTTCC-1_contig_1', 'CTAAGACAGCAATCTC-1_contig_2',
+    'CTGTTTACAGGTGCCT-1_contig_1', 'GCTGCTTAGAAACGAG-1_contig_2',
+])
+def test_pilot_loss_mask_preserves_adjudicated_outcome(pilot_loss_cases, tmp_path, sequence_id):
+    import abstar
+    import polars as pl
+    from abstar.annotation.antibody import Antibody
+    from abstar.annotation.annotator import annotate_single_sequence
+
+    case = next(case for case in pilot_loss_cases if case.sequence_id == sequence_id)
+    abstar.run(
+        [case.as_sequence()], project_path=str(tmp_path), output_format='parquet',
+        n_processes=1, mmseqs_threads=1, debug=True,
+    )
+    rows = pl.read_parquet(tmp_path / 'parquet' / 'sequences.parquet').to_dicts()
+    assert len(rows) == 1
+    row = rows[0]
+    assert_pilot_adjudicated_outcome(row, case)
+    assert 'row_id' not in row
+    for suffix in ('', '_aa'):
+        sequence = row[f'sequence{suffix}']
+        assert row[f'sequence_alignment{suffix}'].replace('-', '') == sequence
+        assert len(row[f'gene_segment_mask{suffix}']) == len(sequence)
+        assert len(row[f'nongermline_mask{suffix}']) == len(sequence)
+
+    assignment = pl.read_parquet(tmp_path / 'tmp' / 'chunk_0.parquet').row(0, named=True)
+    receptor = assignment.pop('receptor_type')
+    ab = Antibody(**assignment)
+    ab.receptor_type = receptor
+    ab = annotate_single_sequence(ab, germline_database='human')
+    assert ab.receptor_type == 'bcr'
+    assert (ab.junction_start, ab.junction_end) == (
+        case.expected['junction_start'], case.expected['junction_end'],
+    )
 
 
 @pytest.fixture

@@ -368,10 +368,21 @@ Masks
      - CDR region mask (0=FWR, 1=CDR1, 2=CDR2, 3=CDR3)
    * - ``gene_segment_mask``
      - String
-     - Gene segment mask (V, D, J, C)
+     - Assembled V(D)J segment mask (V, N, D, J); N denotes NP1/NP2 bases
+   * - ``gene_segment_mask_aa``
+     - String
+     - Codon segment mask; codons spanning different segments are N
    * - ``nongermline_mask``
      - String
      - Mutation position mask
+
+
+Gene-segment masks contain one label per nucleotide or amino acid in the
+ungapped assembled ``sequence`` or ``sequence_aa``. Nucleotide labels follow the
+retained V, NP1, optional D/NP2, and J spans. Amino acid labels use complete
+codons in the assembled query reading frame; a codon receives V, D, or J only
+when all three nucleotides belong to that segment. These masks exclude the
+constant region and do not depend on CDR3 or framework subdivisions.
 
 
 Position Coordinates
