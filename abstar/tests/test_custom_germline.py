@@ -1,5 +1,6 @@
 import hashlib
 import os
+import stat
 import subprocess
 from pathlib import Path
 from types import SimpleNamespace
@@ -16,16 +17,32 @@ MMSEQS_COMPONENT_SUFFIXES = ("", ".dbtype", ".index", "_h", "_h.dbtype", "_h.ind
 
 def _tree_snapshot(root):
     root = Path(root)
-    if not root.exists():
+    if not os.path.lexists(root):
         return None
     root_stat = root.lstat()
-    snapshot = [(".", True, root_stat.st_mode, root_stat.st_size, root_stat.st_mtime_ns, None)]
+    if stat.S_ISLNK(root_stat.st_mode):
+        return ((".", "symlink", root_stat.st_mode, root_stat.st_size,
+                 root_stat.st_mtime_ns, os.readlink(root)),)
+    if stat.S_ISREG(root_stat.st_mode):
+        return ((".", "file", root_stat.st_mode, root_stat.st_size,
+                 root_stat.st_mtime_ns,
+                 hashlib.sha256(root.read_bytes()).hexdigest()),)
+    snapshot = [(".", "directory", root_stat.st_mode, root_stat.st_size,
+                 root_stat.st_mtime_ns, None)]
     for path in sorted(root.rglob("*")):
-        stat = path.lstat()
-        digest = hashlib.sha256(path.read_bytes()).hexdigest() if path.is_file() else None
+        metadata = path.lstat()
+        if stat.S_ISLNK(metadata.st_mode):
+            kind = "symlink"
+            detail = os.readlink(path)
+        elif stat.S_ISREG(metadata.st_mode):
+            kind = "file"
+            detail = hashlib.sha256(path.read_bytes()).hexdigest()
+        else:
+            kind = "directory" if stat.S_ISDIR(metadata.st_mode) else "other"
+            detail = None
         snapshot.append(
-            (str(path.relative_to(root)), path.is_dir(), stat.st_mode, stat.st_size,
-             stat.st_mtime_ns, digest)
+            (str(path.relative_to(root)), kind, metadata.st_mode, metadata.st_size,
+             metadata.st_mtime_ns, detail)
         )
     return tuple(snapshot)
 
@@ -81,7 +98,6 @@ def fake_mmseqs(monkeypatch):
     return calls
 
 
-@pytest.mark.integration
 def test_build_custom_database_clean_room_and_discovery(
     tmp_path, monkeypatch, custom_genes, fake_mmseqs
 ):
@@ -105,7 +121,6 @@ def test_build_custom_database_clean_room_and_discovery(
     assert not list((database.parent).glob(".custom.staging-*"))
 
 
-@pytest.mark.integration
 def test_overwrite_removes_stale_files(
     tmp_path, monkeypatch, custom_genes, fake_mmseqs
 ):
@@ -149,7 +164,6 @@ def test_overwrite_removes_stale_files(
     assert moves[1][1] == database
 
 
-@pytest.mark.integration
 def test_failed_overwrite_preserves_existing_database(
     tmp_path, monkeypatch, custom_genes, fake_mmseqs
 ):
@@ -179,7 +193,6 @@ def test_failed_overwrite_preserves_existing_database(
     assert not list((database.parent).glob(".custom.staging-*"))
 
 
-@pytest.mark.integration
 def test_complete_database_is_validated_in_staging_before_atomic_publication(
     tmp_path, monkeypatch, complete_inputs, fake_mmseqs
 ):
@@ -233,10 +246,9 @@ def test_complete_database_is_validated_in_staging_before_atomic_publication(
     assert not list(database_root.glob("complete.backup-*"))
 
 
-@pytest.mark.parametrize("boundary", ("gapping", "v", "d", "j", "c"))
 @pytest.mark.parametrize("replacing", (False, True), ids=("new", "replacement"))
-def test_failure_at_each_build_boundary_cleans_staging_and_preserves_old_database(
-    tmp_path, monkeypatch, complete_inputs, boundary, replacing
+def test_gapping_failure_cleans_staging_and_preserves_old_database(
+    tmp_path, monkeypatch, complete_inputs, replacing
 ):
     genes, constants, manifest = complete_inputs
     database_root = tmp_path / ".abstar" / "germline_dbs" / "bcr"
@@ -249,58 +261,78 @@ def test_failure_at_each_build_boundary_cleans_staging_and_preserves_old_databas
         before = _tree_snapshot(database)
         monkeypatch.setattr("builtins.input", lambda _: "yes")
 
-    def failure(label):
-        return germline.GermlineBuildExternalToolError(
-            f"{label} failed",
-            command=["/opt/task19-tool", label, "--checked"],
-            returncode=31,
-            stdout=f"{label}-stdout",
-            stderr=f"{label}-stderr",
-        )
+    def fail_gapping(*args, **kwargs):
+        try:
+            raise ValueError("TASK19-GAPPING-CAUSE")
+        except ValueError as cause:
+            raise RuntimeError("TASK19-GAPPING-FAILURE") from cause
 
-    if boundary == "gapping":
-        def fail_gapping(*args, **kwargs):
-            try:
-                raise ValueError("TASK19-GAPPING-CAUSE")
-            except ValueError as cause:
-                raise RuntimeError("TASK19-GAPPING-FAILURE") from cause
+    monkeypatch.setattr(germline, "add_imgt_gaps", fail_gapping)
 
-        monkeypatch.setattr(germline, "add_imgt_gaps", fail_gapping)
-    else:
-        monkeypatch.setattr(germline.abutils.bin, "get_path", lambda _: "/opt/mmseqs")
-
-        def run(command, **kwargs):
-            assert kwargs == {"check": True, "capture_output": True, "text": True}
-            if command[1] == "createdb":
-                _write_fake_index(command[3])
-            elif command[1] == "createindex" and Path(command[2]).name == boundary:
-                raise subprocess.CalledProcessError(
-                    31, command, output=f"{boundary}-stdout", stderr=f"{boundary}-stderr"
-                )
-            return SimpleNamespace(stdout="", stderr="")
-
-        monkeypatch.setattr(germline.sp, "run", run)
-
-    expected_error = RuntimeError if boundary == "gapping" else germline.GermlineBuildExternalToolError
-    with pytest.raises(expected_error) as captured:
+    with pytest.raises(RuntimeError) as captured:
         germline.build_germline_database(
             "custom", fastas=str(genes), constants=str(constants), manifest=str(manifest),
             include_species_in_name=False, verbose=False,
         )
 
     error = captured.value
-    if boundary == "gapping":
-        assert str(error) == "TASK19-GAPPING-FAILURE"
-        assert isinstance(error.__cause__, ValueError)
-        assert str(error.__cause__) == "TASK19-GAPPING-CAUSE"
+    assert str(error) == "TASK19-GAPPING-FAILURE"
+    assert isinstance(error.__cause__, ValueError)
+    assert str(error.__cause__) == "TASK19-GAPPING-CAUSE"
+    if replacing:
+        assert _tree_snapshot(database) == before
     else:
-        assert error.command[:2] == ("/opt/mmseqs", "createindex")
-        assert Path(error.command[2]).name == boundary
-        assert error.returncode == 31
-        assert error.stdout == f"{boundary}-stdout"
-        assert error.stderr == f"{boundary}-stderr"
-        assert f"{boundary}-stdout" in str(error)
-        assert f"{boundary}-stderr" in str(error)
+        assert not database.exists()
+    assert not list(database_root.glob(".custom.staging-*"))
+    assert not list(database_root.glob("custom.backup-*"))
+
+
+@pytest.mark.parametrize("step", ("createdb", "createindex"))
+@pytest.mark.parametrize("boundary", tuple("vdjc"))
+@pytest.mark.parametrize("replacing", (False, True), ids=("new", "replacement"))
+def test_mmseqs_failure_at_each_segment_and_command_preserves_destination(
+    tmp_path, monkeypatch, complete_inputs, step, boundary, replacing
+):
+    genes, constants, manifest = complete_inputs
+    database_root = tmp_path / ".abstar" / "germline_dbs" / "bcr"
+    database = database_root / "custom"
+    if replacing:
+        database.mkdir(parents=True)
+        (database / "marker.bin").write_bytes(b"existing-database\x00\xff")
+        before = _tree_snapshot(database)
+        monkeypatch.setattr("builtins.input", lambda _: "yes")
+    monkeypatch.setattr(germline.abutils.bin, "get_path", lambda _: "/opt/mmseqs")
+
+    def run(command, **kwargs):
+        assert kwargs == {"check": True, "capture_output": True, "text": True}
+        output = command[3] if command[1] == "createdb" else command[2]
+        segment = Path(output).name
+        if command[1] == step and segment == boundary:
+            raise subprocess.CalledProcessError(
+                31, command, output=f"{step}-{boundary}-stdout",
+                stderr=f"{step}-{boundary}-stderr",
+            )
+        if command[1] == "createdb":
+            _write_fake_index(command[3])
+        return SimpleNamespace(stdout="", stderr="")
+
+    monkeypatch.setattr(germline.sp, "run", run)
+
+    with pytest.raises(germline.GermlineBuildExternalToolError) as captured:
+        germline.build_germline_database(
+            "custom", fastas=str(genes), constants=str(constants), manifest=str(manifest),
+            include_species_in_name=False, verbose=False,
+        )
+
+    error = captured.value
+    assert error.command[:2] == ("/opt/mmseqs", step)
+    output_position = 3 if step == "createdb" else 2
+    assert Path(error.command[output_position]).name == boundary
+    assert error.returncode == 31
+    assert error.stdout == f"{step}-{boundary}-stdout"
+    assert error.stderr == f"{step}-{boundary}-stderr"
+    assert error.stdout in str(error)
+    assert error.stderr in str(error)
     if replacing:
         assert _tree_snapshot(database) == before
     else:
@@ -357,6 +389,215 @@ def test_publication_failure_rolls_back_existing_database(
     assert _tree_snapshot(database) == before
     assert not list(database_root.glob(".custom.staging-*"))
     assert not list(database_root.glob("custom.backup-*"))
+
+
+@pytest.mark.parametrize("kind", ("file", "symlink", "dangling-symlink"))
+def test_unsafe_destination_is_rejected_before_staging(
+    tmp_path, custom_genes, fake_mmseqs, kind
+):
+    database_root = tmp_path / ".abstar" / "germline_dbs" / "bcr"
+    database_root.mkdir(parents=True)
+    database = database_root / "custom"
+    if kind == "file":
+        database.write_text("do not replace\n")
+    else:
+        target = tmp_path / ("target" if kind == "symlink" else "missing-target")
+        if kind == "symlink":
+            target.mkdir()
+        database.symlink_to(target, target_is_directory=True)
+    before = _tree_snapshot(database)
+
+    with pytest.raises(ValueError, match="directory|symlink"):
+        germline.build_germline_database(
+            "custom", fastas=str(custom_genes), include_species_in_name=False,
+            verbose=False,
+        )
+
+    assert _tree_snapshot(database) == before
+    assert fake_mmseqs == []
+    assert not list(database_root.glob(".custom.staging-*"))
+
+
+def test_absent_destination_that_appears_during_build_is_not_touched(
+    tmp_path, monkeypatch, custom_genes, fake_mmseqs
+):
+    database_root = tmp_path / ".abstar" / "germline_dbs" / "bcr"
+    database = database_root / "custom"
+    validate = germline.validate_staged_database
+
+    def appear(staging_dir, receptor, **kwargs):
+        validate(staging_dir, receptor, **kwargs)
+        database.mkdir()
+        (database / "owner.txt").write_text("other builder\n")
+
+    monkeypatch.setattr(germline, "validate_staged_database", appear)
+
+    with pytest.raises(RuntimeError, match="changed during build"):
+        germline.build_germline_database(
+            "custom", fastas=str(custom_genes), include_species_in_name=False,
+            verbose=False,
+        )
+
+    assert (database / "owner.txt").read_text() == "other builder\n"
+    assert not list(database_root.glob(".custom.staging-*"))
+
+
+def test_approved_destination_identity_change_is_not_touched(
+    tmp_path, monkeypatch, custom_genes, fake_mmseqs
+):
+    database_root = tmp_path / ".abstar" / "germline_dbs" / "bcr"
+    database = database_root / "custom"
+    database.mkdir(parents=True)
+    (database / "approved.txt").write_text("approved original\n")
+    displaced = database_root / "displaced"
+    validate = germline.validate_staged_database
+    monkeypatch.setattr("builtins.input", lambda _: "yes")
+
+    def replace_identity(staging_dir, receptor, **kwargs):
+        validate(staging_dir, receptor, **kwargs)
+        os.replace(database, displaced)
+        database.mkdir()
+        (database / "owner.txt").write_text("new owner\n")
+
+    monkeypatch.setattr(germline, "validate_staged_database", replace_identity)
+
+    with pytest.raises(RuntimeError, match="changed during build"):
+        germline.build_germline_database(
+            "custom", fastas=str(custom_genes), include_species_in_name=False,
+            verbose=False,
+        )
+
+    assert (database / "owner.txt").read_text() == "new owner\n"
+    assert (displaced / "approved.txt").read_text() == "approved original\n"
+    assert not list(database_root.glob(".custom.staging-*"))
+
+
+@pytest.mark.parametrize(
+    "component", ("ungapped/j.fasta", "mmseqs/j.index", "manifest.txt")
+)
+@pytest.mark.parametrize("defect", ("symlink", "empty"))
+def test_staged_components_must_be_owned_regular_nonempty_files(
+    tmp_path, monkeypatch, complete_inputs, fake_mmseqs, component, defect
+):
+    genes, constants, manifest = complete_inputs
+    database_root = tmp_path / ".abstar" / "germline_dbs" / "bcr"
+    database = database_root / "custom"
+    validate = germline.validate_staged_database
+
+    def corrupt(staging_dir, receptor, **kwargs):
+        path = Path(staging_dir) / component
+        path.unlink()
+        if defect == "symlink":
+            external = tmp_path / "external-component"
+            external.write_text("external bytes\n")
+            path.symlink_to(external)
+        else:
+            path.touch()
+        validate(staging_dir, receptor, **kwargs)
+
+    monkeypatch.setattr(germline, "validate_staged_database", corrupt)
+
+    with pytest.raises(ValueError, match="regular non-symlink|empty|IDs differ"):
+        germline.build_germline_database(
+            "custom", fastas=str(genes), constants=str(constants), manifest=str(manifest),
+            include_species_in_name=False, verbose=False,
+        )
+
+    assert not database.exists()
+    assert not list(database_root.glob(".custom.staging-*"))
+
+
+def test_first_replacement_rename_failure_preserves_primary_error_and_database(
+    tmp_path, monkeypatch, custom_genes, fake_mmseqs
+):
+    database_root = tmp_path / ".abstar" / "germline_dbs" / "bcr"
+    database = database_root / "custom"
+    database.mkdir(parents=True)
+    (database / "marker").write_text("original\n")
+    before = _tree_snapshot(database)
+    monkeypatch.setattr("builtins.input", lambda _: "yes")
+    replace = os.replace
+
+    def fail_first(source, destination):
+        if Path(source) == database:
+            raise OSError("TASK19-FIRST-RENAME")
+        replace(source, destination)
+
+    monkeypatch.setattr(germline.os, "replace", fail_first)
+
+    with pytest.raises(OSError, match="TASK19-FIRST-RENAME"):
+        germline.build_germline_database(
+            "custom", fastas=str(custom_genes), include_species_in_name=False,
+            verbose=False,
+        )
+
+    assert _tree_snapshot(database) == before
+    assert not list(database_root.glob("custom.backup-*"))
+
+
+def test_publish_and_rollback_failure_retains_both_errors_and_recovery_path(
+    tmp_path, monkeypatch, custom_genes, fake_mmseqs
+):
+    database_root = tmp_path / ".abstar" / "germline_dbs" / "bcr"
+    database = database_root / "custom"
+    database.mkdir(parents=True)
+    (database / "marker").write_text("recover me\n")
+    monkeypatch.setattr("builtins.input", lambda _: "yes")
+    replace = os.replace
+
+    def fail_publish_and_rollback(source, destination):
+        source = Path(source)
+        if source.name.startswith(".custom.staging-"):
+            raise OSError("TASK19-PUBLISH")
+        if source.name.startswith("custom.backup-"):
+            raise OSError("TASK19-ROLLBACK")
+        replace(source, destination)
+
+    monkeypatch.setattr(germline.os, "replace", fail_publish_and_rollback)
+
+    with pytest.raises(germline.GermlinePublicationError) as captured:
+        germline.build_germline_database(
+            "custom", fastas=str(custom_genes), include_species_in_name=False,
+            verbose=False,
+        )
+
+    error = captured.value
+    assert "TASK19-PUBLISH" in str(error)
+    assert "TASK19-ROLLBACK" in str(error)
+    assert isinstance(error.primary_error, OSError)
+    assert isinstance(error.rollback_error, OSError)
+    assert Path(error.backup_path).is_dir()
+    assert (Path(error.backup_path) / "marker").read_text() == "recover me\n"
+
+
+def test_backup_cleanup_failure_warns_after_success_and_retains_backup(
+    tmp_path, monkeypatch, custom_genes, fake_mmseqs
+):
+    database_root = tmp_path / ".abstar" / "germline_dbs" / "bcr"
+    database = database_root / "custom"
+    database.mkdir(parents=True)
+    (database / "marker").write_text("old database\n")
+    monkeypatch.setattr("builtins.input", lambda _: "yes")
+    rmtree = germline.shutil.rmtree
+
+    def fail_backup_cleanup(path, *args, **kwargs):
+        if Path(path).name.startswith("custom.backup-"):
+            raise OSError("TASK19-CLEANUP")
+        return rmtree(path, *args, **kwargs)
+
+    monkeypatch.setattr(germline.shutil, "rmtree", fail_backup_cleanup)
+
+    with pytest.warns(RuntimeWarning, match="TASK19-CLEANUP.*backup|backup.*TASK19-CLEANUP"):
+        germline.build_germline_database(
+            "custom", fastas=str(custom_genes), include_species_in_name=False,
+            verbose=False,
+        )
+
+    assert database.is_dir()
+    assert not (database / "marker").exists()
+    backups = list(database_root.glob("custom.backup-*"))
+    assert len(backups) == 1
+    assert (backups[0] / "marker").read_text() == "old database\n"
 
 
 @pytest.mark.parametrize(
@@ -436,6 +677,10 @@ def test_make_mmseqs_db_uses_checked_argument_lists(tmp_path, monkeypatch):
         str(tmp_path / "v"),
     ]
     assert calls[1][0][:3] == ["/bin/mmseqs", "createindex", str(tmp_path / "v")]
+    scratch = Path(calls[1][0][3])
+    assert scratch.parent == tmp_path
+    assert scratch.name.startswith(".v.index-")
+    assert not scratch.exists()
     assert all(kwargs["check"] is True for _, kwargs in calls)
     assert all("shell" not in kwargs for _, kwargs in calls)
 
