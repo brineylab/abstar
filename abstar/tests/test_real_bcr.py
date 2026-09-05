@@ -10,6 +10,214 @@ import pytest
 from abstar.tests import corpus
 
 
+@pytest.mark.parametrize('kind,offset,affected,replacement,expected', [
+    ('identity', 0, '', '', 'AACCGG'),
+    ('reverse_complement', 0, '', '', 'CCGGTT'),
+    ('truncate_5prime', 0, 'AA', '', 'CCGG'),
+    ('truncate_3prime', 4, 'GG', '', 'AACC'),
+    ('substitute', 2, 'C', 'T', 'AATCGG'),
+    ('ambiguity', 2, 'C', 'N', 'AANCGG'),
+    ('insert', 3, '', 'GGA', 'AACGGACGG'),
+    # The brief's AAG typo is corrected: indices [1:4] are ACC, leaving A + GG.
+    ('delete', 1, 'ACC', '', 'AGG'),
+    ('insert', 0, '', 'T', 'TAACCGG'),
+    ('insert', 6, '', 'T', 'AACCGGT'),
+    ('delete', 0, 'A', '', 'ACCGG'),
+    ('delete', 5, 'G', '', 'AACCG'),
+])
+def test_derived_operations_use_exact_input_slices(kind, offset, affected, replacement, expected):
+    from abstar.tests.derived import DerivedOperation, derive_sequence
+    operation = DerivedOperation(kind, offset, affected, replacement)
+    assert derive_sequence('AACCGG', operation) == expected
+    with pytest.raises(FrozenInstanceError):
+        operation.offset = 1
+    assert not hasattr(operation, '__dict__')
+
+
+@pytest.mark.parametrize('kind,offset,affected,replacement', [
+    ('delete', -1, 'G', ''), ('insert', 7, '', 'A'),
+    ('delete', 5, 'GG', ''), ('delete', 1, 'CCC', ''),
+    ('insert', True, '', 'A'), ('insert', 1.0, '', 'A'),
+    ('insert', 1, 'A', 'C'), ('insert', 1, '', ''),
+    ('delete', 1, '', ''), ('delete', 1, 'A', 'C'),
+    ('delete', 0, 'AACCGG', ''),
+    ('substitute', 1, 'A', 'A'), ('substitute', 1, 'AC', 'TT'),
+    ('substitute', 1, 'A', 'N'), ('ambiguity', 1, 'A', 'C'),
+    ('ambiguity', 1, 'A', 'NN'),
+    ('truncate_5prime', 1, 'A', ''), ('truncate_3prime', 1, 'A', ''),
+    ('truncate_5prime', 0, '', ''), ('truncate_3prime', 4, 'GG', 'A'),
+    ('reverse_complement', 1, '', ''), ('reverse_complement', 0, 'A', ''),
+    ('identity', 0, '', 'A'), ('unsupported', 0, '', ''),
+    ('insert', 1, '', 'X'), ('insert', 1, '', None),
+])
+def test_derived_operations_reject_invalid_spans_and_payloads(kind, offset, affected, replacement):
+    from abstar.tests.derived import DerivedOperation, derive_sequence
+    with pytest.raises(ValueError):
+        derive_sequence('AACCGG', DerivedOperation(kind, offset, affected, replacement))
+
+
+@pytest.mark.parametrize('parent', ['', 'aacg', 'AC-G', 'ACUG', None, 123])
+def test_derived_operations_reject_invalid_parent(parent):
+    from abstar.tests.derived import DerivedOperation, derive_sequence
+    with pytest.raises(ValueError):
+        derive_sequence(parent, DerivedOperation('identity', 0, '', ''))
+
+
+def test_derived_reverse_complement_preserves_iupac_meaning():
+    from abstar.tests.derived import DerivedOperation, derive_sequence
+    assert derive_sequence('ACGTRYSWKMBDHVN', DerivedOperation('reverse_complement', 0, '', '')) == 'NBDHVKMWSRYACGT'
+
+
+def test_derived_matrix_covers_all_operations_and_indel_lengths():
+    from abstar.tests.derived import load_derived_bcr_cases
+    cases = load_derived_bcr_cases()
+    assert len(cases) == 60
+    assert len({c.case_id for c in cases}) == 60
+    for locus in ('IGH', 'IGK', 'IGL'):
+        subset = [c for c in cases if c.expected['locus'] == locus]
+        assert len(subset) == 20
+        assert {c.operation.kind for c in subset} == {
+            'identity', 'reverse_complement', 'truncate_5prime', 'truncate_3prime',
+            'substitute', 'ambiguity', 'insert', 'delete',
+        }
+        for context in ('v', 'junction'):
+            for kind in ('insert', 'delete'):
+                assert {max(len(c.operation.affected_bases), len(c.operation.replacement_bases))
+                        for c in subset if c.context == context and c.operation.kind == kind} == {1, 2, 3}
+            assert {c.operation.kind for c in subset if c.context == context} >= {'substitute', 'ambiguity'}
+
+
+def test_derived_loader_checks_hashes_freezes_records_and_preserves_parents():
+    from abstar.tests.derived import derive_sequence, load_derived_bcr_cases
+    paths = [corpus.REAL_BCR_DIRECTORY / p for p in ('cases.json', 'sequences.fasta')]
+    before = [p.read_bytes() for p in paths]
+    parents = {(c.dataset, c.sequence_id): c for c in corpus.load_real_bcr_cases()}
+    cases = load_derived_bcr_cases()
+    for case in cases:
+        parent = parents[case.parent['dataset'], case.parent['sequence_id']]
+        assert case.sequence == derive_sequence(parent.sequence, case.operation)
+        assert hashlib.sha256(case.sequence.encode('ascii')).hexdigest() == case.sequence_sha256
+        assert case.parent['sequence_sha256'] == parent.sequence_sha256
+        assert not hasattr(case, '__dict__')
+        with pytest.raises(FrozenInstanceError):
+            case.sequence = 'AAA'
+        for mapping in (case.parent, case.expected, case.expected['homologous_junction']):
+            with pytest.raises(TypeError):
+                mapping['new'] = 'changed'
+        assert isinstance(case.evidence, tuple)
+    assert load_derived_bcr_cases()[0] is not cases[0]
+    assert [p.read_bytes() for p in paths] == before
+
+
+def test_derived_literal_anchor_projection_and_frame_expectations():
+    from abstar.tests.derived import load_derived_bcr_cases
+    cases = {c.case_id: c for c in load_derived_bcr_cases()}
+    # IGH parent: input length 641, V [120:414], homologous junction [405:450].
+    junction = 'TGTGCGAGATATCACCCGGTATTGCGGAATGGTTTTGATGTCTGG'
+    forward = cases['IGH-forward'].expected
+    reverse = cases['IGH-reverse'].expected
+    assert forward['homologous_junction'] == {
+        'oriented_start': 405, 'oriented_end': 450, 'input_start': 405,
+        'input_end': 450, 'sequence': junction, 'length_mod3': 0,
+    }
+    assert reverse['rev_comp'] is True
+    assert reverse['homologous_junction']['input_start'] == 191
+    assert reverse['homologous_junction']['input_end'] == 236
+    assert reverse['homologous_junction']['sequence'] == junction
+    assert cases['IGH-truncate-5prime'].expected['homologous_junction']['oriented_start'] == 285
+    assert cases['IGH-truncate-3prime'].expected['sequence_length'] == 481
+    assert cases['IGH-v-insert-1'].expected['coding_frame_delta_mod3'] == 1
+    assert cases['IGH-v-delete-1'].expected['coding_frame_delta_mod3'] == 2
+    assert cases['IGH-junction-insert-3'].expected['homologous_junction']['sequence'] == 'TGTGCGGGAAGATATCACCCGGTATTGCGGAATGGTTTTGATGTCTGG'
+    assert cases['IGH-junction-delete-3'].expected['homologous_junction']['sequence'] == 'TGTGCGTATCACCCGGTATTGCGGAATGGTTTTGATGTCTGG'
+    assert cases['IGH-v-ambiguity'].expected['ambiguous_base_count'] == 1
+
+
+@pytest.fixture
+def derived_case_file(tmp_path):
+    raw = json.loads((corpus.REAL_BCR_DIRECTORY / 'derived_cases.json').read_text())
+    def write():
+        path = tmp_path / 'derived_cases.json'
+        path.write_text(json.dumps(raw))
+        return path
+    return raw, write
+
+
+@pytest.mark.parametrize('mutation', [
+    'hash', 'parent_hash', 'unknown_parent', 'numeric_parent', 'offset', 'affected',
+    'duplicate', 'unknown_operation', 'extra_operation_field', 'missing_operation_field',
+    'extra_case_field', 'sequence_copy', 'no_evidence', 'blank_evidence',
+    'expected_length', 'expected_frame', 'expected_junction', 'expected_rev_comp_type',
+    'context', 'unclean_parent', 'empty_cases', 'unknown_schema',
+])
+def test_derived_loader_rejects_corruption(derived_case_file, mutation):
+    from abstar.tests.derived import load_derived_bcr_cases
+    raw, write = derived_case_file
+    case = next(c for c in raw['cases'] if c['case_id'] == 'IGH-v-delete-1')
+    if mutation == 'hash':
+        case['sequence_sha256'] = '0' * 64
+    elif mutation == 'parent_hash':
+        case['parent']['sequence_sha256'] = '0' * 64
+    elif mutation == 'unknown_parent':
+        case['parent']['sequence_id'] = 'unknown'
+    elif mutation == 'numeric_parent':
+        case['parent']['dataset'] = int(case['parent']['dataset'])
+    elif mutation == 'offset':
+        case['operation']['offset'] += 1
+    elif mutation == 'affected':
+        case['operation']['affected_bases'] = 'A' if case['operation']['affected_bases'] != 'A' else 'C'
+    elif mutation == 'duplicate':
+        raw['cases'].append(copy.deepcopy(case))
+    elif mutation == 'unknown_operation':
+        case['operation']['kind'] = 'invented'
+    elif mutation == 'extra_operation_field':
+        case['operation']['unused'] = 0
+    elif mutation == 'missing_operation_field':
+        del case['operation']['offset']
+    elif mutation in ('extra_case_field', 'sequence_copy'):
+        case['sequence' if mutation == 'sequence_copy' else 'unused'] = 'ACGT'
+    elif mutation in ('no_evidence', 'blank_evidence'):
+        case['evidence'] = [] if mutation == 'no_evidence' else [' ']
+    elif mutation == 'expected_length':
+        case['expected']['sequence_length'] += 1
+    elif mutation == 'expected_frame':
+        case['expected']['coding_frame_delta_mod3'] = 0
+    elif mutation == 'expected_junction':
+        case['expected']['homologous_junction']['input_start'] += 1
+    elif mutation == 'expected_rev_comp_type':
+        case['expected']['rev_comp'] = 0
+    elif mutation == 'context':
+        case['context'] = 'junction'
+    elif mutation == 'unclean_parent':
+        parent = corpus.load_real_bcr_cases()[0]
+        case['parent'] = dict(dataset=parent.dataset, sequence_id=parent.sequence_id,
+                              sequence_sha256=parent.sequence_sha256)
+    elif mutation == 'empty_cases':
+        raw['cases'] = []
+    else:
+        raw['schema_version'] = 99
+    with pytest.raises(ValueError):
+        load_derived_bcr_cases(write())
+
+
+@pytest.mark.parametrize('location', ['before_v', 'v_anchor', 'j_anchor'])
+def test_derived_loader_rejects_rehashed_edits_outside_supported_coding_context(derived_case_file, location):
+    """A valid result hash must not turn a flank/anchor edit into an internal coding edit."""
+    from abstar.tests.derived import load_derived_bcr_cases
+    raw, write = derived_case_file
+    case = next(c for c in raw['cases'] if c['case_id'] == 'IGH-v-insert-1')
+    parent = next(p for p in corpus.load_real_bcr_cases()
+                  if p.sequence_id == case['parent']['sequence_id'])
+    offset = {'before_v': 120, 'v_anchor': 405, 'j_anchor': 447}[location]
+    case['operation']['offset'] = offset
+    if location == 'j_anchor':
+        case['context'] = 'junction'
+    sequence = parent.sequence[:offset] + 'G' + parent.sequence[offset:]
+    case['sequence_sha256'] = hashlib.sha256(sequence.encode('ascii')).hexdigest()
+    with pytest.raises(ValueError, match='context'):
+        load_derived_bcr_cases(write())
+
+
 PILOT_IDS = (
     'ACGATACCAGGTTTCA-1_contig_2', 'CAAGATCAGAGCTTCT-1_contig_2',
     'CCATGTCCAGTCTTCC-1_contig_1', 'CTAAGACAGCAATCTC-1_contig_2',

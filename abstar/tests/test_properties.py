@@ -28,6 +28,7 @@ from abstar.annotation.positions import (
 )
 from abstar.assigners.mmseqs import select_best_hits
 from abstar.core.abstar import _process_inputs
+from abstar.tests.derived import DerivedOperation, derive_sequence
 
 
 PROPERTY_SEED = 20260904
@@ -38,6 +39,56 @@ external_ids = st.text(
     min_size=1,
     max_size=128,
 )
+
+
+@seed(PROPERTY_SEED)
+@property_settings
+@given(st.text('ACGTRYSWKMBDHVN', min_size=1, max_size=300))
+def test_derived_reverse_complement_restores_original(sequence):
+    """Catch loss of IUPAC information during orientation changes."""
+    operation = DerivedOperation('reverse_complement', 0, '', '')
+    assert derive_sequence(derive_sequence(sequence, operation), operation) == sequence
+
+
+@seed(PROPERTY_SEED)
+@property_settings
+@given(dna, st.text('ACGT', min_size=1, max_size=12), st.data())
+def test_derived_insertion_deletion_restores_original(sequence, payload, data):
+    """Catch insertion boundary shifts, including prepend and append."""
+    offset = data.draw(st.integers(0, len(sequence)))
+    inserted = derive_sequence(sequence, DerivedOperation('insert', offset, '', payload))
+    assert derive_sequence(inserted, DerivedOperation('delete', offset, payload, '')) == sequence
+
+
+@seed(PROPERTY_SEED)
+@property_settings
+@given(dna, st.data())
+def test_derived_substitution_changes_only_named_offset(sequence, data):
+    """Catch a substitution that changes the wrong base or surrounding sequence."""
+    offset = data.draw(st.integers(0, len(sequence) - 1))
+    base = sequence[offset]
+    replacement = data.draw(st.sampled_from(sorted(set('ACGT') - {base})))
+    result = derive_sequence(sequence, DerivedOperation('substitute', offset, base, replacement))
+    assert len(result) == len(sequence)
+    assert [i for i, (a, b) in enumerate(zip(sequence, result)) if a != b] == [offset]
+    assert result[offset] == replacement
+
+
+@seed(PROPERTY_SEED)
+@settings(max_examples=200, deadline=None, print_blob=True,
+          suppress_health_check=[HealthCheck.function_scoped_fixture])
+@given(st.data())
+def test_derived_operations_leave_loaded_parent_unchanged(real_bcr_cases, data):
+    """Catch mutation of a shared real fixture or its Sequence adapters."""
+    parent = data.draw(st.sampled_from(real_bcr_cases))
+    original = (parent.sequence, parent.sequence_sha256, dict(parent.expected))
+    offset = data.draw(st.integers(0, len(parent.sequence)))
+    payload = data.draw(st.text('ACGT', min_size=1, max_size=3))
+    result = derive_sequence(parent.sequence, DerivedOperation('insert', offset, '', payload))
+    adapter = parent.as_sequence()
+    adapter.sequence = result
+    assert (parent.sequence, parent.sequence_sha256, dict(parent.expected)) == original
+    assert parent.as_sequence().sequence == original[0]
 
 
 @st.composite
