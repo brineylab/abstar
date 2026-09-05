@@ -212,6 +212,7 @@ def test_best_hits_are_permutation_invariant_with_sorted_allele_ties(data):
     note(f"Hypothesis seed: {PROPERTY_SEED}")
     rows = []
     expected_calls = {}
+    expected_evidence = []
     for query_number in range(data.draw(st.integers(1, 3))):
         query = f"query-{query_number}"
         alleles = data.draw(st.lists(st.integers(1, 99), min_size=2, max_size=5, unique=True))
@@ -219,11 +220,21 @@ def test_best_hits_are_permutation_invariant_with_sorted_allele_ties(data):
         expected_calls[query] = ",".join(calls)
         bits = data.draw(st.integers(100, 1000))
         support = data.draw(st.sampled_from([1e-30, 1e-15, 1e-5]))
+        expected_evidence.append({
+            "v_query": query, "v_bits": float(bits), "v_support": support,
+            "v_fident": 0.9, "v_tcov": 0.8, "v_qcov": 0.7, "v_alnlen": 60,
+            "v_qstart": 1, "v_qend": 60, "v_qseq": "A" * 100,
+        })
         for index, call in enumerate(calls):
             rows.append(dict(v_query=query, v_call=call, v_bits=float(bits),
                              v_support=support, v_fident=0.9, v_tcov=0.8,
                              v_qcov=0.7, v_alnlen=60, v_qstart=index + 1,
-                             v_qend=index + 60, v_qseq="A" * 60))
+                             v_qend=index + 60, v_qseq="A" * 100))
+            shift = data.draw(st.integers(1, 20))
+            # Same allele and all ranking metrics, different aligned interval.
+            # Both intervals remain within the same full query sequence.
+            rows.append(dict(rows[-1], v_qstart=index + 1 + shift,
+                             v_qend=index + 60 + shift))
         # A weaker bit score loses even with stronger secondary evidence.
         rows.append(dict(rows[-1], v_call="IGHV9-9*01", v_bits=float(bits - 1),
                          v_support=support / 10, v_fident=1.0))
@@ -231,7 +242,7 @@ def test_best_hits_are_permutation_invariant_with_sorted_allele_ties(data):
     frame = pl.DataFrame(rows)
     expected = select_best_hits(frame, "v").sort("v_query")
     assert dict(expected.select("v_query", "v_call").iter_rows()) == expected_calls
-    assert expected["v_qstart"].to_list() == [1] * len(expected_calls)
+    assert expected.select(list(expected_evidence[0])).to_dicts() == expected_evidence
     permutations = [list(reversed(range(frame.height))),
                     data.draw(st.permutations(range(frame.height)))]
     for permutation in permutations:
