@@ -64,6 +64,19 @@ python -m pytest abstar/tests/test_regions.py -q
 python -m pytest abstar/tests/test_regions.py::test_get_region_sequence_fwr1 -q
 ```
 
+Run the complete statement-and-branch coverage gate with:
+
+```bash
+python -m pytest --cov=abstar --cov-branch --cov-report=term-missing --cov-report=json:/tmp/abstar-coverage.json -q
+python scripts/check_coverage.py /tmp/abstar-coverage.json coverage-floors.json
+```
+
+The first command enforces the package floor in `.coveragerc`; the second
+enforces the critical-module floors in `coverage-floors.json`. Both floors use
+coverage.py's combined statement-and-branch `percent_covered` value rounded
+down to an integer. Raise floors when measured coverage increases, and never
+lower them without treating the change as a release-gate regression.
+
 Useful CLI checks after an editable install:
 
 ```bash

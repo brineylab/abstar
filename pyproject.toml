@@ -46,6 +46,7 @@ testpaths = ["abstar/tests"]
 strict_config = true
 strict_markers = true
 xfail_strict = true
+required_plugins = ["pytest-cov>=6,<8"]
 markers = [
   "integration: exercises a real component or external-tool boundary",
   "e2e: exercises abstar.run or the installed abstar command",
