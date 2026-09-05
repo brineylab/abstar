@@ -118,7 +118,10 @@ python scripts/discover_bcr_cases.py \
 
 The scheduled nightly workflow is distinct from ordinary CI: it downloads an
 explicitly provisioned artifact containing `bcr_fastas/`,
-`sample_manifest.csv`, and `cellranger/`, then runs a bounded cohort.
+`sample_manifest.csv`, and `cellranger/`, then runs a bounded cohort. Candidate
+reports and logs live under `runner.temp`, outside the checkout. A separate
+scheduled documentation linkcheck runs independently of corpus provisioning;
+it is not an ordinary push or pull-request gate.
 
 Useful CLI checks after an editable install:
 
