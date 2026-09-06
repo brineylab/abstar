@@ -306,13 +306,12 @@ class _SinglePassIterator:
     """Expose accidental repeated traversal of a consumable input source."""
     def __init__(self, records):
         self.records = iter(records)
-        self.iterations = 0
         self.yielded = 0
         self.exhaustions = 0
 
     def __iter__(self):
-        self.iterations += 1
-        assert self.iterations == 1, "input iterator traversed more than once"
+        # Reacquiring an iterator does not consume it. Generator expressions
+        # may call this more than once, depending on the Python version.
         return self
 
     def __next__(self):
@@ -324,6 +323,22 @@ class _SinglePassIterator:
             raise
         self.yielded += 1
         return record
+
+
+def test_single_pass_guard_allows_repeated_iter_calls():
+    source = _SinglePassIterator(["first", "second"])
+    assert iter(source) is source
+    assert iter(source) is source
+    assert list(source) == ["first", "second"]
+    assert source.yielded == 2
+    assert source.exhaustions == 1
+
+
+def test_single_pass_guard_rejects_actual_second_consumption():
+    source = _SinglePassIterator(["first", "second"])
+    assert list(source) == ["first", "second"]
+    with pytest.raises(AssertionError, match="exhausted input was consumed again"):
+        list(source)
 
 
 @pytest.mark.parametrize("input_kind", ["list", "iterator", "generator"])
@@ -360,7 +375,6 @@ def test_process_inputs_preserves_headers_and_consumes_once(tmp_path, input_kind
         assert lines[::2] == [b">" + identifier.encode("utf-8") for identifier, _ in records]
         assert lines[1::2] == [sequence.encode("ascii") for _, sequence in records]
         if input_kind != "list":
-            assert source.iterations == 1
             assert source.yielded == len(records)
             assert source.exhaustions == 1
     assert not Path(temp_dir).exists()
