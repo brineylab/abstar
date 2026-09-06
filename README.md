@@ -18,7 +18,7 @@ AIRR TSV and Parquet output.
 ## Install
 
 `abstar` supports Python 3.10 through 3.13. The tested dependency ranges include
-`abutils>=0.6,<0.7`, `polars>=1.5,<2`, and `pyarrow>=16.1,<26`.
+`abutils>=0.6,<0.7`, `polars>=1.6,<2`, and `pyarrow>=16.1,<26`.
 
 ```bash
 pip install abstar

@@ -102,14 +102,15 @@ jobs:
         run: |
           if [ "$PROFILE" = "lowest" ]; then
             python -m pip install -r requirements-test.txt \
-              "abutils==0.6.0" "polars==1.5.0" "pyarrow==16.1.0"
+              "abutils==0.6.0" "polars==1.6.0" "pyarrow==16.1.0"
           else
             python -m pip install --upgrade --upgrade-strategy eager \
               -r requirements-test.txt \
-              "abutils>=0.6,<0.7" "polars>=1.5,<2" "pyarrow>=16.1,<26"
+              "abutils>=0.6,<0.7" "polars>=1.6,<2" "pyarrow>=16.1,<26"
           fi
       - name: Verify resolved versions remain within declared bounds
         run: |
+          python -m pip check
           python -m pip show abstar abutils polars pyarrow parasail pytest
           python - <<'PY'
           from importlib.metadata import version
@@ -117,7 +118,7 @@ jobs:
 
           bounds = {
               "abutils": SpecifierSet(">=0.6,<0.7"),
-              "polars": SpecifierSet(">=1.5,<2"),
+              "polars": SpecifierSet(">=1.6,<2"),
               "pyarrow": SpecifierSet(">=16.1,<26"),
           }
           outside = [f"{name}=={version(name)}" for name, allowed in bounds.items()

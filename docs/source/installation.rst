@@ -9,7 +9,7 @@ lowest declared dependency profile and the newest versions allowed by these
 bounds:
 
 - ``abutils>=0.6,<0.7``
-- ``polars>=1.5,<2``
+- ``polars>=1.6,<2``
 - ``pyarrow>=16.1,<26``
 - ``biopython>=1.80``
 
