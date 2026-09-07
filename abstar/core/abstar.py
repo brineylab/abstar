@@ -8,6 +8,7 @@ import os
 import shutil
 import tempfile
 import traceback
+import warnings
 from collections import defaultdict
 from contextlib import contextmanager
 from pathlib import Path
@@ -35,6 +36,7 @@ from ..assigners.mmseqs import (
 )
 from ..preprocess.merging import MergeExternalToolError, merge_fastqs
 from .results import AnnotationChunkResult, AnnotationRunError, RecordFailure
+from .diagnostics import initialize_diagnostics, sample_directory, index_failures
 
 
 def _assert_record_conservation(
@@ -236,7 +238,7 @@ def _project_workspace(project_path, debug, published_outputs):
         if owned:
             # This workspace belongs only to this run, so these cannot be
             # historical project diagnostics. Debug retains the same paths.
-            paths.extend(str(path) for path in sorted((Path(workspace) / "logs").glob("*.failed")))
+            paths.extend(str(path) for path in sorted((Path(workspace) / "logs").rglob("*.failed")))
             keep_workspace = True
             if not debug:
                 retained = None
@@ -261,6 +263,13 @@ def _project_workspace(project_path, debug, published_outputs):
         ))
         raise
     finally:
+        # Check even when a warning is promoted to an error, or a later raw
+        # exception bypasses AnnotationRunError. Never erase earlier diagnostics.
+        if owned and not keep_workspace:
+            try:
+                keep_workspace = any((Path(workspace) / "logs").rglob("*.failed"))
+            except OSError:
+                keep_workspace = True
         if owned and not keep_workspace:
             shutil.rmtree(workspace, ignore_errors=True)
 
@@ -386,6 +395,7 @@ def run(
     as_dataframe: bool = False,
     started_from_cli: bool = False,
     debug: bool = False,
+    strict: bool = False,
 ) -> Iterable[Sequence] | Sequence | None:
     """
     Annotate antibody or TCR sequences.
@@ -416,7 +426,9 @@ def run(
         annotated sequecnes will be returned as ``Sequence`` objects and log/tmp directories will be placed in
         ``"/tmp"``.
 
-        Without a project, owned temporary workspaces are cleaned unless ``debug=True``.
+        Without a project, owned temporary workspaces are cleaned unless ``debug=True``
+        or record failures require persistent diagnostics. Recoverable record errors
+        emit a warning with the failure index location; failed records have no return row.
         On failure, diagnostic/partial work is retained separately and exposed through
         ``AnnotationRunError.partial_output_paths``. Caller project directories are retained.
 
@@ -474,6 +486,12 @@ def run(
     verbose : bool = False,
         Whether to print verbose output.
 
+    strict : bool = False,
+        If ``True``, raise on sequence annotation exceptions. Otherwise retain individual
+        diagnostics, omit failed records, warn API callers, and continue. An all-failed
+        input returns an empty list/DataFrame. Worker, input, tool, and storage failures
+        always raise.
+
     debug : bool = False,
         If ``True``, the following additional things will happen:
           - successfully annotated sequences will be logged in addition to sequences that errored during annotation
@@ -524,6 +542,9 @@ def run(
         or n_processes <= 0
     ):
         raise ValueError("n_processes must be a positive integer or None")
+
+    if not isinstance(strict, bool):
+        raise ValueError("strict must be a boolean")
 
     return_sequences = project_path is None
     if return_sequences:
@@ -653,6 +674,18 @@ def run(
         # annotate sequences
         sequence_files = natsorted(sequence_files)
         sample_names = _get_sample_names(sequence_files)
+        try:
+            initialize_diagnostics(log_dir, {
+                "germline_database": germline_database, "receptor": receptor,
+                "output_format": output_format, "umi_pattern": umi_pattern, "umi_length": umi_length,
+                "merge": merge, "merge_kwargs": merge_kwargs, "interleaved_fastq": interleaved_fastq,
+                "chunksize": chunksize, "mmseqs_chunksize": mmseqs_chunksize,
+                "mmseqs_threads": mmseqs_threads, "n_processes": n_processes,
+                "strict": strict, "debug": debug, "copy_inputs_to_project": copy_inputs_to_project,
+            }, sequence_files)
+        except OSError as error:
+            _raise_pipeline_failure(error, sample_ordinal=0, sample_name="run", log_directory=log_dir,
+                                    stage="output", category="internal_error")
         total_input_count = 0
         total_annotated_count = 0
         total_unassigned_count = 0
@@ -715,6 +748,14 @@ def run(
             total_input_count += raw_sequence_count
             assigner.cleanup()
 
+            try:
+                failure_directory = sample_directory(log_dir, sample_name)
+            except OSError as error:
+                _raise_pipeline_failure(error, sample_ordinal=sample_ordinal, sample_name=sample_name,
+                                        log_directory=log_dir, stage="output", category="internal_error")
+            annot_kwargs["failure_directory"] = failure_directory
+            worker_failed = False
+
             # split into annotation jobs
             split_assign_files = abutils.io.split_parquet(
                 assign_file, temp_dir, num_rows=chunksize
@@ -753,6 +794,7 @@ def run(
                     try:
                         chunk_results[result_index] = future.result()
                     except Exception as error:
+                        worker_failed = True
                         chunk_results[result_index] = _chunk_failure_result(
                             split_assign_files[result_index], temp_dir, log_dir, error
                         )
@@ -787,23 +829,33 @@ def run(
             total_unassigned_count += unassigned_count
             public_df = work_df.drop("row_id")
 
-            failed_log_file = os.path.join(log_dir, f"{sample_name}.failed")
-            _assemble_logs(failed_log_files, failed_log_file)
             if debug:
                 succeeded_log_file = os.path.join(log_dir, f"{sample_name}.succeeded")
                 _assemble_logs(succeeded_log_files, succeeded_log_file)
 
-            if sample_failures:
-                with open(failed_log_file, "a") as failed_log:
-                    failed_log.write(
-                        f"\nRECEPTOR: {receptor}\nGERMLINE DATABASE: {germline_database}\n"
-                    )
+            if worker_failed:
+                failed_log_file = os.path.join(log_dir, f"{sample_name}.failed")
+                _assemble_logs(failed_log_files, failed_log_file)
+                with open(failed_log_file, "a") as handle:
                     for failure in sample_failures:
-                        failed_log.write(
-                            f"\nROW ID: {failure.row_id}\nSEQUENCE ID: {failure.sequence_id}\n"
-                            f"{failure.stage}/{failure.category}: {failure.message}\n"
-                        )
-                raise AnnotationRunError(sample_failures, [*annotated_files, failed_log_file])
+                        handle.write(f"\nROW ID: {failure.row_id}\nSEQUENCE ID: {failure.sequence_id}\n"
+                                     f"{failure.stage}/{failure.category}: {failure.message}\n")
+                raise AnnotationRunError(sample_failures, [*annotated_files, failed_log_file,
+                    *map(str, Path(failure_directory).glob("*.failed"))])
+            if sample_failures:
+                try:
+                    diagnostic_paths = index_failures(
+                        log_dir, failure_directory, sequence_file, sample_name, sample_failures,
+                    )
+                except OSError as error:
+                    _raise_pipeline_failure(error, sample_ordinal=sample_ordinal, sample_name=sample_name,
+                                            log_directory=log_dir, stage="output", category="internal_error",
+                                            partial_output_paths=annotated_files)
+                if strict:
+                    raise AnnotationRunError(sample_failures, [*annotated_files, *diagnostic_paths,
+                                                              os.path.join(log_dir, "failures.tsv")])
+            else:
+                os.rmdir(failure_directory)
 
             # get output Sequences
             if return_sequences:
@@ -821,7 +873,10 @@ def run(
                 # log results summary
                 duration = datetime.now() - start_time
                 _log_results_summary(
-                    sequence_count=sequence_count,
+                    sequence_count=annotated_count,
+                    unassigned_count=unassigned_count,
+                    failed_count=len(sample_failures),
+                    failure_directory=failure_directory,
                     sequences_per_second=raw_sequence_count / duration.total_seconds(),
                     seconds=duration.total_seconds(),
                     concise_logging=concise_logging,
@@ -838,7 +893,10 @@ def run(
                 sequence_count = public_df.height
                 duration = datetime.now() - start_time
                 _log_results_summary(
-                    sequence_count=sequence_count,
+                    sequence_count=annotated_count,
+                    unassigned_count=unassigned_count,
+                    failed_count=len(sample_failures),
+                    failure_directory=failure_directory,
                     sequences_per_second=raw_sequence_count / duration.total_seconds(),
                     seconds=duration.total_seconds(),
                     concise_logging=concise_logging,
@@ -861,6 +919,15 @@ def run(
             total_unassigned_count,
             all_failures,
         )
+        if all_failures:
+            summary = (
+                f"{len(all_failures):,} sequences failed annotation; "
+                f"see {os.path.join(log_dir, 'failures.tsv')}"
+            )
+            logger.info(f"\nRun totals: {total_input_count:,} input, {total_annotated_count:,} annotated, "
+                        f"{total_unassigned_count:,} unassigned. {summary}\n")
+            if not started_from_cli:
+                warnings.warn(summary, RuntimeWarning, stacklevel=2)
         if return_sequences:
             if as_dataframe:
                 return pl.concat(dataframes_to_return, how="vertical")
@@ -1152,6 +1219,9 @@ def _log_results_summary(
     sequences_per_second: int,
     seconds: float,
     concise_logging: bool = False,
+    unassigned_count: int = 0,
+    failed_count: int = 0,
+    failure_directory: str | None = None,
 ) -> None:
     if seconds < 60:
         hours = 0
@@ -1171,6 +1241,9 @@ def _log_results_summary(
     else:
         logger.info("\n")
         logger.info(f"{sequence_count:,} sequences had an identifiable rearrangement\n")
+    logger.info(f"{unassigned_count:,} sequences unassigned\n")
+    if failed_count:
+        logger.info(f"{failed_count:,} sequences failed annotation; see {failure_directory}/\n")
     logger.info(
         f"time elapsed: {duration_string} ({sequences_per_second:,.2f} sequences/sec)\n"
     )

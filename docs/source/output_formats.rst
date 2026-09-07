@@ -90,8 +90,11 @@ rows raise an error rather than producing inferred residues.
 Unassigned records retain ``sequence_input``, ``sequence_oriented``,
 ``annotation_status=unassigned``, and an inspectable ``failure_reason``.
 Their ``productive`` value and unavailable annotation fields remain null.
-Internal annotation errors raise a structured run error instead of producing
-successful empty output.
+Sequence annotation exceptions have no normal output row. They are recorded in
+``logs/failures.tsv`` and individual diagnostic files while other records continue.
+An all-failed sample has an empty output with explicit failure counts and logs.
+``strict=True`` / ``--strict`` instead raises a structured run error. Input, worker,
+external-tool, and output/storage errors always remain fatal.
 
 Compatibility note
 ~~~~~~~~~~~~~~~~~~
@@ -521,6 +524,20 @@ changes. ``v_score`` and ``j_score`` describe the boundary alignments;
 ``v_support`` and ``j_support`` retain search evidence. Productivity evaluates
 the junction start relative to the V-region origin and its one-based
 ``frame``. Current internal coordinates remain zero-based, half-open.
+
+If the junction-start alignment endpoint falls in a query gap, annotation
+attempts recovery by aligning raw oriented-query FWR3 bases through the complete
+IMGT 104 reference codon. The upstream boundary comes from the retained V
+alignment. Recovery requires a unique, contiguous three-base anchor projection
+across all optimal alignments and agreement with retained anchor evidence.
+Competing boundaries, incomplete codons, and conflicting evidence remain
+explicit per-sequence failures. The diagnostic log records the recovered
+interval and alignment score.
+
+Recovery does not search for a nearby cysteine or prefer a productive reading
+frame. Observed mutations, ambiguous bases, and frameshifts remain subject to
+the usual productivity checks. Sequences whose original endpoint maps to a
+query base continue through the existing junction calculation.
 
 ``c_sequence_gapped`` and ``c_germline_gapped`` now contain the retained C
 query/reference pair in the same alignment columns. Previously, the latter

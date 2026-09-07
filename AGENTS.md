@@ -28,6 +28,8 @@ records before the normal input parser and assignment run.
   chunking, multiprocessing, output assembly, logging, and cleanup.
 - `abstar/assigners/mmseqs.py`: active V, J, D, and C assignment pipeline.
 - `abstar/annotation/annotator.py`: per-sequence annotation orchestration.
+- `abstar/annotation/junction.py`: conservative raw FWR3 anchor recovery when
+  the legacy alignment endpoint cannot be mapped to a query base.
 - `abstar/annotation/antibody.py`: annotation data model and logging state.
 - `abstar/annotation/germline.py`: germline lookup and segment realignment.
 - `abstar/annotation/{regions,positions,indels,mutations,mask,productivity}.py`:
@@ -121,6 +123,22 @@ python scripts/discover_bcr_cases.py \
   --per-dataset 25 --n-processes 2
 ```
 
+For an exact regression comparison after an explicitly requested corpus rerun,
+use the original FASTAs, both run roots, and reviewed expectations for every
+baseline failure. Write a new report outside the checkout and run/input trees:
+
+```bash
+python scripts/compare_annotation_runs.py \
+  --baseline /path/to/original_run --candidate /path/to/rerun \
+  --fasta-dir /path/to/bcr_fastas \
+  --expected abstar/test_data/lc_anchor_failures.json \
+  --report /tmp/abstar-comparison.json
+```
+
+This compares all public Parquet fields and schemas for original successful
+records, verifies recovered failures against literal expectations, and checks
+record conservation using original FASTA ordinals even when IDs repeat.
+
 The scheduled nightly workflow is distinct from ordinary CI: it downloads an
 explicitly provisioned artifact containing `bcr_fastas/`,
 `sample_manifest.csv`, and `cellranger/`, then runs a bounded cohort. Candidate
@@ -196,9 +214,16 @@ For changes in assignment or annotation logic:
 - Constrain J and D candidates by receptor and compatible chain locus.
 - Verify productivity using frame, junction, stop-codon, ambiguity, and
   receptor-appropriate motif rules.
-- Never represent an internal exception as an ordinary successful empty
-  output. Expected biological non-assignment, invalid input, and programming
-  errors must remain distinguishable.
+- Sequence annotation exceptions are recoverable by default: omit their incomplete
+  rows, persist per-record diagnostics and a failure index, report counts (and an
+  API warning), and continue other records/samples. `strict=True` / `--strict`
+  restores abort-on-record-error behavior. An all-failed sample may have empty
+  output only with explicit persistent failure accounting. Biological nonassignment,
+  invalid input, and programming errors must remain distinguishable.
+- Record diagnostics use `logs/<input-stem>/<encoded-id>__<row-key>.failed`;
+  `logs/failures.tsv` indexes exact IDs and source paths. `logs/run.json` records
+  parameters, versions, and source hashes. Preserve diagnostics across reruns and
+  no-project API cleanup; worker/tool/output/storage failures remain fatal.
 - Check record conservation: every input record must result in an annotation or
   an explicit, inspectable failure status.
 

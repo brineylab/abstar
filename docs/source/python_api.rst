@@ -97,6 +97,9 @@ Parameters
 ``verbose``
     Print progress information. Default: ``False``
 
+``strict``
+    Abort on individual sequence annotation exceptions. Default: ``False``
+
 ``debug``
     Retain temp files and enable detailed logging. Default: ``False``
 
@@ -106,7 +109,7 @@ Return Types
 
 **When project_path is None (default):**
 
-One input record returns an ``abutils.Sequence``; multiple input records return
+One input record that annotates or is unassigned returns an ``abutils.Sequence``; multiple input records return
 a list of ``Sequence`` objects in input order. Lists, iterators, and generators
 are supported, and arbitrary iterables are consumed once. Directory inputs are
 discovered recursively in natural path order, with record order retained within
@@ -114,9 +117,12 @@ each file. This order is stable across worker counts and annotation chunk sizes.
 
 Every returned or written row receives an ``annotation_status``. An ordinary
 biological non-assignment returns ``"unassigned"`` with a ``failure_reason``;
-it remains in the result and does not change the return shape. Internal and
-external-tool failures do not have result rows. They raise
-``abstar.AnnotationRunError`` and appear in its structured ``failures``.
+it remains in the result and does not change the return shape. Sequence annotation
+exceptions have no normal result row: they produce persistent diagnostics and a
+warning, while remaining records continue. An all-failed input returns an empty
+list/DataFrame. With ``strict=True``, sequence exceptions instead raise
+``abstar.AnnotationRunError``. Worker, input, external-tool, and output/storage
+failures always raise and appear in the exception's structured ``failures``.
 ``partial_output_paths`` contains only diagnostic or partial artifacts that
 could be retained; it may be empty when storage fails before an artifact can be
 preserved.
@@ -147,7 +153,9 @@ Files published for earlier samples are also listed as partial if a later
 sample fails.
 
 Without a caller project, ordinary temporary workspaces are cleaned after
-success. Failed work and logs are transferred to an
+success with no record errors. Recovered record failures retain their diagnostics
+in the API workspace, with the index path reported in the warning. On a fatal
+run error, failed work and logs are transferred to an
 ``abstar-failed-*`` directory in the system temporary directory, and the
 surviving partial files and failure logs are listed in ``partial_output_paths``.
 If that transfer fails, abstar keeps the surviving owned workspace files and
@@ -422,36 +430,30 @@ biological outcome explicit:
 If both input records use the identifier ``duplicate``, both returned IDs stay
 ``duplicate`` and remain in the same order; the private row identity is absent.
 
-An unexpected annotation exception could previously be observed only as an
-empty successful result. The old calling pattern therefore could not distinguish
-the defect from ordinary biological non-assignment:
+Sequence annotation exceptions are recoverable by default. Failed records have no
+normal output row; the remaining records and samples continue. A ``RuntimeWarning``
+reports the failure count and persistent ``logs/failures.tsv`` location. Without a
+project directory, the temporary workspace containing diagnostics is retained;
+ordinary scratch Parquets are cleaned unless ``debug=True``. An entirely failed
+input returns an empty list or a schema-bearing empty DataFrame, with the warning
+and diagnostics distinguishing it from biological non-assignment. Multiple-input
+object returns remain lists even when only one record survives.
 
-.. code-block:: python
-
-    # Before
-    result = abstar.run("input.fasta")
-    if not result:
-        print("no annotations")
-
-The same injected annotation defect now raises with an
-``annotation/internal_error`` failure. Catch it only when the calling
-application can report or recover from the failed run:
+Migration: callers relying on annotation exceptions must now pass ``strict=True``.
+Worker, input, external-tool, and output/storage failures remain fatal in either mode.
 
 .. code-block:: python
 
     import abstar
-    from pathlib import Path
 
-    # After
+    # Default: keep successful/unassigned records and log sequence errors.
+    result = abstar.run("input.fasta")
+
+    # Strict: retain the previous exception policy.
     try:
-        abstar.run("input.fasta", "project/")
+        abstar.run("input.fasta", "project/", strict=True)
     except abstar.AnnotationRunError as error:
-        internal = [failure for failure in error.failures
-                    if (failure.stage, failure.category) ==
-                    ("annotation", "internal_error")]
-        assert internal
-        artifacts = tuple(Path(path) for path in error.partial_output_paths)
-        assert all(path.exists() for path in artifacts)
+        print(error.failures, error.partial_output_paths)
         raise
 
 ``failures`` contains immutable ``RecordFailure`` values. Stages are

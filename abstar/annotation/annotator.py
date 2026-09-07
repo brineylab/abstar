@@ -24,6 +24,7 @@ from .germline import (
     reassign_dgene,
 )
 from .indels import annotate_deletions, annotate_insertions
+from .junction import recover_fwr3_anchor
 from .mask import (
     generate_cdr_mask,
     generate_gene_segment_mask,
@@ -38,6 +39,7 @@ from .regions import get_region_sequence, identify_cdr3_regions
 from .schema import ANNOTATION_WORK_SCHEMA
 from .umi import parse_umis
 from ..core.results import AnnotationChunkResult, RecordFailure
+from ..core.diagnostics import write_record_diagnostic
 
 
 class RetainedAlignment(NamedTuple):
@@ -148,6 +150,7 @@ def annotate(
     umi_pattern: str | None = None,
     umi_length: int | None = None,
     debug: bool = False,
+    failure_directory: str | None = None,
 ) -> AnnotationChunkResult:
     """
     Annotates a Parquet file of V(D)J-assigned antibody sequences.
@@ -191,6 +194,10 @@ def annotate(
     debug : bool, default=False
         Whether to write log files for failed and succeeded sequences.
 
+    failure_directory : Optional[str], default=None
+        Existing persistent sample directory for individual record diagnostics.
+        Diagnostic write failures propagate to the controller as worker failures.
+
     Returns
     -------
     AnnotationChunkResult
@@ -207,6 +214,7 @@ def annotate(
     failures = []
     for record_ordinal, r in enumerate(df.iter_rows(named=True)):
         r.setdefault("row_id", f"abstar_0_{record_ordinal}")
+        assignment_record = dict(r)
         receptor_type = r.pop("receptor_type", None)
         ab = Antibody(**r)
         if receptor_type is not None:
@@ -234,9 +242,15 @@ def annotate(
                 umi_length=umi_length,
                 debug=debug,
             )
+        except (OSError, MemoryError):
+            # Storage and resource failures are infrastructure failures, not
+            # evidence that this biological record alone cannot be annotated.
+            raise
         except Exception as error:
             traceback_text = traceback.format_exc()
             ab.exception("ANNOTATION EXCEPTION", traceback_text)
+            if failure_directory is not None:
+                write_record_diagnostic(failure_directory, assignment_record, ab, error)
             failures.append(
                 RecordFailure(
                     row_id=str(ab.row_id),
@@ -566,7 +580,8 @@ def annotate_single_sequence(
 
     # we include the conserved C codon (which forms the start of the junction) to avoid an edge case
     # in which a sequence has a deletion at the position immediately preceding the conserved C codon
-    # because the C is so highly conserved, it's basically impossible for a sequence to have a deletion at that position
+    # Deletions spanning this codon can still make the endpoint unmappable;
+    # the raw FWR3 recovery below handles that case conservatively.
     germ_fr3_sequence = ab.v_germline_gapped[196 - 1 : 312].replace(".", "")
     ab.log("FR3 GERMLINE SEQUENCE:", germ_fr3_sequence)
 
@@ -624,14 +639,20 @@ def annotate_single_sequence(
     ab.log("ALIGNED FWR3 GERMLINE:", fr3_sg.aligned_target)
     ab.log("FWR3 ALIGNMENT END:", fr3_sg.query_end)
 
-    ab.junction_start = (
-        get_ungapped_position_from_aligned(
-            position=fr3_sg.query_end,
-            aligned_sequence=v_sg.aligned_query,
-        )
-        # + 1  # junction start is the position after the end of the FR3 alignment
-        - 2  # back up to the start of the conserved C codon (start of the junction)
+    anchor_end = get_ungapped_position_from_aligned(
+        position=fr3_sg.query_end,
+        aligned_sequence=v_sg.aligned_query,
     )
+    if anchor_end is None:
+        # Recover only the previously unmappable endpoint. Successful legacy
+        # paths, retained V evidence, and downstream productivity are unchanged.
+        anchor = recover_fwr3_anchor(ab, *v_retained, **ALIGNMENT_PARAMS)
+        ab.junction_start = anchor.start
+        ab.log("JUNCTION ANCHOR RECOVERY: raw FWR3 alignment")
+        ab.log("RECOVERED ANCHOR INTERVAL:", (anchor.start, anchor.end))
+        ab.log("RECOVERY ALIGNMENT SCORE:", anchor.score)
+    else:
+        ab.junction_start = anchor_end - 2
     ab.log("JUNCTION START:", ab.junction_start)
 
     # junction end

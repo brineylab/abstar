@@ -59,13 +59,21 @@ many = abstar.run([Sequence("N", id="first"), Sequence("N", id="second")])
 frame = abstar.run("sequences.fasta", as_dataframe=True)
 ```
 
-One input record returns one `abutils.Sequence`; multiple records return a list,
+One input record returns one `abutils.Sequence` when it annotates or is unassigned; multiple records return a list,
 including when only one is assigned; `as_dataframe=True` always returns a Polars
 DataFrame. Every returned or written row has `annotation_status`. Biological
-non-assignment produces an `unassigned` row with `failure_reason`. Internal or
-external-tool failures have no result row; they raise `abstar.AnnotationRunError`
-and appear in its structured `failures`. `partial_output_paths` contains only
-diagnostic or partial artifacts that could be retained, so it may be empty.
+non-assignment produces an `unassigned` row with `failure_reason`. A sequence
+annotation exception is logged and omitted from the result; other records and
+samples continue. An entirely failed input returns an empty list/DataFrame with
+a warning and persistent diagnostics. Use `strict=True` or CLI `--strict` to
+raise `abstar.AnnotationRunError` on sequence errors instead. Worker, input,
+external-tool, and output failures still abort. `partial_output_paths` lists
+retained artifacts for aborted runs.
+
+Per-record diagnostics live in `logs/<input-stem>/<encoded-id>__<row-key>.failed`.
+`logs/failures.tsv` indexes exact IDs, source files, exceptions, and diagnostic
+paths; `logs/run.json` records versions, source hashes, and parameters. API calls
+warn with the index location, including when no project directory was supplied.
 Duplicate visible IDs and input ordering are preserved.
 
 AIRR TSV targets the AIRR 2.0 Rearrangement schema. It writes 1-based closed
