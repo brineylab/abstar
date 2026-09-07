@@ -24,6 +24,9 @@ AIRR TSV and Parquet output.
 pip install abstar
 ```
 
+On Apple Silicon, Parasail needs source-build prerequisites. See the
+[macOS installation instructions](https://abstar.readthedocs.io/en/latest/installation.html#macos-source-build-prerequisites).
+
 MMseqs2 and fastp executables are provided through `abutils`; no separate
 system installation is required for the normal packaged workflow.
 

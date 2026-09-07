@@ -57,6 +57,11 @@ Create or use an isolated Python 3.10+ environment. Invoke Python tools through
 the selected interpreter so that `pytest`, imports, and package metadata come
 from the same environment.
 
+On Apple Silicon, Parasail 1.3.4 builds from source. Install the Xcode Command
+Line Tools and `brew install autoconf automake libtool m4`, then set
+`M4="$(brew --prefix m4)/bin/m4"` in the installation environment. The macOS
+wheel CI job provisions these tools and exercises a native Parasail alignment.
+
 ```bash
 python -m pip install -e .
 python -m pytest -q

@@ -27,6 +27,25 @@ The easiest way to install abstar is via pip:
     pip install abstar
 
 
+macOS source-build prerequisites
+--------------------------------
+
+On Apple Silicon, ``parasail==1.3.4`` is installed from source because it does
+not provide a compatible wheel. Install the Xcode Command Line Tools
+(``xcode-select --install``) and Homebrew_, then prepare its build tools before
+installing abstar:
+
+.. code-block:: bash
+
+    brew install autoconf automake libtool m4
+    export M4="$(brew --prefix m4)/bin/m4"
+    python -m pip install abstar
+
+Selecting ``M4`` explicitly keeps the build on Homebrew's GNU M4 even when
+Parasail prepends ``/usr/bin`` to ``PATH``. The macOS wheel-install CI job
+uses these prerequisites and checks a native Parasail alignment after installation.
+
+
 External executables
 --------------------
 
@@ -123,5 +142,6 @@ To verify that abstar is installed correctly:
 
 
 .. _MMseqs2: https://github.com/soedinglab/MMseqs2
+.. _Homebrew: https://brew.sh/
 .. _abutils: https://github.com/briney/abutils
 .. _datascience: https://hub.docker.com/repository/docker/brineylab/datascience/general
