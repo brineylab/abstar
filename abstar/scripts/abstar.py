@@ -2,12 +2,14 @@
 # Distributed under the terms of the MIT License.
 # SPDX-License-Identifier: MIT
 
+from pathlib import Path
 from typing import Iterable
 
 import click
 from abutils import Sequence
 
 from ..core.abstar import run as _run
+from ..core.results import AnnotationRunError
 
 # from ..core.germline import (
 #     build_germdb_from_igdiscover as _build_germdb_from_igdiscover,
@@ -170,26 +172,34 @@ def run(
       INPUT_PATH can be a FASTA/Q file or a directory of FASTA/Q files.
       PROJECT_PATH is the path to a directory in which tmp, log and output files will be deposited.
     """
-    return _run(
-        sequences=input_path,
-        project_path=project_path,
-        germline_database=germline_database,
-        receptor=receptor,
-        output_format=output_format,
-        umi_pattern=umi_pattern,
-        umi_length=umi_length,
-        merge=merge,
-        merge_kwargs=merge_kwargs,
-        interleaved_fastq=interleaved_fastq,
-        chunksize=chunksize,
-        mmseqs_chunksize=mmseqs_chunksize,
-        mmseqs_threads=mmseqs_threads,
-        n_processes=n_processes,
-        copy_inputs_to_project=copy_inputs_to_project,
-        verbose=verbose,
-        started_from_cli=started_from_cli,
-        debug=debug,
-    )
+    try:
+        return _run(
+            sequences=input_path,
+            project_path=project_path,
+            germline_database=germline_database,
+            receptor=receptor,
+            output_format=output_format,
+            umi_pattern=umi_pattern,
+            umi_length=umi_length,
+            merge=merge,
+            merge_kwargs=merge_kwargs,
+            interleaved_fastq=interleaved_fastq,
+            chunksize=chunksize,
+            mmseqs_chunksize=mmseqs_chunksize,
+            mmseqs_threads=mmseqs_threads,
+            n_processes=n_processes,
+            copy_inputs_to_project=copy_inputs_to_project,
+            verbose=verbose,
+            started_from_cli=started_from_cli,
+            debug=debug,
+        )
+    except AnnotationRunError as error:
+        artifacts = [Path(path) for path in error.partial_output_paths]
+        details = "\n".join(str(path) for path in artifacts if path.is_file())
+        message = str(error)
+        if details:
+            message += f"\nFailure artifacts:\n{details}"
+        raise click.ClickException(message) from error
 
 
 @cli.command(name="build_germline_database")

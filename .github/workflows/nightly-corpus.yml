@@ -1,0 +1,99 @@
+name: nightly external BCR corpus
+
+on:
+  schedule:
+    - cron: "17 9 * * *"
+  workflow_dispatch:
+    inputs:
+      corpus_run_id:
+        description: Run ID containing the provisioned corpus artifact
+        required: false
+        type: string
+      corpus_artifact:
+        description: Artifact with bcr_fastas/, sample_manifest.csv, and cellranger/
+        required: false
+        default: abstar-nightly-corpus
+        type: string
+      per_dataset:
+        description: Maximum deterministic records per dataset
+        required: false
+        default: "25"
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  corpus-sentinel:
+    name: bounded external corpus analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      CORPUS_RUN_ID: ${{ inputs.corpus_run_id || vars.ABSTAR_NIGHTLY_CORPUS_RUN_ID }}
+      CORPUS_ARTIFACT: ${{ inputs.corpus_artifact || vars.ABSTAR_NIGHTLY_CORPUS_ARTIFACT }}
+      NIGHTLY_OUTPUT: ${{ runner.temp }}/abstar-nightly-output
+      PER_DATASET: ${{ inputs.per_dataset || '25' }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Verify checked-out commit
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Initialize outcome report
+        run: |
+          mkdir -p "$NIGHTLY_OUTPUT"
+          printf '%s\n' 'nightly corpus analysis did not complete' > "$NIGHTLY_OUTPUT/analysis.log"
+      - name: Require provisioned corpus configuration
+        run: |
+          if [ -z "$CORPUS_RUN_ID" ] || [ -z "$CORPUS_ARTIFACT" ]; then
+            printf '%s\n' \
+              'Configure ABSTAR_NIGHTLY_CORPUS_RUN_ID and ABSTAR_NIGHTLY_CORPUS_ARTIFACT,' \
+              'or supply workflow_dispatch inputs. The artifact must contain bcr_fastas/,' \
+              'sample_manifest.csv, and cellranger/.' | tee "$NIGHTLY_OUTPUT/analysis.log"
+            exit 1
+          fi
+          case "$PER_DATASET" in
+            [1-9]|[1-9][0-9]|100) ;;
+            *) echo "per_dataset must be a canonical decimal integer from 1 through 100" | tee "$NIGHTLY_OUTPUT/analysis.log"; exit 1 ;;
+          esac
+      - name: Download provisioned corpus
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ env.CORPUS_ARTIFACT }}
+          run-id: ${{ env.CORPUS_RUN_ID }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: nightly-corpus
+      - name: Validate corpus artifact contract
+        run: |
+          test -d nightly-corpus/bcr_fastas || { echo 'corpus artifact lacks bcr_fastas/' | tee "$NIGHTLY_OUTPUT/analysis.log"; exit 1; }
+          test -f nightly-corpus/sample_manifest.csv || { echo 'corpus artifact lacks sample_manifest.csv' | tee "$NIGHTLY_OUTPUT/analysis.log"; exit 1; }
+          test -d nightly-corpus/cellranger || { echo 'corpus artifact lacks cellranger/' | tee "$NIGHTLY_OUTPUT/analysis.log"; exit 1; }
+      - name: Install test environment
+        run: python -m pip install -r requirements-test.txt
+      - name: Run bounded deterministic cohort
+        shell: bash
+        run: |
+          set +e
+          python scripts/discover_bcr_cases.py \
+            --fasta-dir nightly-corpus/bcr_fastas \
+            --manifest nightly-corpus/sample_manifest.csv \
+            --cellranger-root nightly-corpus/cellranger \
+            --output "$NIGHTLY_OUTPUT/candidates.jsonl" \
+            --per-dataset "$PER_DATASET" --n-processes 2 \
+            > "$NIGHTLY_OUTPUT/analysis.log" 2>&1
+          status=$?
+          cat "$NIGHTLY_OUTPUT/analysis.log"
+          exit "$status"
+      - name: Upload candidate and outcome report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: nightly-corpus-outcome-${{ github.run_id }}
+          path: ${{ env.NIGHTLY_OUTPUT }}
+          if-no-files-found: error
+          retention-days: 30

@@ -19,6 +19,9 @@ class Antibody(LoggingMixin):
 
     """
 
+    # internal metadata
+    row_id: str = None
+
     # most useful info up front
     sequence_id: str = None
     v_gene: str = None
@@ -36,6 +39,8 @@ class Antibody(LoggingMixin):
     productive: bool = True
     vj_in_frame: bool = None
     complete_vdj: bool = False
+    annotation_status: str = "annotated"
+    failure_reason: str = None
 
     # everything else
     sequence: str = None
@@ -137,18 +142,32 @@ class Antibody(LoggingMixin):
     np2_length: int = None
     fwr1: str = None
     fwr1_aa: str = None
+    fwr1_start: int = None
+    fwr1_end: int = None
     cdr1: str = None
     cdr1_aa: str = None
+    cdr1_start: int = None
+    cdr1_end: int = None
     fwr2: str = None
     fwr2_aa: str = None
+    fwr2_start: int = None
+    fwr2_end: int = None
     cdr2: str = None
     cdr2_aa: str = None
+    cdr2_start: int = None
+    cdr2_end: int = None
     fwr3: str = None
     fwr3_aa: str = None
+    fwr3_start: int = None
+    fwr3_end: int = None
     cdr3: str = None
     cdr3_aa: str = None
+    cdr3_start: int = None
+    cdr3_end: int = None
     fwr4: str = None
     fwr4_aa: str = None
+    fwr4_start: int = None
+    fwr4_end: int = None
     junction: str = None
     cdr3_v: str = None
     cdr3_v_aa: str = None
@@ -164,6 +183,10 @@ class Antibody(LoggingMixin):
     v_sequence_end: int = None
     v_germline_start: int = None
     v_germline_end: int = None
+    d_sequence_start: int = None
+    d_sequence_end: int = None
+    d_germline_start: int = None
+    d_germline_end: int = None
     j_sequence_start: int = None
     j_sequence_end: int = None
     j_germline_start: int = None
@@ -177,7 +200,7 @@ class Antibody(LoggingMixin):
 
     def __post_init__(self):
         # establish the list of AIRR output fields
-        self.airr_fields = list(self.__dict__.keys())
+        self.airr_fields = [field for field in self.__dict__ if field != "row_id"]
 
         # initialize the LoggingMixin
         super().__init__()
@@ -203,7 +226,7 @@ class Antibody(LoggingMixin):
         dict: The dictionary representation of the antibody.
 
         """
-        airr_fields = self.airr_fields
+        airr_fields = list(self.airr_fields)
 
         # excluded fields
         if exclude is not None:
@@ -215,6 +238,6 @@ class Antibody(LoggingMixin):
         if include is not None:
             if isinstance(include, str):
                 include = [include]
-            airr_fields.extend(include)
+            airr_fields.extend(field for field in include if field != "row_id")
 
         return {k: self.__dict__.get(k, None) for k in airr_fields}

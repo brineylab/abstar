@@ -1,0 +1,12 @@
+[run]
+branch = True
+source = abstar
+
+[report]
+fail_under = 90
+precision = 2
+show_missing = True
+skip_covered = False
+
+[json]
+pretty_print = True

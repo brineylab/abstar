@@ -91,74 +91,73 @@ def test_generate_cdr_mask_aa(minimal_ab):
     assert mask == expected
 
 
-def test_generate_gene_segment_mask_nt(minimal_ab):
-    # With no D-call, mask should be V, then N, then J through FWR4
-    seg = generate_gene_segment_mask(minimal_ab, aa=False, as_string=True)
-    # pre-CDR3 length is sequence up to start of cdr3
-    cdr3_start = minimal_ab.sequence.find(minimal_ab.cdr3)
-    expected = (
-        "V" * cdr3_start
-        + "V" * len(minimal_ab.cdr3_v)
-        + "N" * len(minimal_ab.cdr3_n1)
-        + ("D" * len(minimal_ab.cdr3_d) if minimal_ab.cdr3_d else "")
-        + ("N" * len(minimal_ab.cdr3_n2) if minimal_ab.cdr3_n2 else "")
-        + "J" * len(minimal_ab.cdr3_j)
-        + "J" * len(minimal_ab.fwr4)
+@pytest.fixture
+def assembled_ab():
+    # The CDR/FWR annotations deliberately remain unset: segment masks follow
+    # the complete assembled sequence, including bases outside those regions.
+    return Antibody(
+        sequence_id="assembled_mask", frame=1,
+        v_sequence="AAAA", np1="CC", d_sequence="GGGG", np2="T",
+        j_sequence="CCCC", d_call="IGHD1-14*01",
+        sequence="AAAACCGGGGTCCCC", sequence_aa="KTGVP",
     )
-    assert seg == expected
 
 
-def test_generate_gene_segment_mask_aa(minimal_ab):
-    seg = generate_gene_segment_mask(minimal_ab, aa=True, as_string=True)
-    cdr3_start = (
-        minimal_ab.sequence_aa.find(minimal_ab.cdr3_aa)
-        if minimal_ab.sequence_aa
-        else minimal_ab.sequence.find(minimal_ab.cdr3)
-    )
-    expected = (
-        "V" * cdr3_start
-        + "V" * len(minimal_ab.cdr3_v_aa)
-        + "N" * len(minimal_ab.cdr3_n1_aa)
-        + ("D" * len(minimal_ab.cdr3_d_aa) if minimal_ab.cdr3_d_aa else "")
-        + ("N" * len(minimal_ab.cdr3_n2_aa) if minimal_ab.cdr3_n2_aa else "")
-        + "J" * len(minimal_ab.cdr3_j_aa)
-        + "J" * len(minimal_ab.fwr4_aa)
-    )
-    assert seg == expected
+def test_generate_gene_segment_mask_nt(assembled_ab):
+    assert generate_gene_segment_mask(assembled_ab) == "VVVVNNDDDDNJJJJ"
+    assert generate_gene_segment_mask(assembled_ab, as_string=False) == list("VVVVNNDDDDNJJJJ")
 
 
-def test_generate_nongermline_mask_nt(minimal_ab):
-    # Provide simplistic alignments and a basic gene segment mask
-    minimal_ab.gene_segment_mask = generate_gene_segment_mask(
-        minimal_ab, aa=False, as_string=True
-    )
-    # aligned sequence = same as sequence, aligned germline = same, expect all germline (0) except N segments (1)
-    minimal_ab.sequence_alignment = minimal_ab.sequence
-    minimal_ab.germline_alignment = minimal_ab.sequence
-    mask = generate_nongermline_mask(minimal_ab, aa=False, as_string=True)
-    expected = "".join("1" if c == "N" else "0" for c in minimal_ab.gene_segment_mask)
-    assert mask == expected
+@pytest.mark.parametrize('frame,translation,expected', [
+    (1, 'KTGVP', 'VNDNJ'),
+    (2, 'KPGS', 'VNDN'),
+    (3, 'NRGP', 'NNNJ'),
+])
+def test_generate_gene_segment_mask_aa(assembled_ab, frame, translation, expected):
+    assembled_ab.frame = frame
+    assembled_ab.sequence_aa = translation
+    assert generate_gene_segment_mask(assembled_ab, aa=True) == expected
+    assert generate_gene_segment_mask(assembled_ab, aa=True, as_string=False) == list(expected)
 
 
-def test_generate_nongermline_mask_aa(minimal_ab):
-    minimal_ab.gene_segment_mask_aa = generate_gene_segment_mask(
-        minimal_ab, aa=True, as_string=True
-    )
-    minimal_ab.sequence_alignment_aa = (
-        minimal_ab.fwr1_aa
-        + minimal_ab.cdr1_aa
-        + minimal_ab.fwr2_aa
-        + minimal_ab.cdr2_aa
-        + minimal_ab.fwr3_aa
-        + minimal_ab.cdr3_aa
-        + minimal_ab.fwr4_aa
-    )
-    minimal_ab.germline_alignment_aa = minimal_ab.sequence_alignment_aa
-    mask = generate_nongermline_mask(minimal_ab, aa=True, as_string=True)
-    expected = "".join(
-        "1" if c == "N" else "0" for c in minimal_ab.gene_segment_mask_aa
-    )
-    assert mask == expected
+@pytest.mark.parametrize('v,np1,d,np2,j,sequence,translation,nt_mask,aa_mask', [
+    ('AAACC', 'G', None, None, 'TTTGGA', 'AAACCGTTTGGA', 'KPFG', 'VVVVVNJJJJJJ', 'VNJJ'),
+    ('AAAA', '', 'GGG', '', 'TTTTT', 'AAAAGGGTTTTT', 'KRVF', 'VVVVDDDJJJJJ', 'VNNJ'),
+    ('AAA', '', None, None, 'TTT', 'AAATTT', 'KF', 'VVVJJJ', 'VJ'),
+    ('TGTTGT', '', None, None, 'TTT', 'TGTTGTTTT', 'CCF', 'VVVVVVJJJ', 'VVJ'),
+])
+def test_gene_segment_mask_uses_complete_assembled_spans(
+    v, np1, d, np2, j, sequence, translation, nt_mask, aa_mask,
+):
+    ab = Antibody(v_sequence=v, np1=np1, d_sequence=d, np2=np2,
+                  j_sequence=j, sequence=sequence, sequence_aa=translation, frame=1)
+    assert generate_gene_segment_mask(ab) == nt_mask
+    assert generate_gene_segment_mask(ab, aa=True) == aa_mask
+
+
+@pytest.mark.parametrize('aa,field,value', [
+    (False, 'sequence', 'AAAACCGGGGTCCC'),
+    (True, 'sequence_aa', 'KTGV'),
+    (True, 'sequence_aa', 'KTGVPX'),
+])
+def test_gene_segment_mask_rejects_inconsistent_assembly(assembled_ab, aa, field, value):
+    setattr(assembled_ab, field, value)
+    with pytest.raises(ValueError, match="mask length"):
+        generate_gene_segment_mask(assembled_ab, aa=aa)
+
+
+def test_generate_nongermline_mask_nt(assembled_ab):
+    assembled_ab.gene_segment_mask = generate_gene_segment_mask(assembled_ab)
+    assembled_ab.sequence_alignment = assembled_ab.sequence
+    assembled_ab.germline_alignment = assembled_ab.sequence
+    assert generate_nongermline_mask(assembled_ab) == "000011000010000"
+
+
+def test_generate_nongermline_mask_aa(assembled_ab):
+    assembled_ab.gene_segment_mask_aa = generate_gene_segment_mask(assembled_ab, aa=True)
+    assembled_ab.sequence_alignment_aa = assembled_ab.sequence_aa
+    assembled_ab.germline_alignment_aa = assembled_ab.sequence_aa
+    assert generate_nongermline_mask(assembled_ab, aa=True) == "01010"
 
 
 def test_gene_segment_mask_does_not_search_for_repeated_cdr3(minimal_ab):
@@ -178,7 +177,9 @@ def test_gene_segment_mask_does_not_search_for_repeated_cdr3(minimal_ab):
         + minimal_ab.fwr2
         + minimal_ab.cdr2
         + minimal_ab.fwr3
+        + minimal_ab.cdr3_v
     )
+    minimal_ab.np1 = "F"
 
     mask = generate_gene_segment_mask(minimal_ab, aa=False, as_string=True)
 

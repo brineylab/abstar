@@ -98,27 +98,51 @@ def annotated_heavy_chain_result(single_hc_sequence):
 # =============================================
 
 
+def test_antibody_defaults_to_annotated_public_outcome():
+    antibody = Antibody(row_id="internal-row", sequence_id="public-sequence")
+
+    assert antibody.annotation_status == "annotated"
+    assert antibody.failure_reason is None
+    assert "row_id" not in antibody.airr_fields
+    assert "row_id" not in antibody.to_dict()
+    assert "row_id" not in antibody.to_dict(include=["row_id"])
+    assert antibody.to_dict()["annotation_status"] == "annotated"
+    assert antibody.to_dict()["failure_reason"] is None
+
+
+def test_antibody_to_dict_include_does_not_change_later_serialization():
+    antibody = Antibody(sequence_id="public-sequence")
+    antibody.custom_annotation = "custom-value"
+    original_fields = list(antibody.airr_fields)
+
+    included = antibody.to_dict(include=["custom_annotation"])
+
+    assert included["custom_annotation"] == "custom-value"
+    assert antibody.airr_fields == original_fields
+    assert "custom_annotation" not in antibody.to_dict()
+
+
 def test_annotate_returns_correct_files(mock_assignment_parquet, tmp_path):
-    """Test annotate() returns (output_file, failed_logfile, succeeded_logfile)."""
+    """Test annotate() returns structured output and diagnostic paths."""
     output_dir = str(tmp_path / "output")
     log_dir = str(tmp_path / "logs")
     os.makedirs(output_dir)
     os.makedirs(log_dir)
 
-    output_file, failed, succeeded = annotate(
+    result = annotate(
         input_file=mock_assignment_parquet,
         output_directory=output_dir,
         germline_database="human",
         log_directory=log_dir,
     )
 
-    assert output_file is not None
-    assert os.path.exists(output_file)
-    assert output_file.endswith(".parquet")
+    assert result.output_path is not None
+    assert os.path.exists(result.output_path)
+    assert result.output_path.endswith(".parquet")
 
     # Failed log file should exist (may be empty)
-    assert failed is not None
-    assert os.path.exists(failed)
+    assert result.failed_log_path is not None
+    assert os.path.exists(result.failed_log_path)
 
 
 def test_annotate_creates_parquet_output(mock_assignment_parquet, tmp_path):
@@ -128,7 +152,7 @@ def test_annotate_creates_parquet_output(mock_assignment_parquet, tmp_path):
     os.makedirs(output_dir)
     os.makedirs(log_dir)
 
-    output_file, _, _ = annotate(
+    result = annotate(
         input_file=mock_assignment_parquet,
         output_directory=output_dir,
         germline_database="human",
@@ -136,7 +160,7 @@ def test_annotate_creates_parquet_output(mock_assignment_parquet, tmp_path):
     )
 
     # Read output and check columns
-    df = pl.read_parquet(output_file)
+    df = pl.read_parquet(result.output_path)
 
     # Check key columns exist
     required_columns = [
@@ -157,7 +181,7 @@ def test_annotate_with_debug_logs_succeeded(mock_assignment_parquet, tmp_path):
     os.makedirs(output_dir)
     os.makedirs(log_dir)
 
-    output_file, failed, succeeded = annotate(
+    result = annotate(
         input_file=mock_assignment_parquet,
         output_directory=output_dir,
         germline_database="human",
@@ -166,8 +190,8 @@ def test_annotate_with_debug_logs_succeeded(mock_assignment_parquet, tmp_path):
     )
 
     # With debug=True, succeeded log should be returned
-    assert succeeded is not None
-    assert os.path.exists(succeeded)
+    assert result.succeeded_log_path is not None
+    assert os.path.exists(result.succeeded_log_path)
 
 
 def test_annotate_light_chain(mock_light_chain_parquet, tmp_path):
@@ -177,14 +201,14 @@ def test_annotate_light_chain(mock_light_chain_parquet, tmp_path):
     os.makedirs(output_dir)
     os.makedirs(log_dir)
 
-    output_file, _, _ = annotate(
+    result = annotate(
         input_file=mock_light_chain_parquet,
         output_directory=output_dir,
         germline_database="human",
         log_directory=log_dir,
     )
 
-    df = pl.read_parquet(output_file)
+    df = pl.read_parquet(result.output_path)
 
     # Check it's a light chain
     if df.height > 0:
@@ -201,6 +225,7 @@ def test_annotate_light_chain(mock_light_chain_parquet, tmp_path):
 # =============================================
 
 
+@pytest.mark.e2e
 def test_annotate_produces_v_gene(annotated_heavy_chain_result):
     """Test full annotation of heavy chain sequence produces V gene."""
     result = annotated_heavy_chain_result
@@ -209,6 +234,7 @@ def test_annotate_produces_v_gene(annotated_heavy_chain_result):
     assert "IGHV" in result["v_gene"]
 
 
+@pytest.mark.e2e
 def test_annotate_produces_j_gene(annotated_heavy_chain_result):
     """Test annotation produces J gene."""
     result = annotated_heavy_chain_result
@@ -217,6 +243,7 @@ def test_annotate_produces_j_gene(annotated_heavy_chain_result):
     assert "IGHJ" in result["j_gene"]
 
 
+@pytest.mark.e2e
 def test_annotate_produces_locus(annotated_heavy_chain_result):
     """Test annotation produces locus."""
     result = annotated_heavy_chain_result
@@ -229,6 +256,7 @@ def test_annotate_produces_locus(annotated_heavy_chain_result):
 # =============================================
 
 
+@pytest.mark.e2e
 def test_vgene_alignment_boundaries(annotated_heavy_chain_result):
     """Test V-gene realignment produces correct boundaries."""
     result = annotated_heavy_chain_result
@@ -242,6 +270,7 @@ def test_vgene_alignment_boundaries(annotated_heavy_chain_result):
     assert result["v_sequence_start"] < result["v_sequence_end"]
 
 
+@pytest.mark.e2e
 def test_vgene_sequences_populated(annotated_heavy_chain_result):
     """Test V-gene sequences are populated."""
     result = annotated_heavy_chain_result
@@ -252,6 +281,7 @@ def test_vgene_sequences_populated(annotated_heavy_chain_result):
     assert len(result["v_germline"]) > 0
 
 
+@pytest.mark.e2e
 def test_vgene_gapped_sequences(annotated_heavy_chain_result):
     """Test IMGT-gapped V-gene sequences are generated."""
     result = annotated_heavy_chain_result
@@ -267,6 +297,7 @@ def test_vgene_gapped_sequences(annotated_heavy_chain_result):
 # =============================================
 
 
+@pytest.mark.e2e
 def test_junction_identification(annotated_heavy_chain_result):
     """Test junction sequence is identified."""
     result = annotated_heavy_chain_result
@@ -278,6 +309,7 @@ def test_junction_identification(annotated_heavy_chain_result):
     assert len(result["junction"]) % 3 == 0
 
 
+@pytest.mark.e2e
 def test_cdr3_extraction(annotated_heavy_chain_result):
     """Test CDR3 is correctly extracted from junction."""
     result = annotated_heavy_chain_result
@@ -291,6 +323,7 @@ def test_cdr3_extraction(annotated_heavy_chain_result):
     assert cdr3 == junction[3:-3]
 
 
+@pytest.mark.e2e
 def test_cdr3_length_calculation(annotated_heavy_chain_result):
     """Test CDR3 length is AA length."""
     result = annotated_heavy_chain_result
@@ -301,6 +334,7 @@ def test_cdr3_length_calculation(annotated_heavy_chain_result):
     assert cdr3_length == len(cdr3_aa)
 
 
+@pytest.mark.e2e
 def test_junction_aa_present(annotated_heavy_chain_result):
     """Test junction amino acid sequence is present."""
     result = annotated_heavy_chain_result
@@ -314,6 +348,7 @@ def test_junction_aa_present(annotated_heavy_chain_result):
 # =============================================
 
 
+@pytest.mark.e2e
 def test_all_v_regions_populated(annotated_heavy_chain_result):
     """Test FWR1-3 and CDR1-2 regions are populated."""
     result = annotated_heavy_chain_result
@@ -324,6 +359,7 @@ def test_all_v_regions_populated(annotated_heavy_chain_result):
         assert result[f"{region}_aa"] is not None, f"V region {region}_aa should not be None"
 
 
+@pytest.mark.e2e
 def test_cdr3_region_populated(annotated_heavy_chain_result):
     """Test CDR3 region is populated."""
     result = annotated_heavy_chain_result
@@ -332,6 +368,7 @@ def test_cdr3_region_populated(annotated_heavy_chain_result):
     assert result["cdr3_aa"] is not None
 
 
+@pytest.mark.e2e
 def test_fwr4_region_populated(annotated_heavy_chain_result):
     """Test FWR4 region is populated."""
     result = annotated_heavy_chain_result
@@ -345,6 +382,7 @@ def test_fwr4_region_populated(annotated_heavy_chain_result):
 # =============================================
 
 
+@pytest.mark.e2e
 def test_v_mutations_annotated(annotated_heavy_chain_result):
     """Test V-gene mutations are identified."""
     result = annotated_heavy_chain_result
@@ -358,6 +396,7 @@ def test_v_mutations_annotated(annotated_heavy_chain_result):
         assert result["v_mutations"] is not None
 
 
+@pytest.mark.e2e
 def test_v_identity_calculation(annotated_heavy_chain_result):
     """Test V-gene identity is correctly calculated."""
     result = annotated_heavy_chain_result
@@ -390,6 +429,7 @@ def test_alignment_identity_rejects_different_alignment_lengths():
         calculate_alignment_identity("AC", "A-C")
 
 
+@pytest.mark.e2e
 def test_all_assigned_gene_segments_have_identity(annotated_heavy_chain_result):
     result = annotated_heavy_chain_result
 
@@ -417,6 +457,7 @@ def test_all_assigned_gene_segments_have_identity(annotated_heavy_chain_result):
 # =============================================
 
 
+@pytest.mark.e2e
 def test_productive_sequence(annotated_heavy_chain_result):
     """Test productive sequence is marked as such."""
     result = annotated_heavy_chain_result
@@ -429,6 +470,7 @@ def test_productive_sequence(annotated_heavy_chain_result):
     assert result["productive"] is True
 
 
+@pytest.mark.e2e
 def test_stop_codon_field_exists(annotated_heavy_chain_result):
     """Test stop_codon field exists."""
     result = annotated_heavy_chain_result
@@ -437,6 +479,7 @@ def test_stop_codon_field_exists(annotated_heavy_chain_result):
     assert "stop_codon" in result.annotations
 
 
+@pytest.mark.e2e
 def test_productivity_issues_field_exists(annotated_heavy_chain_result):
     """Test productivity_issues field exists."""
     result = annotated_heavy_chain_result
@@ -451,6 +494,7 @@ def test_productivity_issues_field_exists(annotated_heavy_chain_result):
 # =============================================
 
 
+@pytest.mark.e2e
 def test_cdr_mask_generated(annotated_heavy_chain_result):
     """Test CDR mask is generated correctly."""
     result = annotated_heavy_chain_result
@@ -463,6 +507,7 @@ def test_cdr_mask_generated(annotated_heavy_chain_result):
     assert len(cdr_mask) == len(sequence)
 
 
+@pytest.mark.e2e
 def test_cdr_mask_aa_generated(annotated_heavy_chain_result):
     """Test CDR mask AA is generated."""
     result = annotated_heavy_chain_result
@@ -471,6 +516,7 @@ def test_cdr_mask_aa_generated(annotated_heavy_chain_result):
     assert cdr_mask_aa is not None
 
 
+@pytest.mark.e2e
 def test_gene_segment_mask_generated(annotated_heavy_chain_result):
     """Test gene segment mask is generated."""
     result = annotated_heavy_chain_result
@@ -479,6 +525,7 @@ def test_gene_segment_mask_generated(annotated_heavy_chain_result):
     assert gene_mask is not None
 
 
+@pytest.mark.e2e
 def test_nongermline_mask_generated(annotated_heavy_chain_result):
     """Test non-germline mask is generated."""
     result = annotated_heavy_chain_result
@@ -492,6 +539,7 @@ def test_nongermline_mask_generated(annotated_heavy_chain_result):
 # =============================================
 
 
+@pytest.mark.e2e
 def test_sequence_alignment_populated(annotated_heavy_chain_result):
     """Test sequence alignment is populated."""
     result = annotated_heavy_chain_result
@@ -500,6 +548,7 @@ def test_sequence_alignment_populated(annotated_heavy_chain_result):
     assert result["germline_alignment"] is not None
 
 
+@pytest.mark.e2e
 def test_sequence_aa_alignment_populated(annotated_heavy_chain_result):
     """Test sequence AA alignment is populated."""
     result = annotated_heavy_chain_result
@@ -513,6 +562,7 @@ def test_sequence_aa_alignment_populated(annotated_heavy_chain_result):
 # =============================================
 
 
+@pytest.mark.e2e
 def test_full_sequence_assembled(annotated_heavy_chain_result):
     """Test full VDJ sequence is assembled."""
     result = annotated_heavy_chain_result
@@ -522,6 +572,7 @@ def test_full_sequence_assembled(annotated_heavy_chain_result):
     assert len(result["sequence"]) > 0
 
 
+@pytest.mark.e2e
 def test_sequence_aa_assembled(annotated_heavy_chain_result):
     """Test AA sequences are assembled."""
     result = annotated_heavy_chain_result
@@ -530,6 +581,7 @@ def test_sequence_aa_assembled(annotated_heavy_chain_result):
     assert result["germline_aa"] is not None
 
 
+@pytest.mark.e2e
 def test_complete_vdj_field(annotated_heavy_chain_result):
     """Test complete_vdj field is populated."""
     result = annotated_heavy_chain_result

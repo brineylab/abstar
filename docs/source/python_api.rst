@@ -28,8 +28,8 @@ The main entry point for annotation:
     # TCR annotation
     sequences = abstar.run("tcr.fasta", receptor="tcr")
 
-    # Mouse sequences with custom germline database
-    sequences = abstar.run("sequences.fasta", germline_database="mouse")
+    # C57BL/6 mouse sequences
+    sequences = abstar.run("sequences.fasta", germline_database="c57bl6")
 
 
 Parameters
@@ -51,7 +51,8 @@ Parameters
 ``germline_database``
     Germline database name. Default: ``"human"``
 
-    Built-in options: ``human``, ``mouse``, ``macaque``, ``humouse``
+    BCR options: ``human``, ``macaque``, ``c57bl6``, ``balbc``, and
+    ``human+c57bl6``. TCR currently provides ``human``.
 
 ``receptor``
     Receptor type: ``"bcr"`` (default) or ``"tcr"``
@@ -88,6 +89,11 @@ Parameters
 ``n_processes``
     Parallel annotation workers. Default: CPU count
 
+``copy_inputs_to_project``
+    Copy source files into ``project_path/input/``. Default: ``False`` in
+    Python (the CLI defaults to copying). For directory inputs, preserve paths
+    relative to the original input directory, including nested directories.
+
 ``verbose``
     Print progress information. Default: ``False``
 
@@ -100,7 +106,68 @@ Return Types
 
 **When project_path is None (default):**
 
-Returns annotated ``abutils.Sequence`` objects:
+One input record returns an ``abutils.Sequence``; multiple input records return
+a list of ``Sequence`` objects in input order. Lists, iterators, and generators
+are supported, and arbitrary iterables are consumed once. Directory inputs are
+discovered recursively in natural path order, with record order retained within
+each file. This order is stable across worker counts and annotation chunk sizes.
+
+Every returned or written row receives an ``annotation_status``. An ordinary
+biological non-assignment returns ``"unassigned"`` with a ``failure_reason``;
+it remains in the result and does not change the return shape. Internal and
+external-tool failures do not have result rows. They raise
+``abstar.AnnotationRunError`` and appear in its structured ``failures``.
+``partial_output_paths`` contains only diagnostic or partial artifacts that
+could be retained; it may be empty when storage fails before an artifact can be
+preserved.
+
+Visible identifiers are data, not join keys. Duplicate identifiers, leading
+zeroes, and values such as ``10E8`` are preserved exactly. abstar uses a unique
+private ``row_id`` while work is split and joined, then removes it at the public
+boundary. Results remain in deterministic input order across process counts and
+chunk sizes.
+
+The required ``abutils.tl.translate`` capability is checked before starting
+workers or creating a project; an incompatible installation raises
+``preprocess/internal_error`` with installation guidance in the failure's
+``message``. Malformed nonempty FASTA/FASTQ and non-IUPAC bases raise
+``preprocess/invalid_input``. The accepted nucleotide alphabet is
+``ACGTRYSWKMBDHVN`` (case-insensitive). FASTQ validation uses Biopython and supports
+multiline sequence and quality data. Missing required components in the selected
+germline database raise ``assignment/invalid_input``, naming the database,
+receptor, and component. Content-empty inputs still raise ``ValueError`` before
+creating a caller project.
+
+Final writer failures raise ``output/internal_error``. AIRR and Parquet files
+are staged together before publication; failed staging files are removed, while
+annotation work and diagnostics remain inspectable. If publication itself fails
+after a file was promoted, that file is listed in ``partial_output_paths`` and
+must be treated as partial run output.
+Files published for earlier samples are also listed as partial if a later
+sample fails.
+
+Without a caller project, ordinary temporary workspaces are cleaned after
+success. Failed work and logs are transferred to an
+``abstar-failed-*`` directory in the system temporary directory, and the
+surviving partial files and failure logs are listed in ``partial_output_paths``.
+If that transfer fails, abstar keeps the surviving owned workspace files and
+preserves the original structured error and its ``failures``. The error's
+``retention_diagnostics`` tuple and message describe the secondary storage
+failure. Only surviving files are listed in ``partial_output_paths``.
+Caller projects retain their diagnostic and partial work files; current-run
+logs are listed without including historical failures from earlier runs.
+``debug=True`` retains the complete API workspace, including on success, and
+lists surviving failure logs when the run raises.
+
+Initial project, log, temporary, and output directory failures use
+``output/internal_error``. If the project cannot store its diagnostic, abstar
+retains a fallback log in an ``abstar-failed-*`` temporary directory and lists
+its path in ``partial_output_paths``. If fallback storage also fails, the
+original structured failure and exception cause remain available; its message
+also describes the diagnostic storage errors, and no incomplete fallback file
+is reported.
+
+For a file containing multiple records:
 
 .. code-block:: python
 
@@ -113,7 +180,7 @@ Returns annotated ``abutils.Sequence`` objects:
 
 **When as_dataframe=True:**
 
-Returns a polars DataFrame:
+Returns a polars DataFrame, including for one input record:
 
 .. code-block:: python
 
@@ -138,6 +205,18 @@ Returns ``None``; writes files to project directory:
     # Output files:
     #   project/airr/input.tsv
     #   project/logs/abstar.log
+
+Empty input iterables, empty or whitespace-only raw strings, and directories
+without supported FASTA/FASTQ files raise ``ValueError`` before creating the
+requested project directory. Files containing only whitespace or no content
+(including gzip-compressed files) are skipped; if no nonempty files remain, the
+run also raises before project creation. This preflight does not parse sequence
+records: malformed nonempty files continue through the parser and retain their
+structured failure diagnostics.
+
+Process and chunk counts must be positive integers (not Booleans);
+``n_processes=None`` selects the CPU count. Unsupported or empty output formats
+also raise before project creation.
 
 
 Module Namespaces
@@ -292,3 +371,93 @@ Examples
         .sort("len", descending=True)
     )
     print(v_usage)
+
+
+Coordinate conventions
+----------------------
+
+Python annotations, dataframe returns, and Parquet use zero-based half-open
+query/reference coordinates. Region coordinates and V/D/J/C sequence coordinates
+address ``sequence_oriented``. AIRR TSV converts these to one-based closed
+intervals. Both final file formats write the original input as ``sequence``. See
+:doc:`output_formats` for sequence, CIGAR, null, and migration details.
+The official TSV/final Parquet ``sequence_aa`` uses the full oriented-query coding phase;
+its paired AA alignment fields share the nucleotide alignment columns.
+Python annotation objects and dataframe returns retain their assembled
+``sequence`` and translations for compatibility. Project mode returns ``None``;
+the file mapping does not change no-project API return shapes or values.
+Use ``abstar.annotation.airr.to_airr_row()`` for the explicit serialization mapping.
+
+
+Migration examples
+------------------
+
+A biological non-assignment could previously disappear from the result. Given
+a two-record ``mixed.fasta`` with an assignable antibody named ``assigned`` and
+a query ``N`` named ``unassigned``, the legacy result contained only the first
+row:
+
+.. code-block:: python
+
+    # Before
+    result = abstar.run("mixed.fasta")
+    assert result.id == "assigned"  # one object despite two input records
+
+The conserved result now contains both records in input order and makes the
+biological outcome explicit:
+
+.. code-block:: python
+
+    import abstar
+
+    # After
+    result = abstar.run("mixed.fasta", n_processes=1, mmseqs_threads=1)
+    assert len(result) == 2
+    assert [row.id for row in result] == ["assigned", "unassigned"]
+    assert [row["annotation_status"] for row in result] == ["annotated", "unassigned"]
+    assert result[1]["sequence_input"] == "N"
+    assert result[1]["failure_reason"] == "no compatible V gene assignment"
+    assert result[1]["v_call"] is result[1]["j_call"] is None
+
+If both input records use the identifier ``duplicate``, both returned IDs stay
+``duplicate`` and remain in the same order; the private row identity is absent.
+
+An unexpected annotation exception could previously be observed only as an
+empty successful result. The old calling pattern therefore could not distinguish
+the defect from ordinary biological non-assignment:
+
+.. code-block:: python
+
+    # Before
+    result = abstar.run("input.fasta")
+    if not result:
+        print("no annotations")
+
+The same injected annotation defect now raises with an
+``annotation/internal_error`` failure. Catch it only when the calling
+application can report or recover from the failed run:
+
+.. code-block:: python
+
+    import abstar
+    from pathlib import Path
+
+    # After
+    try:
+        abstar.run("input.fasta", "project/")
+    except abstar.AnnotationRunError as error:
+        internal = [failure for failure in error.failures
+                    if (failure.stage, failure.category) ==
+                    ("annotation", "internal_error")]
+        assert internal
+        artifacts = tuple(Path(path) for path in error.partial_output_paths)
+        assert all(path.exists() for path in artifacts)
+        raise
+
+``failures`` contains immutable ``RecordFailure`` values. Stages are
+``preprocess``, ``assignment``, ``annotation``, or ``output``; categories are
+``invalid_input``, ``unassigned``, ``external_tool``, or ``internal_error``.
+Ordinary unassigned rows are returned as data and do not raise. Paths in
+``partial_output_paths`` are diagnostic or already-promoted artifacts, not a
+successful complete result. The tuple is empty when no artifact could be
+retained.

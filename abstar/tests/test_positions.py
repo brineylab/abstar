@@ -11,6 +11,48 @@ from ..annotation.positions import (
 )
 
 
+@pytest.mark.parametrize('query,reference,qorigin,rorigin,qspan,rspan,columns', [
+    ('ACGT', 'ACGT', 137, 4, (138, 140), (5, 7), (1, 3)),
+    ('ACGGT', 'AC-GT', 137, 4, (138, 141), (5, 7), (1, 4)),
+    ('AC-GT', 'ACGGT', 137, 4, (138, 140), (5, 8), (1, 4)),
+    ('AC-GT', 'ACGGT', 137, 4, (139, 139), (6, 7), (2, 3)),
+    ('ACGGT', 'AC-GT', 137, 4, (139, 140), (6, 6), (2, 3)),
+])
+def test_retained_span_maps_both_coordinate_spaces_to_alignment_columns(
+    query, reference, qorigin, rorigin, qspan, rspan, columns,
+):
+    from abstar.annotation.positions import alignment_columns_for_span
+
+    assert alignment_columns_for_span(
+        query, reference, qorigin, rorigin, *qspan, *rspan,
+    ) == columns
+
+
+def test_retained_span_rejects_a_boundary_absent_from_its_trace():
+    from abstar.annotation.positions import alignment_columns_for_span
+
+    with pytest.raises(ValueError, match='not represented'):
+        alignment_columns_for_span('ACGGT', 'AC-GT', 137, 4, 139, 141, 7, 8)
+
+
+@pytest.mark.parametrize('query,reference,template,start,expected', [
+    ('ACAAAGT', 'AC---GT', 'ACGT', 0, 'ACAAAGT'),
+    ('CAAAGT', 'C---GT', 'ACGT', 1, 'CAAAGT'),
+    ('GAAAT', 'G---T', 'ACGT', 2, 'GAAAT'),
+    ('ACGTAAA', 'ACGT---', 'ACGT', 0, 'ACGTAAA'),
+    ('ACAAAGT', 'AC---GT', '..A.C..GT.', 0, '..A.CAAA..GT'),
+    ('CAAAGT', 'C---GT', '..A.C..GT.', 1, 'CAAA..GT'),
+    ('A--T', 'ACGT', 'ACGT', 0, 'A--T'),
+])
+def test_gapped_sequence_preserves_insertions_offsets_and_reference_end(
+    query, reference, template, start, expected,
+):
+    from abstar.annotation.positions import get_gapped_sequence
+
+    assert get_gapped_sequence(query, reference, template, start) == expected
+
+
+
 @pytest.fixture
 def gapped_sequence():
     return "ATGCATGC....ATGCATGC"

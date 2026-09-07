@@ -1,0 +1,14 @@
+{
+  "metric": "coverage.py summary.percent_covered with branch coverage enabled",
+  "files": {
+    "abstar/annotation/annotator.py": 96,
+    "abstar/annotation/germline.py": 92,
+    "abstar/annotation/positions.py": 75,
+    "abstar/annotation/regions.py": 95,
+    "abstar/annotation/umi.py": 80,
+    "abstar/assigners/mmseqs.py": 96,
+    "abstar/core/abstar.py": 93,
+    "abstar/core/germline.py": 78,
+    "abstar/preprocess/merging.py": 65
+  }
+}

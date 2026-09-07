@@ -380,3 +380,9 @@ def test_annotate_deletions_complex_case():
     assert "6:1>T" in result  # Second deletion (1 nucleotide)
     assert "8-9:2>AG" in result  # Third deletion (2 nucleotides)
     assert result.count("|") == 2  # Two separators for three deletions
+
+
+@pytest.mark.parametrize("gapped_germline", ["A", "A.", ".A"])
+def test_leading_insertion_precedes_first_germline_base(gapped_germline):
+    """Minimized property failure: position zero denotes the 5' boundary."""
+    assert annotate_insertions("AA", "-A", gapped_germline, 0) == "0:1>A!"

@@ -4,21 +4,30 @@
 
 
 import csv
+import gzip
 import logging
 import os
+import shlex
+import subprocess
 import sys
+import tempfile
 from typing import Iterable
 
 import abutils
 import polars as pl
+from Bio.SeqIO.QualityIO import FastqGeneralIterator
 
 from .assigner import AssignerBase
 
 
 ASSIGNMENT_SCHEMA = {
+    "row_id": pl.String,
     "sequence_id": pl.String,
     "sequence_input": pl.String,
     "quality": pl.String,
+    "receptor_type": pl.String,
+    "germline_database": pl.String,
+    "locus": pl.String,
     "rev_comp": pl.Boolean,
     "v_call": pl.String,
     "v_support": pl.Float64,
@@ -52,6 +61,45 @@ MMSEQS_FORMAT_FIELDS = [
 ]
 
 
+class AssignmentInputError(ValueError):
+    """The assignment input is not valid nucleotide FASTA/FASTQ data."""
+
+
+class AssignmentExternalToolError(RuntimeError):
+    """An external assignment command failed."""
+
+    def __init__(self, message, *, command=(), returncode=None, stdout="", stderr=""):
+        self.command = tuple(command)
+        self.returncode = returncode
+        self.stdout = stdout
+        self.stderr = stderr
+        if self.command:
+            message += (
+                f"\nCOMMAND: {shlex.join(self.command)}\nEXIT STATUS: {returncode}"
+                f"\nSTDOUT:\n{stdout}\nSTDERR:\n{stderr}"
+            )
+        super().__init__(message)
+
+
+def _empty_mmseqs_results(segment: str) -> pl.DataFrame:
+    """Return an empty MMseqs result with the columns downstream joins require."""
+    return pl.DataFrame(
+        schema={
+            f"{segment}_query": pl.String,
+            f"{segment}_call": pl.String,
+            f"{segment}_support": pl.Float64,
+            f"{segment}_qstart": pl.Int64,
+            f"{segment}_qend": pl.Int64,
+            f"{segment}_qseq": pl.String,
+            f"{segment}_fident": pl.Float64,
+            f"{segment}_qcov": pl.Float64,
+            f"{segment}_tcov": pl.Float64,
+            f"{segment}_alnlen": pl.Int64,
+            f"{segment}_bits": pl.Float64,
+        }
+    )
+
+
 def select_best_hits(results: pl.LazyFrame | pl.DataFrame, segment: str) -> pl.DataFrame:
     """Select the strongest MMseqs hit and retain exact assignment ties.
 
@@ -59,7 +107,12 @@ def select_best_hits(results: pl.LazyFrame | pl.DataFrame, segment: str) -> pl.D
     quality and length. E-value, fractional identity, target/query coverage, and
     alignment length provide deterministic secondary evidence. Calls tied across
     every metric are emitted as a sorted, comma-delimited ambiguity set; alignment
-    details come from the alphabetically first tied call.
+    details come from the alphabetically first tied call. Multiple equal-evidence
+    rows for that call are ordered by ascending MMseqs query start, query end,
+    and query sequence, then by any remaining detail columns in alphabetical
+    column-name order (ascending values, nulls last). Coordinates retain their
+    original MMseqs numbering and orientation. This final ordering only chooses
+    representative details; it does not rank alleles or remove biological ties.
     """
     query = f"{segment}_query"
     call = f"{segment}_call"
@@ -92,6 +145,16 @@ def select_best_hits(results: pl.LazyFrame | pl.DataFrame, segment: str) -> pl.D
             for column in ranking
         )
     ).drop([f"__best_{column}" for column in ranking])
+    detail_columns = [
+        column for column in (f"{segment}_qstart", f"{segment}_qend", f"{segment}_qseq")
+        if column in tied.columns
+    ]
+    detail_columns += sorted(
+        set(tied.columns) - {query, call, *ranking, *detail_columns}
+    )
+    # Sort after the join/filter so their output order cannot select a different
+    # representative. All remaining rows for a query have identical evidence.
+    tied = tied.sort([query, call, *detail_columns], nulls_last=True)
     other_columns = [column for column in tied.columns if column not in (query, call)]
     return tied.group_by(query, maintain_order=True).agg(
         pl.col(call).unique().sort().str.join(",").alias(call),
@@ -112,6 +175,7 @@ def filter_compatible_locus(
         left_on=query,
         right_on="v_query",
         how="inner",
+        validate="m:1",
     ).filter(
         pl.col(call).str.slice(0, 3) == pl.col("v_call").str.slice(0, 3)
     ).drop("v_call")
@@ -145,9 +209,62 @@ class MMseqs(AssignerBase):
 
         self.chunksize = chunksize
         self.threads = threads
+        self.sample_ordinal = 0
+
+    @staticmethod
+    def _run_mmseqs_search(
+        *, query, target, output_path, search_type=3, sensitivity=None,
+        max_seqs=None, max_evalue=None, format_mode=None, format_output=None,
+        threads=None, additional_cli_args=None, log_to=None, debug=False,
+    ) -> None:
+        """Run checked argv with owned scratch and complete process diagnostics."""
+        # get_path is the public accessor exported by abutils.bin.
+        from abutils.bin import get_path
+
+        binary = get_path("mmseqs")
+        with tempfile.TemporaryDirectory(
+            prefix="mmseqs-", dir=os.path.dirname(output_path),
+        ) as scratch:
+            command = [binary, "easy-search", query, target, output_path, scratch]
+            for option, value in (
+                ("--search-type", search_type), ("-s", sensitivity),
+                ("--max-seqs", max_seqs), ("-e", max_evalue),
+                ("--format-mode", format_mode), ("--format-output", format_output),
+                ("--threads", threads),
+            ):
+                if value is not None:
+                    command.extend([option, str(value)])
+            if additional_cli_args is not None:
+                command.extend(shlex.split(additional_cli_args))
+            try:
+                completed = subprocess.run(
+                    command, check=True, capture_output=True, text=True,
+                )
+            except subprocess.CalledProcessError as error:
+                raise AssignmentExternalToolError(
+                    "MMseqs search failed", command=command,
+                    returncode=error.returncode, stdout=error.stdout or "",
+                    stderr=error.stderr or "",
+                ) from error
+            except OSError as error:
+                raise AssignmentExternalToolError(
+                    "Could not execute MMseqs", command=command, stderr=str(error),
+                ) from error
+            diagnostic = (
+                f"COMMAND: {shlex.join(command)}\nEXIT STATUS: {completed.returncode}"
+                f"\nSTDOUT:\n{completed.stdout}\nSTDERR:\n{completed.stderr}"
+            )
+            if log_to is not None:
+                with open(log_to, "w") as log:
+                    log.write(diagnostic)
+            if debug:
+                print(diagnostic)
 
     def __call__(
-        self, sequence_file: str, sample_name: str | None = None
+        self,
+        sequence_file: str,
+        sample_name: str | None = None,
+        sample_ordinal: int = 0,
     ) -> tuple[str, int]:
         """
         Run the MMseqs assigner.
@@ -170,6 +287,7 @@ class MMseqs(AssignerBase):
         self.sample_name = sample_name or ".".join(
             os.path.basename(sequence_file).rstrip(".gz").split(".")[:-1]
         )
+        self.sample_ordinal = sample_ordinal
 
         # input files are split into 1M sequence chunks
         input_fastas, input_tsvs, sequence_count = self.prepare_input_files(
@@ -238,7 +356,7 @@ class MMseqs(AssignerBase):
         if not self.debug:
             self.to_delete.append(vresult_path)
         # assign V genes
-        abutils.tl.mmseqs_search(
+        self._run_mmseqs_search(
             query=input_fasta,
             target=v_germdb,
             output_path=vresult_path,
@@ -266,6 +384,30 @@ class MMseqs(AssignerBase):
             schema_overrides={"v_query": pl.String, "v_call": pl.String},
         )
         vresult_df = select_best_hits(vresult_df, "v")
+        if vresult_df.is_empty():
+            input_df = pl.read_csv(
+                input_tsv,
+                separator="\t",
+                schema_overrides=INPUT_SCHEMA,
+            )
+            no_hits = input_df.with_columns(
+                pl.lit(None, dtype=pl.Int64).alias("v_qstart"),
+                pl.lit(None, dtype=pl.Int64).alias("v_qend"),
+                *[
+                    pl.lit(None, dtype=dtype).alias(column)
+                    for column, dtype in {
+                        "v_call": pl.String,
+                        "v_support": pl.Float64,
+                        "d_call": pl.String,
+                        "d_support": pl.Float64,
+                        "j_call": pl.String,
+                        "j_support": pl.Float64,
+                        "c_call": pl.String,
+                        "c_support": pl.Float64,
+                    }.items()
+                ],
+            )
+            return self._write_assignment_outputs(no_hits, idx)
 
         # -----------
         #   J genes
@@ -285,41 +427,45 @@ class MMseqs(AssignerBase):
         # self.build_jquery_fasta(vresult_df, jquery_path)
         self.build_jquery_fasta(vresult_df, jquery_path)
         # assign J genes
-        abutils.tl.mmseqs_search(
-            query=jquery_path,
-            target=j_germdb,
-            output_path=jresult_path,
-            search_type=3,
-            max_seqs=25,
-            max_evalue=1000.0,
-            format_mode=4,
-            additional_cli_args="--min-aln-len 12 -k 5 --alignment-mode 3",
-            format_output=mmseqs_format_output,
-            log_to=os.path.join(
-                self.log_directory, f"{self.sample_name}.j_assignment.log"
-            ),
-            threads=self.threads,
-            debug=self.debug,
-        )
-        # read the results
-        jresult_df = pl.scan_csv(
-            jresult_path,
-            separator="\t",
-            with_column_names=lambda x: [
-                f"j_{_x}".replace("target", "call").replace("evalue", "support")
-                for _x in x
-            ],
-            schema_overrides={"j_query": pl.String, "j_call": pl.String},
-        )
+        if abutils.io.determine_fastx_format(jquery_path) == "fasta":
+            self._run_mmseqs_search(
+                query=jquery_path,
+                target=j_germdb,
+                output_path=jresult_path,
+                search_type=3,
+                max_seqs=25,
+                max_evalue=1000.0,
+                format_mode=4,
+                additional_cli_args="--min-aln-len 12 -k 5 --alignment-mode 3",
+                format_output=mmseqs_format_output,
+                log_to=os.path.join(
+                    self.log_directory, f"{self.sample_name}.j_assignment.log"
+                ),
+                threads=self.threads,
+                debug=self.debug,
+            )
+            # read the results
+            jresult_df = pl.scan_csv(
+                jresult_path,
+                separator="\t",
+                with_column_names=lambda x: [
+                    f"j_{_x}".replace("target", "call").replace("evalue", "support")
+                    for _x in x
+                ],
+                schema_overrides={"j_query": pl.String, "j_call": pl.String},
+            )
 
-        jresult_df = filter_compatible_locus(jresult_df, vresult_df, "j")
-        jresult_df = select_best_hits(jresult_df, "j")
+            jresult_df = filter_compatible_locus(jresult_df, vresult_df, "j")
+            jresult_df = select_best_hits(jresult_df, "j")
+        else:
+            jresult_df = _empty_mmseqs_results("j")
         # join the V and J assignment results
         vjresult_df = vresult_df.join(
             jresult_df,
             left_on="v_query",
             right_on="j_query",
             how="left",
+            validate="1:1",
         )
 
         if self.debug:
@@ -350,7 +496,7 @@ class MMseqs(AssignerBase):
         # if os.path.exists(dquery_path):
         if abutils.io.determine_fastx_format(dquery_path) == "fasta":
             # assign D genes
-            abutils.tl.mmseqs_search(
+            self._run_mmseqs_search(
                 query=dquery_path,
                 target=d_germdb,
                 output_path=dresult_path,
@@ -385,6 +531,7 @@ class MMseqs(AssignerBase):
                     left_on="v_query",
                     right_on="d_query",
                     how="left",
+                    validate="1:1",
                 )
             else:
                 # if none of the sequences have a D gene assignment,
@@ -427,46 +574,51 @@ class MMseqs(AssignerBase):
                 self.to_delete.extend([cresult_path, cquery_path])
             # make the input FASTA file for C gene assignment
             self.build_cquery_fasta(vjresult_df, cquery_path)
-            # assign C genes
-            abutils.tl.mmseqs_search(
-                query=cquery_path,
-                target=c_germdb,
-                output_path=cresult_path,
-                search_type=3,
-                # max_seqs=25,
-                max_evalue=10.0,
-                format_mode=4,
-                additional_cli_args="--min-aln-len 12 -k 5 --alignment-mode 3",
-                format_output=mmseqs_format_output,
-                log_to=os.path.join(
-                    self.log_directory, f"{self.sample_name}.c_assignment.log"
-                ),
-                threads=self.threads,
-                debug=self.debug,
-            )
-            # read the results
-            cresult_df = pl.scan_csv(
-                cresult_path,
-                separator="\t",
-                with_column_names=lambda x: [
-                    f"c_{_x}".replace("target", "call").replace("evalue", "support")
-                    for _x in x
-                ],
-                schema_overrides={"c_query": pl.String, "c_call": pl.String},
-            )
-            cresult_df = filter_compatible_locus(cresult_df, vjresult_df, "c")
-            cresult_df = select_best_hits(cresult_df, "c")
-            if cresult_df.shape[0] > 0:
-                # join the C and VDJ assignment results
-                vdjcresult_df = vdjresult_df.join(
-                    cresult_df,
-                    left_on="v_query",
-                    right_on="c_query",
-                    how="left",
+            if abutils.io.determine_fastx_format(cquery_path) == "fasta":
+                # assign C genes
+                self._run_mmseqs_search(
+                    query=cquery_path,
+                    target=c_germdb,
+                    output_path=cresult_path,
+                    search_type=3,
+                    # max_seqs=25,
+                    max_evalue=10.0,
+                    format_mode=4,
+                    additional_cli_args="--min-aln-len 12 -k 5 --alignment-mode 3",
+                    format_output=mmseqs_format_output,
+                    log_to=os.path.join(
+                        self.log_directory, f"{self.sample_name}.c_assignment.log"
+                    ),
+                    threads=self.threads,
+                    debug=self.debug,
                 )
+                # read the results
+                cresult_df = pl.scan_csv(
+                    cresult_path,
+                    separator="\t",
+                    with_column_names=lambda x: [
+                        f"c_{_x}".replace("target", "call").replace("evalue", "support")
+                        for _x in x
+                    ],
+                    schema_overrides={"c_query": pl.String, "c_call": pl.String},
+                )
+                cresult_df = filter_compatible_locus(cresult_df, vjresult_df, "c")
+                cresult_df = select_best_hits(cresult_df, "c")
+                if cresult_df.shape[0] > 0:
+                    # join the C and VDJ assignment results
+                    vdjcresult_df = vdjresult_df.join(
+                        cresult_df,
+                        left_on="v_query",
+                        right_on="c_query",
+                        how="left",
+                        validate="1:1",
+                    )
+                else:
+                    vdjcresult_df = vdjresult_df.with_columns(
+                        pl.lit(None).alias("c_call"),
+                        pl.lit(None).alias("c_support"),
+                    )
             else:
-                # if none of the sequences have a C gene assignment,
-                # set the C gene columns to None
                 vdjcresult_df = vdjresult_df.with_columns(
                     pl.lit(None).alias("c_call"),
                     pl.lit(None).alias("c_support"),
@@ -489,11 +641,21 @@ class MMseqs(AssignerBase):
             left_on="row_id",
             right_on="v_query",
             how="left",
+            validate="1:1",
         )
 
-        # add the rev_comp column
+        return self._write_assignment_outputs(vdjcresult_df, idx)
+
+    def _write_assignment_outputs(
+        self, vdjcresult_df: pl.DataFrame, idx: str
+    ) -> tuple[str, str]:
+        """Write one conserved assignment work frame and its no-call log."""
+        # add explicit run metadata and strand orientation
         vdjcresult_df = vdjcresult_df.with_columns(
-            (pl.col("v_qstart") > pl.col("v_qend")).alias("rev_comp")
+            (pl.col("v_qstart") > pl.col("v_qend")).fill_null(False).alias("rev_comp"),
+            pl.lit(self.receptor).alias("receptor_type"),
+            pl.lit(self.germdb_name).alias("germline_database"),
+            pl.col("v_call").str.slice(0, 3).str.to_uppercase().alias("locus"),
         )
 
         if self.debug:
@@ -504,7 +666,7 @@ class MMseqs(AssignerBase):
             )
 
         # log "unassigned" sequences (no V or J gene assignment)
-        unassigned_cols = ["sequence_id", "sequence_input"]
+        unassigned_cols = ["row_id", "sequence_id", "sequence_input"]
         unassigned = vdjcresult_df.filter(
             pl.col("v_call").is_null() | pl.col("j_call").is_null()
         )
@@ -518,9 +680,13 @@ class MMseqs(AssignerBase):
 
         # write "assigned" sequence results (successful V and J gene assignment)
         assigned_cols = [
+            "row_id",
             "sequence_id",
             "sequence_input",
             "quality",
+            "receptor_type",
+            "germline_database",
+            "locus",
             "rev_comp",
             "v_call",
             "v_support",
@@ -531,10 +697,9 @@ class MMseqs(AssignerBase):
             "c_call",
             "c_support",
         ]
-        assigned = vdjcresult_df.filter(
-            ~pl.col("v_call").is_null() & ~pl.col("j_call").is_null()
-        )
-        assigned = assigned.select(assigned_cols)
+        # Keep every input row in the annotation work stream. Missing germline
+        # calls are ordinary biological nonassignments and are serialized there.
+        assigned = vdjcresult_df.select(assigned_cols)
         assigned_path = os.path.join(
             self.output_directory, f"{self.sample_name}.{idx}.parquet"
         )
@@ -572,55 +737,75 @@ class MMseqs(AssignerBase):
         """
         # count input sequences
         sequence_count = 0
-        for seq in abutils.io.parse_fastx(sequence_file):
-            sequence_count += 1
-
-        # split input file, if necessary
-        if sequence_count > chunksize:
-            sequence_files = abutils.io.split_fastx(
-                sequence_file,
-                output_directory=os.path.dirname(sequence_file),
-                chunksize=chunksize,
-            )
-        else:
-            sequence_files = [sequence_file]
-
-        # process sequence file(s)
-        output_fastas = []
-        output_csvs = []
-        for i, sequence_file in enumerate(sequence_files):
-            # set up output files
-            output_fasta = os.path.join(
-                self.output_directory, f"{self.sample_name}.{i}.fasta"
-            )
-            output_csv = os.path.join(
-                self.output_directory, f"{self.sample_name}.{i}.tsv"
-            )
-            if not self.debug:
-                self.to_delete.extend([output_fasta, output_csv])
-
-            # process input file
-            with open(output_fasta, "w") as ofasta:
-                with open(output_csv, "w") as ocsv:
-                    writer = csv.writer(ocsv, delimiter="\t", lineterminator="\n")
-                    writer.writerow(
-                        ["row_id", "sequence_id", "sequence_input", "quality"]
+        try:
+            if abutils.io.determine_fastx_format(sequence_file) == "fastq":
+                # pyfastx can silently drop a truncated FASTQ record. Validate
+                # the complete stream first, including multiline sequences and
+                # qualities, before any assignment can report success.
+                open_input = gzip.open if sequence_file.endswith(".gz") else open
+                with open_input(sequence_file, "rt") as handle:
+                    for _ in FastqGeneralIterator(handle):
+                        pass
+            for seq in abutils.io.parse_fastx(sequence_file):
+                invalid = set(seq.sequence.upper()) - set("ACGTRYSWKMBDHVN")
+                if invalid:
+                    chars = "".join(sorted(invalid))
+                    raise AssignmentInputError(
+                        f"sequence {seq.id!s} contains non-IUPAC characters: {chars}"
                     )
-                    for row_number, seq in enumerate(
-                        abutils.io.parse_fastx(sequence_file)
-                    ):
-                        qual = seq.qual if seq.qual is not None else ""
-                        # MMseqs sees only this immutable, unique key. User identifiers
-                        # remain payload data and are restored after assignment.
-                        row_id = f"abstar_{i}_{row_number}"
-                        ofasta.write(f">{row_id}\n{seq.sequence}\n")
-                        writer.writerow([row_id, str(seq.id), seq.sequence, qual])
-            output_fastas.append(output_fasta)
-            output_csvs.append(output_csv)
+                sequence_count += 1
+        except AssignmentInputError:
+            raise
+        except (OSError, ValueError) as error:
+            raise AssignmentInputError(f"could not parse input: {error}") from error
 
-        # delete chunked sequence files (if there's only one file, it hasn't been chunked)
-        if len(sequence_files) > 1:
-            abutils.io.delete_files(sequence_files)
+        # Raw split chunks are private to this preparation call, including when
+        # parsing or splitting fails. Caller inputs and siblings are read-only.
+        with tempfile.TemporaryDirectory(
+            prefix="input-chunks-", dir=self.output_directory,
+        ) as split_directory:
+            # split input file, if necessary
+            if sequence_count > chunksize:
+                sequence_files = abutils.io.split_fastx(
+                    sequence_file,
+                    output_directory=split_directory,
+                    chunksize=chunksize,
+                )
+            else:
+                sequence_files = [sequence_file]
+
+            # process sequence file(s)
+            output_fastas = []
+            output_csvs = []
+            record_ordinal = 0
+            for i, sequence_file in enumerate(sequence_files):
+                # set up output files
+                output_fasta = os.path.join(
+                    self.output_directory, f"{self.sample_name}.{i}.fasta"
+                )
+                output_csv = os.path.join(
+                    self.output_directory, f"{self.sample_name}.{i}.tsv"
+                )
+                if not self.debug:
+                    self.to_delete.extend([output_fasta, output_csv])
+
+                # process input file
+                with open(output_fasta, "w") as ofasta:
+                    with open(output_csv, "w") as ocsv:
+                        writer = csv.writer(ocsv, delimiter="\t", lineterminator="\n")
+                        writer.writerow(
+                            ["row_id", "sequence_id", "sequence_input", "quality"]
+                        )
+                        for seq in abutils.io.parse_fastx(sequence_file):
+                            qual = seq.qual if seq.qual is not None else ""
+                            # MMseqs sees only this immutable, unique key. User identifiers
+                            # remain payload data and are restored after assignment.
+                            row_id = f"abstar_{self.sample_ordinal}_{record_ordinal}"
+                            ofasta.write(f">{row_id}\n{seq.sequence}\n")
+                            writer.writerow([row_id, str(seq.id), seq.sequence, qual])
+                            record_ordinal += 1
+                output_fastas.append(output_fasta)
+                output_csvs.append(output_csv)
 
         return output_fastas, output_csvs, sequence_count
 
@@ -665,6 +850,7 @@ class MMseqs(AssignerBase):
             _df = pl.scan_csv(
                 unassigned_path,
                 schema_overrides={
+                    "row_id": pl.String,
                     "sequence_id": pl.String,
                     "sequence_input": pl.String,
                 },
@@ -812,8 +998,9 @@ class MMseqs(AssignerBase):
                 query = seq[: end - 1]
             else:
                 query = seq[end:]
-            fasta = f">{name}\n{query}"
-            fastas.append(fasta)
+            if query:
+                fasta = f">{name}\n{query}"
+                fastas.append(fasta)
 
         # write the FASTA file
         with open(fasta_path, "w") as f:

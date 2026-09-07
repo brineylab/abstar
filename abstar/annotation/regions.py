@@ -61,8 +61,10 @@ def get_region_sequence(
     region : str
         The region to get the sequence of.
 
-    aln : PairwiseAlignment
-        Semi-global alignment of the query sequence to the full (ungapped) germline
+    aln : PairwiseAlignment or aligned row pair
+        Paired ``aligned_query`` and ``aligned_target`` strings. Active V
+        nucleotide regions use the retained boundary trace; semiglobal
+        junction/IMGT anchor mapping is a separate coordinate space.
 
     gapped_germline : str
         The gapped germline sequence.
@@ -198,14 +200,21 @@ def get_region_sequence(
         region_sequence = aln.aligned_query[region_start : region_end + 1]
         gap_length_5p = len(region_sequence) - len(region_sequence.rstrip("-"))
         gap_length_3p = len(region_sequence) - len(region_sequence.lstrip("-"))
+        # Rebalance only complete-codon deletions split across a boundary.
+        # A one/two-base deletion can be compensated elsewhere in this region;
+        # extending it alone duplicates residues from the following region.
+        following = aln.aligned_query[region_end + 1:]
+        preceding = aln.aligned_query[:region_start]
+        deletion_at_end = gap_length_5p + len(following) - len(following.lstrip("-"))
+        deletion_at_start = gap_length_3p + len(preceding) - len(preceding.rstrip("-"))
         # only extend the 3' end of the region if there are non-codon length 3' gaps
-        if gap_length_5p > 0 and gap_length_5p % 3 != 0:
+        if gap_length_5p > 0 and gap_length_5p % 3 != 0 and deletion_at_end % 3 == 0:
             while gap_length_5p % 3 != 0:
                 region_end += 3  # steal the residual portion of the codon from the start of the next region
                 region_sequence = aln.aligned_query[region_start : region_end + 1]
                 gap_length_5p = len(region_sequence) - len(region_sequence.rstrip("-"))
         # only truncate the 5' end of the region if there are non-codon length 5' gaps
-        if gap_length_3p > 0 and gap_length_3p % 3 != 0:
+        if gap_length_3p > 0 and gap_length_3p % 3 != 0 and deletion_at_start % 3 == 0:
             while gap_length_3p % 3 != 0:
                 region_start += 3  # increase the start position, since the preceding region took part of the first codon
                 region_sequence = aln.aligned_query[region_start : region_end + 1]

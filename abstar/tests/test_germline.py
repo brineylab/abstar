@@ -18,6 +18,49 @@ from ..annotation.germline import (
 )
 
 
+@pytest.mark.parametrize('index', range(36))
+@pytest.mark.parametrize('segment', ['v', 'j'])
+def test_real_bcr_full_query_boundaries_match_authenticated_traces(index, segment):
+    from abstar.tests.corpus import load_real_bcr_cases
+    from abstar.annotation.germline import realign_germline, VJ_BOUNDARY_PARAMS
+
+    case = load_real_bcr_cases()[index]
+    trace = case.source['alignment'][segment]
+    origin = 0 if segment == 'v' else case.expected['junction_start'] + 3
+    _, local = realign_germline(
+        case.sequence[origin:], trace['reference'] + '__homo_sapiens', 'human',
+        receptor='bcr', local_full_query=True, local_aln_params=VJ_BOUNDARY_PARAMS,
+    )
+    assert (origin + local.query_begin, origin + local.query_end + 1,
+            local.target_begin, local.target_end + 1) == (
+        trace['query_start'], trace['query_end'],
+        trace['germline_start'], trace['germline_end'],
+    )
+    assert local.score == trace['score']
+    assert local.aligned_query == trace['query_aligned']
+    assert local.aligned_target == trace['germline_aligned']
+
+
+def test_real_bcr_equal_score_j_repeat_selects_earlier_query_endpoint():
+    import abutils
+    from abstar.tests.corpus import load_real_bcr_cases
+    from abstar.annotation.germline import VJ_BOUNDARY_PARAMS
+
+    case = next(c for c in load_real_bcr_cases()
+                if c.sequence_id == 'CCATGTCCAGTCTTCC-1_contig_1')
+    germline = get_germline('IGHJ4*02', 'human', receptor='bcr', exact_match=True)
+    primary = abutils.tl.local_alignment(case.sequence[412:487], germline,
+                                         **VJ_BOUNDARY_PARAMS)
+    secondary = abutils.tl.local_alignment(case.sequence[487:], germline,
+                                           **VJ_BOUNDARY_PARAMS)
+    combined = abutils.tl.local_alignment(case.sequence[412:], germline,
+                                          **VJ_BOUNDARY_PARAMS)
+    assert primary.score == secondary.score == combined.score == 65
+    assert (412 + primary.query_begin, 413 + primary.query_end) == (452, 487)
+    assert (487 + secondary.query_begin, 488 + secondary.query_end) == (493, 528)
+    assert (412 + combined.query_begin, 413 + combined.query_end) == (452, 487)
+
+
 def _alignment(**kwargs):
     defaults = {
         "query": "ABCDEFGHIJKL",
@@ -29,6 +72,16 @@ def _alignment(**kwargs):
         "score": 10,
     }
     return SimpleNamespace(**(defaults | kwargs))
+
+
+@pytest.mark.parametrize('nt_start,frame,aa_start', [
+    (0, 1, 0), (1, 3, 1), (2, 2, 1),
+    (3, 1, 1), (4, 3, 2), (137, 2, 46),
+])
+def test_translated_reference_origin_accounts_for_partial_first_codon(nt_start, frame, aa_start):
+    from abstar.annotation.germline import translated_reference_start
+
+    assert translated_reference_start(nt_start, frame) == aa_start
 
 
 def test_j_germline_end_uses_semiglobal_target_coordinate_once():
@@ -74,24 +127,14 @@ def test_get_germline_database_path():
     assert path
 
 
-@pytest.mark.xfail(
-    reason="a database named NotAGermlineDatabase does not exist",
-    raises=FileNotFoundError,
-)
 def test_get_germline_database_name_invalid():
-    path = get_germline_database_path(
-        germdb_name="NotAGermlineDatabase", receptor="bcr"
-    )
-    assert path
+    with pytest.raises(FileNotFoundError, match="NotAGermlineDatabase"):
+        get_germline_database_path("NotAGermlineDatabase", receptor="bcr")
 
 
-@pytest.mark.xfail(
-    reason="receptor type 'abc' is invalid (must be 'bcr' or 'tcr')",
-    raises=ValueError,
-)
 def test_get_germline_database_receptor_invalid():
-    path = get_germline_database_path(germdb_name="human", receptor="abc")
-    assert path
+    with pytest.raises(ValueError, match="receptor"):
+        get_germline_database_path("human", receptor="abc")
 
 
 # ----------------------------
@@ -177,31 +220,21 @@ def test_reassign_dgene_skips_loci_without_d_genes(locus):
     )
 
 
-@pytest.mark.xfail(
-    reason="gene 'IGHV1-1*01' does not exist in the human bcr database",
-    raises=ValueError,
-)
 def test_get_single_germline_nonexistent():
-    germ = get_germline(
-        germline_gene="IGHV1-1*01",
-        germdb_name="human",
-        receptor="bcr",
-        exact_match=True,
-    )
-    assert isinstance(germ, Sequence)
-    assert germ.id == "IGHV1-1*01"
+    with pytest.raises(ValueError, match=r"IGHV1-1\*01"):
+        get_germline(
+            germline_gene="IGHV1-1*01",
+            germdb_name="human",
+            receptor="bcr",
+            exact_match=True,
+        )
 
 
-@pytest.mark.xfail(
-    reason="gene 'IGHV1-2' does not identically match anything in the human bcr database",
-    raises=ValueError,
-)
 def test_get_single_germline_nonunique():
-    germ = get_germline(
-        germline_gene="IGHV1-2",
-        germdb_name="human",
-        receptor="bcr",
-        exact_match=True,
-    )
-    assert isinstance(germ, Sequence)
-    assert germ.id == "IGHV1-2"
+    with pytest.raises(ValueError, match="IGHV1-2"):
+        get_germline(
+            germline_gene="IGHV1-2",
+            germdb_name="human",
+            receptor="bcr",
+            exact_match=True,
+        )

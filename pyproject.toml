@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=68", "wheel"]
+requires = ["setuptools>=77", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -7,14 +7,14 @@ name = "abstar"
 description = "Germline assignment and annotation of AIRR data. Scalable from a single sequence to billions of sequences."
 readme = { file = "README.md", content-type = "text/markdown" }
 requires-python = ">=3.10"
-license = { file = "LICENSE" }
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [
   { name = "Bryan Briney", email = "briney@scripps.edu" },
 ]
 classifiers = [
   "Development Status :: 5 - Production/Stable",
   "Intended Audience :: Science/Research",
-  "License :: OSI Approved :: MIT License",
   "Operating System :: OS Independent",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.10",
@@ -41,3 +41,17 @@ include = ["abstar*"]
 version = { attr = "abstar.version.__version__" }
 dependencies = { file = ["requirements.txt"] }
 
+[tool.pytest.ini_options]
+testpaths = ["abstar/tests"]
+strict_config = true
+strict_markers = true
+xfail_strict = true
+required_plugins = ["pytest-cov>=6,<8"]
+markers = [
+  "integration: exercises a real component or external-tool boundary",
+  "e2e: exercises abstar.run or the installed abstar command",
+  "slow: bounded checks excluded from the ordinary pull-request matrix",
+]
+filterwarnings = [
+  "error::Warning:abstar.*",
+]

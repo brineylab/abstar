@@ -67,10 +67,11 @@ def get_germline_database_path(germdb_name: str, receptor: str = "bcr") -> str:
         If the receptor type is not one of "bcr" or "tcr".
 
     """
+    requested_germdb_name = germdb_name
     germdb_name = germdb_name.lower()
     receptor = receptor.lower()
     if receptor not in ["bcr", "tcr"]:
-        raise ValueError(f"Receptor type {receptor} not supported")
+        raise ValueError(f"receptor type {receptor} not supported")
     # check the addon directory first
     addon_dir = os.path.expanduser(f"~/.abstar/germline_dbs/{receptor}")
     custom_dir = os.path.join(addon_dir, germdb_name)
@@ -82,7 +83,7 @@ def get_germline_database_path(germdb_name: str, receptor: str = "bcr") -> str:
     germdb_path = os.path.join(abstar_dir, f"germline_dbs/{receptor}/{germdb_name}")
     if not os.path.exists(germdb_path):
         raise FileNotFoundError(
-            f"Germline database {germdb_name} for receptor {receptor} not found"
+            f"Germline database {requested_germdb_name} for receptor {receptor} not found"
         )
     return germdb_path
 
@@ -202,6 +203,25 @@ def get_germline(
 # ------------------------------
 
 
+# Boundary evidence uses the independently reviewed corpus-wide nucleotide
+# Smith-Waterman policy. Unlike the more permissive assembly alignment, a
+# mismatch cannot be paid for by one neighboring match at a segment boundary.
+# Parasail resolves equal optimal scores at the earliest query endpoint (then
+# target endpoint); the repeated-J regression protects that deterministic tie.
+VJ_BOUNDARY_PARAMS = {
+    "match": 2, "mismatch": -3, "gap_open": -12, "gap_extend": -2,
+}
+
+
+def translated_reference_start(nucleotide_start: int, frame: int) -> int:
+    """Map a retained NT start to its first complete full-reference AA codon.
+
+    The nucleotide and returned amino acid offsets are zero-based in the
+    ungapped reference; ``frame`` is one-based in the retained NT slice.
+    """
+    return (nucleotide_start + frame - 1) // 3
+
+
 def realign_germline(
     sequence: str,
     germline_name: str,
@@ -215,6 +235,7 @@ def realign_germline(
     truncate_target: int | None = None,
     force_constant: bool = False,
     receptor: str = "bcr",
+    local_full_query: bool = False,
 ) -> Tuple[abutils.tl.PairwiseAlignment | None]:
     """
     Performs an (optionally) two-step realignment of an assigned germline gene to a query sequence.
@@ -262,6 +283,12 @@ def realign_germline(
     skip_local : bool, default: False
         Whether to skip the local alignment.
 
+    local_full_query : bool, default: False
+        Align the complete supplied query/reference independently of semiglobal
+        clipping. Local coordinates then address that query/reference directly.
+        V/J use this for boundary evidence; semiglobal traces remain available
+        separately for IMGT and junction mapping.
+
     truncate_query : int, default: None
         The number of bases to truncate from the 3' end of the query sequence.
 
@@ -294,6 +321,7 @@ def realign_germline(
         sequence = sequence[: -int(truncate_query)]
     if truncate_target is not None:
         germ = germ[: -int(truncate_target)]
+    local_query, local_target = sequence, germ
     if skip_semiglobal:
         sg = None
     else:
@@ -308,7 +336,10 @@ def realign_germline(
         loc = None
     else:
         local_aln_params = local_aln_params if local_aln_params is not None else {}
-        loc = abutils.tl.local_alignment(sequence, germ, **local_aln_params)
+        if local_full_query:
+            loc = abutils.tl.local_alignment(local_query, local_target, **local_aln_params)
+        else:
+            loc = abutils.tl.local_alignment(sequence, germ, **local_aln_params)
     return sg, loc
 
 
@@ -374,9 +405,14 @@ def process_vgene_alignment(
     semiglobal_aln: abutils.tl.PairwiseAlignment,
     local_aln: abutils.tl.PairwiseAlignment,
     ab: Antibody,
+    local_full_query: bool = False,
 ) -> Antibody:
     """
     Processes a V gene alignment and updates ``Antibody`` annotations accordingly.
+
+    With ``local_full_query=True``, local coordinates address the complete
+    oriented query and ungapped reference. Neither semiglobal offsets nor
+    forced reference-flank extension apply to those boundary coordinates.
 
     .. note:
         all start/end positions are 0-indexed and end postions are
@@ -418,7 +454,10 @@ def process_vgene_alignment(
     """
     ab.v_score = local_aln.score
     # sequence/germline start position
-    if semiglobal_aln.query_begin < semiglobal_aln.target_begin:
+    if local_full_query:
+        ab.v_sequence_start = local_aln.query_begin
+        ab.v_germline_start = local_aln.target_begin
+    elif semiglobal_aln.query_begin < semiglobal_aln.target_begin:
         # the query sequence doesn't extend to the beginning of the germline
         # so we'll use the start position of the local alignment
         ab.v_sequence_start = semiglobal_aln.query_begin + local_aln.query_begin
@@ -433,8 +472,10 @@ def process_vgene_alignment(
     # sequence/germline stop position
     # the +1 on v_sequence_end lets us slice nicely going forward
     # so sequence_oriented[v_sequence_start : v_sequence_end] will give the v-gene region
-    ab.v_sequence_end = semiglobal_aln.query_begin + local_aln.query_end + 1
-    ab.v_germline_end = semiglobal_aln.target_begin + local_aln.target_end + 1
+    query_origin = 0 if local_full_query else semiglobal_aln.query_begin
+    germline_origin = 0 if local_full_query else semiglobal_aln.target_begin
+    ab.v_sequence_end = query_origin + local_aln.query_end + 1
+    ab.v_germline_end = germline_origin + local_aln.target_end + 1
     # v-region sequence and germline
     ab.v_sequence = semiglobal_aln.query[ab.v_sequence_start : ab.v_sequence_end]
     ab.v_germline = semiglobal_aln.target[ab.v_germline_start : ab.v_germline_end]
@@ -453,9 +494,15 @@ def process_jgene_alignment(
     semiglobal_aln: abutils.tl.PairwiseAlignment,
     local_aln: abutils.tl.PairwiseAlignment,
     ab: Antibody,
+    local_full_query: bool = False,
 ) -> Antibody:
     """
     Processes a J gene alignment and updates ``Antibody`` annotations accordingly.
+
+    With ``local_full_query=True``, local query coordinates address the supplied
+    downstream query (whose oriented-input origin is ``v_sequence_end``), and
+    local target coordinates address the complete ungapped J reference.
+    Semiglobal offsets and end extension apply only to the legacy clipped mode.
 
     .. note:
         all start/end positions are 0-indexed and end postions are
@@ -509,10 +556,10 @@ def process_jgene_alignment(
     # sequence start is relative to the oriented input sequence
     # germline start is relative to the full (ungapped) germline gene sequence
     # AIRR-C wants 1-based indexing, but 0-based is better so we'll do that instead
-    ab.j_sequence_start = (
-        v_sequence_end + semiglobal_aln.query_begin + local_aln.query_begin
-    )
-    ab.j_germline_start = semiglobal_aln.target_begin + local_aln.target_begin
+    query_origin = 0 if local_full_query else semiglobal_aln.query_begin
+    germline_origin = 0 if local_full_query else semiglobal_aln.target_begin
+    ab.j_sequence_start = v_sequence_end + query_origin + local_aln.query_begin
+    ab.j_germline_start = germline_origin + local_aln.target_begin
 
     # like V genes, we need to check whether the local alignment was incorrectly truncated
     # (on the 5' end for J genes) due to mutations at or near the end of the J gene
@@ -521,7 +568,7 @@ def process_jgene_alignment(
     # to the end of the germline gene
     residual_germ = len(local_aln.target) - (local_aln.target_end + 1)
     residual_seq = len(local_aln.query) - (local_aln.query_end + 1)
-    if residual_germ >= 1 and residual_seq >= residual_germ:
+    if not local_full_query and residual_germ >= 1 and residual_seq >= residual_germ:
         plural = "S" if residual_germ > 1 else ""
         ab.log(
             f"USING SEMIGLOBAL ALIGNMENT END POSITION BECAUSE LOCAL ALIGNMENT WAS TRUNCATED BY {residual_germ} NUCLEOTIDE{plural}"

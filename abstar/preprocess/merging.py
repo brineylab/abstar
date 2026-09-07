@@ -5,6 +5,7 @@
 
 import os
 import shlex
+import shutil
 import subprocess as sp
 import tempfile
 from typing import Iterable
@@ -22,6 +23,22 @@ from natsort import natsorted
 from tqdm.auto import tqdm
 
 __all__ = ["merge_fastqs", "group_paired_fastqs"]
+
+
+class MergeExternalToolError(ValueError):
+    """An external read-merging command failed with inspectable diagnostics."""
+
+    def __init__(self, message, *, command=(), returncode=None, stdout="", stderr=""):
+        self.command = tuple(command)
+        self.returncode = returncode
+        self.stdout = stdout
+        self.stderr = stderr
+        if self.command:
+            message += (
+                f"\nCOMMAND: {shlex.join(self.command)}\nEXIT STATUS: {returncode}"
+                f"\nSTDOUT:\n{stdout}\nSTDERR:\n{stderr}"
+            )
+        super().__init__(message)
 
 
 def _strip_fastq_suffix(filename: str) -> str:
@@ -185,7 +202,7 @@ class MergeGroup:
         quality_trim: bool = True,
         window_size: int = 4,
         quality_cutoff: int = 20,
-        merge_args: str | None = None,
+        merge_args: str | Iterable[str] | None = None,
         compress_output: bool = False,
         # show_progress: bool = False,
         debug: bool = False,
@@ -279,7 +296,7 @@ def merge_fastqs(
     schema: str = "illumina",
     algo: str = "fastp",
     binary_path: str | None = None,
-    merge_args: str | None = None,
+    merge_args: str | Iterable[str] | None = None,
     minimum_overlap: int = 30,
     allowed_mismatches: int = 5,
     allowed_mismatch_percent: float = 20.0,
@@ -320,8 +337,10 @@ def merge_fastqs(
     binary_path : str, optional
         Path to the merge algorithm binary. If not provided, the binary packaged with abutils will be used.
 
-    merge_args : str, optional
-        Additional arguments (as a string) to pass to the merge function.
+    merge_args : str or iterable of str, optional
+        Additional arguments to pass to the merge function. An iterable keeps
+        each value as one command argument; strings are parsed with shell-like
+        quoting for backward compatibility, without invoking a shell.
 
     minimum_overlap : int, optional
         Minimum overlap between reads. Default is 30.
@@ -376,6 +395,10 @@ def merge_fastqs(
                 f"If files are supplied as a string, it must be either a directory or a file. The supplied ({files}) is neither."
             )
     make_dir(output_directory)
+    # A generator must yield the same options for every input and lane. Normalize
+    # it once at the public boundary instead of consuming it inside each process
+    # invocation.
+    merge_args = _additional_arguments(merge_args)
 
     merged_files = []
 
@@ -619,7 +642,7 @@ def merge_fastqs_fastp(
     name: str | None = None,
     log_directory: str | None = None,
     interleaved: bool = False,
-    additional_args: str | None = None,
+    additional_args: str | Iterable[str] | None = None,
     debug: bool = False,
 ) -> str:
     """
@@ -681,8 +704,9 @@ def merge_fastqs_fastp(
         Path to the directory in which to save the fastp report.
         If not provided, fastp reports will not be saved.
 
-    additional_args : str, optional
-        Additional arguments (as a string) to pass to fastp.
+    additional_args : str or iterable of str, optional
+        Additional arguments to pass to fastp. An iterable keeps each value as
+        one command argument; strings are parsed for backward compatibility.
 
     debug : bool, optional
         If True, print vsearch stdout and stderr. Default is False.
@@ -720,7 +744,7 @@ def merge_fastqs_fastp(
         binary_path = get_binary_path("fastp")
 
     # compile the fastp command
-    cmd = [binary_path, "-i", forward, "--merge", "--merged_out", merged]
+    cmd = [binary_path, "-i", forward, "--merge"]
     if not interleaved:
         cmd.extend(["-I", reverse])
     cmd.extend(["--overlap_len_require", str(int(minimum_overlap))])
@@ -752,9 +776,13 @@ def merge_fastqs_fastp(
     else:
         cmd.append("--disable_quality_filtering")
 
+    # Normalize caller arguments before allocating wrapper-owned report storage.
+    normalized_additional_args = _additional_arguments(additional_args)
+
     # log
-    if log_directory is None:
-        log_directory = tempfile.mkdtemp()
+    temporary_log_directory = log_directory is None
+    if temporary_log_directory:
+        log_directory = tempfile.mkdtemp(prefix="fastp-")
     make_dir(log_directory)
     if name is None:
         if merged.endswith(".gz"):
@@ -765,13 +793,45 @@ def merge_fastqs_fastp(
     cmd.extend(["--json", f"{os.path.join(log_directory, name)}_fastp-report.json"])
 
     # additional CLI args
-    cmd.extend(_additional_arguments(additional_args))
+    cmd.extend(normalized_additional_args)
 
-    # merge reads
+    # Merge into a unique sibling directory so publication uses an atomic
+    # same-filesystem replace and a failed rerun cannot damage an existing result.
     try:
-        result = sp.run(cmd, check=True, capture_output=True, text=True)
-    except sp.CalledProcessError as error:
-        raise ValueError(f"Error merging reads with fastp: {error.stderr}") from error
+        with tempfile.TemporaryDirectory(
+            prefix=f".{os.path.basename(merged)}.fastp-", dir=out_dir
+        ) as staging_directory:
+            staged_merged = os.path.join(staging_directory, os.path.basename(merged))
+            command = [*cmd, "--merged_out", staged_merged]
+            try:
+                result = sp.run(
+                    command, check=True, capture_output=True, text=True
+                )
+            except sp.CalledProcessError as error:
+                raise MergeExternalToolError(
+                    "fastp read merge failed",
+                    command=command,
+                    returncode=error.returncode,
+                    stdout=error.stdout or "",
+                    stderr=error.stderr or "",
+                ) from error
+            except OSError as error:
+                raise MergeExternalToolError(
+                    "Could not execute fastp", command=command, stderr=str(error)
+                ) from error
+            try:
+                os.replace(staged_merged, merged)
+            except OSError as error:
+                raise MergeExternalToolError(
+                    "Could not publish fastp merged output",
+                    command=command,
+                    returncode=result.returncode,
+                    stdout=result.stdout or "",
+                    stderr=(result.stderr or "") + f"\n{error}",
+                ) from error
+    finally:
+        if temporary_log_directory:
+            shutil.rmtree(log_directory, ignore_errors=True)
     if debug:
         print(result.stdout)
         print(result.stderr)

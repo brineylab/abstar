@@ -33,6 +33,7 @@ def annotate_insertions(
     .. note::
         the position in abstar notation is the IMGT position after which the insertion occurs,
         so in the above example, the insertion ``"123:1>G!"`` would occur between positions 123 and 124
+        An insertion before the first germline base uses position zero.
 
     Parameters
     ----------

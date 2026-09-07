@@ -16,6 +16,40 @@ from ..annotation.regions import (
     identify_cdr3_regions,
 )
 
+def test_compensating_single_base_indels_at_region_end_do_not_duplicate_next_region():
+    from types import SimpleNamespace
+
+    reference = 'ACGT' * 90
+    alignment = SimpleNamespace(
+        aligned_query=reference[:70] + 'A' + reference[70:77] + '-' + reference[78:],
+        aligned_target=reference[:70] + '-' + reference[70:],
+    )
+    ab = Antibody(sequence_id='compensating-region-boundary')
+    fwr1 = get_region_sequence('fwr1', alignment, reference, 1, ab)
+    cdr1 = get_region_sequence('cdr1', alignment, reference, 1, ab)
+    assert fwr1 == (0, 78, reference[:70] + 'A' + reference[70:77])
+    assert cdr1 == (79, 114, reference[78:114])
+    assert fwr1.sequence + cdr1.sequence == alignment.aligned_query[:115].replace('-', '')
+
+
+@pytest.mark.parametrize('deleted_start', [76, 77])
+def test_complete_codon_deletion_spanning_regions_preserves_order(deleted_start):
+    from types import SimpleNamespace
+
+    reference = 'ACGT' * 90
+    alignment = SimpleNamespace(
+        aligned_query=reference[:deleted_start] + '---' + reference[deleted_start + 3:],
+        aligned_target=reference,
+    )
+    ab = Antibody(sequence_id='codon-region-boundary')
+    fwr1 = get_region_sequence('fwr1', alignment, reference, 1, ab)
+    cdr1 = get_region_sequence('cdr1', alignment, reference, 1, ab)
+    assert fwr1 == (0, 80, reference[:deleted_start] + reference[deleted_start + 3:81])
+    assert cdr1 == (81, 113, reference[81:114])
+    assert fwr1.sequence + cdr1.sequence == alignment.aligned_query[:114].replace('-', '')
+    assert len(fwr1.sequence) % 3 == len(cdr1.sequence) % 3 == 0
+
+
 # =============================================
 #                  FIXTURES
 # =============================================

@@ -7,12 +7,15 @@ Tests for the MMseqs2 germline assigner.
 """
 
 import os
+from pathlib import Path
 from types import SimpleNamespace
 
 import polars as pl
 import pytest
 
 from ..assigners.mmseqs import (
+    AssignmentExternalToolError,
+    AssignmentInputError,
     INPUT_SCHEMA,
     MMseqs,
     filter_compatible_locus,
@@ -117,19 +120,11 @@ def test_mmseqs_initialization_tcr(temp_directories):
     assert mmseqs.germdb_path is not None
 
 
-@pytest.mark.skip(reason="Mouse germline database not installed in test environment")
-def test_mmseqs_initialization_mouse_database(temp_directories):
-    """Test MMseqs initialization with mouse germline database."""
+@pytest.mark.parametrize("database", ["c57bl6", "balbc"])
+def test_mmseqs_initialization_mouse_database(database, temp_directories):
     output_dir, log_dir = temp_directories
-    mmseqs = MMseqs(
-        output_directory=output_dir,
-        log_directory=log_dir,
-        germdb_name="mouse",
-        receptor="bcr",
-    )
-
-    assert mmseqs.germdb_name == "mouse"
-    assert mmseqs.germdb_path is not None
+    assigner = MMseqs(output_dir, log_dir, database, receptor="bcr")
+    assert Path(assigner.germdb_path).name == database
 
 
 # =============================================
@@ -167,6 +162,60 @@ def test_prepare_input_files_fasta(mmseqs_instance, small_fasta_file):
     assert "sequence_id" in df.columns
     assert "sequence_input" in df.columns
     assert "quality" in df.columns
+
+
+@pytest.mark.parametrize("readonly,collision", [(False, True), (True, True), (False, False)])
+def test_prepare_chunks_preserves_caller_siblings_and_order(
+    mmseqs_instance, tmp_path, readonly, collision
+):
+    source = tmp_path / "caller"
+    source.mkdir()
+    reads = source / "reads.fasta"
+    reads.write_text("".join(f">{name}\nACGT\n" for name in ["10E8", "0001", "1e3", "雪", "10E8"]))
+    if collision:
+        (source / "reads_0.fasta").write_text("caller-owned collision\n")
+    before = {path.name: path.read_bytes() for path in source.iterdir()}
+    if readonly:
+        source.chmod(0o555)
+        for path in source.iterdir():
+            path.chmod(0o444)
+    mmseqs_instance.sample_name = "reads"
+    try:
+        fastas, tsvs, count = mmseqs_instance.prepare_input_files(str(reads), chunksize=2)
+        assert count == 5
+        assert len(fastas) == len(tsvs) == 3
+        rows = pl.concat([pl.read_csv(path, separator="\t", schema_overrides=INPUT_SCHEMA) for path in tsvs])
+        assert rows["sequence_id"].to_list() == ["10E8", "0001", "1e3", "雪", "10E8"]
+        assert rows["row_id"].to_list() == [f"abstar_0_{i}" for i in range(5)]
+        assert {path.name: path.read_bytes() for path in source.iterdir()} == before
+        assert all(Path(path).is_relative_to(mmseqs_instance.output_directory) for path in fastas + tsvs)
+        assert not list(Path(mmseqs_instance.output_directory).glob("input-chunks-*"))
+        mmseqs_instance.cleanup()
+        assert not any(Path(path).exists() for path in fastas + tsvs)
+        assert {path.name: path.read_bytes() for path in source.iterdir()} == before
+    finally:
+        source.chmod(0o755)
+        for path in source.iterdir():
+            path.chmod(0o644)
+
+
+def test_prepare_chunks_cleans_partial_split_after_failure(
+    mmseqs_instance, tmp_path, monkeypatch
+):
+    reads = tmp_path / "reads.fasta"
+    reads.write_text(">one\nACGT\n>two\nACGT\n")
+    mmseqs_instance.sample_name = "reads"
+
+    def fail_split(sequence_file, *, output_directory, chunksize):
+        (Path(output_directory) / "reads_0.fasta").write_text("partial split")
+        raise OSError("split write failed")
+
+    monkeypatch.setattr("abstar.assigners.mmseqs.abutils.io.split_fastx", fail_split)
+    with pytest.raises(OSError, match="split write failed"):
+        mmseqs_instance.prepare_input_files(str(reads), chunksize=1)
+    assert reads.read_text() == ">one\nACGT\n>two\nACGT\n"
+    assert not (tmp_path / "reads_0.fasta").exists()
+    assert not list(Path(mmseqs_instance.output_directory).glob("input-chunks-*"))
 
 
 def test_prepare_input_files_preserves_opaque_and_duplicate_ids(
@@ -214,6 +263,48 @@ def test_prepare_input_files_preserves_opaque_and_duplicate_ids(
             line.rstrip("\n") for line in fasta_file if line.startswith(">")
         ]
     assert fasta_headers == [f">abstar_0_{i}" for i in range(len(identifiers))]
+
+
+def test_prepare_input_files_rejects_non_iupac_nucleotide(
+    mmseqs_instance, tmp_path
+):
+    input_path = tmp_path / "invalid.fasta"
+    input_path.write_text(">invalid\nACGTX\n")
+    mmseqs_instance.sample_name = "invalid"
+
+    with pytest.raises(AssignmentInputError, match="non-IUPAC characters: X"):
+        mmseqs_instance.prepare_input_files(str(input_path), chunksize=1000)
+
+
+def test_mmseqs_search_wraps_external_os_error(mmseqs_instance, monkeypatch, tmp_path):
+    def fail_search(*args, **kwargs):
+        raise OSError("executable unavailable")
+
+    monkeypatch.setattr(
+        "abstar.assigners.mmseqs.subprocess.run", fail_search
+    )
+
+    with pytest.raises(AssignmentExternalToolError, match="executable unavailable"):
+        mmseqs_instance._run_mmseqs_search(
+            query="input.fasta", target="database", output_path=str(tmp_path / "hits.tsv"),
+        )
+
+
+@pytest.mark.parametrize("error_type", (ValueError, RuntimeError))
+def test_mmseqs_search_does_not_reclassify_programming_error(
+    mmseqs_instance, monkeypatch, tmp_path, error_type,
+):
+    def fail_search(*args, **kwargs):
+        raise error_type("bad wrapper argument")
+
+    monkeypatch.setattr(
+        "abstar.assigners.mmseqs.subprocess.run", fail_search
+    )
+
+    with pytest.raises(error_type, match="bad wrapper argument"):
+        mmseqs_instance._run_mmseqs_search(
+            query="input.fasta", target="database", output_path=str(tmp_path / "hits.tsv"),
+        )
 
 
 def test_prepare_input_files_multiple_sequences(mmseqs_instance, multi_sequence_fasta_file):
@@ -299,6 +390,30 @@ def test_select_best_hits_retains_exact_allele_ties_deterministically():
     assert selected.height == 1
     assert selected["v_call"].item() == "IGHV3-15*01,IGHV3-15*07"
     assert selected["v_qend"].item() == 100
+
+
+def test_select_best_hits_same_call_ties_choose_details_independent_of_row_order():
+    """Equal-evidence alignments for one allele must choose stable coordinates."""
+    tied = _mmseqs_hits(
+        v_call=["IGHV1-2*01", "IGHV1-2*01"],
+        v_support=[1e-20, 1e-20],
+        v_qstart=[1, 2],
+        v_qend=[60, 61],
+        v_qseq=["A" * 61, "A" * 61],
+        v_fident=[1.0, 1.0],
+        v_qcov=[0.7, 0.7],
+        v_tcov=[0.8, 0.8],
+        v_alnlen=[60, 60],
+        v_bits=[220.0, 220.0],
+    )
+    expected = {
+        "v_query": "query1", "v_call": "IGHV1-2*01", "v_support": 1e-20,
+        "v_qstart": 1, "v_qend": 60, "v_qseq": "A" * 61,
+        "v_fident": 1.0, "v_qcov": 0.7, "v_tcov": 0.8,
+        "v_alnlen": 60, "v_bits": 220.0,
+    }
+    for frame in (tied, tied.reverse(), tied.reverse().lazy()):
+        assert select_best_hits(frame, "v").to_dicts() == [expected]
 
 
 def test_filter_compatible_locus_removes_cross_locus_hits():
@@ -409,10 +524,10 @@ def test_build_dquery_fasta_uses_d_bearing_loci_and_query_length(
         }
     )
 
-    dquery_path = str(tmp_path / "dquery.fasta")
-    mmseqs_instance.build_dquery_fasta(vjresult_df, dquery_path)
+    dquery_path = tmp_path / "dquery.fasta"
+    mmseqs_instance.build_dquery_fasta(vjresult_df, str(dquery_path))
 
-    assert open(dquery_path).read().splitlines() == [
+    assert dquery_path.read_text().splitlines() == [
         ">igh",
         "ABCDE",
         ">trb",
@@ -468,6 +583,7 @@ def test_build_cquery_fasta_respects_inclusive_mmseqs_coordinates(
 # =============================================
 
 
+@pytest.mark.integration
 def test_mmseqs_call_returns_parquet_path_and_count(mmseqs_instance, small_fasta_file):
     """Test __call__ method returns correct path and count."""
     assigned_path, sequence_count = mmseqs_instance(small_fasta_file)
@@ -479,6 +595,7 @@ def test_mmseqs_call_returns_parquet_path_and_count(mmseqs_instance, small_fasta
     assert sequence_count == 1
 
 
+@pytest.mark.integration
 def test_mmseqs_call_parquet_has_required_columns(mmseqs_instance, small_fasta_file):
     """Test that output parquet has required columns."""
     assigned_path, _ = mmseqs_instance(small_fasta_file)
@@ -506,6 +623,7 @@ def test_mmseqs_call_parquet_has_required_columns(mmseqs_instance, small_fasta_f
     assert df["sequence_id"].to_list() == ["10E8"]
 
 
+@pytest.mark.integration
 def test_mmseqs_assigns_v_gene(mmseqs_instance, small_fasta_file):
     """Test that V gene is assigned for a valid antibody sequence."""
     assigned_path, _ = mmseqs_instance(small_fasta_file)
@@ -519,6 +637,7 @@ def test_mmseqs_assigns_v_gene(mmseqs_instance, small_fasta_file):
     assert "IGHV" in v_calls[0]  # 10E8 is a heavy chain
 
 
+@pytest.mark.integration
 def test_mmseqs_assigns_j_gene(mmseqs_instance, small_fasta_file):
     """Test that J gene is assigned for a valid antibody sequence."""
     assigned_path, _ = mmseqs_instance(small_fasta_file)
@@ -532,10 +651,7 @@ def test_mmseqs_assigns_j_gene(mmseqs_instance, small_fasta_file):
     assert "IGHJ" in j_calls[0]
 
 
-@pytest.mark.xfail(
-    reason="Known issue: Polars schema error in mmseqs.py when D gene assignment is missing",
-    strict=False,
-)
+@pytest.mark.integration
 def test_mmseqs_multiple_sequences(mmseqs_instance, multi_sequence_fasta_file):
     """Test assignment of multiple sequences."""
     assigned_path, sequence_count = mmseqs_instance(multi_sequence_fasta_file)
@@ -543,8 +659,8 @@ def test_mmseqs_multiple_sequences(mmseqs_instance, multi_sequence_fasta_file):
     assert sequence_count == 3
 
     df = pl.read_parquet(assigned_path)
-    # Some or all sequences should be successfully assigned
-    assert df.height >= 1
+    assert df.height == 3
+    assert df.get_column("sequence_id").to_list() == ["10E8", "10J4", "10M6"]
 
 
 # =============================================
@@ -552,6 +668,7 @@ def test_mmseqs_multiple_sequences(mmseqs_instance, multi_sequence_fasta_file):
 # =============================================
 
 
+@pytest.mark.integration
 def test_cleanup_removes_temp_files(mmseqs_instance, small_fasta_file):
     """Test that cleanup() removes files in to_delete list."""
     # Run assignment to populate to_delete
@@ -583,6 +700,7 @@ def test_assemble_output_files(mmseqs_instance, tmp_path):
     """Test merging multiple parquet/CSV files into single outputs."""
     # Create mock assigned parquet files
     df1 = pl.DataFrame({
+        "row_id": ["abstar_0_0"],
         "sequence_id": ["seq1"],
         "sequence_input": ["ATGC"],
         "quality": [""],
@@ -598,6 +716,7 @@ def test_assemble_output_files(mmseqs_instance, tmp_path):
     })
 
     df2 = pl.DataFrame({
+        "row_id": ["abstar_0_1"],
         "sequence_id": ["seq2"],
         "sequence_input": ["GCTA"],
         "quality": [""],
@@ -619,6 +738,7 @@ def test_assemble_output_files(mmseqs_instance, tmp_path):
 
     # Create mock unassigned CSV files
     unassigned_df = pl.DataFrame({
+        "row_id": ["abstar_0_2"],
         "sequence_id": ["unassigned1"],
         "sequence_input": ["NNNN"],
     })
@@ -640,3 +760,4 @@ def test_assemble_output_files(mmseqs_instance, tmp_path):
     assert os.path.exists(assembled_path)
     assembled_df = pl.read_parquet(assembled_path)
     assert assembled_df.height == 2  # Both sequences combined
+    assert assembled_df["row_id"].to_list() == ["abstar_0_0", "abstar_0_1"]

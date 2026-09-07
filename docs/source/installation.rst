@@ -4,7 +4,14 @@ Installation
 Requirements
 ------------
 
-abstar requires Python 3.9 or later.
+abstar supports Python 3.10 through 3.13. The release matrix tests both the
+lowest declared dependency profile and the newest versions allowed by these
+bounds:
+
+- ``abutils>=0.6,<0.7``
+- ``polars>=1.6,<2``
+- ``pyarrow>=16.1,<26``
+- ``biopython>=1.80``
 
 MMseqs2_ is used internally for germline gene assignment, but it is bundled with
 abutils_ (a dependency of abstar), so no separate installation is required.
@@ -20,19 +27,33 @@ The easiest way to install abstar is via pip:
     pip install abstar
 
 
-Using a Custom MMseqs2 Binary
------------------------------
+macOS source-build prerequisites
+--------------------------------
 
-If you prefer to use a specific version of MMseqs2 rather than the bundled binary,
-you can specify the path to your custom binary using the ``mmseqs_binary`` parameter:
+On Apple Silicon, ``parasail==1.3.4`` is installed from source because it does
+not provide a compatible wheel. Install the Xcode Command Line Tools
+(``xcode-select --install``) and Homebrew_, then prepare its build tools before
+installing abstar:
 
-.. code-block:: python
+.. code-block:: bash
 
-    import abstar
+    brew install autoconf automake libtool m4
+    export M4="$(brew --prefix m4)/bin/m4"
+    python -m pip install abstar
 
-    sequences = abstar.run("sequences.fasta", mmseqs_binary="/path/to/mmseqs")
+Selecting ``M4`` explicitly keeps the build on Homebrew's GNU M4 even when
+Parasail prepends ``/usr/bin`` to ``PATH``. The macOS wheel-install CI job
+uses these prerequisites and checks a native Parasail alignment after installation.
 
-See the `MMseqs2 installation guide`_ for information on installing MMseqs2.
+
+External executables
+--------------------
+
+The normal installation obtains the MMseqs2 and fastp executables through
+``abutils``. abstar resolves MMseqs2 with the public ``abutils.bin.get_path``
+accessor and executes it with checked argument lists. A failed external command
+raises a structured ``AnnotationRunError`` that includes its stage and category;
+retained diagnostics include the exit status, stdout, and stderr.
 
 
 Docker
@@ -55,9 +76,59 @@ To install from source for development:
 
 .. code-block:: bash
 
-    git clone https://github.com/briney/abstar
+    git clone https://github.com/brineylab/abstar
     cd abstar/
-    pip install -e .
+    python -m pip install -r requirements-test.txt
+
+
+Development verification
+------------------------
+
+The marker scopes are intentionally separate. The bulk published corpus is not
+needed for any of these commands:
+
+.. code-block:: bash
+
+    # Fast unit and property tests
+    python -m pytest -m "not integration and not e2e and not slow" -q
+
+    # Real component boundaries, public entry points, and reserved slow checks
+    python -m pytest -m "integration" -q
+    python -m pytest -m "e2e" -q
+    python -m pytest -m "slow" -q
+
+    # Complete suite
+    python -m pytest -q
+
+    # AIRR and packaged-database gates
+    python -m pytest abstar/tests/test_airr.py -q
+    python -m pytest abstar/tests/test_database_integrity.py -q
+
+    # Statement/branch package floor and critical-module floors
+    python -m pytest --cov=abstar --cov-branch --cov-report=term-missing \
+      --cov-report=json:/tmp/abstar-coverage.json -q
+    python scripts/check_coverage.py /tmp/abstar-coverage.json coverage-floors.json
+
+    # Install documentation dependencies, then treat warnings as errors
+    python -m pip install -r docs/doc_requirements.txt
+    python -m sphinx -W --keep-going -b html docs/source docs/_build/html
+
+Optional corpus discovery requires explicit read-only source paths and an output
+outside the source, input, and repository trees. It never runs in ordinary push
+or pull-request CI:
+
+.. code-block:: bash
+
+    python scripts/discover_bcr_cases.py \
+      --fasta-dir /path/to/bcr_fastas \
+      --manifest /path/to/sample_manifest.csv \
+      --cellranger-root /path/to/cellranger \
+      --output /tmp/abstar-bcr-candidates.jsonl \
+      --per-dataset 25 --n-processes 2
+
+The scheduled nightly workflow is separate. It downloads an explicitly
+provisioned artifact with ``bcr_fastas/``, ``sample_manifest.csv``, and
+``cellranger/``, limits the per-dataset cohort, and uploads its outcome report.
 
 
 Verify Installation
@@ -71,6 +142,6 @@ To verify that abstar is installed correctly:
 
 
 .. _MMseqs2: https://github.com/soedinglab/MMseqs2
+.. _Homebrew: https://brew.sh/
 .. _abutils: https://github.com/briney/abutils
-.. _MMseqs2 installation guide: https://github.com/soedinglab/MMseqs2#installation
 .. _datascience: https://hub.docker.com/repository/docker/brineylab/datascience/general

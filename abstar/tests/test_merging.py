@@ -4,12 +4,14 @@
 
 import os
 import subprocess
+from pathlib import Path
 
 import pytest
+from abstar import AnnotationRunError, pp, run
 from abutils import Sequence
+from abutils.bin import get_path as get_binary_path
 from abutils.io import parse_fastx
 
-from ..core.abstar import run
 from ..preprocess import merging
 
 
@@ -20,6 +22,55 @@ def _touch_fastqs(tmp_path, names):
         path.write_text("@read\nACGT\n+\nIIII\n")
         paths.append(str(path))
     return paths
+
+
+PAIR_SEQUENCES = (
+    "ACGTTGCAAGTCGATCGTACGATGCTAGCTACGTTAGCGATCGATGACCTGACTGATCGTAGCTAGTCGATGACGATCT",
+    "TGCACTGATCGACGTTAGCATCGATGCATGCTAGCATCGTTACGATCGGATCCGATGCTAGCATCGATGATCGTACGTA",
+)
+PAIR_IDS = ("pair-A", "pair-B")
+
+
+def _fastq_record(identifier, sequence, mate):
+    return f"@{identifier}/{mate}\n{sequence}\n+\n{'I' * len(sequence)}\n"
+
+
+@pytest.fixture
+def paired_fastq_inputs(tmp_path):
+    input_directory = tmp_path / "paired"
+    input_directory.mkdir()
+    forward = input_directory / "sample_S1_L001_R1_001.fastq"
+    reverse = input_directory / "sample_S1_L001_R2_001.fastq"
+    forward.write_text("".join(
+        _fastq_record(identifier, sequence, 1)
+        for identifier, sequence in zip(PAIR_IDS, PAIR_SEQUENCES)
+    ))
+    reverse.write_text("".join(
+        _fastq_record(identifier, Sequence(sequence).reverse_complement, 2)
+        for identifier, sequence in zip(PAIR_IDS, PAIR_SEQUENCES)
+    ))
+    forward_reads = list(parse_fastx(str(forward)))
+    reverse_reads = list(parse_fastx(str(reverse)))
+    assert len(forward_reads) == len(reverse_reads) == 2
+    assert [read.id.removesuffix("/1") for read in forward_reads] == list(PAIR_IDS)
+    assert [read.id.removesuffix("/2") for read in reverse_reads] == list(PAIR_IDS)
+    return input_directory, forward, reverse
+
+
+@pytest.fixture
+def interleaved_fastq_input(tmp_path):
+    interleaved = tmp_path / "interleaved.fastq"
+    interleaved.write_text("".join(
+        _fastq_record(identifier, sequence, 1)
+        + _fastq_record(identifier, Sequence(sequence).reverse_complement, 2)
+        for identifier, sequence in zip(PAIR_IDS, PAIR_SEQUENCES)
+    ))
+    reads = list(parse_fastx(str(interleaved)))
+    assert len(reads) == 4
+    assert [read.id.removesuffix(f"/{mate}") for read, mate in zip(reads, (1, 2, 1, 2))] == [
+        "pair-A", "pair-A", "pair-B", "pair-B",
+    ]
+    return interleaved
 
 
 def test_fastq_suffix_removal_preserves_stem_characters():
@@ -65,6 +116,7 @@ def test_fastp_uses_checked_argument_list(monkeypatch, tmp_path):
     def fake_run(command, **kwargs):
         observed["command"] = command
         observed["kwargs"] = kwargs
+        Path(command[command.index("--merged_out") + 1]).write_text("merged")
         return subprocess.CompletedProcess(command, 0, "stdout", "stderr")
 
     monkeypatch.setattr(merging.sp, "run", fake_run)
@@ -75,15 +127,19 @@ def test_fastp_uses_checked_argument_list(monkeypatch, tmp_path):
         str(merged),
         binary_path="/opt/fastp",
         log_directory=str(tmp_path / "logs with spaces"),
-        additional_args="--thread 2 --report_title 'report; still one argument'",
+        additional_args=["--thread", "2", "--report_title", "report; $(touch never)"],
     )
 
     command = observed["command"]
     assert isinstance(command, list)
     assert forward in command
     assert reverse in command
-    assert str(merged) in command
-    assert "report; still one argument" in command
+    staged = Path(command[command.index("--merged_out") + 1])
+    assert staged != merged
+    assert staged.parent.parent == tmp_path
+    assert merged.read_text() == "merged"
+    assert not staged.exists()
+    assert "report; $(touch never)" in command
     assert observed["kwargs"] == {
         "check": True,
         "capture_output": True,
@@ -91,48 +147,187 @@ def test_fastp_uses_checked_argument_list(monkeypatch, tmp_path):
     }
 
 
-def test_fastp_failure_includes_stderr(monkeypatch, tmp_path):
+def test_fastp_cleans_implicit_report_directory(monkeypatch, tmp_path):
+    forward, reverse = _touch_fastqs(tmp_path, ["R1.fastq", "R2.fastq"])
+    observed = {}
+
+    def make_report(command, **kwargs):
+        html = Path(command[command.index("--html") + 1])
+        observed["report_directory"] = html.parent
+        html.write_text("html")
+        Path(command[command.index("--json") + 1]).write_text("json")
+        Path(command[command.index("--merged_out") + 1]).write_text("merged")
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr(merging.sp, "run", make_report)
+
+    merging.merge_fastqs_fastp(
+        forward,
+        reverse,
+        str(tmp_path / "merged.fastq"),
+        binary_path="fastp",
+    )
+
+    assert not observed["report_directory"].exists()
+
+
+def test_fastp_failure_includes_process_diagnostics(monkeypatch, tmp_path):
     forward, reverse = _touch_fastqs(tmp_path, ["R1.fastq", "R2.fastq"])
 
     def fail(command, **kwargs):
-        raise subprocess.CalledProcessError(2, command, stderr="bad overlap")
+        Path(command[command.index("--merged_out") + 1]).write_text("partial output")
+        raise subprocess.CalledProcessError(
+            37, command, output="TASK18-STDOUT", stderr="TASK18-STDERR"
+        )
 
     monkeypatch.setattr(merging.sp, "run", fail)
 
-    with pytest.raises(ValueError, match="bad overlap"):
+    with pytest.raises(merging.MergeExternalToolError) as captured:
         merging.merge_fastqs_fastp(
             forward,
             reverse,
             str(tmp_path / "merged.fastq"),
             binary_path="fastp",
         )
+    error = captured.value
+    assert error.returncode == 37
+    assert error.stdout == "TASK18-STDOUT"
+    assert error.stderr == "TASK18-STDERR"
+    assert "EXIT STATUS: 37" in str(error)
+    assert "TASK18-STDOUT" in str(error)
+    assert "TASK18-STDERR" in str(error)
+    assert not (tmp_path / "merged.fastq").exists()
 
 
-def test_fastp_merges_a_real_overlapping_pair(tmp_path):
-    sequence = (
-        "ACGTTGCAAGTCGATCGTACGATGCTAGCTACGTTAGCGATCGATGACCTGACTGATCGTAGCTAGTCGATG"
+def test_public_merge_failure_preserves_existing_destination_and_cleans_staging(
+    monkeypatch, paired_fastq_inputs, tmp_path,
+):
+    _, forward, reverse = paired_fastq_inputs
+    output_directory = tmp_path / "output"
+    output_directory.mkdir()
+    destination = output_directory / "sample.fastq"
+    original = b"@existing\nACGT\n+\nIIII\n"
+    destination.write_bytes(original)
+    observed = {}
+
+    def fail(command, **kwargs):
+        staged = Path(command[command.index("--merged_out") + 1])
+        observed["staged"] = staged
+        staged.write_bytes(b"partial fastp output")
+        raise subprocess.CalledProcessError(
+            19, command, output="STAGED-STDOUT", stderr="STAGED-STDERR"
+        )
+
+    monkeypatch.setattr(merging.sp, "run", fail)
+
+    with pytest.raises(ValueError) as captured:
+        pp.merge_fastqs(
+            [str(forward), str(reverse)],
+            str(output_directory),
+            binary_path="fastp",
+        )
+
+    assert isinstance(captured.value, merging.MergeExternalToolError)
+    assert observed["staged"] != destination
+    assert observed["staged"].parent.parent == output_directory
+    assert destination.read_bytes() == original
+    assert not observed["staged"].exists()
+    assert set(output_directory.iterdir()) == {destination}
+
+
+def test_multilane_merge_materializes_generator_arguments_once(monkeypatch, tmp_path):
+    files = _touch_fastqs(
+        tmp_path,
+        [
+            "sample_S1_L001_R1_001.fastq",
+            "sample_S1_L001_R2_001.fastq",
+            "sample_S1_L002_R1_001.fastq",
+            "sample_S1_L002_R2_001.fastq",
+        ],
     )
-    reverse_complement = Sequence(sequence).reverse_complement
-    forward = tmp_path / "sample_R1.fastq"
-    reverse = tmp_path / "sample_R2.fastq"
-    merged = tmp_path / "sample.fastq"
-    forward.write_text(f"@read\n{sequence}\n+\n{'I' * len(sequence)}\n")
-    reverse.write_text(
-        f"@read\n{reverse_complement}\n+\n{'I' * len(reverse_complement)}\n"
+    observed = []
+
+    def fake_merge(forward, reverse, merged, *, additional_args, **kwargs):
+        observed.append(tuple(additional_args))
+        Path(merged).write_text(f"{Path(forward).name}\n")
+
+    monkeypatch.setattr(merging, "merge_fastqs_fastp", fake_merge)
+
+    pp.merge_fastqs(
+        files,
+        str(tmp_path / "output"),
+        merge_args=(value for value in ("--thread", "3", "--report_title", "all lanes")),
     )
 
-    merging.merge_fastqs_fastp(
-        str(forward),
-        str(reverse),
-        str(merged),
+    assert observed == [
+        ("--thread", "3", "--report_title", "all lanes"),
+        ("--thread", "3", "--report_title", "all lanes"),
+    ]
+
+
+def test_public_merge_preserves_string_argument_parsing(monkeypatch, paired_fastq_inputs, tmp_path):
+    _, forward, reverse = paired_fastq_inputs
+    observed = {}
+
+    def fake_merge(forward, reverse, merged, *, additional_args, **kwargs):
+        observed["additional_args"] = additional_args
+        Path(merged).write_text("merged")
+
+    monkeypatch.setattr(merging, "merge_fastqs_fastp", fake_merge)
+
+    pp.merge_fastqs(
+        [str(forward), str(reverse)],
+        str(tmp_path / "output"),
+        merge_args="--thread 2 --report_title 'string value; intact'",
+    )
+
+    assert observed["additional_args"] == [
+        "--thread", "2", "--report_title", "string value; intact",
+    ]
+
+
+@pytest.mark.integration
+def test_fastp_paired_merge_conserves_records_and_order(paired_fastq_inputs, tmp_path):
+    _, forward, reverse = paired_fastq_inputs
+    output_directory = tmp_path / "paired-output"
+    outputs = pp.merge_fastqs(
+        [str(forward), str(reverse)],
+        str(output_directory),
+        binary_path=get_binary_path("fastp"),
         minimum_overlap=30,
         trim_adapters=False,
         quality_trim=False,
     )
 
-    merged_reads = list(parse_fastx(str(merged)))
-    assert len(merged_reads) == 1
-    assert merged_reads[0].sequence == sequence
+    assert outputs == [str(output_directory / "sample.fastq")]
+    merged_reads = list(parse_fastx(outputs[0]))
+    assert len(merged_reads) == 2
+    assert [read.id for read in merged_reads] == [f"{identifier}/1" for identifier in PAIR_IDS]
+    assert [read.sequence for read in merged_reads] == list(PAIR_SEQUENCES)
+    assert set(output_directory.iterdir()) == {output_directory / "sample.fastq"}
+
+
+@pytest.mark.integration
+def test_fastp_interleaved_merge_conserves_records_and_cleans_temporary_input(
+    interleaved_fastq_input, tmp_path,
+):
+    output_directory = tmp_path / "interleaved-output"
+    outputs = pp.merge_fastqs(
+        [str(interleaved_fastq_input)],
+        str(output_directory),
+        interleaved=True,
+        binary_path=get_binary_path("fastp"),
+        minimum_overlap=30,
+        trim_adapters=False,
+        quality_trim=False,
+    )
+
+    assert outputs == [str(output_directory / "interleaved.fastq")]
+    merged_reads = list(parse_fastx(outputs[0]))
+    assert len(merged_reads) == 2
+    assert [read.id for read in merged_reads] == [f"{identifier}/1" for identifier in PAIR_IDS]
+    assert [read.sequence for read in merged_reads] == list(PAIR_SEQUENCES)
+    assert set(output_directory.iterdir()) == {output_directory / "interleaved.fastq"}
 
 
 def test_interleaved_merge_normalizes_text_and_cleans_temporary_file(
@@ -146,7 +341,8 @@ def test_interleaved_merge_normalizes_text_and_cleans_temporary_file(
 
     def fake_merge(*, forward, merged, **kwargs):
         observed["temporary"] = forward
-        observed["content"] = open(forward).read()
+        with open(forward) as temporary:
+            observed["content"] = temporary.read()
         observed["merged"] = merged
 
     monkeypatch.setattr(merging, "merge_fastqs_fastp", fake_merge)
@@ -160,6 +356,49 @@ def test_interleaved_merge_normalizes_text_and_cleans_temporary_file(
     assert outputs == [str(tmp_path / "output" / "iraq.fastq")]
 
 
+@pytest.mark.e2e
+def test_run_reports_fastp_failure_as_structured_preprocess_error(
+    monkeypatch, paired_fastq_inputs, tmp_path,
+):
+    input_directory, _, _ = paired_fastq_inputs
+    project = tmp_path / "failed-project"
+
+    def fail(command, **kwargs):
+        assert isinstance(command, list)
+        assert kwargs == {"check": True, "capture_output": True, "text": True}
+        Path(command[command.index("--merged_out") + 1]).write_text("partial output")
+        raise subprocess.CalledProcessError(
+            41, command, output="PUBLIC-STDOUT", stderr="PUBLIC-STDERR"
+        )
+
+    monkeypatch.setattr(merging.sp, "run", fail)
+    with pytest.raises(AnnotationRunError) as captured:
+        run(
+            str(input_directory),
+            project_path=str(project),
+            merge=True,
+            merge_kwargs={"merge_args": ["--report_title", "x; $(false)"]},
+            n_processes=1,
+        )
+
+    assert len(captured.value.failures) == 1
+    failure = captured.value.failures[0]
+    assert (failure.stage, failure.category) == ("preprocess", "external_tool")
+    assert "EXIT STATUS: 41" in failure.message
+    assert "PUBLIC-STDOUT" in failure.message
+    assert "PUBLIC-STDERR" in failure.message
+    assert captured.value.partial_output_paths == (
+        str(project / "logs" / "merge_fastqs.failed"),
+    )
+    assert not list((project / "merged").glob("*.fastq"))
+    failure_log = project / "logs" / "merge_fastqs.failed"
+    assert failure_log.is_file()
+    assert "EXIT STATUS: 41" in failure_log.read_text()
+    assert "PUBLIC-STDOUT" in failure_log.read_text()
+    assert "PUBLIC-STDERR" in failure_log.read_text()
+
+
+@pytest.mark.e2e
 def test_run_merge_accepts_default_merge_kwargs(monkeypatch, tmp_path):
     sentinel = RuntimeError("merge reached")
     observed = {}

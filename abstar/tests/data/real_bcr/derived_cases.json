@@ -1,0 +1,3014 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "case_id": "IGH-forward",
+      "parent": {
+        "dataset": "1287199",
+        "sequence_id": "GCTGCGAGTCCTGCTT-1_contig_1",
+        "sequence_sha256": "79640a43c690f2cc8c9a28887c61152caefb56f80830c1192a30e53fefe91a70"
+      },
+      "context": "whole",
+      "operation": {
+        "kind": "identity",
+        "offset": 0,
+        "affected_bases": "",
+        "replacement_bases": ""
+      },
+      "sequence_sha256": "79640a43c690f2cc8c9a28887c61152caefb56f80830c1192a30e53fefe91a70",
+      "expected": {
+        "sequence_length": 641,
+        "length_delta": 0,
+        "rev_comp": false,
+        "locus": "IGH",
+        "homologous_junction": {
+          "oriented_start": 405,
+          "oriented_end": 450,
+          "input_start": 405,
+          "input_end": 450,
+          "sequence": "TGTGCGAGATATCACCCGGTATTGCGGAATGGTTTTGATGTCTGG",
+          "length_mod3": 0
+        },
+        "coding_frame_delta_mod3": 0,
+        "ambiguous_base_count": 0,
+        "annotation": {
+          "coding_origin_mod3": 0,
+          "junction": "TGTGCGAGATATCACCCGGTATTGCGGAATGGTTTTGATGTCTGG",
+          "junction_aa": "CARYHPVLRNGFDVW",
+          "productive": true,
+          "stop_codon": false,
+          "vj_in_frame": true,
+          "productivity_issues": [],
+          "alignment_dependent_issues": []
+        }
+      },
+      "evidence": [
+        "Parent 1287199/GCTGCGAGTCCTGCTT-1_contig_1 is a productive, forward, ambiguity-free concordant IGH control with gap-free retained V/J traces (IGHV1-8*01, IGHJ3*02).",
+        "Retained V trace is [120:414]; authenticated IMGT104 and J motif delimit original junction [405:450]. These are projected homologous anchors, not predicted aligner endpoints.",
+        "The forward control preserves every original input base and both homologous junction anchors.",
+        "Annotation consequences are independently derived from the authenticated parental V coding origin, preserved homologous C/W/F codons, and standard-code translation of the edited query through the primary J tract. Junction translation starts at C and omits a terminal partial triplet. Local V/J endpoints and D/C calls remain unadjudicated; a frameshift inside the V-contributed junction may or may not remain in the selected local V tract, so only its out-of-frame-indel reason is alignment-dependent."
+      ]
+    },
+    {
+      "case_id": "IGH-reverse",
+      "parent": {
+        "dataset": "1287199",
+        "sequence_id": "GCTGCGAGTCCTGCTT-1_contig_1",
+        "sequence_sha256": "79640a43c690f2cc8c9a28887c61152caefb56f80830c1192a30e53fefe91a70"
+      },
+      "context": "whole",
+      "operation": {
+        "kind": "reverse_complement",
+        "offset": 0,
+        "affected_bases": "",
+        "replacement_bases": ""
+      },
+      "sequence_sha256": "a3708e298c008975e5d13bdb8573c0209652ba8ea6cc322f0dd45bca7e9ad3b7",
+      "expected": {
+        "sequence_length": 641,
+        "length_delta": 0,
+        "rev_comp": true,
+        "locus": "IGH",
+        "homologous_junction": {
+          "oriented_start": 405,
+          "oriented_end": 450,
+          "input_start": 191,
+          "input_end": 236,
+          "sequence": "TGTGCGAGATATCACCCGGTATTGCGGAATGGTTTTGATGTCTGG",
+          "length_mod3": 0
+        },
+        "coding_frame_delta_mod3": 0,
+        "ambiguous_base_count": 0,
+        "annotation": {
+          "coding_origin_mod3": 0,
+          "junction": "TGTGCGAGATATCACCCGGTATTGCGGAATGGTTTTGATGTCTGG",
+          "junction_aa": "CARYHPVLRNGFDVW",
+          "productive": true,
+          "stop_codon": false,
+          "vj_in_frame": true,
+          "productivity_issues": [],
+          "alignment_dependent_issues": []
+        }
+      },
+      "evidence": [
+        "Parent 1287199/GCTGCGAGTCCTGCTT-1_contig_1 is a productive, forward, ambiguity-free concordant IGH control with gap-free retained V/J traces (IGHV1-8*01, IGHJ3*02).",
+        "Retained V trace is [120:414]; authenticated IMGT104 and J motif delimit original junction [405:450]. These are projected homologous anchors, not predicted aligner endpoints.",
+        "Reverse complement preserves the oriented junction and maps original [a:b] to [641-b:641-a]; input orientation flips.",
+        "Annotation consequences are independently derived from the authenticated parental V coding origin, preserved homologous C/W/F codons, and standard-code translation of the edited query through the primary J tract. Junction translation starts at C and omits a terminal partial triplet. Local V/J endpoints and D/C calls remain unadjudicated; a frameshift inside the V-contributed junction may or may not remain in the selected local V tract, so only its out-of-frame-indel reason is alignment-dependent."
+      ]
+    },
+    {
+      "case_id": "IGH-truncate-5prime",
+      "parent": {
+        "dataset": "1287199",
+        "sequence_id": "GCTGCGAGTCCTGCTT-1_contig_1",
+        "sequence_sha256": "79640a43c690f2cc8c9a28887c61152caefb56f80830c1192a30e53fefe91a70"
+      },
+      "context": "5prime",
+      "operation": {
+        "kind": "truncate_5prime",
+        "offset": 0,
+        "affected_bases": "TGGGGATCACTCAACAACCACATCTGTCCTCCAGAGAAAACCCTGTGAGCACAGCTCCTCACCATGGACTGGACCTGGAGGATCCTCTTCTTGGTGGCAGCAGCTACAAGTGCCCACTCC",
+        "replacement_bases": ""
+      },
+      "sequence_sha256": "175ac16b99642d17a14ca23654ce77f5377bb372320f8d2bc8d2a41cda3d5ff2",
+      "expected": {
+        "sequence_length": 521,
+        "length_delta": -120,
+        "rev_comp": false,
+        "locus": "IGH",
+        "homologous_junction": {
+          "oriented_start": 285,
+          "oriented_end": 330,
+          "input_start": 285,
+          "input_end": 330,
+          "sequence": "TGTGCGAGATATCACCCGGTATTGCGGAATGGTTTTGATGTCTGG",
+          "length_mod3": 0
+        },
+        "coding_frame_delta_mod3": 0,
+        "ambiguous_base_count": 0,
+        "annotation": {
+          "coding_origin_mod3": 0,
+          "junction": "TGTGCGAGATATCACCCGGTATTGCGGAATGGTTTTGATGTCTGG",
+          "junction_aa": "CARYHPVLRNGFDVW",
+          "productive": true,
+          "stop_codon": false,
+          "vj_in_frame": true,
+          "productivity_issues": [],
+          "alignment_dependent_issues": []
+        }
+      },
+      "evidence": [
+        "Parent 1287199/GCTGCGAGTCCTGCTT-1_contig_1 is a productive, forward, ambiguity-free concordant IGH control with gap-free retained V/J traces (IGHV1-8*01, IGHJ3*02).",
+        "Retained V trace is [120:414]; authenticated IMGT104 and J motif delimit original junction [405:450]. These are projected homologous anchors, not predicted aligner endpoints.",
+        "Remove only the 120-base leader before the retained V start; the complete V/J coding evidence and junction remain, shifted by -120.",
+        "Annotation consequences are independently derived from the authenticated parental V coding origin, preserved homologous C/W/F codons, and standard-code translation of the edited query through the primary J tract. Junction translation starts at C and omits a terminal partial triplet. Local V/J endpoints and D/C calls remain unadjudicated; a frameshift inside the V-contributed junction may or may not remain in the selected local V tract, so only its out-of-frame-indel reason is alignment-dependent."
+      ]
+    },
+    {
+      "case_id": "IGH-truncate-3prime",
+      "parent": {
+        "dataset": "1287199",
+        "sequence_id": "GCTGCGAGTCCTGCTT-1_contig_1",
+        "sequence_sha256": "79640a43c690f2cc8c9a28887c61152caefb56f80830c1192a30e53fefe91a70"
+      },
+      "context": "3prime",
+      "operation": {
+        "kind": "truncate_3prime",
+        "offset": 481,
+        "affected_bases": "CATCCCCGACCAGCCCCAAGGTCTTCCCGCTGAGCCTCTGCAGCACCCAGCCAGATGGGAACGTGGTCATCGCCTGCCTGGTCCAGGGCTTCTTCCCCCAGGAGCCACTCAGTGTGACCTGGAGCGAAAGCGGACAGGGCGTGACCGCCAGAAACTTCCC",
+        "replacement_bases": ""
+      },
+      "sequence_sha256": "e574cb9c469d152057fffba20afa9244f5782a160a32aa021ad8109ebe8c52ca",
+      "expected": {
+        "sequence_length": 481,
+        "length_delta": -160,
+        "rev_comp": false,
+        "locus": "IGH",
+        "homologous_junction": {
+          "oriented_start": 405,
+          "oriented_end": 450,
+          "input_start": 405,
+          "input_end": 450,
+          "sequence": "TGTGCGAGATATCACCCGGTATTGCGGAATGGTTTTGATGTCTGG",
+          "length_mod3": 0
+        },
+        "coding_frame_delta_mod3": 0,
+        "ambiguous_base_count": 0,
+        "annotation": {
+          "coding_origin_mod3": 0,
+          "junction": "TGTGCGAGATATCACCCGGTATTGCGGAATGGTTTTGATGTCTGG",
+          "junction_aa": "CARYHPVLRNGFDVW",
+          "productive": true,
+          "stop_codon": false,
+          "vj_in_frame": true,
+          "productivity_issues": [],
+          "alignment_dependent_issues": []
+        }
+      },
+      "evidence": [
+        "Parent 1287199/GCTGCGAGTCCTGCTT-1_contig_1 is a productive, forward, ambiguity-free concordant IGH control with gap-free retained V/J traces (IGHV1-8*01, IGHJ3*02).",
+        "Retained V trace is [120:414]; authenticated IMGT104 and J motif delimit original junction [405:450]. These are projected homologous anchors, not predicted aligner endpoints.",
+        "Remove only the suffix after retained J end 481; all retained V/J evidence and junction coordinates remain.",
+        "Annotation consequences are independently derived from the authenticated parental V coding origin, preserved homologous C/W/F codons, and standard-code translation of the edited query through the primary J tract. Junction translation starts at C and omits a terminal partial triplet. Local V/J endpoints and D/C calls remain unadjudicated; a frameshift inside the V-contributed junction may or may not remain in the selected local V tract, so only its out-of-frame-indel reason is alignment-dependent."
+      ]
+    },
+    {
+      "case_id": "IGH-v-ambiguity",
+      "parent": {
+        "dataset": "1287199",
+        "sequence_id": "GCTGCGAGTCCTGCTT-1_contig_1",
+        "sequence_sha256": "79640a43c690f2cc8c9a28887c61152caefb56f80830c1192a30e53fefe91a70"
+      },
+      "context": "v",
+      "operation": {
+        "kind": "ambiguity",
+        "offset": 180,
+        "affected_bases": "T",
+        "replacement_bases": "N"
+      },
+      "sequence_sha256": "d6ec553da934551343ff8338b5e7cd0addb9b69355cad504450ea8c5ce69d419",
+      "expected": {
+        "sequence_length": 641,
+        "length_delta": 0,
+        "rev_comp": false,
+        "locus": "IGH",
+        "homologous_junction": {
+          "oriented_start": 405,
+          "oriented_end": 450,
+          "input_start": 405,
+          "input_end": 450,
+          "sequence": "TGTGCGAGATATCACCCGGTATTGCGGAATGGTTTTGATGTCTGG",
+          "length_mod3": 0
+        },
+        "coding_frame_delta_mod3": 0,
+        "ambiguous_base_count": 1,
+        "annotation": {
+          "coding_origin_mod3": 0,
+          "junction": "TGTGCGAGATATCACCCGGTATTGCGGAATGGTTTTGATGTCTGG",
+          "junction_aa": "CARYHPVLRNGFDVW",
+          "productive": false,
+          "stop_codon": false,
+          "vj_in_frame": true,
+          "productivity_issues": [
+            "ambiguous nucleotide(s)"
+          ],
+          "alignment_dependent_issues": []
+        }
+      },
+      "evidence": [
+        "Parent 1287199/GCTGCGAGTCCTGCTT-1_contig_1 is a productive, forward, ambiguity-free concordant IGH control with gap-free retained V/J traces (IGHV1-8*01, IGHJ3*02).",
+        "Retained V trace is [120:414]; authenticated IMGT104 and J motif delimit original junction [405:450]. These are projected homologous anchors, not predicted aligner endpoints.",
+        "Replace exactly the v base at 180 with N; one ambiguous input base, unchanged length and anchor spacing.",
+        "Annotation consequences are independently derived from the authenticated parental V coding origin, preserved homologous C/W/F codons, and standard-code translation of the edited query through the primary J tract. Junction translation starts at C and omits a terminal partial triplet. Local V/J endpoints and D/C calls remain unadjudicated; a frameshift inside the V-contributed junction may or may not remain in the selected local V tract, so only its out-of-frame-indel reason is alignment-dependent."
+      ]
+    },
+    {
+      "case_id": "IGH-v-substitute",
+      "parent": {
+        "dataset": "1287199",
+        "sequence_id": "GCTGCGAGTCCTGCTT-1_contig_1",
+        "sequence_sha256": "79640a43c690f2cc8c9a28887c61152caefb56f80830c1192a30e53fefe91a70"
+      },
+      "context": "v",
+      "operation": {
+        "kind": "substitute",
+        "offset": 180,
+        "affected_bases": "T",
+        "replacement_bases": "A"
+      },
+      "sequence_sha256": "bdf407502bdccbc6bbd7fa95088ce01c24923c8ab404dd5cb8254b26bd45f39f",
+      "expected": {
+        "sequence_length": 641,
+        "length_delta": 0,
+        "rev_comp": false,
+        "locus": "IGH",
+        "homologous_junction": {
+          "oriented_start": 405,
+          "oriented_end": 450,
+          "input_start": 405,
+          "input_end": 450,
+          "sequence": "TGTGCGAGATATCACCCGGTATTGCGGAATGGTTTTGATGTCTGG",
+          "length_mod3": 0
+        },
+        "coding_frame_delta_mod3": 0,
+        "ambiguous_base_count": 0,
+        "annotation": {
+          "coding_origin_mod3": 0,
+          "junction": "TGTGCGAGATATCACCCGGTATTGCGGAATGGTTTTGATGTCTGG",
+          "junction_aa": "CARYHPVLRNGFDVW",
+          "productive": true,
+          "stop_codon": false,
+          "vj_in_frame": true,
+          "productivity_issues": [],
+          "alignment_dependent_issues": []
+        }
+      },
+      "evidence": [
+        "Parent 1287199/GCTGCGAGTCCTGCTT-1_contig_1 is a productive, forward, ambiguity-free concordant IGH control with gap-free retained V/J traces (IGHV1-8*01, IGHJ3*02).",
+        "Retained V trace is [120:414]; authenticated IMGT104 and J motif delimit original junction [405:450]. These are projected homologous anchors, not predicted aligner endpoints.",
+        "Replace exactly the v base at 180; unchanged length/frame spacing and preserved anchor codons, without predicting a gene-call or productivity change.",
+        "Annotation consequences are independently derived from the authenticated parental V coding origin, preserved homologous C/W/F codons, and standard-code translation of the edited query through the primary J tract. Junction translation starts at C and omits a terminal partial triplet. Local V/J endpoints and D/C calls remain unadjudicated; a frameshift inside the V-contributed junction may or may not remain in the selected local V tract, so only its out-of-frame-indel reason is alignment-dependent."
+      ]
+    },
+    {
+      "case_id": "IGH-v-insert-1",
+      "parent": {
+        "dataset": "1287199",
+        "sequence_id": "GCTGCGAGTCCTGCTT-1_contig_1",
+        "sequence_sha256": "79640a43c690f2cc8c9a28887c61152caefb56f80830c1192a30e53fefe91a70"
+      },
+      "context": "v",
+      "operation": {
+        "kind": "insert",
+        "offset": 180,
+        "affected_bases": "",
+        "replacement_bases": "G"
+      },
+      "sequence_sha256": "6ca2bac62256f2c21dc013bc3ac10dddb7ee174c423cd83ff63089b5e0ddb7df",
+      "expected": {
+        "sequence_length": 642,
+        "length_delta": 1,
+        "rev_comp": false,
+        "locus": "IGH",
+        "homologous_junction": {
+          "oriented_start": 406,
+          "oriented_end": 451,
+          "input_start": 406,
+          "input_end": 451,
+          "sequence": "TGTGCGAGATATCACCCGGTATTGCGGAATGGTTTTGATGTCTGG",
+          "length_mod3": 0
+        },
+        "coding_frame_delta_mod3": 1,
+        "ambiguous_base_count": 0,
+        "annotation": {
+          "coding_origin_mod3": 0,
+          "junction": "TGTGCGAGATATCACCCGGTATTGCGGAATGGTTTTGATGTCTGG",
+          "junction_aa": "CARYHPVLRNGFDVW",
+          "productive": false,
+          "stop_codon": true,
+          "vj_in_frame": false,
+          "productivity_issues": [
+            "V/J junction is out of frame",
+            "out-of-frame indel(s)",
+            "stop codon(s)"
+          ],
+          "alignment_dependent_issues": []
+        }
+      },
+      "evidence": [
+        "Parent 1287199/GCTGCGAGTCCTGCTT-1_contig_1 is a productive, forward, ambiguity-free concordant IGH control with gap-free retained V/J traces (IGHV1-8*01, IGHJ3*02).",
+        "Retained V trace is [120:414]; authenticated IMGT104 and J motif delimit original junction [405:450]. These are projected homologous anchors, not predicted aligner endpoints.",
+        "Insert 1 nt at v boundary 180; downstream anchor displacement and coding frame delta are +1 nt. Anchor codons themselves remain.",
+        "Annotation consequences are independently derived from the authenticated parental V coding origin, preserved homologous C/W/F codons, and standard-code translation of the edited query through the primary J tract. Junction translation starts at C and omits a terminal partial triplet. Local V/J endpoints and D/C calls remain unadjudicated; a frameshift inside the V-contributed junction may or may not remain in the selected local V tract, so only its out-of-frame-indel reason is alignment-dependent."
+      ]
+    },
+    {
+      "case_id": "IGH-v-delete-1",
+      "parent": {
+        "dataset": "1287199",
+        "sequence_id": "GCTGCGAGTCCTGCTT-1_contig_1",
+        "sequence_sha256": "79640a43c690f2cc8c9a28887c61152caefb56f80830c1192a30e53fefe91a70"
+      },
+      "context": "v",
+      "operation": {
+        "kind": "delete",
+        "offset": 180,
+        "affected_bases": "T",
+        "replacement_bases": ""
+      },
+      "sequence_sha256": "cf808dbe8c0566a3801cb3029a1673fbadff3bcf00a5d997bd4479e01f26197e",
+      "expected": {
+        "sequence_length": 640,
+        "length_delta": -1,
+        "rev_comp": false,
+        "locus": "IGH",
+        "homologous_junction": {
+          "oriented_start": 404,
+          "oriented_end": 449,
+          "input_start": 404,
+          "input_end": 449,
+          "sequence": "TGTGCGAGATATCACCCGGTATTGCGGAATGGTTTTGATGTCTGG",
+          "length_mod3": 0
+        },
+        "coding_frame_delta_mod3": 2,
+        "ambiguous_base_count": 0,
+        "annotation": {
+          "coding_origin_mod3": 0,
+          "junction": "TGTGCGAGATATCACCCGGTATTGCGGAATGGTTTTGATGTCTGG",
+          "junction_aa": "CARYHPVLRNGFDVW",
+          "productive": false,
+          "stop_codon": true,
+          "vj_in_frame": false,
+          "productivity_issues": [
+            "V/J junction is out of frame",
+            "out-of-frame indel(s)",
+            "stop codon(s)"
+          ],
+          "alignment_dependent_issues": []
+        }
+      },
+      "evidence": [
+        "Parent 1287199/GCTGCGAGTCCTGCTT-1_contig_1 is a productive, forward, ambiguity-free concordant IGH control with gap-free retained V/J traces (IGHV1-8*01, IGHJ3*02).",
+        "Retained V trace is [120:414]; authenticated IMGT104 and J motif delimit original junction [405:450]. These are projected homologous anchors, not predicted aligner endpoints.",
+        "Delete the 1 nt v span [180:181]; downstream anchor displacement and coding frame delta are -1 nt. Anchor codons themselves remain.",
+        "Annotation consequences are independently derived from the authenticated parental V coding origin, preserved homologous C/W/F codons, and standard-code translation of the edited query through the primary J tract. Junction translation starts at C and omits a terminal partial triplet. Local V/J endpoints and D/C calls remain unadjudicated; a frameshift inside the V-contributed junction may or may not remain in the selected local V tract, so only its out-of-frame-indel reason is alignment-dependent."
+      ]
+    },
+    {
+      "case_id": "IGH-v-insert-2",
+      "parent": {
+        "dataset": "1287199",
+        "sequence_id": "GCTGCGAGTCCTGCTT-1_contig_1",
+        "sequence_sha256": "79640a43c690f2cc8c9a28887c61152caefb56f80830c1192a30e53fefe91a70"
+      },
+      "context": "v",
+      "operation": {
+        "kind": "insert",
+        "offset": 180,
+        "affected_bases": "",
+        "replacement_bases": "GG"
+      },
+      "sequence_sha256": "5aafaa5e0b25a8cd54957dfc0e85fd48fb8d64c04262aaf35099cbe54115470a",
+      "expected": {
+        "sequence_length": 643,
+        "length_delta": 2,
+        "rev_comp": false,
+        "locus": "IGH",
+        "homologous_junction": {
+          "oriented_start": 407,
+          "oriented_end": 452,
+          "input_start": 407,
+          "input_end": 452,
+          "sequence": "TGTGCGAGATATCACCCGGTATTGCGGAATGGTTTTGATGTCTGG",
+          "length_mod3": 0
+        },
+        "coding_frame_delta_mod3": 2,
+        "ambiguous_base_count": 0,
+        "annotation": {
+          "coding_origin_mod3": 0,
+          "junction": "TGTGCGAGATATCACCCGGTATTGCGGAATGGTTTTGATGTCTGG",
+          "junction_aa": "CARYHPVLRNGFDVW",
+          "productive": false,
+          "stop_codon": true,
+          "vj_in_frame": false,
+          "productivity_issues": [
+            "V/J junction is out of frame",
+            "out-of-frame indel(s)",
+            "stop codon(s)"
+          ],
+          "alignment_dependent_issues": []
+        }
+      },
+      "evidence": [
+        "Parent 1287199/GCTGCGAGTCCTGCTT-1_contig_1 is a productive, forward, ambiguity-free concordant IGH control with gap-free retained V/J traces (IGHV1-8*01, IGHJ3*02).",
+        "Retained V trace is [120:414]; authenticated IMGT104 and J motif delimit original junction [405:450]. These are projected homologous anchors, not predicted aligner endpoints.",
+        "Insert 2 nt at v boundary 180; downstream anchor displacement and coding frame delta are +2 nt. Anchor codons themselves remain.",
+        "Annotation consequences are independently derived from the authenticated parental V coding origin, preserved homologous C/W/F codons, and standard-code translation of the edited query through the primary J tract. Junction translation starts at C and omits a terminal partial triplet. Local V/J endpoints and D/C calls remain unadjudicated; a frameshift inside the V-contributed junction may or may not remain in the selected local V tract, so only its out-of-frame-indel reason is alignment-dependent."
+      ]
+    },
+    {
+      "case_id": "IGH-v-delete-2",
+      "parent": {
+        "dataset": "1287199",
+        "sequence_id": "GCTGCGAGTCCTGCTT-1_contig_1",
+        "sequence_sha256": "79640a43c690f2cc8c9a28887c61152caefb56f80830c1192a30e53fefe91a70"
+      },
+      "context": "v",
+      "operation": {
+        "kind": "delete",
+        "offset": 180,
+        "affected_bases": "TC",
+        "replacement_bases": ""
+      },
+      "sequence_sha256": "a3a37dfa160fc3d2ed8a58bc919af1e789710c514e39fa51b29f3d7e237ef004",
+      "expected": {
+        "sequence_length": 639,
+        "length_delta": -2,
+        "rev_comp": false,
+        "locus": "IGH",
+        "homologous_junction": {
+          "oriented_start": 403,
+          "oriented_end": 448,
+          "input_start": 403,
+          "input_end": 448,
+          "sequence": "TGTGCGAGATATCACCCGGTATTGCGGAATGGTTTTGATGTCTGG",
+          "length_mod3": 0
+        },
+        "coding_frame_delta_mod3": 1,
+        "ambiguous_base_count": 0,
+        "annotation": {
+          "coding_origin_mod3": 0,
+          "junction": "TGTGCGAGATATCACCCGGTATTGCGGAATGGTTTTGATGTCTGG",
+          "junction_aa": "CARYHPVLRNGFDVW",
+          "productive": false,
+          "stop_codon": true,
+          "vj_in_frame": false,
+          "productivity_issues": [
+            "V/J junction is out of frame",
+            "out-of-frame indel(s)",
+            "stop codon(s)"
+          ],
+          "alignment_dependent_issues": []
+        }
+      },
+      "evidence": [
+        "Parent 1287199/GCTGCGAGTCCTGCTT-1_contig_1 is a productive, forward, ambiguity-free concordant IGH control with gap-free retained V/J traces (IGHV1-8*01, IGHJ3*02).",
+        "Retained V trace is [120:414]; authenticated IMGT104 and J motif delimit original junction [405:450]. These are projected homologous anchors, not predicted aligner endpoints.",
+        "Delete the 2 nt v span [180:182]; downstream anchor displacement and coding frame delta are -2 nt. Anchor codons themselves remain.",
+        "Annotation consequences are independently derived from the authenticated parental V coding origin, preserved homologous C/W/F codons, and standard-code translation of the edited query through the primary J tract. Junction translation starts at C and omits a terminal partial triplet. Local V/J endpoints and D/C calls remain unadjudicated; a frameshift inside the V-contributed junction may or may not remain in the selected local V tract, so only its out-of-frame-indel reason is alignment-dependent."
+      ]
+    },
+    {
+      "case_id": "IGH-v-insert-3",
+      "parent": {
+        "dataset": "1287199",
+        "sequence_id": "GCTGCGAGTCCTGCTT-1_contig_1",
+        "sequence_sha256": "79640a43c690f2cc8c9a28887c61152caefb56f80830c1192a30e53fefe91a70"
+      },
+      "context": "v",
+      "operation": {
+        "kind": "insert",
+        "offset": 180,
+        "affected_bases": "",
+        "replacement_bases": "GGA"
+      },
+      "sequence_sha256": "41a310f2ccb3bb45e0caa70923c1a15561c162632a99938755f9597a02cc5255",
+      "expected": {
+        "sequence_length": 644,
+        "length_delta": 3,
+        "rev_comp": false,
+        "locus": "IGH",
+        "homologous_junction": {
+          "oriented_start": 408,
+          "oriented_end": 453,
+          "input_start": 408,
+          "input_end": 453,
+          "sequence": "TGTGCGAGATATCACCCGGTATTGCGGAATGGTTTTGATGTCTGG",
+          "length_mod3": 0
+        },
+        "coding_frame_delta_mod3": 0,
+        "ambiguous_base_count": 0,
+        "annotation": {
+          "coding_origin_mod3": 0,
+          "junction": "TGTGCGAGATATCACCCGGTATTGCGGAATGGTTTTGATGTCTGG",
+          "junction_aa": "CARYHPVLRNGFDVW",
+          "productive": true,
+          "stop_codon": false,
+          "vj_in_frame": true,
+          "productivity_issues": [],
+          "alignment_dependent_issues": []
+        }
+      },
+      "evidence": [
+        "Parent 1287199/GCTGCGAGTCCTGCTT-1_contig_1 is a productive, forward, ambiguity-free concordant IGH control with gap-free retained V/J traces (IGHV1-8*01, IGHJ3*02).",
+        "Retained V trace is [120:414]; authenticated IMGT104 and J motif delimit original junction [405:450]. These are projected homologous anchors, not predicted aligner endpoints.",
+        "Insert 3 nt at v boundary 180; downstream anchor displacement and coding frame delta are +3 nt. Anchor codons themselves remain.",
+        "Annotation consequences are independently derived from the authenticated parental V coding origin, preserved homologous C/W/F codons, and standard-code translation of the edited query through the primary J tract. Junction translation starts at C and omits a terminal partial triplet. Local V/J endpoints and D/C calls remain unadjudicated; a frameshift inside the V-contributed junction may or may not remain in the selected local V tract, so only its out-of-frame-indel reason is alignment-dependent."
+      ]
+    },
+    {
+      "case_id": "IGH-v-delete-3",
+      "parent": {
+        "dataset": "1287199",
+        "sequence_id": "GCTGCGAGTCCTGCTT-1_contig_1",
+        "sequence_sha256": "79640a43c690f2cc8c9a28887c61152caefb56f80830c1192a30e53fefe91a70"
+      },
+      "context": "v",
+      "operation": {
+        "kind": "delete",
+        "offset": 180,
+        "affected_bases": "TCC",
+        "replacement_bases": ""
+      },
+      "sequence_sha256": "666345368015fdd23a56d757869ad939830b7ea159dc2da3e09da48bfedfc4d4",
+      "expected": {
+        "sequence_length": 638,
+        "length_delta": -3,
+        "rev_comp": false,
+        "locus": "IGH",
+        "homologous_junction": {
+          "oriented_start": 402,
+          "oriented_end": 447,
+          "input_start": 402,
+          "input_end": 447,
+          "sequence": "TGTGCGAGATATCACCCGGTATTGCGGAATGGTTTTGATGTCTGG",
+          "length_mod3": 0
+        },
+        "coding_frame_delta_mod3": 0,
+        "ambiguous_base_count": 0,
+        "annotation": {
+          "coding_origin_mod3": 0,
+          "junction": "TGTGCGAGATATCACCCGGTATTGCGGAATGGTTTTGATGTCTGG",
+          "junction_aa": "CARYHPVLRNGFDVW",
+          "productive": true,
+          "stop_codon": false,
+          "vj_in_frame": true,
+          "productivity_issues": [],
+          "alignment_dependent_issues": []
+        }
+      },
+      "evidence": [
+        "Parent 1287199/GCTGCGAGTCCTGCTT-1_contig_1 is a productive, forward, ambiguity-free concordant IGH control with gap-free retained V/J traces (IGHV1-8*01, IGHJ3*02).",
+        "Retained V trace is [120:414]; authenticated IMGT104 and J motif delimit original junction [405:450]. These are projected homologous anchors, not predicted aligner endpoints.",
+        "Delete the 3 nt v span [180:183]; downstream anchor displacement and coding frame delta are -3 nt. Anchor codons themselves remain.",
+        "Annotation consequences are independently derived from the authenticated parental V coding origin, preserved homologous C/W/F codons, and standard-code translation of the edited query through the primary J tract. Junction translation starts at C and omits a terminal partial triplet. Local V/J endpoints and D/C calls remain unadjudicated; a frameshift inside the V-contributed junction may or may not remain in the selected local V tract, so only its out-of-frame-indel reason is alignment-dependent."
+      ]
+    },
+    {
+      "case_id": "IGH-junction-ambiguity",
+      "parent": {
+        "dataset": "1287199",
+        "sequence_id": "GCTGCGAGTCCTGCTT-1_contig_1",
+        "sequence_sha256": "79640a43c690f2cc8c9a28887c61152caefb56f80830c1192a30e53fefe91a70"
+      },
+      "context": "junction",
+      "operation": {
+        "kind": "ambiguity",
+        "offset": 411,
+        "affected_bases": "A",
+        "replacement_bases": "N"
+      },
+      "sequence_sha256": "7fbbcc48e993d52da0a037995bcd5b301d0b1911b6ecf70adbfd2ffb7fbfe40d",
+      "expected": {
+        "sequence_length": 641,
+        "length_delta": 0,
+        "rev_comp": false,
+        "locus": "IGH",
+        "homologous_junction": {
+          "oriented_start": 405,
+          "oriented_end": 450,
+          "input_start": 405,
+          "input_end": 450,
+          "sequence": "TGTGCGNGATATCACCCGGTATTGCGGAATGGTTTTGATGTCTGG",
+          "length_mod3": 0
+        },
+        "coding_frame_delta_mod3": 0,
+        "ambiguous_base_count": 1,
+        "annotation": {
+          "coding_origin_mod3": 0,
+          "junction": "TGTGCGNGATATCACCCGGTATTGCGGAATGGTTTTGATGTCTGG",
+          "junction_aa": "CAXYHPVLRNGFDVW",
+          "productive": false,
+          "stop_codon": false,
+          "vj_in_frame": true,
+          "productivity_issues": [
+            "ambiguous nucleotide(s)",
+            "ambiguous nucleotide(s) in junction"
+          ],
+          "alignment_dependent_issues": []
+        }
+      },
+      "evidence": [
+        "Parent 1287199/GCTGCGAGTCCTGCTT-1_contig_1 is a productive, forward, ambiguity-free concordant IGH control with gap-free retained V/J traces (IGHV1-8*01, IGHJ3*02).",
+        "Retained V trace is [120:414]; authenticated IMGT104 and J motif delimit original junction [405:450]. These are projected homologous anchors, not predicted aligner endpoints.",
+        "Replace exactly the junction base at 411 with N; one ambiguous input base, unchanged length and anchor spacing.",
+        "Annotation consequences are independently derived from the authenticated parental V coding origin, preserved homologous C/W/F codons, and standard-code translation of the edited query through the primary J tract. Junction translation starts at C and omits a terminal partial triplet. Local V/J endpoints and D/C calls remain unadjudicated; a frameshift inside the V-contributed junction may or may not remain in the selected local V tract, so only its out-of-frame-indel reason is alignment-dependent."
+      ]
+    },
+    {
+      "case_id": "IGH-junction-substitute",
+      "parent": {
+        "dataset": "1287199",
+        "sequence_id": "GCTGCGAGTCCTGCTT-1_contig_1",
+        "sequence_sha256": "79640a43c690f2cc8c9a28887c61152caefb56f80830c1192a30e53fefe91a70"
+      },
+      "context": "junction",
+      "operation": {
+        "kind": "substitute",
+        "offset": 411,
+        "affected_bases": "A",
+        "replacement_bases": "C"
+      },
+      "sequence_sha256": "3d11a66ddb4a04aef16707da400d5b4a2c9cced3adeba9d4cf850cc5a295c8a0",
+      "expected": {
+        "sequence_length": 641,
+        "length_delta": 0,
+        "rev_comp": false,
+        "locus": "IGH",
+        "homologous_junction": {
+          "oriented_start": 405,
+          "oriented_end": 450,
+          "input_start": 405,
+          "input_end": 450,
+          "sequence": "TGTGCGCGATATCACCCGGTATTGCGGAATGGTTTTGATGTCTGG",
+          "length_mod3": 0
+        },
+        "coding_frame_delta_mod3": 0,
+        "ambiguous_base_count": 0,
+        "annotation": {
+          "coding_origin_mod3": 0,
+          "junction": "TGTGCGCGATATCACCCGGTATTGCGGAATGGTTTTGATGTCTGG",
+          "junction_aa": "CARYHPVLRNGFDVW",
+          "productive": true,
+          "stop_codon": false,
+          "vj_in_frame": true,
+          "productivity_issues": [],
+          "alignment_dependent_issues": []
+        }
+      },
+      "evidence": [
+        "Parent 1287199/GCTGCGAGTCCTGCTT-1_contig_1 is a productive, forward, ambiguity-free concordant IGH control with gap-free retained V/J traces (IGHV1-8*01, IGHJ3*02).",
+        "Retained V trace is [120:414]; authenticated IMGT104 and J motif delimit original junction [405:450]. These are projected homologous anchors, not predicted aligner endpoints.",
+        "Replace exactly the junction base at 411; unchanged length/frame spacing and preserved anchor codons, without predicting a gene-call or productivity change.",
+        "Annotation consequences are independently derived from the authenticated parental V coding origin, preserved homologous C/W/F codons, and standard-code translation of the edited query through the primary J tract. Junction translation starts at C and omits a terminal partial triplet. Local V/J endpoints and D/C calls remain unadjudicated; a frameshift inside the V-contributed junction may or may not remain in the selected local V tract, so only its out-of-frame-indel reason is alignment-dependent."
+      ]
+    },
+    {
+      "case_id": "IGH-junction-insert-1",
+      "parent": {
+        "dataset": "1287199",
+        "sequence_id": "GCTGCGAGTCCTGCTT-1_contig_1",
+        "sequence_sha256": "79640a43c690f2cc8c9a28887c61152caefb56f80830c1192a30e53fefe91a70"
+      },
+      "context": "junction",
+      "operation": {
+        "kind": "insert",
+        "offset": 411,
+        "affected_bases": "",
+        "replacement_bases": "G"
+      },
+      "sequence_sha256": "16c55ae24957f47de1dbbefa9e528c51ce5a7e82f020462ae64e5986088b17f8",
+      "expected": {
+        "sequence_length": 642,
+        "length_delta": 1,
+        "rev_comp": false,
+        "locus": "IGH",
+        "homologous_junction": {
+          "oriented_start": 405,
+          "oriented_end": 451,
+          "input_start": 405,
+          "input_end": 451,
+          "sequence": "TGTGCGGAGATATCACCCGGTATTGCGGAATGGTTTTGATGTCTGG",
+          "length_mod3": 1
+        },
+        "coding_frame_delta_mod3": 1,
+        "ambiguous_base_count": 0,
+        "annotation": {
+          "coding_origin_mod3": 0,
+          "junction": "TGTGCGGAGATATCACCCGGTATTGCGGAATGGTTTTGATGTCTGG",
+          "junction_aa": "CAEISPGIAEWF*CL",
+          "productive": false,
+          "stop_codon": true,
+          "vj_in_frame": false,
+          "productivity_issues": [
+            "junction does not end with conserved W",
+            "junction length is not a multiple of 3",
+            "stop codon(s)"
+          ],
+          "alignment_dependent_issues": [
+            "out-of-frame indel(s)"
+          ]
+        }
+      },
+      "evidence": [
+        "Parent 1287199/GCTGCGAGTCCTGCTT-1_contig_1 is a productive, forward, ambiguity-free concordant IGH control with gap-free retained V/J traces (IGHV1-8*01, IGHJ3*02).",
+        "Retained V trace is [120:414]; authenticated IMGT104 and J motif delimit original junction [405:450]. These are projected homologous anchors, not predicted aligner endpoints.",
+        "Insert 1 nt at junction boundary 411; downstream anchor displacement and coding frame delta are +1 nt. Anchor codons themselves remain.",
+        "Annotation consequences are independently derived from the authenticated parental V coding origin, preserved homologous C/W/F codons, and standard-code translation of the edited query through the primary J tract. Junction translation starts at C and omits a terminal partial triplet. Local V/J endpoints and D/C calls remain unadjudicated; a frameshift inside the V-contributed junction may or may not remain in the selected local V tract, so only its out-of-frame-indel reason is alignment-dependent."
+      ]
+    },
+    {
+      "case_id": "IGH-junction-delete-1",
+      "parent": {
+        "dataset": "1287199",
+        "sequence_id": "GCTGCGAGTCCTGCTT-1_contig_1",
+        "sequence_sha256": "79640a43c690f2cc8c9a28887c61152caefb56f80830c1192a30e53fefe91a70"
+      },
+      "context": "junction",
+      "operation": {
+        "kind": "delete",
+        "offset": 411,
+        "affected_bases": "A",
+        "replacement_bases": ""
+      },
+      "sequence_sha256": "4752e0a27c6ceedfadc799907ec0cd6bddf39558cea344f436d09b540001f8da",
+      "expected": {
+        "sequence_length": 640,
+        "length_delta": -1,
+        "rev_comp": false,
+        "locus": "IGH",
+        "homologous_junction": {
+          "oriented_start": 405,
+          "oriented_end": 449,
+          "input_start": 405,
+          "input_end": 449,
+          "sequence": "TGTGCGGATATCACCCGGTATTGCGGAATGGTTTTGATGTCTGG",
+          "length_mod3": 2
+        },
+        "coding_frame_delta_mod3": 2,
+        "ambiguous_base_count": 0,
+        "annotation": {
+          "coding_origin_mod3": 0,
+          "junction": "TGTGCGGATATCACCCGGTATTGCGGAATGGTTTTGATGTCTGG",
+          "junction_aa": "CADITRYCGMVLMS",
+          "productive": false,
+          "stop_codon": false,
+          "vj_in_frame": false,
+          "productivity_issues": [
+            "junction does not end with conserved W",
+            "junction length is not a multiple of 3"
+          ],
+          "alignment_dependent_issues": [
+            "out-of-frame indel(s)"
+          ]
+        }
+      },
+      "evidence": [
+        "Parent 1287199/GCTGCGAGTCCTGCTT-1_contig_1 is a productive, forward, ambiguity-free concordant IGH control with gap-free retained V/J traces (IGHV1-8*01, IGHJ3*02).",
+        "Retained V trace is [120:414]; authenticated IMGT104 and J motif delimit original junction [405:450]. These are projected homologous anchors, not predicted aligner endpoints.",
+        "Delete the 1 nt junction span [411:412]; downstream anchor displacement and coding frame delta are -1 nt. Anchor codons themselves remain.",
+        "Annotation consequences are independently derived from the authenticated parental V coding origin, preserved homologous C/W/F codons, and standard-code translation of the edited query through the primary J tract. Junction translation starts at C and omits a terminal partial triplet. Local V/J endpoints and D/C calls remain unadjudicated; a frameshift inside the V-contributed junction may or may not remain in the selected local V tract, so only its out-of-frame-indel reason is alignment-dependent."
+      ]
+    },
+    {
+      "case_id": "IGH-junction-insert-2",
+      "parent": {
+        "dataset": "1287199",
+        "sequence_id": "GCTGCGAGTCCTGCTT-1_contig_1",
+        "sequence_sha256": "79640a43c690f2cc8c9a28887c61152caefb56f80830c1192a30e53fefe91a70"
+      },
+      "context": "junction",
+      "operation": {
+        "kind": "insert",
+        "offset": 411,
+        "affected_bases": "",
+        "replacement_bases": "GG"
+      },
+      "sequence_sha256": "dd997a7b1c83c05256f90cdb2a0faa4b11dc9ce7dfe7d493c8d625aaf7a7c1fa",
+      "expected": {
+        "sequence_length": 643,
+        "length_delta": 2,
+        "rev_comp": false,
+        "locus": "IGH",
+        "homologous_junction": {
+          "oriented_start": 405,
+          "oriented_end": 452,
+          "input_start": 405,
+          "input_end": 452,
+          "sequence": "TGTGCGGGAGATATCACCCGGTATTGCGGAATGGTTTTGATGTCTGG",
+          "length_mod3": 2
+        },
+        "coding_frame_delta_mod3": 2,
+        "ambiguous_base_count": 0,
+        "annotation": {
+          "coding_origin_mod3": 0,
+          "junction": "TGTGCGGGAGATATCACCCGGTATTGCGGAATGGTTTTGATGTCTGG",
+          "junction_aa": "CAGDITRYCGMVLMS",
+          "productive": false,
+          "stop_codon": false,
+          "vj_in_frame": false,
+          "productivity_issues": [
+            "junction does not end with conserved W",
+            "junction length is not a multiple of 3"
+          ],
+          "alignment_dependent_issues": [
+            "out-of-frame indel(s)"
+          ]
+        }
+      },
+      "evidence": [
+        "Parent 1287199/GCTGCGAGTCCTGCTT-1_contig_1 is a productive, forward, ambiguity-free concordant IGH control with gap-free retained V/J traces (IGHV1-8*01, IGHJ3*02).",
+        "Retained V trace is [120:414]; authenticated IMGT104 and J motif delimit original junction [405:450]. These are projected homologous anchors, not predicted aligner endpoints.",
+        "Insert 2 nt at junction boundary 411; downstream anchor displacement and coding frame delta are +2 nt. Anchor codons themselves remain.",
+        "Annotation consequences are independently derived from the authenticated parental V coding origin, preserved homologous C/W/F codons, and standard-code translation of the edited query through the primary J tract. Junction translation starts at C and omits a terminal partial triplet. Local V/J endpoints and D/C calls remain unadjudicated; a frameshift inside the V-contributed junction may or may not remain in the selected local V tract, so only its out-of-frame-indel reason is alignment-dependent."
+      ]
+    },
+    {
+      "case_id": "IGH-junction-delete-2",
+      "parent": {
+        "dataset": "1287199",
+        "sequence_id": "GCTGCGAGTCCTGCTT-1_contig_1",
+        "sequence_sha256": "79640a43c690f2cc8c9a28887c61152caefb56f80830c1192a30e53fefe91a70"
+      },
+      "context": "junction",
+      "operation": {
+        "kind": "delete",
+        "offset": 411,
+        "affected_bases": "AG",
+        "replacement_bases": ""
+      },
+      "sequence_sha256": "cf2937495680611f90a9a2e88ddc286bbd814270315ba97d0b9b33b684ef9a8b",
+      "expected": {
+        "sequence_length": 639,
+        "length_delta": -2,
+        "rev_comp": false,
+        "locus": "IGH",
+        "homologous_junction": {
+          "oriented_start": 405,
+          "oriented_end": 448,
+          "input_start": 405,
+          "input_end": 448,
+          "sequence": "TGTGCGATATCACCCGGTATTGCGGAATGGTTTTGATGTCTGG",
+          "length_mod3": 1
+        },
+        "coding_frame_delta_mod3": 1,
+        "ambiguous_base_count": 0,
+        "annotation": {
+          "coding_origin_mod3": 0,
+          "junction": "TGTGCGATATCACCCGGTATTGCGGAATGGTTTTGATGTCTGG",
+          "junction_aa": "CAISPGIAEWF*CL",
+          "productive": false,
+          "stop_codon": true,
+          "vj_in_frame": false,
+          "productivity_issues": [
+            "junction does not end with conserved W",
+            "junction length is not a multiple of 3",
+            "stop codon(s)"
+          ],
+          "alignment_dependent_issues": [
+            "out-of-frame indel(s)"
+          ]
+        }
+      },
+      "evidence": [
+        "Parent 1287199/GCTGCGAGTCCTGCTT-1_contig_1 is a productive, forward, ambiguity-free concordant IGH control with gap-free retained V/J traces (IGHV1-8*01, IGHJ3*02).",
+        "Retained V trace is [120:414]; authenticated IMGT104 and J motif delimit original junction [405:450]. These are projected homologous anchors, not predicted aligner endpoints.",
+        "Delete the 2 nt junction span [411:413]; downstream anchor displacement and coding frame delta are -2 nt. Anchor codons themselves remain.",
+        "Annotation consequences are independently derived from the authenticated parental V coding origin, preserved homologous C/W/F codons, and standard-code translation of the edited query through the primary J tract. Junction translation starts at C and omits a terminal partial triplet. Local V/J endpoints and D/C calls remain unadjudicated; a frameshift inside the V-contributed junction may or may not remain in the selected local V tract, so only its out-of-frame-indel reason is alignment-dependent."
+      ]
+    },
+    {
+      "case_id": "IGH-junction-insert-3",
+      "parent": {
+        "dataset": "1287199",
+        "sequence_id": "GCTGCGAGTCCTGCTT-1_contig_1",
+        "sequence_sha256": "79640a43c690f2cc8c9a28887c61152caefb56f80830c1192a30e53fefe91a70"
+      },
+      "context": "junction",
+      "operation": {
+        "kind": "insert",
+        "offset": 411,
+        "affected_bases": "",
+        "replacement_bases": "GGA"
+      },
+      "sequence_sha256": "2fda0bd9894b52d3a5ce63ae41f6112e9a55b5d4f55944537d0eb0dd04846db8",
+      "expected": {
+        "sequence_length": 644,
+        "length_delta": 3,
+        "rev_comp": false,
+        "locus": "IGH",
+        "homologous_junction": {
+          "oriented_start": 405,
+          "oriented_end": 453,
+          "input_start": 405,
+          "input_end": 453,
+          "sequence": "TGTGCGGGAAGATATCACCCGGTATTGCGGAATGGTTTTGATGTCTGG",
+          "length_mod3": 0
+        },
+        "coding_frame_delta_mod3": 0,
+        "ambiguous_base_count": 0,
+        "annotation": {
+          "coding_origin_mod3": 0,
+          "junction": "TGTGCGGGAAGATATCACCCGGTATTGCGGAATGGTTTTGATGTCTGG",
+          "junction_aa": "CAGRYHPVLRNGFDVW",
+          "productive": true,
+          "stop_codon": false,
+          "vj_in_frame": true,
+          "productivity_issues": [],
+          "alignment_dependent_issues": []
+        }
+      },
+      "evidence": [
+        "Parent 1287199/GCTGCGAGTCCTGCTT-1_contig_1 is a productive, forward, ambiguity-free concordant IGH control with gap-free retained V/J traces (IGHV1-8*01, IGHJ3*02).",
+        "Retained V trace is [120:414]; authenticated IMGT104 and J motif delimit original junction [405:450]. These are projected homologous anchors, not predicted aligner endpoints.",
+        "Insert 3 nt at junction boundary 411; downstream anchor displacement and coding frame delta are +3 nt. Anchor codons themselves remain.",
+        "Annotation consequences are independently derived from the authenticated parental V coding origin, preserved homologous C/W/F codons, and standard-code translation of the edited query through the primary J tract. Junction translation starts at C and omits a terminal partial triplet. Local V/J endpoints and D/C calls remain unadjudicated; a frameshift inside the V-contributed junction may or may not remain in the selected local V tract, so only its out-of-frame-indel reason is alignment-dependent."
+      ]
+    },
+    {
+      "case_id": "IGH-junction-delete-3",
+      "parent": {
+        "dataset": "1287199",
+        "sequence_id": "GCTGCGAGTCCTGCTT-1_contig_1",
+        "sequence_sha256": "79640a43c690f2cc8c9a28887c61152caefb56f80830c1192a30e53fefe91a70"
+      },
+      "context": "junction",
+      "operation": {
+        "kind": "delete",
+        "offset": 411,
+        "affected_bases": "AGA",
+        "replacement_bases": ""
+      },
+      "sequence_sha256": "9951e7e4cf7c09d2a60b7d391707e533eb7160fe216a14cbdbb623bdb1bd85cd",
+      "expected": {
+        "sequence_length": 638,
+        "length_delta": -3,
+        "rev_comp": false,
+        "locus": "IGH",
+        "homologous_junction": {
+          "oriented_start": 405,
+          "oriented_end": 447,
+          "input_start": 405,
+          "input_end": 447,
+          "sequence": "TGTGCGTATCACCCGGTATTGCGGAATGGTTTTGATGTCTGG",
+          "length_mod3": 0
+        },
+        "coding_frame_delta_mod3": 0,
+        "ambiguous_base_count": 0,
+        "annotation": {
+          "coding_origin_mod3": 0,
+          "junction": "TGTGCGTATCACCCGGTATTGCGGAATGGTTTTGATGTCTGG",
+          "junction_aa": "CAYHPVLRNGFDVW",
+          "productive": true,
+          "stop_codon": false,
+          "vj_in_frame": true,
+          "productivity_issues": [],
+          "alignment_dependent_issues": []
+        }
+      },
+      "evidence": [
+        "Parent 1287199/GCTGCGAGTCCTGCTT-1_contig_1 is a productive, forward, ambiguity-free concordant IGH control with gap-free retained V/J traces (IGHV1-8*01, IGHJ3*02).",
+        "Retained V trace is [120:414]; authenticated IMGT104 and J motif delimit original junction [405:450]. These are projected homologous anchors, not predicted aligner endpoints.",
+        "Delete the 3 nt junction span [411:414]; downstream anchor displacement and coding frame delta are -3 nt. Anchor codons themselves remain.",
+        "Annotation consequences are independently derived from the authenticated parental V coding origin, preserved homologous C/W/F codons, and standard-code translation of the edited query through the primary J tract. Junction translation starts at C and omits a terminal partial triplet. Local V/J endpoints and D/C calls remain unadjudicated; a frameshift inside the V-contributed junction may or may not remain in the selected local V tract, so only its out-of-frame-indel reason is alignment-dependent."
+      ]
+    },
+    {
+      "case_id": "IGK-forward",
+      "parent": {
+        "dataset": "1287191",
+        "sequence_id": "AAAGCAACAATCGAAA-1_contig_3",
+        "sequence_sha256": "1bf293e94e754eea85a4b886f6e7d392a2a328c0d8bbb7b2e7e960518d30c425"
+      },
+      "context": "whole",
+      "operation": {
+        "kind": "identity",
+        "offset": 0,
+        "affected_bases": "",
+        "replacement_bases": ""
+      },
+      "sequence_sha256": "1bf293e94e754eea85a4b886f6e7d392a2a328c0d8bbb7b2e7e960518d30c425",
+      "expected": {
+        "sequence_length": 557,
+        "length_delta": 0,
+        "rev_comp": false,
+        "locus": "IGK",
+        "homologous_junction": {
+          "oriented_start": 360,
+          "oriented_end": 393,
+          "input_start": 360,
+          "input_end": 393,
+          "sequence": "TGTCAGCAGTATGCTAATACTCCGTACACTTTT",
+          "length_mod3": 0
+        },
+        "coding_frame_delta_mod3": 0,
+        "ambiguous_base_count": 0,
+        "annotation": {
+          "coding_origin_mod3": 0,
+          "junction": "TGTCAGCAGTATGCTAATACTCCGTACACTTTT",
+          "junction_aa": "CQQYANTPYTF",
+          "productive": true,
+          "stop_codon": false,
+          "vj_in_frame": true,
+          "productivity_issues": [],
+          "alignment_dependent_issues": []
+        }
+      },
+      "evidence": [
+        "Parent 1287191/AAAGCAACAATCGAAA-1_contig_3 is a productive, forward, ambiguity-free concordant IGK control with gap-free retained V/J traces (IGKV3-20*01, IGKJ2*01).",
+        "Retained V trace is [96:376]; authenticated IMGT104 and J motif delimit original junction [360:393]. These are projected homologous anchors, not predicted aligner endpoints.",
+        "The forward control preserves every original input base and both homologous junction anchors.",
+        "Annotation consequences are independently derived from the authenticated parental V coding origin, preserved homologous C/W/F codons, and standard-code translation of the edited query through the primary J tract. Junction translation starts at C and omits a terminal partial triplet. Local V/J endpoints and D/C calls remain unadjudicated; a frameshift inside the V-contributed junction may or may not remain in the selected local V tract, so only its out-of-frame-indel reason is alignment-dependent."
+      ]
+    },
+    {
+      "case_id": "IGK-reverse",
+      "parent": {
+        "dataset": "1287191",
+        "sequence_id": "AAAGCAACAATCGAAA-1_contig_3",
+        "sequence_sha256": "1bf293e94e754eea85a4b886f6e7d392a2a328c0d8bbb7b2e7e960518d30c425"
+      },
+      "context": "whole",
+      "operation": {
+        "kind": "reverse_complement",
+        "offset": 0,
+        "affected_bases": "",
+        "replacement_bases": ""
+      },
+      "sequence_sha256": "6a0a82df8d2e41ff0250eddb5867dadc8f50b92295bc3e9b9afc49e1c29f26e2",
+      "expected": {
+        "sequence_length": 557,
+        "length_delta": 0,
+        "rev_comp": true,
+        "locus": "IGK",
+        "homologous_junction": {
+          "oriented_start": 360,
+          "oriented_end": 393,
+          "input_start": 164,
+          "input_end": 197,
+          "sequence": "TGTCAGCAGTATGCTAATACTCCGTACACTTTT",
+          "length_mod3": 0
+        },
+        "coding_frame_delta_mod3": 0,
+        "ambiguous_base_count": 0,
+        "annotation": {
+          "coding_origin_mod3": 0,
+          "junction": "TGTCAGCAGTATGCTAATACTCCGTACACTTTT",
+          "junction_aa": "CQQYANTPYTF",
+          "productive": true,
+          "stop_codon": false,
+          "vj_in_frame": true,
+          "productivity_issues": [],
+          "alignment_dependent_issues": []
+        }
+      },
+      "evidence": [
+        "Parent 1287191/AAAGCAACAATCGAAA-1_contig_3 is a productive, forward, ambiguity-free concordant IGK control with gap-free retained V/J traces (IGKV3-20*01, IGKJ2*01).",
+        "Retained V trace is [96:376]; authenticated IMGT104 and J motif delimit original junction [360:393]. These are projected homologous anchors, not predicted aligner endpoints.",
+        "Reverse complement preserves the oriented junction and maps original [a:b] to [557-b:557-a]; input orientation flips.",
+        "Annotation consequences are independently derived from the authenticated parental V coding origin, preserved homologous C/W/F codons, and standard-code translation of the edited query through the primary J tract. Junction translation starts at C and omits a terminal partial triplet. Local V/J endpoints and D/C calls remain unadjudicated; a frameshift inside the V-contributed junction may or may not remain in the selected local V tract, so only its out-of-frame-indel reason is alignment-dependent."
+      ]
+    },
+    {
+      "case_id": "IGK-truncate-5prime",
+      "parent": {
+        "dataset": "1287191",
+        "sequence_id": "AAAGCAACAATCGAAA-1_contig_3",
+        "sequence_sha256": "1bf293e94e754eea85a4b886f6e7d392a2a328c0d8bbb7b2e7e960518d30c425"
+      },
+      "context": "5prime",
+      "operation": {
+        "kind": "truncate_5prime",
+        "offset": 0,
+        "affected_bases": "GGAGAAGAGCTGCTCAGTTAGGACCCAGAGGGAACCATGGAAACCCCAGCGCAGCTTCTCTTCCTCCTGCTACTCTGGCTCCCAGAAACCACCGGA",
+        "replacement_bases": ""
+      },
+      "sequence_sha256": "e9570f792c661d00d2ac8cc3bf517a7a7820ee79e590eed716d8fbecccd569fb",
+      "expected": {
+        "sequence_length": 461,
+        "length_delta": -96,
+        "rev_comp": false,
+        "locus": "IGK",
+        "homologous_junction": {
+          "oriented_start": 264,
+          "oriented_end": 297,
+          "input_start": 264,
+          "input_end": 297,
+          "sequence": "TGTCAGCAGTATGCTAATACTCCGTACACTTTT",
+          "length_mod3": 0
+        },
+        "coding_frame_delta_mod3": 0,
+        "ambiguous_base_count": 0,
+        "annotation": {
+          "coding_origin_mod3": 0,
+          "junction": "TGTCAGCAGTATGCTAATACTCCGTACACTTTT",
+          "junction_aa": "CQQYANTPYTF",
+          "productive": true,
+          "stop_codon": false,
+          "vj_in_frame": true,
+          "productivity_issues": [],
+          "alignment_dependent_issues": []
+        }
+      },
+      "evidence": [
+        "Parent 1287191/AAAGCAACAATCGAAA-1_contig_3 is a productive, forward, ambiguity-free concordant IGK control with gap-free retained V/J traces (IGKV3-20*01, IGKJ2*01).",
+        "Retained V trace is [96:376]; authenticated IMGT104 and J motif delimit original junction [360:393]. These are projected homologous anchors, not predicted aligner endpoints.",
+        "Remove only the 96-base leader before the retained V start; the complete V/J coding evidence and junction remain, shifted by -96.",
+        "Annotation consequences are independently derived from the authenticated parental V coding origin, preserved homologous C/W/F codons, and standard-code translation of the edited query through the primary J tract. Junction translation starts at C and omits a terminal partial triplet. Local V/J endpoints and D/C calls remain unadjudicated; a frameshift inside the V-contributed junction may or may not remain in the selected local V tract, so only its out-of-frame-indel reason is alignment-dependent."
+      ]
+    },
+    {
+      "case_id": "IGK-truncate-3prime",
+      "parent": {
+        "dataset": "1287191",
+        "sequence_id": "AAAGCAACAATCGAAA-1_contig_3",
+        "sequence_sha256": "1bf293e94e754eea85a4b886f6e7d392a2a328c0d8bbb7b2e7e960518d30c425"
+      },
+      "context": "3prime",
+      "operation": {
+        "kind": "truncate_3prime",
+        "offset": 421,
+        "affected_bases": "GAACTGTGGCTGCACCATCTGTCTTCATCTTCCCGCCATCTGATGAGCAGTTGAAATCTGGAACTGCCTCTGTTGTGTGCCTGCTGAATAACTTCTATCCCAGAGAGGCCAAAGTACAGTGGAAGGTGGATAACGC",
+        "replacement_bases": ""
+      },
+      "sequence_sha256": "6e3ee7731f35cf33a1db856dd34bdc6edb2a7edd5a63c383ae070034ae6052ec",
+      "expected": {
+        "sequence_length": 421,
+        "length_delta": -136,
+        "rev_comp": false,
+        "locus": "IGK",
+        "homologous_junction": {
+          "oriented_start": 360,
+          "oriented_end": 393,
+          "input_start": 360,
+          "input_end": 393,
+          "sequence": "TGTCAGCAGTATGCTAATACTCCGTACACTTTT",
+          "length_mod3": 0
+        },
+        "coding_frame_delta_mod3": 0,
+        "ambiguous_base_count": 0,
+        "annotation": {
+          "coding_origin_mod3": 0,
+          "junction": "TGTCAGCAGTATGCTAATACTCCGTACACTTTT",
+          "junction_aa": "CQQYANTPYTF",
+          "productive": true,
+          "stop_codon": false,
+          "vj_in_frame": true,
+          "productivity_issues": [],
+          "alignment_dependent_issues": []
+        }
+      },
+      "evidence": [
+        "Parent 1287191/AAAGCAACAATCGAAA-1_contig_3 is a productive, forward, ambiguity-free concordant IGK control with gap-free retained V/J traces (IGKV3-20*01, IGKJ2*01).",
+        "Retained V trace is [96:376]; authenticated IMGT104 and J motif delimit original junction [360:393]. These are projected homologous anchors, not predicted aligner endpoints.",
+        "Remove only the suffix after retained J end 421; all retained V/J evidence and junction coordinates remain.",
+        "Annotation consequences are independently derived from the authenticated parental V coding origin, preserved homologous C/W/F codons, and standard-code translation of the edited query through the primary J tract. Junction translation starts at C and omits a terminal partial triplet. Local V/J endpoints and D/C calls remain unadjudicated; a frameshift inside the V-contributed junction may or may not remain in the selected local V tract, so only its out-of-frame-indel reason is alignment-dependent."
+      ]
+    },
+    {
+      "case_id": "IGK-v-ambiguity",
+      "parent": {
+        "dataset": "1287191",
+        "sequence_id": "AAAGCAACAATCGAAA-1_contig_3",
+        "sequence_sha256": "1bf293e94e754eea85a4b886f6e7d392a2a328c0d8bbb7b2e7e960518d30c425"
+      },
+      "context": "v",
+      "operation": {
+        "kind": "ambiguity",
+        "offset": 156,
+        "affected_bases": "C",
+        "replacement_bases": "N"
+      },
+      "sequence_sha256": "caa71097f5510b03a35ce7ad534523736097e52556e733d2db41d8d7748ce69f",
+      "expected": {
+        "sequence_length": 557,
+        "length_delta": 0,
+        "rev_comp": false,
+        "locus": "IGK",
+        "homologous_junction": {
+          "oriented_start": 360,
+          "oriented_end": 393,
+          "input_start": 360,
+          "input_end": 393,
+          "sequence": "TGTCAGCAGTATGCTAATACTCCGTACACTTTT",
+          "length_mod3": 0
+        },
+        "coding_frame_delta_mod3": 0,
+        "ambiguous_base_count": 1,
+        "annotation": {
+          "coding_origin_mod3": 0,
+          "junction": "TGTCAGCAGTATGCTAATACTCCGTACACTTTT",
+          "junction_aa": "CQQYANTPYTF",
+          "productive": false,
+          "stop_codon": false,
+          "vj_in_frame": true,
+          "productivity_issues": [
+            "ambiguous nucleotide(s)"
+          ],
+          "alignment_dependent_issues": []
+        }
+      },
+      "evidence": [
+        "Parent 1287191/AAAGCAACAATCGAAA-1_contig_3 is a productive, forward, ambiguity-free concordant IGK control with gap-free retained V/J traces (IGKV3-20*01, IGKJ2*01).",
+        "Retained V trace is [96:376]; authenticated IMGT104 and J motif delimit original junction [360:393]. These are projected homologous anchors, not predicted aligner endpoints.",
+        "Replace exactly the v base at 156 with N; one ambiguous input base, unchanged length and anchor spacing.",
+        "Annotation consequences are independently derived from the authenticated parental V coding origin, preserved homologous C/W/F codons, and standard-code translation of the edited query through the primary J tract. Junction translation starts at C and omits a terminal partial triplet. Local V/J endpoints and D/C calls remain unadjudicated; a frameshift inside the V-contributed junction may or may not remain in the selected local V tract, so only its out-of-frame-indel reason is alignment-dependent."
+      ]
+    },
+    {
+      "case_id": "IGK-v-substitute",
+      "parent": {
+        "dataset": "1287191",
+        "sequence_id": "AAAGCAACAATCGAAA-1_contig_3",
+        "sequence_sha256": "1bf293e94e754eea85a4b886f6e7d392a2a328c0d8bbb7b2e7e960518d30c425"
+      },
+      "context": "v",
+      "operation": {
+        "kind": "substitute",
+        "offset": 156,
+        "affected_bases": "C",
+        "replacement_bases": "A"
+      },
+      "sequence_sha256": "a918f65a0ff609f6fca70ccecf556c53af2d31a78a01cfa2ba69a4f846f09432",
+      "expected": {
+        "sequence_length": 557,
+        "length_delta": 0,
+        "rev_comp": false,
+        "locus": "IGK",
+        "homologous_junction": {
+          "oriented_start": 360,
+          "oriented_end": 393,
+          "input_start": 360,
+          "input_end": 393,
+          "sequence": "TGTCAGCAGTATGCTAATACTCCGTACACTTTT",
+          "length_mod3": 0
+        },
+        "coding_frame_delta_mod3": 0,
+        "ambiguous_base_count": 0,
+        "annotation": {
+          "coding_origin_mod3": 0,
+          "junction": "TGTCAGCAGTATGCTAATACTCCGTACACTTTT",
+          "junction_aa": "CQQYANTPYTF",
+          "productive": true,
+          "stop_codon": false,
+          "vj_in_frame": true,
+          "productivity_issues": [],
+          "alignment_dependent_issues": []
+        }
+      },
+      "evidence": [
+        "Parent 1287191/AAAGCAACAATCGAAA-1_contig_3 is a productive, forward, ambiguity-free concordant IGK control with gap-free retained V/J traces (IGKV3-20*01, IGKJ2*01).",
+        "Retained V trace is [96:376]; authenticated IMGT104 and J motif delimit original junction [360:393]. These are projected homologous anchors, not predicted aligner endpoints.",
+        "Replace exactly the v base at 156; unchanged length/frame spacing and preserved anchor codons, without predicting a gene-call or productivity change.",
+        "Annotation consequences are independently derived from the authenticated parental V coding origin, preserved homologous C/W/F codons, and standard-code translation of the edited query through the primary J tract. Junction translation starts at C and omits a terminal partial triplet. Local V/J endpoints and D/C calls remain unadjudicated; a frameshift inside the V-contributed junction may or may not remain in the selected local V tract, so only its out-of-frame-indel reason is alignment-dependent."
+      ]
+    },
+    {
+      "case_id": "IGK-v-insert-1",
+      "parent": {
+        "dataset": "1287191",
+        "sequence_id": "AAAGCAACAATCGAAA-1_contig_3",
+        "sequence_sha256": "1bf293e94e754eea85a4b886f6e7d392a2a328c0d8bbb7b2e7e960518d30c425"
+      },
+      "context": "v",
+      "operation": {
+        "kind": "insert",
+        "offset": 156,
+        "affected_bases": "",
+        "replacement_bases": "G"
+      },
+      "sequence_sha256": "a04327e3f2a98777cf197882740c33aef14cb1df73aaacdc7c2556d6d5e3f4a7",
+      "expected": {
+        "sequence_length": 558,
+        "length_delta": 1,
+        "rev_comp": false,
+        "locus": "IGK",
+        "homologous_junction": {
+          "oriented_start": 361,
+          "oriented_end": 394,
+          "input_start": 361,
+          "input_end": 394,
+          "sequence": "TGTCAGCAGTATGCTAATACTCCGTACACTTTT",
+          "length_mod3": 0
+        },
+        "coding_frame_delta_mod3": 1,
+        "ambiguous_base_count": 0,
+        "annotation": {
+          "coding_origin_mod3": 0,
+          "junction": "TGTCAGCAGTATGCTAATACTCCGTACACTTTT",
+          "junction_aa": "CQQYANTPYTF",
+          "productive": false,
+          "stop_codon": true,
+          "vj_in_frame": false,
+          "productivity_issues": [
+            "V/J junction is out of frame",
+            "out-of-frame indel(s)",
+            "stop codon(s)"
+          ],
+          "alignment_dependent_issues": []
+        }
+      },
+      "evidence": [
+        "Parent 1287191/AAAGCAACAATCGAAA-1_contig_3 is a productive, forward, ambiguity-free concordant IGK control with gap-free retained V/J traces (IGKV3-20*01, IGKJ2*01).",
+        "Retained V trace is [96:376]; authenticated IMGT104 and J motif delimit original junction [360:393]. These are projected homologous anchors, not predicted aligner endpoints.",
+        "Insert 1 nt at v boundary 156; downstream anchor displacement and coding frame delta are +1 nt. Anchor codons themselves remain.",
+        "Annotation consequences are independently derived from the authenticated parental V coding origin, preserved homologous C/W/F codons, and standard-code translation of the edited query through the primary J tract. Junction translation starts at C and omits a terminal partial triplet. Local V/J endpoints and D/C calls remain unadjudicated; a frameshift inside the V-contributed junction may or may not remain in the selected local V tract, so only its out-of-frame-indel reason is alignment-dependent."
+      ]
+    },
+    {
+      "case_id": "IGK-v-delete-1",
+      "parent": {
+        "dataset": "1287191",
+        "sequence_id": "AAAGCAACAATCGAAA-1_contig_3",
+        "sequence_sha256": "1bf293e94e754eea85a4b886f6e7d392a2a328c0d8bbb7b2e7e960518d30c425"
+      },
+      "context": "v",
+      "operation": {
+        "kind": "delete",
+        "offset": 156,
+        "affected_bases": "C",
+        "replacement_bases": ""
+      },
+      "sequence_sha256": "526eee797a3932dae4161b6abd997beb37df0fc3c5dfb3bb91c10b65e5043304",
+      "expected": {
+        "sequence_length": 556,
+        "length_delta": -1,
+        "rev_comp": false,
+        "locus": "IGK",
+        "homologous_junction": {
+          "oriented_start": 359,
+          "oriented_end": 392,
+          "input_start": 359,
+          "input_end": 392,
+          "sequence": "TGTCAGCAGTATGCTAATACTCCGTACACTTTT",
+          "length_mod3": 0
+        },
+        "coding_frame_delta_mod3": 2,
+        "ambiguous_base_count": 0,
+        "annotation": {
+          "coding_origin_mod3": 0,
+          "junction": "TGTCAGCAGTATGCTAATACTCCGTACACTTTT",
+          "junction_aa": "CQQYANTPYTF",
+          "productive": false,
+          "stop_codon": true,
+          "vj_in_frame": false,
+          "productivity_issues": [
+            "V/J junction is out of frame",
+            "out-of-frame indel(s)",
+            "stop codon(s)"
+          ],
+          "alignment_dependent_issues": []
+        }
+      },
+      "evidence": [
+        "Parent 1287191/AAAGCAACAATCGAAA-1_contig_3 is a productive, forward, ambiguity-free concordant IGK control with gap-free retained V/J traces (IGKV3-20*01, IGKJ2*01).",
+        "Retained V trace is [96:376]; authenticated IMGT104 and J motif delimit original junction [360:393]. These are projected homologous anchors, not predicted aligner endpoints.",
+        "Delete the 1 nt v span [156:157]; downstream anchor displacement and coding frame delta are -1 nt. Anchor codons themselves remain.",
+        "Annotation consequences are independently derived from the authenticated parental V coding origin, preserved homologous C/W/F codons, and standard-code translation of the edited query through the primary J tract. Junction translation starts at C and omits a terminal partial triplet. Local V/J endpoints and D/C calls remain unadjudicated; a frameshift inside the V-contributed junction may or may not remain in the selected local V tract, so only its out-of-frame-indel reason is alignment-dependent."
+      ]
+    },
+    {
+      "case_id": "IGK-v-insert-2",
+      "parent": {
+        "dataset": "1287191",
+        "sequence_id": "AAAGCAACAATCGAAA-1_contig_3",
+        "sequence_sha256": "1bf293e94e754eea85a4b886f6e7d392a2a328c0d8bbb7b2e7e960518d30c425"
+      },
+      "context": "v",
+      "operation": {
+        "kind": "insert",
+        "offset": 156,
+        "affected_bases": "",
+        "replacement_bases": "GG"
+      },
+      "sequence_sha256": "89bfe1c539b068c94437047f8f8dfbc05742db0f71f6048dfe5040dc015c8f0e",
+      "expected": {
+        "sequence_length": 559,
+        "length_delta": 2,
+        "rev_comp": false,
+        "locus": "IGK",
+        "homologous_junction": {
+          "oriented_start": 362,
+          "oriented_end": 395,
+          "input_start": 362,
+          "input_end": 395,
+          "sequence": "TGTCAGCAGTATGCTAATACTCCGTACACTTTT",
+          "length_mod3": 0
+        },
+        "coding_frame_delta_mod3": 2,
+        "ambiguous_base_count": 0,
+        "annotation": {
+          "coding_origin_mod3": 0,
+          "junction": "TGTCAGCAGTATGCTAATACTCCGTACACTTTT",
+          "junction_aa": "CQQYANTPYTF",
+          "productive": false,
+          "stop_codon": true,
+          "vj_in_frame": false,
+          "productivity_issues": [
+            "V/J junction is out of frame",
+            "out-of-frame indel(s)",
+            "stop codon(s)"
+          ],
+          "alignment_dependent_issues": []
+        }
+      },
+      "evidence": [
+        "Parent 1287191/AAAGCAACAATCGAAA-1_contig_3 is a productive, forward, ambiguity-free concordant IGK control with gap-free retained V/J traces (IGKV3-20*01, IGKJ2*01).",
+        "Retained V trace is [96:376]; authenticated IMGT104 and J motif delimit original junction [360:393]. These are projected homologous anchors, not predicted aligner endpoints.",
+        "Insert 2 nt at v boundary 156; downstream anchor displacement and coding frame delta are +2 nt. Anchor codons themselves remain.",
+        "Annotation consequences are independently derived from the authenticated parental V coding origin, preserved homologous C/W/F codons, and standard-code translation of the edited query through the primary J tract. Junction translation starts at C and omits a terminal partial triplet. Local V/J endpoints and D/C calls remain unadjudicated; a frameshift inside the V-contributed junction may or may not remain in the selected local V tract, so only its out-of-frame-indel reason is alignment-dependent."
+      ]
+    },
+    {
+      "case_id": "IGK-v-delete-2",
+      "parent": {
+        "dataset": "1287191",
+        "sequence_id": "AAAGCAACAATCGAAA-1_contig_3",
+        "sequence_sha256": "1bf293e94e754eea85a4b886f6e7d392a2a328c0d8bbb7b2e7e960518d30c425"
+      },
+      "context": "v",
+      "operation": {
+        "kind": "delete",
+        "offset": 156,
+        "affected_bases": "CT",
+        "replacement_bases": ""
+      },
+      "sequence_sha256": "1e6407bbdccd764fa6eb15fad5c1fbb6814ed50a8ea6d62b2e9e1eed1ccec29d",
+      "expected": {
+        "sequence_length": 555,
+        "length_delta": -2,
+        "rev_comp": false,
+        "locus": "IGK",
+        "homologous_junction": {
+          "oriented_start": 358,
+          "oriented_end": 391,
+          "input_start": 358,
+          "input_end": 391,
+          "sequence": "TGTCAGCAGTATGCTAATACTCCGTACACTTTT",
+          "length_mod3": 0
+        },
+        "coding_frame_delta_mod3": 1,
+        "ambiguous_base_count": 0,
+        "annotation": {
+          "coding_origin_mod3": 0,
+          "junction": "TGTCAGCAGTATGCTAATACTCCGTACACTTTT",
+          "junction_aa": "CQQYANTPYTF",
+          "productive": false,
+          "stop_codon": true,
+          "vj_in_frame": false,
+          "productivity_issues": [
+            "V/J junction is out of frame",
+            "out-of-frame indel(s)",
+            "stop codon(s)"
+          ],
+          "alignment_dependent_issues": []
+        }
+      },
+      "evidence": [
+        "Parent 1287191/AAAGCAACAATCGAAA-1_contig_3 is a productive, forward, ambiguity-free concordant IGK control with gap-free retained V/J traces (IGKV3-20*01, IGKJ2*01).",
+        "Retained V trace is [96:376]; authenticated IMGT104 and J motif delimit original junction [360:393]. These are projected homologous anchors, not predicted aligner endpoints.",
+        "Delete the 2 nt v span [156:158]; downstream anchor displacement and coding frame delta are -2 nt. Anchor codons themselves remain.",
+        "Annotation consequences are independently derived from the authenticated parental V coding origin, preserved homologous C/W/F codons, and standard-code translation of the edited query through the primary J tract. Junction translation starts at C and omits a terminal partial triplet. Local V/J endpoints and D/C calls remain unadjudicated; a frameshift inside the V-contributed junction may or may not remain in the selected local V tract, so only its out-of-frame-indel reason is alignment-dependent."
+      ]
+    },
+    {
+      "case_id": "IGK-v-insert-3",
+      "parent": {
+        "dataset": "1287191",
+        "sequence_id": "AAAGCAACAATCGAAA-1_contig_3",
+        "sequence_sha256": "1bf293e94e754eea85a4b886f6e7d392a2a328c0d8bbb7b2e7e960518d30c425"
+      },
+      "context": "v",
+      "operation": {
+        "kind": "insert",
+        "offset": 156,
+        "affected_bases": "",
+        "replacement_bases": "GGA"
+      },
+      "sequence_sha256": "c4bfc793df598fcc16f39d3de15192a82371fab20f9e20a3aea6fe541167c1a2",
+      "expected": {
+        "sequence_length": 560,
+        "length_delta": 3,
+        "rev_comp": false,
+        "locus": "IGK",
+        "homologous_junction": {
+          "oriented_start": 363,
+          "oriented_end": 396,
+          "input_start": 363,
+          "input_end": 396,
+          "sequence": "TGTCAGCAGTATGCTAATACTCCGTACACTTTT",
+          "length_mod3": 0
+        },
+        "coding_frame_delta_mod3": 0,
+        "ambiguous_base_count": 0,
+        "annotation": {
+          "coding_origin_mod3": 0,
+          "junction": "TGTCAGCAGTATGCTAATACTCCGTACACTTTT",
+          "junction_aa": "CQQYANTPYTF",
+          "productive": true,
+          "stop_codon": false,
+          "vj_in_frame": true,
+          "productivity_issues": [],
+          "alignment_dependent_issues": []
+        }
+      },
+      "evidence": [
+        "Parent 1287191/AAAGCAACAATCGAAA-1_contig_3 is a productive, forward, ambiguity-free concordant IGK control with gap-free retained V/J traces (IGKV3-20*01, IGKJ2*01).",
+        "Retained V trace is [96:376]; authenticated IMGT104 and J motif delimit original junction [360:393]. These are projected homologous anchors, not predicted aligner endpoints.",
+        "Insert 3 nt at v boundary 156; downstream anchor displacement and coding frame delta are +3 nt. Anchor codons themselves remain.",
+        "Annotation consequences are independently derived from the authenticated parental V coding origin, preserved homologous C/W/F codons, and standard-code translation of the edited query through the primary J tract. Junction translation starts at C and omits a terminal partial triplet. Local V/J endpoints and D/C calls remain unadjudicated; a frameshift inside the V-contributed junction may or may not remain in the selected local V tract, so only its out-of-frame-indel reason is alignment-dependent."
+      ]
+    },
+    {
+      "case_id": "IGK-v-delete-3",
+      "parent": {
+        "dataset": "1287191",
+        "sequence_id": "AAAGCAACAATCGAAA-1_contig_3",
+        "sequence_sha256": "1bf293e94e754eea85a4b886f6e7d392a2a328c0d8bbb7b2e7e960518d30c425"
+      },
+      "context": "v",
+      "operation": {
+        "kind": "delete",
+        "offset": 156,
+        "affected_bases": "CTC",
+        "replacement_bases": ""
+      },
+      "sequence_sha256": "742a54954c4e90ef13926c77ceb0953a78b6671dd8f5b912ef806f33594a8050",
+      "expected": {
+        "sequence_length": 554,
+        "length_delta": -3,
+        "rev_comp": false,
+        "locus": "IGK",
+        "homologous_junction": {
+          "oriented_start": 357,
+          "oriented_end": 390,
+          "input_start": 357,
+          "input_end": 390,
+          "sequence": "TGTCAGCAGTATGCTAATACTCCGTACACTTTT",
+          "length_mod3": 0
+        },
+        "coding_frame_delta_mod3": 0,
+        "ambiguous_base_count": 0,
+        "annotation": {
+          "coding_origin_mod3": 0,
+          "junction": "TGTCAGCAGTATGCTAATACTCCGTACACTTTT",
+          "junction_aa": "CQQYANTPYTF",
+          "productive": true,
+          "stop_codon": false,
+          "vj_in_frame": true,
+          "productivity_issues": [],
+          "alignment_dependent_issues": []
+        }
+      },
+      "evidence": [
+        "Parent 1287191/AAAGCAACAATCGAAA-1_contig_3 is a productive, forward, ambiguity-free concordant IGK control with gap-free retained V/J traces (IGKV3-20*01, IGKJ2*01).",
+        "Retained V trace is [96:376]; authenticated IMGT104 and J motif delimit original junction [360:393]. These are projected homologous anchors, not predicted aligner endpoints.",
+        "Delete the 3 nt v span [156:159]; downstream anchor displacement and coding frame delta are -3 nt. Anchor codons themselves remain.",
+        "Annotation consequences are independently derived from the authenticated parental V coding origin, preserved homologous C/W/F codons, and standard-code translation of the edited query through the primary J tract. Junction translation starts at C and omits a terminal partial triplet. Local V/J endpoints and D/C calls remain unadjudicated; a frameshift inside the V-contributed junction may or may not remain in the selected local V tract, so only its out-of-frame-indel reason is alignment-dependent."
+      ]
+    },
+    {
+      "case_id": "IGK-junction-ambiguity",
+      "parent": {
+        "dataset": "1287191",
+        "sequence_id": "AAAGCAACAATCGAAA-1_contig_3",
+        "sequence_sha256": "1bf293e94e754eea85a4b886f6e7d392a2a328c0d8bbb7b2e7e960518d30c425"
+      },
+      "context": "junction",
+      "operation": {
+        "kind": "ambiguity",
+        "offset": 366,
+        "affected_bases": "C",
+        "replacement_bases": "N"
+      },
+      "sequence_sha256": "6aa17ffc8aa4c2cc47e322f9110318ff4ad235d78ecf6b3f0af8a66da9205232",
+      "expected": {
+        "sequence_length": 557,
+        "length_delta": 0,
+        "rev_comp": false,
+        "locus": "IGK",
+        "homologous_junction": {
+          "oriented_start": 360,
+          "oriented_end": 393,
+          "input_start": 360,
+          "input_end": 393,
+          "sequence": "TGTCAGNAGTATGCTAATACTCCGTACACTTTT",
+          "length_mod3": 0
+        },
+        "coding_frame_delta_mod3": 0,
+        "ambiguous_base_count": 1,
+        "annotation": {
+          "coding_origin_mod3": 0,
+          "junction": "TGTCAGNAGTATGCTAATACTCCGTACACTTTT",
+          "junction_aa": "CQXYANTPYTF",
+          "productive": false,
+          "stop_codon": false,
+          "vj_in_frame": true,
+          "productivity_issues": [
+            "ambiguous nucleotide(s)",
+            "ambiguous nucleotide(s) in junction"
+          ],
+          "alignment_dependent_issues": []
+        }
+      },
+      "evidence": [
+        "Parent 1287191/AAAGCAACAATCGAAA-1_contig_3 is a productive, forward, ambiguity-free concordant IGK control with gap-free retained V/J traces (IGKV3-20*01, IGKJ2*01).",
+        "Retained V trace is [96:376]; authenticated IMGT104 and J motif delimit original junction [360:393]. These are projected homologous anchors, not predicted aligner endpoints.",
+        "Replace exactly the junction base at 366 with N; one ambiguous input base, unchanged length and anchor spacing.",
+        "Annotation consequences are independently derived from the authenticated parental V coding origin, preserved homologous C/W/F codons, and standard-code translation of the edited query through the primary J tract. Junction translation starts at C and omits a terminal partial triplet. Local V/J endpoints and D/C calls remain unadjudicated; a frameshift inside the V-contributed junction may or may not remain in the selected local V tract, so only its out-of-frame-indel reason is alignment-dependent."
+      ]
+    },
+    {
+      "case_id": "IGK-junction-substitute",
+      "parent": {
+        "dataset": "1287191",
+        "sequence_id": "AAAGCAACAATCGAAA-1_contig_3",
+        "sequence_sha256": "1bf293e94e754eea85a4b886f6e7d392a2a328c0d8bbb7b2e7e960518d30c425"
+      },
+      "context": "junction",
+      "operation": {
+        "kind": "substitute",
+        "offset": 366,
+        "affected_bases": "C",
+        "replacement_bases": "A"
+      },
+      "sequence_sha256": "7aec24221f4b92bff012135f779e10c530d75f1d134f6a1c6834490ebaced9b3",
+      "expected": {
+        "sequence_length": 557,
+        "length_delta": 0,
+        "rev_comp": false,
+        "locus": "IGK",
+        "homologous_junction": {
+          "oriented_start": 360,
+          "oriented_end": 393,
+          "input_start": 360,
+          "input_end": 393,
+          "sequence": "TGTCAGAAGTATGCTAATACTCCGTACACTTTT",
+          "length_mod3": 0
+        },
+        "coding_frame_delta_mod3": 0,
+        "ambiguous_base_count": 0,
+        "annotation": {
+          "coding_origin_mod3": 0,
+          "junction": "TGTCAGAAGTATGCTAATACTCCGTACACTTTT",
+          "junction_aa": "CQKYANTPYTF",
+          "productive": true,
+          "stop_codon": false,
+          "vj_in_frame": true,
+          "productivity_issues": [],
+          "alignment_dependent_issues": []
+        }
+      },
+      "evidence": [
+        "Parent 1287191/AAAGCAACAATCGAAA-1_contig_3 is a productive, forward, ambiguity-free concordant IGK control with gap-free retained V/J traces (IGKV3-20*01, IGKJ2*01).",
+        "Retained V trace is [96:376]; authenticated IMGT104 and J motif delimit original junction [360:393]. These are projected homologous anchors, not predicted aligner endpoints.",
+        "Replace exactly the junction base at 366; unchanged length/frame spacing and preserved anchor codons, without predicting a gene-call or productivity change.",
+        "Annotation consequences are independently derived from the authenticated parental V coding origin, preserved homologous C/W/F codons, and standard-code translation of the edited query through the primary J tract. Junction translation starts at C and omits a terminal partial triplet. Local V/J endpoints and D/C calls remain unadjudicated; a frameshift inside the V-contributed junction may or may not remain in the selected local V tract, so only its out-of-frame-indel reason is alignment-dependent."
+      ]
+    },
+    {
+      "case_id": "IGK-junction-insert-1",
+      "parent": {
+        "dataset": "1287191",
+        "sequence_id": "AAAGCAACAATCGAAA-1_contig_3",
+        "sequence_sha256": "1bf293e94e754eea85a4b886f6e7d392a2a328c0d8bbb7b2e7e960518d30c425"
+      },
+      "context": "junction",
+      "operation": {
+        "kind": "insert",
+        "offset": 366,
+        "affected_bases": "",
+        "replacement_bases": "G"
+      },
+      "sequence_sha256": "731324e7a0db942fdac4a7de06a0e57117b982a084a6136a027756c495e626c4",
+      "expected": {
+        "sequence_length": 558,
+        "length_delta": 1,
+        "rev_comp": false,
+        "locus": "IGK",
+        "homologous_junction": {
+          "oriented_start": 360,
+          "oriented_end": 394,
+          "input_start": 360,
+          "input_end": 394,
+          "sequence": "TGTCAGGCAGTATGCTAATACTCCGTACACTTTT",
+          "length_mod3": 1
+        },
+        "coding_frame_delta_mod3": 1,
+        "ambiguous_base_count": 0,
+        "annotation": {
+          "coding_origin_mod3": 0,
+          "junction": "TGTCAGGCAGTATGCTAATACTCCGTACACTTTT",
+          "junction_aa": "CQAVC*YSVHF",
+          "productive": false,
+          "stop_codon": true,
+          "vj_in_frame": false,
+          "productivity_issues": [
+            "junction length is not a multiple of 3",
+            "stop codon(s)"
+          ],
+          "alignment_dependent_issues": [
+            "out-of-frame indel(s)"
+          ]
+        }
+      },
+      "evidence": [
+        "Parent 1287191/AAAGCAACAATCGAAA-1_contig_3 is a productive, forward, ambiguity-free concordant IGK control with gap-free retained V/J traces (IGKV3-20*01, IGKJ2*01).",
+        "Retained V trace is [96:376]; authenticated IMGT104 and J motif delimit original junction [360:393]. These are projected homologous anchors, not predicted aligner endpoints.",
+        "Insert 1 nt at junction boundary 366; downstream anchor displacement and coding frame delta are +1 nt. Anchor codons themselves remain.",
+        "Annotation consequences are independently derived from the authenticated parental V coding origin, preserved homologous C/W/F codons, and standard-code translation of the edited query through the primary J tract. Junction translation starts at C and omits a terminal partial triplet. Local V/J endpoints and D/C calls remain unadjudicated; a frameshift inside the V-contributed junction may or may not remain in the selected local V tract, so only its out-of-frame-indel reason is alignment-dependent."
+      ]
+    },
+    {
+      "case_id": "IGK-junction-delete-1",
+      "parent": {
+        "dataset": "1287191",
+        "sequence_id": "AAAGCAACAATCGAAA-1_contig_3",
+        "sequence_sha256": "1bf293e94e754eea85a4b886f6e7d392a2a328c0d8bbb7b2e7e960518d30c425"
+      },
+      "context": "junction",
+      "operation": {
+        "kind": "delete",
+        "offset": 366,
+        "affected_bases": "C",
+        "replacement_bases": ""
+      },
+      "sequence_sha256": "362da4ff3527c82b150863f6d8409d1335bde93b2f56b25bae5959fb0831a252",
+      "expected": {
+        "sequence_length": 556,
+        "length_delta": -1,
+        "rev_comp": false,
+        "locus": "IGK",
+        "homologous_junction": {
+          "oriented_start": 360,
+          "oriented_end": 392,
+          "input_start": 360,
+          "input_end": 392,
+          "sequence": "TGTCAGAGTATGCTAATACTCCGTACACTTTT",
+          "length_mod3": 2
+        },
+        "coding_frame_delta_mod3": 2,
+        "ambiguous_base_count": 0,
+        "annotation": {
+          "coding_origin_mod3": 0,
+          "junction": "TGTCAGAGTATGCTAATACTCCGTACACTTTT",
+          "junction_aa": "CQSMLILRTL",
+          "productive": false,
+          "stop_codon": false,
+          "vj_in_frame": false,
+          "productivity_issues": [
+            "junction does not end with conserved F",
+            "junction length is not a multiple of 3"
+          ],
+          "alignment_dependent_issues": [
+            "out-of-frame indel(s)"
+          ]
+        }
+      },
+      "evidence": [
+        "Parent 1287191/AAAGCAACAATCGAAA-1_contig_3 is a productive, forward, ambiguity-free concordant IGK control with gap-free retained V/J traces (IGKV3-20*01, IGKJ2*01).",
+        "Retained V trace is [96:376]; authenticated IMGT104 and J motif delimit original junction [360:393]. These are projected homologous anchors, not predicted aligner endpoints.",
+        "Delete the 1 nt junction span [366:367]; downstream anchor displacement and coding frame delta are -1 nt. Anchor codons themselves remain.",
+        "Annotation consequences are independently derived from the authenticated parental V coding origin, preserved homologous C/W/F codons, and standard-code translation of the edited query through the primary J tract. Junction translation starts at C and omits a terminal partial triplet. Local V/J endpoints and D/C calls remain unadjudicated; a frameshift inside the V-contributed junction may or may not remain in the selected local V tract, so only its out-of-frame-indel reason is alignment-dependent."
+      ]
+    },
+    {
+      "case_id": "IGK-junction-insert-2",
+      "parent": {
+        "dataset": "1287191",
+        "sequence_id": "AAAGCAACAATCGAAA-1_contig_3",
+        "sequence_sha256": "1bf293e94e754eea85a4b886f6e7d392a2a328c0d8bbb7b2e7e960518d30c425"
+      },
+      "context": "junction",
+      "operation": {
+        "kind": "insert",
+        "offset": 366,
+        "affected_bases": "",
+        "replacement_bases": "GG"
+      },
+      "sequence_sha256": "13daa3594a69cc96572279a3135bc78e318d4c981dc17cdf8cc97c6eeac3c024",
+      "expected": {
+        "sequence_length": 559,
+        "length_delta": 2,
+        "rev_comp": false,
+        "locus": "IGK",
+        "homologous_junction": {
+          "oriented_start": 360,
+          "oriented_end": 395,
+          "input_start": 360,
+          "input_end": 395,
+          "sequence": "TGTCAGGGCAGTATGCTAATACTCCGTACACTTTT",
+          "length_mod3": 2
+        },
+        "coding_frame_delta_mod3": 2,
+        "ambiguous_base_count": 0,
+        "annotation": {
+          "coding_origin_mod3": 0,
+          "junction": "TGTCAGGGCAGTATGCTAATACTCCGTACACTTTT",
+          "junction_aa": "CQGSMLILRTL",
+          "productive": false,
+          "stop_codon": false,
+          "vj_in_frame": false,
+          "productivity_issues": [
+            "junction does not end with conserved F",
+            "junction length is not a multiple of 3"
+          ],
+          "alignment_dependent_issues": [
+            "out-of-frame indel(s)"
+          ]
+        }
+      },
+      "evidence": [
+        "Parent 1287191/AAAGCAACAATCGAAA-1_contig_3 is a productive, forward, ambiguity-free concordant IGK control with gap-free retained V/J traces (IGKV3-20*01, IGKJ2*01).",
+        "Retained V trace is [96:376]; authenticated IMGT104 and J motif delimit original junction [360:393]. These are projected homologous anchors, not predicted aligner endpoints.",
+        "Insert 2 nt at junction boundary 366; downstream anchor displacement and coding frame delta are +2 nt. Anchor codons themselves remain.",
+        "Annotation consequences are independently derived from the authenticated parental V coding origin, preserved homologous C/W/F codons, and standard-code translation of the edited query through the primary J tract. Junction translation starts at C and omits a terminal partial triplet. Local V/J endpoints and D/C calls remain unadjudicated; a frameshift inside the V-contributed junction may or may not remain in the selected local V tract, so only its out-of-frame-indel reason is alignment-dependent."
+      ]
+    },
+    {
+      "case_id": "IGK-junction-delete-2",
+      "parent": {
+        "dataset": "1287191",
+        "sequence_id": "AAAGCAACAATCGAAA-1_contig_3",
+        "sequence_sha256": "1bf293e94e754eea85a4b886f6e7d392a2a328c0d8bbb7b2e7e960518d30c425"
+      },
+      "context": "junction",
+      "operation": {
+        "kind": "delete",
+        "offset": 366,
+        "affected_bases": "CA",
+        "replacement_bases": ""
+      },
+      "sequence_sha256": "9dc4b2a1872b24a881c83f2b19b7cccde7b91c39dc3f0c69e62ab263b5e2685e",
+      "expected": {
+        "sequence_length": 555,
+        "length_delta": -2,
+        "rev_comp": false,
+        "locus": "IGK",
+        "homologous_junction": {
+          "oriented_start": 360,
+          "oriented_end": 391,
+          "input_start": 360,
+          "input_end": 391,
+          "sequence": "TGTCAGGTATGCTAATACTCCGTACACTTTT",
+          "length_mod3": 1
+        },
+        "coding_frame_delta_mod3": 1,
+        "ambiguous_base_count": 0,
+        "annotation": {
+          "coding_origin_mod3": 0,
+          "junction": "TGTCAGGTATGCTAATACTCCGTACACTTTT",
+          "junction_aa": "CQVC*YSVHF",
+          "productive": false,
+          "stop_codon": true,
+          "vj_in_frame": false,
+          "productivity_issues": [
+            "junction length is not a multiple of 3",
+            "stop codon(s)"
+          ],
+          "alignment_dependent_issues": [
+            "out-of-frame indel(s)"
+          ]
+        }
+      },
+      "evidence": [
+        "Parent 1287191/AAAGCAACAATCGAAA-1_contig_3 is a productive, forward, ambiguity-free concordant IGK control with gap-free retained V/J traces (IGKV3-20*01, IGKJ2*01).",
+        "Retained V trace is [96:376]; authenticated IMGT104 and J motif delimit original junction [360:393]. These are projected homologous anchors, not predicted aligner endpoints.",
+        "Delete the 2 nt junction span [366:368]; downstream anchor displacement and coding frame delta are -2 nt. Anchor codons themselves remain.",
+        "Annotation consequences are independently derived from the authenticated parental V coding origin, preserved homologous C/W/F codons, and standard-code translation of the edited query through the primary J tract. Junction translation starts at C and omits a terminal partial triplet. Local V/J endpoints and D/C calls remain unadjudicated; a frameshift inside the V-contributed junction may or may not remain in the selected local V tract, so only its out-of-frame-indel reason is alignment-dependent."
+      ]
+    },
+    {
+      "case_id": "IGK-junction-insert-3",
+      "parent": {
+        "dataset": "1287191",
+        "sequence_id": "AAAGCAACAATCGAAA-1_contig_3",
+        "sequence_sha256": "1bf293e94e754eea85a4b886f6e7d392a2a328c0d8bbb7b2e7e960518d30c425"
+      },
+      "context": "junction",
+      "operation": {
+        "kind": "insert",
+        "offset": 366,
+        "affected_bases": "",
+        "replacement_bases": "GGA"
+      },
+      "sequence_sha256": "fec271f265a24df57c09745234ff1289a94ca86418ae0c34b2c3a6b557d06e14",
+      "expected": {
+        "sequence_length": 560,
+        "length_delta": 3,
+        "rev_comp": false,
+        "locus": "IGK",
+        "homologous_junction": {
+          "oriented_start": 360,
+          "oriented_end": 396,
+          "input_start": 360,
+          "input_end": 396,
+          "sequence": "TGTCAGGGACAGTATGCTAATACTCCGTACACTTTT",
+          "length_mod3": 0
+        },
+        "coding_frame_delta_mod3": 0,
+        "ambiguous_base_count": 0,
+        "annotation": {
+          "coding_origin_mod3": 0,
+          "junction": "TGTCAGGGACAGTATGCTAATACTCCGTACACTTTT",
+          "junction_aa": "CQGQYANTPYTF",
+          "productive": true,
+          "stop_codon": false,
+          "vj_in_frame": true,
+          "productivity_issues": [],
+          "alignment_dependent_issues": []
+        }
+      },
+      "evidence": [
+        "Parent 1287191/AAAGCAACAATCGAAA-1_contig_3 is a productive, forward, ambiguity-free concordant IGK control with gap-free retained V/J traces (IGKV3-20*01, IGKJ2*01).",
+        "Retained V trace is [96:376]; authenticated IMGT104 and J motif delimit original junction [360:393]. These are projected homologous anchors, not predicted aligner endpoints.",
+        "Insert 3 nt at junction boundary 366; downstream anchor displacement and coding frame delta are +3 nt. Anchor codons themselves remain.",
+        "Annotation consequences are independently derived from the authenticated parental V coding origin, preserved homologous C/W/F codons, and standard-code translation of the edited query through the primary J tract. Junction translation starts at C and omits a terminal partial triplet. Local V/J endpoints and D/C calls remain unadjudicated; a frameshift inside the V-contributed junction may or may not remain in the selected local V tract, so only its out-of-frame-indel reason is alignment-dependent."
+      ]
+    },
+    {
+      "case_id": "IGK-junction-delete-3",
+      "parent": {
+        "dataset": "1287191",
+        "sequence_id": "AAAGCAACAATCGAAA-1_contig_3",
+        "sequence_sha256": "1bf293e94e754eea85a4b886f6e7d392a2a328c0d8bbb7b2e7e960518d30c425"
+      },
+      "context": "junction",
+      "operation": {
+        "kind": "delete",
+        "offset": 366,
+        "affected_bases": "CAG",
+        "replacement_bases": ""
+      },
+      "sequence_sha256": "23d14b059011fe0a39275be34b347837e4393c7de082a04e3cfef1013adc114f",
+      "expected": {
+        "sequence_length": 554,
+        "length_delta": -3,
+        "rev_comp": false,
+        "locus": "IGK",
+        "homologous_junction": {
+          "oriented_start": 360,
+          "oriented_end": 390,
+          "input_start": 360,
+          "input_end": 390,
+          "sequence": "TGTCAGTATGCTAATACTCCGTACACTTTT",
+          "length_mod3": 0
+        },
+        "coding_frame_delta_mod3": 0,
+        "ambiguous_base_count": 0,
+        "annotation": {
+          "coding_origin_mod3": 0,
+          "junction": "TGTCAGTATGCTAATACTCCGTACACTTTT",
+          "junction_aa": "CQYANTPYTF",
+          "productive": true,
+          "stop_codon": false,
+          "vj_in_frame": true,
+          "productivity_issues": [],
+          "alignment_dependent_issues": []
+        }
+      },
+      "evidence": [
+        "Parent 1287191/AAAGCAACAATCGAAA-1_contig_3 is a productive, forward, ambiguity-free concordant IGK control with gap-free retained V/J traces (IGKV3-20*01, IGKJ2*01).",
+        "Retained V trace is [96:376]; authenticated IMGT104 and J motif delimit original junction [360:393]. These are projected homologous anchors, not predicted aligner endpoints.",
+        "Delete the 3 nt junction span [366:369]; downstream anchor displacement and coding frame delta are -3 nt. Anchor codons themselves remain.",
+        "Annotation consequences are independently derived from the authenticated parental V coding origin, preserved homologous C/W/F codons, and standard-code translation of the edited query through the primary J tract. Junction translation starts at C and omits a terminal partial triplet. Local V/J endpoints and D/C calls remain unadjudicated; a frameshift inside the V-contributed junction may or may not remain in the selected local V tract, so only its out-of-frame-indel reason is alignment-dependent."
+      ]
+    },
+    {
+      "case_id": "IGL-forward",
+      "parent": {
+        "dataset": "1287157",
+        "sequence_id": "CTCATTAAGGATCGCA-1_contig_1",
+        "sequence_sha256": "6bd61d651a6410d8d1fbc3c73eaf3df9035ed35ed0574e5db88373c0be5b43cc"
+      },
+      "context": "whole",
+      "operation": {
+        "kind": "identity",
+        "offset": 0,
+        "affected_bases": "",
+        "replacement_bases": ""
+      },
+      "sequence_sha256": "6bd61d651a6410d8d1fbc3c73eaf3df9035ed35ed0574e5db88373c0be5b43cc",
+      "expected": {
+        "sequence_length": 608,
+        "length_delta": 0,
+        "rev_comp": false,
+        "locus": "IGL",
+        "homologous_junction": {
+          "oriented_start": 363,
+          "oriented_end": 399,
+          "input_start": 363,
+          "input_end": 399,
+          "sequence": "TGTCAGTCTTATGATAGCAGCAATGTCTGGGTGTTC",
+          "length_mod3": 0
+        },
+        "coding_frame_delta_mod3": 0,
+        "ambiguous_base_count": 0,
+        "annotation": {
+          "coding_origin_mod3": 0,
+          "junction": "TGTCAGTCTTATGATAGCAGCAATGTCTGGGTGTTC",
+          "junction_aa": "CQSYDSSNVWVF",
+          "productive": true,
+          "stop_codon": false,
+          "vj_in_frame": true,
+          "productivity_issues": [],
+          "alignment_dependent_issues": []
+        }
+      },
+      "evidence": [
+        "Parent 1287157/CTCATTAAGGATCGCA-1_contig_1 is a productive, forward, ambiguity-free concordant IGL control with gap-free retained V/J traces (IGLV6-57*02, IGLJ3*02).",
+        "Retained V trace is [93:387]; authenticated IMGT104 and J motif delimit original junction [363:399]. These are projected homologous anchors, not predicted aligner endpoints.",
+        "The forward control preserves every original input base and both homologous junction anchors.",
+        "Annotation consequences are independently derived from the authenticated parental V coding origin, preserved homologous C/W/F codons, and standard-code translation of the edited query through the primary J tract. Junction translation starts at C and omits a terminal partial triplet. Local V/J endpoints and D/C calls remain unadjudicated; a frameshift inside the V-contributed junction may or may not remain in the selected local V tract, so only its out-of-frame-indel reason is alignment-dependent."
+      ]
+    },
+    {
+      "case_id": "IGL-reverse",
+      "parent": {
+        "dataset": "1287157",
+        "sequence_id": "CTCATTAAGGATCGCA-1_contig_1",
+        "sequence_sha256": "6bd61d651a6410d8d1fbc3c73eaf3df9035ed35ed0574e5db88373c0be5b43cc"
+      },
+      "context": "whole",
+      "operation": {
+        "kind": "reverse_complement",
+        "offset": 0,
+        "affected_bases": "",
+        "replacement_bases": ""
+      },
+      "sequence_sha256": "4e3f2b2f1f7707e25508248338eac41715ec97d44fd6f45c3c11386a5784e547",
+      "expected": {
+        "sequence_length": 608,
+        "length_delta": 0,
+        "rev_comp": true,
+        "locus": "IGL",
+        "homologous_junction": {
+          "oriented_start": 363,
+          "oriented_end": 399,
+          "input_start": 209,
+          "input_end": 245,
+          "sequence": "TGTCAGTCTTATGATAGCAGCAATGTCTGGGTGTTC",
+          "length_mod3": 0
+        },
+        "coding_frame_delta_mod3": 0,
+        "ambiguous_base_count": 0,
+        "annotation": {
+          "coding_origin_mod3": 0,
+          "junction": "TGTCAGTCTTATGATAGCAGCAATGTCTGGGTGTTC",
+          "junction_aa": "CQSYDSSNVWVF",
+          "productive": true,
+          "stop_codon": false,
+          "vj_in_frame": true,
+          "productivity_issues": [],
+          "alignment_dependent_issues": []
+        }
+      },
+      "evidence": [
+        "Parent 1287157/CTCATTAAGGATCGCA-1_contig_1 is a productive, forward, ambiguity-free concordant IGL control with gap-free retained V/J traces (IGLV6-57*02, IGLJ3*02).",
+        "Retained V trace is [93:387]; authenticated IMGT104 and J motif delimit original junction [363:399]. These are projected homologous anchors, not predicted aligner endpoints.",
+        "Reverse complement preserves the oriented junction and maps original [a:b] to [608-b:608-a]; input orientation flips.",
+        "Annotation consequences are independently derived from the authenticated parental V coding origin, preserved homologous C/W/F codons, and standard-code translation of the edited query through the primary J tract. Junction translation starts at C and omits a terminal partial triplet. Local V/J endpoints and D/C calls remain unadjudicated; a frameshift inside the V-contributed junction may or may not remain in the selected local V tract, so only its out-of-frame-indel reason is alignment-dependent."
+      ]
+    },
+    {
+      "case_id": "IGL-truncate-5prime",
+      "parent": {
+        "dataset": "1287157",
+        "sequence_id": "CTCATTAAGGATCGCA-1_contig_1",
+        "sequence_sha256": "6bd61d651a6410d8d1fbc3c73eaf3df9035ed35ed0574e5db88373c0be5b43cc"
+      },
+      "context": "5prime",
+      "operation": {
+        "kind": "truncate_5prime",
+        "offset": 0,
+        "affected_bases": "GGTAGCTCAGGAAGCAGAGCCTGGAGCATCTCCACTATGGCCTGGGCTCCACTACTTCTCACCCTCCTCGCTCACTGCACAGGTTCTTGGGCC",
+        "replacement_bases": ""
+      },
+      "sequence_sha256": "831118200f03eda045f1ddc9384071db8670f9ca884651b42a2ac379ea23f666",
+      "expected": {
+        "sequence_length": 515,
+        "length_delta": -93,
+        "rev_comp": false,
+        "locus": "IGL",
+        "homologous_junction": {
+          "oriented_start": 270,
+          "oriented_end": 306,
+          "input_start": 270,
+          "input_end": 306,
+          "sequence": "TGTCAGTCTTATGATAGCAGCAATGTCTGGGTGTTC",
+          "length_mod3": 0
+        },
+        "coding_frame_delta_mod3": 0,
+        "ambiguous_base_count": 0,
+        "annotation": {
+          "coding_origin_mod3": 0,
+          "junction": "TGTCAGTCTTATGATAGCAGCAATGTCTGGGTGTTC",
+          "junction_aa": "CQSYDSSNVWVF",
+          "productive": true,
+          "stop_codon": false,
+          "vj_in_frame": true,
+          "productivity_issues": [],
+          "alignment_dependent_issues": []
+        }
+      },
+      "evidence": [
+        "Parent 1287157/CTCATTAAGGATCGCA-1_contig_1 is a productive, forward, ambiguity-free concordant IGL control with gap-free retained V/J traces (IGLV6-57*02, IGLJ3*02).",
+        "Retained V trace is [93:387]; authenticated IMGT104 and J motif delimit original junction [363:399]. These are projected homologous anchors, not predicted aligner endpoints.",
+        "Remove only the 93-base leader before the retained V start; the complete V/J coding evidence and junction remain, shifted by -93.",
+        "Annotation consequences are independently derived from the authenticated parental V coding origin, preserved homologous C/W/F codons, and standard-code translation of the edited query through the primary J tract. Junction translation starts at C and omits a terminal partial triplet. Local V/J endpoints and D/C calls remain unadjudicated; a frameshift inside the V-contributed junction may or may not remain in the selected local V tract, so only its out-of-frame-indel reason is alignment-dependent."
+      ]
+    },
+    {
+      "case_id": "IGL-truncate-3prime",
+      "parent": {
+        "dataset": "1287157",
+        "sequence_id": "CTCATTAAGGATCGCA-1_contig_1",
+        "sequence_sha256": "6bd61d651a6410d8d1fbc3c73eaf3df9035ed35ed0574e5db88373c0be5b43cc"
+      },
+      "context": "3prime",
+      "operation": {
+        "kind": "truncate_3prime",
+        "offset": 427,
+        "affected_bases": "GTCAGCCCAAGGCTGCCCCCTCGGTCACTCTGTTCCCGCCCTCCTCTGAGGAGCTTCAAGCCAACAAGGCCACACTGGTGTGTCTCGTAAGTGACTTCTACCCGGGAGCCGTGACAGTGGCCTGGAAGGCAGATAGCAGCCCCGTCAAGGCGGGAGTGGAGACCACCACACCCTCCAAACA",
+        "replacement_bases": ""
+      },
+      "sequence_sha256": "54d8028f2d239874c26420b52411be379e601d0818ba534489200ce8d001401d",
+      "expected": {
+        "sequence_length": 427,
+        "length_delta": -181,
+        "rev_comp": false,
+        "locus": "IGL",
+        "homologous_junction": {
+          "oriented_start": 363,
+          "oriented_end": 399,
+          "input_start": 363,
+          "input_end": 399,
+          "sequence": "TGTCAGTCTTATGATAGCAGCAATGTCTGGGTGTTC",
+          "length_mod3": 0
+        },
+        "coding_frame_delta_mod3": 0,
+        "ambiguous_base_count": 0,
+        "annotation": {
+          "coding_origin_mod3": 0,
+          "junction": "TGTCAGTCTTATGATAGCAGCAATGTCTGGGTGTTC",
+          "junction_aa": "CQSYDSSNVWVF",
+          "productive": true,
+          "stop_codon": false,
+          "vj_in_frame": true,
+          "productivity_issues": [],
+          "alignment_dependent_issues": []
+        }
+      },
+      "evidence": [
+        "Parent 1287157/CTCATTAAGGATCGCA-1_contig_1 is a productive, forward, ambiguity-free concordant IGL control with gap-free retained V/J traces (IGLV6-57*02, IGLJ3*02).",
+        "Retained V trace is [93:387]; authenticated IMGT104 and J motif delimit original junction [363:399]. These are projected homologous anchors, not predicted aligner endpoints.",
+        "Remove only the suffix after retained J end 427; all retained V/J evidence and junction coordinates remain.",
+        "Annotation consequences are independently derived from the authenticated parental V coding origin, preserved homologous C/W/F codons, and standard-code translation of the edited query through the primary J tract. Junction translation starts at C and omits a terminal partial triplet. Local V/J endpoints and D/C calls remain unadjudicated; a frameshift inside the V-contributed junction may or may not remain in the selected local V tract, so only its out-of-frame-indel reason is alignment-dependent."
+      ]
+    },
+    {
+      "case_id": "IGL-v-ambiguity",
+      "parent": {
+        "dataset": "1287157",
+        "sequence_id": "CTCATTAAGGATCGCA-1_contig_1",
+        "sequence_sha256": "6bd61d651a6410d8d1fbc3c73eaf3df9035ed35ed0574e5db88373c0be5b43cc"
+      },
+      "context": "v",
+      "operation": {
+        "kind": "ambiguity",
+        "offset": 153,
+        "affected_bases": "T",
+        "replacement_bases": "N"
+      },
+      "sequence_sha256": "648f27c0fab766e4c0c54ed2e1d863e9f9fd59edc6fcda3533b803db8004d3a5",
+      "expected": {
+        "sequence_length": 608,
+        "length_delta": 0,
+        "rev_comp": false,
+        "locus": "IGL",
+        "homologous_junction": {
+          "oriented_start": 363,
+          "oriented_end": 399,
+          "input_start": 363,
+          "input_end": 399,
+          "sequence": "TGTCAGTCTTATGATAGCAGCAATGTCTGGGTGTTC",
+          "length_mod3": 0
+        },
+        "coding_frame_delta_mod3": 0,
+        "ambiguous_base_count": 1,
+        "annotation": {
+          "coding_origin_mod3": 0,
+          "junction": "TGTCAGTCTTATGATAGCAGCAATGTCTGGGTGTTC",
+          "junction_aa": "CQSYDSSNVWVF",
+          "productive": false,
+          "stop_codon": false,
+          "vj_in_frame": true,
+          "productivity_issues": [
+            "ambiguous nucleotide(s)"
+          ],
+          "alignment_dependent_issues": []
+        }
+      },
+      "evidence": [
+        "Parent 1287157/CTCATTAAGGATCGCA-1_contig_1 is a productive, forward, ambiguity-free concordant IGL control with gap-free retained V/J traces (IGLV6-57*02, IGLJ3*02).",
+        "Retained V trace is [93:387]; authenticated IMGT104 and J motif delimit original junction [363:399]. These are projected homologous anchors, not predicted aligner endpoints.",
+        "Replace exactly the v base at 153 with N; one ambiguous input base, unchanged length and anchor spacing.",
+        "Annotation consequences are independently derived from the authenticated parental V coding origin, preserved homologous C/W/F codons, and standard-code translation of the edited query through the primary J tract. Junction translation starts at C and omits a terminal partial triplet. Local V/J endpoints and D/C calls remain unadjudicated; a frameshift inside the V-contributed junction may or may not remain in the selected local V tract, so only its out-of-frame-indel reason is alignment-dependent."
+      ]
+    },
+    {
+      "case_id": "IGL-v-substitute",
+      "parent": {
+        "dataset": "1287157",
+        "sequence_id": "CTCATTAAGGATCGCA-1_contig_1",
+        "sequence_sha256": "6bd61d651a6410d8d1fbc3c73eaf3df9035ed35ed0574e5db88373c0be5b43cc"
+      },
+      "context": "v",
+      "operation": {
+        "kind": "substitute",
+        "offset": 153,
+        "affected_bases": "T",
+        "replacement_bases": "A"
+      },
+      "sequence_sha256": "6618cf09e99dfc5573c9a47152beeab23cf081d76229579c7547cfa82c9cbba7",
+      "expected": {
+        "sequence_length": 608,
+        "length_delta": 0,
+        "rev_comp": false,
+        "locus": "IGL",
+        "homologous_junction": {
+          "oriented_start": 363,
+          "oriented_end": 399,
+          "input_start": 363,
+          "input_end": 399,
+          "sequence": "TGTCAGTCTTATGATAGCAGCAATGTCTGGGTGTTC",
+          "length_mod3": 0
+        },
+        "coding_frame_delta_mod3": 0,
+        "ambiguous_base_count": 0,
+        "annotation": {
+          "coding_origin_mod3": 0,
+          "junction": "TGTCAGTCTTATGATAGCAGCAATGTCTGGGTGTTC",
+          "junction_aa": "CQSYDSSNVWVF",
+          "productive": true,
+          "stop_codon": false,
+          "vj_in_frame": true,
+          "productivity_issues": [],
+          "alignment_dependent_issues": []
+        }
+      },
+      "evidence": [
+        "Parent 1287157/CTCATTAAGGATCGCA-1_contig_1 is a productive, forward, ambiguity-free concordant IGL control with gap-free retained V/J traces (IGLV6-57*02, IGLJ3*02).",
+        "Retained V trace is [93:387]; authenticated IMGT104 and J motif delimit original junction [363:399]. These are projected homologous anchors, not predicted aligner endpoints.",
+        "Replace exactly the v base at 153; unchanged length/frame spacing and preserved anchor codons, without predicting a gene-call or productivity change.",
+        "Annotation consequences are independently derived from the authenticated parental V coding origin, preserved homologous C/W/F codons, and standard-code translation of the edited query through the primary J tract. Junction translation starts at C and omits a terminal partial triplet. Local V/J endpoints and D/C calls remain unadjudicated; a frameshift inside the V-contributed junction may or may not remain in the selected local V tract, so only its out-of-frame-indel reason is alignment-dependent."
+      ]
+    },
+    {
+      "case_id": "IGL-v-insert-1",
+      "parent": {
+        "dataset": "1287157",
+        "sequence_id": "CTCATTAAGGATCGCA-1_contig_1",
+        "sequence_sha256": "6bd61d651a6410d8d1fbc3c73eaf3df9035ed35ed0574e5db88373c0be5b43cc"
+      },
+      "context": "v",
+      "operation": {
+        "kind": "insert",
+        "offset": 153,
+        "affected_bases": "",
+        "replacement_bases": "G"
+      },
+      "sequence_sha256": "9051ae44e1ef6307012d27fa0956f401acf34c774636b0b011bf28c49e9247a8",
+      "expected": {
+        "sequence_length": 609,
+        "length_delta": 1,
+        "rev_comp": false,
+        "locus": "IGL",
+        "homologous_junction": {
+          "oriented_start": 364,
+          "oriented_end": 400,
+          "input_start": 364,
+          "input_end": 400,
+          "sequence": "TGTCAGTCTTATGATAGCAGCAATGTCTGGGTGTTC",
+          "length_mod3": 0
+        },
+        "coding_frame_delta_mod3": 1,
+        "ambiguous_base_count": 0,
+        "annotation": {
+          "coding_origin_mod3": 0,
+          "junction": "TGTCAGTCTTATGATAGCAGCAATGTCTGGGTGTTC",
+          "junction_aa": "CQSYDSSNVWVF",
+          "productive": false,
+          "stop_codon": true,
+          "vj_in_frame": false,
+          "productivity_issues": [
+            "V/J junction is out of frame",
+            "out-of-frame indel(s)",
+            "stop codon(s)"
+          ],
+          "alignment_dependent_issues": []
+        }
+      },
+      "evidence": [
+        "Parent 1287157/CTCATTAAGGATCGCA-1_contig_1 is a productive, forward, ambiguity-free concordant IGL control with gap-free retained V/J traces (IGLV6-57*02, IGLJ3*02).",
+        "Retained V trace is [93:387]; authenticated IMGT104 and J motif delimit original junction [363:399]. These are projected homologous anchors, not predicted aligner endpoints.",
+        "Insert 1 nt at v boundary 153; downstream anchor displacement and coding frame delta are +1 nt. Anchor codons themselves remain.",
+        "Annotation consequences are independently derived from the authenticated parental V coding origin, preserved homologous C/W/F codons, and standard-code translation of the edited query through the primary J tract. Junction translation starts at C and omits a terminal partial triplet. Local V/J endpoints and D/C calls remain unadjudicated; a frameshift inside the V-contributed junction may or may not remain in the selected local V tract, so only its out-of-frame-indel reason is alignment-dependent."
+      ]
+    },
+    {
+      "case_id": "IGL-v-delete-1",
+      "parent": {
+        "dataset": "1287157",
+        "sequence_id": "CTCATTAAGGATCGCA-1_contig_1",
+        "sequence_sha256": "6bd61d651a6410d8d1fbc3c73eaf3df9035ed35ed0574e5db88373c0be5b43cc"
+      },
+      "context": "v",
+      "operation": {
+        "kind": "delete",
+        "offset": 153,
+        "affected_bases": "T",
+        "replacement_bases": ""
+      },
+      "sequence_sha256": "4f846c9ed0009945c94ece3bcd394b968536c92185d67bba462d8b33b30cbbe9",
+      "expected": {
+        "sequence_length": 607,
+        "length_delta": -1,
+        "rev_comp": false,
+        "locus": "IGL",
+        "homologous_junction": {
+          "oriented_start": 362,
+          "oriented_end": 398,
+          "input_start": 362,
+          "input_end": 398,
+          "sequence": "TGTCAGTCTTATGATAGCAGCAATGTCTGGGTGTTC",
+          "length_mod3": 0
+        },
+        "coding_frame_delta_mod3": 2,
+        "ambiguous_base_count": 0,
+        "annotation": {
+          "coding_origin_mod3": 0,
+          "junction": "TGTCAGTCTTATGATAGCAGCAATGTCTGGGTGTTC",
+          "junction_aa": "CQSYDSSNVWVF",
+          "productive": false,
+          "stop_codon": true,
+          "vj_in_frame": false,
+          "productivity_issues": [
+            "V/J junction is out of frame",
+            "out-of-frame indel(s)",
+            "stop codon(s)"
+          ],
+          "alignment_dependent_issues": []
+        }
+      },
+      "evidence": [
+        "Parent 1287157/CTCATTAAGGATCGCA-1_contig_1 is a productive, forward, ambiguity-free concordant IGL control with gap-free retained V/J traces (IGLV6-57*02, IGLJ3*02).",
+        "Retained V trace is [93:387]; authenticated IMGT104 and J motif delimit original junction [363:399]. These are projected homologous anchors, not predicted aligner endpoints.",
+        "Delete the 1 nt v span [153:154]; downstream anchor displacement and coding frame delta are -1 nt. Anchor codons themselves remain.",
+        "Annotation consequences are independently derived from the authenticated parental V coding origin, preserved homologous C/W/F codons, and standard-code translation of the edited query through the primary J tract. Junction translation starts at C and omits a terminal partial triplet. Local V/J endpoints and D/C calls remain unadjudicated; a frameshift inside the V-contributed junction may or may not remain in the selected local V tract, so only its out-of-frame-indel reason is alignment-dependent."
+      ]
+    },
+    {
+      "case_id": "IGL-v-insert-2",
+      "parent": {
+        "dataset": "1287157",
+        "sequence_id": "CTCATTAAGGATCGCA-1_contig_1",
+        "sequence_sha256": "6bd61d651a6410d8d1fbc3c73eaf3df9035ed35ed0574e5db88373c0be5b43cc"
+      },
+      "context": "v",
+      "operation": {
+        "kind": "insert",
+        "offset": 153,
+        "affected_bases": "",
+        "replacement_bases": "GG"
+      },
+      "sequence_sha256": "261c4e61915372d58e0ba91f25571ac7ff7b83ed9b8495a0e6903288a4af3229",
+      "expected": {
+        "sequence_length": 610,
+        "length_delta": 2,
+        "rev_comp": false,
+        "locus": "IGL",
+        "homologous_junction": {
+          "oriented_start": 365,
+          "oriented_end": 401,
+          "input_start": 365,
+          "input_end": 401,
+          "sequence": "TGTCAGTCTTATGATAGCAGCAATGTCTGGGTGTTC",
+          "length_mod3": 0
+        },
+        "coding_frame_delta_mod3": 2,
+        "ambiguous_base_count": 0,
+        "annotation": {
+          "coding_origin_mod3": 0,
+          "junction": "TGTCAGTCTTATGATAGCAGCAATGTCTGGGTGTTC",
+          "junction_aa": "CQSYDSSNVWVF",
+          "productive": false,
+          "stop_codon": true,
+          "vj_in_frame": false,
+          "productivity_issues": [
+            "V/J junction is out of frame",
+            "out-of-frame indel(s)",
+            "stop codon(s)"
+          ],
+          "alignment_dependent_issues": []
+        }
+      },
+      "evidence": [
+        "Parent 1287157/CTCATTAAGGATCGCA-1_contig_1 is a productive, forward, ambiguity-free concordant IGL control with gap-free retained V/J traces (IGLV6-57*02, IGLJ3*02).",
+        "Retained V trace is [93:387]; authenticated IMGT104 and J motif delimit original junction [363:399]. These are projected homologous anchors, not predicted aligner endpoints.",
+        "Insert 2 nt at v boundary 153; downstream anchor displacement and coding frame delta are +2 nt. Anchor codons themselves remain.",
+        "Annotation consequences are independently derived from the authenticated parental V coding origin, preserved homologous C/W/F codons, and standard-code translation of the edited query through the primary J tract. Junction translation starts at C and omits a terminal partial triplet. Local V/J endpoints and D/C calls remain unadjudicated; a frameshift inside the V-contributed junction may or may not remain in the selected local V tract, so only its out-of-frame-indel reason is alignment-dependent."
+      ]
+    },
+    {
+      "case_id": "IGL-v-delete-2",
+      "parent": {
+        "dataset": "1287157",
+        "sequence_id": "CTCATTAAGGATCGCA-1_contig_1",
+        "sequence_sha256": "6bd61d651a6410d8d1fbc3c73eaf3df9035ed35ed0574e5db88373c0be5b43cc"
+      },
+      "context": "v",
+      "operation": {
+        "kind": "delete",
+        "offset": 153,
+        "affected_bases": "TC",
+        "replacement_bases": ""
+      },
+      "sequence_sha256": "270e2f4b9a560490c2c027a26fce09c31b634bdfdcfb65d6db2f6c4623ce16f8",
+      "expected": {
+        "sequence_length": 606,
+        "length_delta": -2,
+        "rev_comp": false,
+        "locus": "IGL",
+        "homologous_junction": {
+          "oriented_start": 361,
+          "oriented_end": 397,
+          "input_start": 361,
+          "input_end": 397,
+          "sequence": "TGTCAGTCTTATGATAGCAGCAATGTCTGGGTGTTC",
+          "length_mod3": 0
+        },
+        "coding_frame_delta_mod3": 1,
+        "ambiguous_base_count": 0,
+        "annotation": {
+          "coding_origin_mod3": 0,
+          "junction": "TGTCAGTCTTATGATAGCAGCAATGTCTGGGTGTTC",
+          "junction_aa": "CQSYDSSNVWVF",
+          "productive": false,
+          "stop_codon": true,
+          "vj_in_frame": false,
+          "productivity_issues": [
+            "V/J junction is out of frame",
+            "out-of-frame indel(s)",
+            "stop codon(s)"
+          ],
+          "alignment_dependent_issues": []
+        }
+      },
+      "evidence": [
+        "Parent 1287157/CTCATTAAGGATCGCA-1_contig_1 is a productive, forward, ambiguity-free concordant IGL control with gap-free retained V/J traces (IGLV6-57*02, IGLJ3*02).",
+        "Retained V trace is [93:387]; authenticated IMGT104 and J motif delimit original junction [363:399]. These are projected homologous anchors, not predicted aligner endpoints.",
+        "Delete the 2 nt v span [153:155]; downstream anchor displacement and coding frame delta are -2 nt. Anchor codons themselves remain.",
+        "Annotation consequences are independently derived from the authenticated parental V coding origin, preserved homologous C/W/F codons, and standard-code translation of the edited query through the primary J tract. Junction translation starts at C and omits a terminal partial triplet. Local V/J endpoints and D/C calls remain unadjudicated; a frameshift inside the V-contributed junction may or may not remain in the selected local V tract, so only its out-of-frame-indel reason is alignment-dependent."
+      ]
+    },
+    {
+      "case_id": "IGL-v-insert-3",
+      "parent": {
+        "dataset": "1287157",
+        "sequence_id": "CTCATTAAGGATCGCA-1_contig_1",
+        "sequence_sha256": "6bd61d651a6410d8d1fbc3c73eaf3df9035ed35ed0574e5db88373c0be5b43cc"
+      },
+      "context": "v",
+      "operation": {
+        "kind": "insert",
+        "offset": 153,
+        "affected_bases": "",
+        "replacement_bases": "GGA"
+      },
+      "sequence_sha256": "74dd0356827071931de355ffd8bcf44b6e03db02b01d786d24e913c498415712",
+      "expected": {
+        "sequence_length": 611,
+        "length_delta": 3,
+        "rev_comp": false,
+        "locus": "IGL",
+        "homologous_junction": {
+          "oriented_start": 366,
+          "oriented_end": 402,
+          "input_start": 366,
+          "input_end": 402,
+          "sequence": "TGTCAGTCTTATGATAGCAGCAATGTCTGGGTGTTC",
+          "length_mod3": 0
+        },
+        "coding_frame_delta_mod3": 0,
+        "ambiguous_base_count": 0,
+        "annotation": {
+          "coding_origin_mod3": 0,
+          "junction": "TGTCAGTCTTATGATAGCAGCAATGTCTGGGTGTTC",
+          "junction_aa": "CQSYDSSNVWVF",
+          "productive": true,
+          "stop_codon": false,
+          "vj_in_frame": true,
+          "productivity_issues": [],
+          "alignment_dependent_issues": []
+        }
+      },
+      "evidence": [
+        "Parent 1287157/CTCATTAAGGATCGCA-1_contig_1 is a productive, forward, ambiguity-free concordant IGL control with gap-free retained V/J traces (IGLV6-57*02, IGLJ3*02).",
+        "Retained V trace is [93:387]; authenticated IMGT104 and J motif delimit original junction [363:399]. These are projected homologous anchors, not predicted aligner endpoints.",
+        "Insert 3 nt at v boundary 153; downstream anchor displacement and coding frame delta are +3 nt. Anchor codons themselves remain.",
+        "Annotation consequences are independently derived from the authenticated parental V coding origin, preserved homologous C/W/F codons, and standard-code translation of the edited query through the primary J tract. Junction translation starts at C and omits a terminal partial triplet. Local V/J endpoints and D/C calls remain unadjudicated; a frameshift inside the V-contributed junction may or may not remain in the selected local V tract, so only its out-of-frame-indel reason is alignment-dependent."
+      ]
+    },
+    {
+      "case_id": "IGL-v-delete-3",
+      "parent": {
+        "dataset": "1287157",
+        "sequence_id": "CTCATTAAGGATCGCA-1_contig_1",
+        "sequence_sha256": "6bd61d651a6410d8d1fbc3c73eaf3df9035ed35ed0574e5db88373c0be5b43cc"
+      },
+      "context": "v",
+      "operation": {
+        "kind": "delete",
+        "offset": 153,
+        "affected_bases": "TCC",
+        "replacement_bases": ""
+      },
+      "sequence_sha256": "1493212d758c18097f61cad6d8274c82cef196fb2eb33adc4a4193c971168b04",
+      "expected": {
+        "sequence_length": 605,
+        "length_delta": -3,
+        "rev_comp": false,
+        "locus": "IGL",
+        "homologous_junction": {
+          "oriented_start": 360,
+          "oriented_end": 396,
+          "input_start": 360,
+          "input_end": 396,
+          "sequence": "TGTCAGTCTTATGATAGCAGCAATGTCTGGGTGTTC",
+          "length_mod3": 0
+        },
+        "coding_frame_delta_mod3": 0,
+        "ambiguous_base_count": 0,
+        "annotation": {
+          "coding_origin_mod3": 0,
+          "junction": "TGTCAGTCTTATGATAGCAGCAATGTCTGGGTGTTC",
+          "junction_aa": "CQSYDSSNVWVF",
+          "productive": true,
+          "stop_codon": false,
+          "vj_in_frame": true,
+          "productivity_issues": [],
+          "alignment_dependent_issues": []
+        }
+      },
+      "evidence": [
+        "Parent 1287157/CTCATTAAGGATCGCA-1_contig_1 is a productive, forward, ambiguity-free concordant IGL control with gap-free retained V/J traces (IGLV6-57*02, IGLJ3*02).",
+        "Retained V trace is [93:387]; authenticated IMGT104 and J motif delimit original junction [363:399]. These are projected homologous anchors, not predicted aligner endpoints.",
+        "Delete the 3 nt v span [153:156]; downstream anchor displacement and coding frame delta are -3 nt. Anchor codons themselves remain.",
+        "Annotation consequences are independently derived from the authenticated parental V coding origin, preserved homologous C/W/F codons, and standard-code translation of the edited query through the primary J tract. Junction translation starts at C and omits a terminal partial triplet. Local V/J endpoints and D/C calls remain unadjudicated; a frameshift inside the V-contributed junction may or may not remain in the selected local V tract, so only its out-of-frame-indel reason is alignment-dependent."
+      ]
+    },
+    {
+      "case_id": "IGL-junction-ambiguity",
+      "parent": {
+        "dataset": "1287157",
+        "sequence_id": "CTCATTAAGGATCGCA-1_contig_1",
+        "sequence_sha256": "6bd61d651a6410d8d1fbc3c73eaf3df9035ed35ed0574e5db88373c0be5b43cc"
+      },
+      "context": "junction",
+      "operation": {
+        "kind": "ambiguity",
+        "offset": 369,
+        "affected_bases": "T",
+        "replacement_bases": "N"
+      },
+      "sequence_sha256": "bc88cecee50a8a979cecf09e964e88eb9b34309f4271cece53b83d2120618189",
+      "expected": {
+        "sequence_length": 608,
+        "length_delta": 0,
+        "rev_comp": false,
+        "locus": "IGL",
+        "homologous_junction": {
+          "oriented_start": 363,
+          "oriented_end": 399,
+          "input_start": 363,
+          "input_end": 399,
+          "sequence": "TGTCAGNCTTATGATAGCAGCAATGTCTGGGTGTTC",
+          "length_mod3": 0
+        },
+        "coding_frame_delta_mod3": 0,
+        "ambiguous_base_count": 1,
+        "annotation": {
+          "coding_origin_mod3": 0,
+          "junction": "TGTCAGNCTTATGATAGCAGCAATGTCTGGGTGTTC",
+          "junction_aa": "CQXYDSSNVWVF",
+          "productive": false,
+          "stop_codon": false,
+          "vj_in_frame": true,
+          "productivity_issues": [
+            "ambiguous nucleotide(s)",
+            "ambiguous nucleotide(s) in junction"
+          ],
+          "alignment_dependent_issues": []
+        }
+      },
+      "evidence": [
+        "Parent 1287157/CTCATTAAGGATCGCA-1_contig_1 is a productive, forward, ambiguity-free concordant IGL control with gap-free retained V/J traces (IGLV6-57*02, IGLJ3*02).",
+        "Retained V trace is [93:387]; authenticated IMGT104 and J motif delimit original junction [363:399]. These are projected homologous anchors, not predicted aligner endpoints.",
+        "Replace exactly the junction base at 369 with N; one ambiguous input base, unchanged length and anchor spacing.",
+        "Annotation consequences are independently derived from the authenticated parental V coding origin, preserved homologous C/W/F codons, and standard-code translation of the edited query through the primary J tract. Junction translation starts at C and omits a terminal partial triplet. Local V/J endpoints and D/C calls remain unadjudicated; a frameshift inside the V-contributed junction may or may not remain in the selected local V tract, so only its out-of-frame-indel reason is alignment-dependent."
+      ]
+    },
+    {
+      "case_id": "IGL-junction-substitute",
+      "parent": {
+        "dataset": "1287157",
+        "sequence_id": "CTCATTAAGGATCGCA-1_contig_1",
+        "sequence_sha256": "6bd61d651a6410d8d1fbc3c73eaf3df9035ed35ed0574e5db88373c0be5b43cc"
+      },
+      "context": "junction",
+      "operation": {
+        "kind": "substitute",
+        "offset": 369,
+        "affected_bases": "T",
+        "replacement_bases": "A"
+      },
+      "sequence_sha256": "63e58abfc3a3cfcff1458116afca032bcf4d1d89f10b72b0f95bbed3e70c590d",
+      "expected": {
+        "sequence_length": 608,
+        "length_delta": 0,
+        "rev_comp": false,
+        "locus": "IGL",
+        "homologous_junction": {
+          "oriented_start": 363,
+          "oriented_end": 399,
+          "input_start": 363,
+          "input_end": 399,
+          "sequence": "TGTCAGACTTATGATAGCAGCAATGTCTGGGTGTTC",
+          "length_mod3": 0
+        },
+        "coding_frame_delta_mod3": 0,
+        "ambiguous_base_count": 0,
+        "annotation": {
+          "coding_origin_mod3": 0,
+          "junction": "TGTCAGACTTATGATAGCAGCAATGTCTGGGTGTTC",
+          "junction_aa": "CQTYDSSNVWVF",
+          "productive": true,
+          "stop_codon": false,
+          "vj_in_frame": true,
+          "productivity_issues": [],
+          "alignment_dependent_issues": []
+        }
+      },
+      "evidence": [
+        "Parent 1287157/CTCATTAAGGATCGCA-1_contig_1 is a productive, forward, ambiguity-free concordant IGL control with gap-free retained V/J traces (IGLV6-57*02, IGLJ3*02).",
+        "Retained V trace is [93:387]; authenticated IMGT104 and J motif delimit original junction [363:399]. These are projected homologous anchors, not predicted aligner endpoints.",
+        "Replace exactly the junction base at 369; unchanged length/frame spacing and preserved anchor codons, without predicting a gene-call or productivity change.",
+        "Annotation consequences are independently derived from the authenticated parental V coding origin, preserved homologous C/W/F codons, and standard-code translation of the edited query through the primary J tract. Junction translation starts at C and omits a terminal partial triplet. Local V/J endpoints and D/C calls remain unadjudicated; a frameshift inside the V-contributed junction may or may not remain in the selected local V tract, so only its out-of-frame-indel reason is alignment-dependent."
+      ]
+    },
+    {
+      "case_id": "IGL-junction-insert-1",
+      "parent": {
+        "dataset": "1287157",
+        "sequence_id": "CTCATTAAGGATCGCA-1_contig_1",
+        "sequence_sha256": "6bd61d651a6410d8d1fbc3c73eaf3df9035ed35ed0574e5db88373c0be5b43cc"
+      },
+      "context": "junction",
+      "operation": {
+        "kind": "insert",
+        "offset": 369,
+        "affected_bases": "",
+        "replacement_bases": "G"
+      },
+      "sequence_sha256": "5d13660aab7bb02ff1957a8436b1298b592d9c5c5ca274f88051d8c832b2b68f",
+      "expected": {
+        "sequence_length": 609,
+        "length_delta": 1,
+        "rev_comp": false,
+        "locus": "IGL",
+        "homologous_junction": {
+          "oriented_start": 363,
+          "oriented_end": 400,
+          "input_start": 363,
+          "input_end": 400,
+          "sequence": "TGTCAGGTCTTATGATAGCAGCAATGTCTGGGTGTTC",
+          "length_mod3": 1
+        },
+        "coding_frame_delta_mod3": 1,
+        "ambiguous_base_count": 0,
+        "annotation": {
+          "coding_origin_mod3": 0,
+          "junction": "TGTCAGGTCTTATGATAGCAGCAATGTCTGGGTGTTC",
+          "junction_aa": "CQVL**QQCLGV",
+          "productive": false,
+          "stop_codon": true,
+          "vj_in_frame": false,
+          "productivity_issues": [
+            "junction does not end with conserved F",
+            "junction length is not a multiple of 3",
+            "stop codon(s)"
+          ],
+          "alignment_dependent_issues": [
+            "out-of-frame indel(s)"
+          ]
+        }
+      },
+      "evidence": [
+        "Parent 1287157/CTCATTAAGGATCGCA-1_contig_1 is a productive, forward, ambiguity-free concordant IGL control with gap-free retained V/J traces (IGLV6-57*02, IGLJ3*02).",
+        "Retained V trace is [93:387]; authenticated IMGT104 and J motif delimit original junction [363:399]. These are projected homologous anchors, not predicted aligner endpoints.",
+        "Insert 1 nt at junction boundary 369; downstream anchor displacement and coding frame delta are +1 nt. Anchor codons themselves remain.",
+        "Annotation consequences are independently derived from the authenticated parental V coding origin, preserved homologous C/W/F codons, and standard-code translation of the edited query through the primary J tract. Junction translation starts at C and omits a terminal partial triplet. Local V/J endpoints and D/C calls remain unadjudicated; a frameshift inside the V-contributed junction may or may not remain in the selected local V tract, so only its out-of-frame-indel reason is alignment-dependent."
+      ]
+    },
+    {
+      "case_id": "IGL-junction-delete-1",
+      "parent": {
+        "dataset": "1287157",
+        "sequence_id": "CTCATTAAGGATCGCA-1_contig_1",
+        "sequence_sha256": "6bd61d651a6410d8d1fbc3c73eaf3df9035ed35ed0574e5db88373c0be5b43cc"
+      },
+      "context": "junction",
+      "operation": {
+        "kind": "delete",
+        "offset": 369,
+        "affected_bases": "T",
+        "replacement_bases": ""
+      },
+      "sequence_sha256": "12845ed6965f8a69d0c1cd1586257c05952b4eaf7bb2010c2058ef0c5a01cce4",
+      "expected": {
+        "sequence_length": 607,
+        "length_delta": -1,
+        "rev_comp": false,
+        "locus": "IGL",
+        "homologous_junction": {
+          "oriented_start": 363,
+          "oriented_end": 398,
+          "input_start": 363,
+          "input_end": 398,
+          "sequence": "TGTCAGCTTATGATAGCAGCAATGTCTGGGTGTTC",
+          "length_mod3": 2
+        },
+        "coding_frame_delta_mod3": 2,
+        "ambiguous_base_count": 0,
+        "annotation": {
+          "coding_origin_mod3": 0,
+          "junction": "TGTCAGCTTATGATAGCAGCAATGTCTGGGTGTTC",
+          "junction_aa": "CQLMIAAMSGC",
+          "productive": false,
+          "stop_codon": true,
+          "vj_in_frame": false,
+          "productivity_issues": [
+            "junction does not end with conserved F",
+            "junction length is not a multiple of 3",
+            "stop codon(s)"
+          ],
+          "alignment_dependent_issues": [
+            "out-of-frame indel(s)"
+          ]
+        }
+      },
+      "evidence": [
+        "Parent 1287157/CTCATTAAGGATCGCA-1_contig_1 is a productive, forward, ambiguity-free concordant IGL control with gap-free retained V/J traces (IGLV6-57*02, IGLJ3*02).",
+        "Retained V trace is [93:387]; authenticated IMGT104 and J motif delimit original junction [363:399]. These are projected homologous anchors, not predicted aligner endpoints.",
+        "Delete the 1 nt junction span [369:370]; downstream anchor displacement and coding frame delta are -1 nt. Anchor codons themselves remain.",
+        "Annotation consequences are independently derived from the authenticated parental V coding origin, preserved homologous C/W/F codons, and standard-code translation of the edited query through the primary J tract. Junction translation starts at C and omits a terminal partial triplet. Local V/J endpoints and D/C calls remain unadjudicated; a frameshift inside the V-contributed junction may or may not remain in the selected local V tract, so only its out-of-frame-indel reason is alignment-dependent."
+      ]
+    },
+    {
+      "case_id": "IGL-junction-insert-2",
+      "parent": {
+        "dataset": "1287157",
+        "sequence_id": "CTCATTAAGGATCGCA-1_contig_1",
+        "sequence_sha256": "6bd61d651a6410d8d1fbc3c73eaf3df9035ed35ed0574e5db88373c0be5b43cc"
+      },
+      "context": "junction",
+      "operation": {
+        "kind": "insert",
+        "offset": 369,
+        "affected_bases": "",
+        "replacement_bases": "GG"
+      },
+      "sequence_sha256": "b48b925cfd81efe02c3d50a0fca548361dfaf2e391c30cf240b46afa312dda4f",
+      "expected": {
+        "sequence_length": 610,
+        "length_delta": 2,
+        "rev_comp": false,
+        "locus": "IGL",
+        "homologous_junction": {
+          "oriented_start": 363,
+          "oriented_end": 401,
+          "input_start": 363,
+          "input_end": 401,
+          "sequence": "TGTCAGGGTCTTATGATAGCAGCAATGTCTGGGTGTTC",
+          "length_mod3": 2
+        },
+        "coding_frame_delta_mod3": 2,
+        "ambiguous_base_count": 0,
+        "annotation": {
+          "coding_origin_mod3": 0,
+          "junction": "TGTCAGGGTCTTATGATAGCAGCAATGTCTGGGTGTTC",
+          "junction_aa": "CQGLMIAAMSGC",
+          "productive": false,
+          "stop_codon": true,
+          "vj_in_frame": false,
+          "productivity_issues": [
+            "junction does not end with conserved F",
+            "junction length is not a multiple of 3",
+            "stop codon(s)"
+          ],
+          "alignment_dependent_issues": [
+            "out-of-frame indel(s)"
+          ]
+        }
+      },
+      "evidence": [
+        "Parent 1287157/CTCATTAAGGATCGCA-1_contig_1 is a productive, forward, ambiguity-free concordant IGL control with gap-free retained V/J traces (IGLV6-57*02, IGLJ3*02).",
+        "Retained V trace is [93:387]; authenticated IMGT104 and J motif delimit original junction [363:399]. These are projected homologous anchors, not predicted aligner endpoints.",
+        "Insert 2 nt at junction boundary 369; downstream anchor displacement and coding frame delta are +2 nt. Anchor codons themselves remain.",
+        "Annotation consequences are independently derived from the authenticated parental V coding origin, preserved homologous C/W/F codons, and standard-code translation of the edited query through the primary J tract. Junction translation starts at C and omits a terminal partial triplet. Local V/J endpoints and D/C calls remain unadjudicated; a frameshift inside the V-contributed junction may or may not remain in the selected local V tract, so only its out-of-frame-indel reason is alignment-dependent."
+      ]
+    },
+    {
+      "case_id": "IGL-junction-delete-2",
+      "parent": {
+        "dataset": "1287157",
+        "sequence_id": "CTCATTAAGGATCGCA-1_contig_1",
+        "sequence_sha256": "6bd61d651a6410d8d1fbc3c73eaf3df9035ed35ed0574e5db88373c0be5b43cc"
+      },
+      "context": "junction",
+      "operation": {
+        "kind": "delete",
+        "offset": 369,
+        "affected_bases": "TC",
+        "replacement_bases": ""
+      },
+      "sequence_sha256": "a0363a832c272ca3e3a9d668f0f7667c947c4ccde3aab6e9575e9f461f7622b5",
+      "expected": {
+        "sequence_length": 606,
+        "length_delta": -2,
+        "rev_comp": false,
+        "locus": "IGL",
+        "homologous_junction": {
+          "oriented_start": 363,
+          "oriented_end": 397,
+          "input_start": 363,
+          "input_end": 397,
+          "sequence": "TGTCAGTTATGATAGCAGCAATGTCTGGGTGTTC",
+          "length_mod3": 1
+        },
+        "coding_frame_delta_mod3": 1,
+        "ambiguous_base_count": 0,
+        "annotation": {
+          "coding_origin_mod3": 0,
+          "junction": "TGTCAGTTATGATAGCAGCAATGTCTGGGTGTTC",
+          "junction_aa": "CQL**QQCLGV",
+          "productive": false,
+          "stop_codon": true,
+          "vj_in_frame": false,
+          "productivity_issues": [
+            "junction does not end with conserved F",
+            "junction length is not a multiple of 3",
+            "stop codon(s)"
+          ],
+          "alignment_dependent_issues": [
+            "out-of-frame indel(s)"
+          ]
+        }
+      },
+      "evidence": [
+        "Parent 1287157/CTCATTAAGGATCGCA-1_contig_1 is a productive, forward, ambiguity-free concordant IGL control with gap-free retained V/J traces (IGLV6-57*02, IGLJ3*02).",
+        "Retained V trace is [93:387]; authenticated IMGT104 and J motif delimit original junction [363:399]. These are projected homologous anchors, not predicted aligner endpoints.",
+        "Delete the 2 nt junction span [369:371]; downstream anchor displacement and coding frame delta are -2 nt. Anchor codons themselves remain.",
+        "Annotation consequences are independently derived from the authenticated parental V coding origin, preserved homologous C/W/F codons, and standard-code translation of the edited query through the primary J tract. Junction translation starts at C and omits a terminal partial triplet. Local V/J endpoints and D/C calls remain unadjudicated; a frameshift inside the V-contributed junction may or may not remain in the selected local V tract, so only its out-of-frame-indel reason is alignment-dependent."
+      ]
+    },
+    {
+      "case_id": "IGL-junction-insert-3",
+      "parent": {
+        "dataset": "1287157",
+        "sequence_id": "CTCATTAAGGATCGCA-1_contig_1",
+        "sequence_sha256": "6bd61d651a6410d8d1fbc3c73eaf3df9035ed35ed0574e5db88373c0be5b43cc"
+      },
+      "context": "junction",
+      "operation": {
+        "kind": "insert",
+        "offset": 369,
+        "affected_bases": "",
+        "replacement_bases": "GGA"
+      },
+      "sequence_sha256": "ac722927f4f9b24aa8dc4d14460d5692584b3bcb8a34c5d266a6d6c7ca550eef",
+      "expected": {
+        "sequence_length": 611,
+        "length_delta": 3,
+        "rev_comp": false,
+        "locus": "IGL",
+        "homologous_junction": {
+          "oriented_start": 363,
+          "oriented_end": 402,
+          "input_start": 363,
+          "input_end": 402,
+          "sequence": "TGTCAGGGATCTTATGATAGCAGCAATGTCTGGGTGTTC",
+          "length_mod3": 0
+        },
+        "coding_frame_delta_mod3": 0,
+        "ambiguous_base_count": 0,
+        "annotation": {
+          "coding_origin_mod3": 0,
+          "junction": "TGTCAGGGATCTTATGATAGCAGCAATGTCTGGGTGTTC",
+          "junction_aa": "CQGSYDSSNVWVF",
+          "productive": true,
+          "stop_codon": false,
+          "vj_in_frame": true,
+          "productivity_issues": [],
+          "alignment_dependent_issues": []
+        }
+      },
+      "evidence": [
+        "Parent 1287157/CTCATTAAGGATCGCA-1_contig_1 is a productive, forward, ambiguity-free concordant IGL control with gap-free retained V/J traces (IGLV6-57*02, IGLJ3*02).",
+        "Retained V trace is [93:387]; authenticated IMGT104 and J motif delimit original junction [363:399]. These are projected homologous anchors, not predicted aligner endpoints.",
+        "Insert 3 nt at junction boundary 369; downstream anchor displacement and coding frame delta are +3 nt. Anchor codons themselves remain.",
+        "Annotation consequences are independently derived from the authenticated parental V coding origin, preserved homologous C/W/F codons, and standard-code translation of the edited query through the primary J tract. Junction translation starts at C and omits a terminal partial triplet. Local V/J endpoints and D/C calls remain unadjudicated; a frameshift inside the V-contributed junction may or may not remain in the selected local V tract, so only its out-of-frame-indel reason is alignment-dependent."
+      ]
+    },
+    {
+      "case_id": "IGL-junction-delete-3",
+      "parent": {
+        "dataset": "1287157",
+        "sequence_id": "CTCATTAAGGATCGCA-1_contig_1",
+        "sequence_sha256": "6bd61d651a6410d8d1fbc3c73eaf3df9035ed35ed0574e5db88373c0be5b43cc"
+      },
+      "context": "junction",
+      "operation": {
+        "kind": "delete",
+        "offset": 369,
+        "affected_bases": "TCT",
+        "replacement_bases": ""
+      },
+      "sequence_sha256": "37bd4d1555191194f0ee2dffddeb252fa4956953a42fa89afbc8338000f2a56a",
+      "expected": {
+        "sequence_length": 605,
+        "length_delta": -3,
+        "rev_comp": false,
+        "locus": "IGL",
+        "homologous_junction": {
+          "oriented_start": 363,
+          "oriented_end": 396,
+          "input_start": 363,
+          "input_end": 396,
+          "sequence": "TGTCAGTATGATAGCAGCAATGTCTGGGTGTTC",
+          "length_mod3": 0
+        },
+        "coding_frame_delta_mod3": 0,
+        "ambiguous_base_count": 0,
+        "annotation": {
+          "coding_origin_mod3": 0,
+          "junction": "TGTCAGTATGATAGCAGCAATGTCTGGGTGTTC",
+          "junction_aa": "CQYDSSNVWVF",
+          "productive": true,
+          "stop_codon": false,
+          "vj_in_frame": true,
+          "productivity_issues": [],
+          "alignment_dependent_issues": []
+        }
+      },
+      "evidence": [
+        "Parent 1287157/CTCATTAAGGATCGCA-1_contig_1 is a productive, forward, ambiguity-free concordant IGL control with gap-free retained V/J traces (IGLV6-57*02, IGLJ3*02).",
+        "Retained V trace is [93:387]; authenticated IMGT104 and J motif delimit original junction [363:399]. These are projected homologous anchors, not predicted aligner endpoints.",
+        "Delete the 3 nt junction span [369:372]; downstream anchor displacement and coding frame delta are -3 nt. Anchor codons themselves remain.",
+        "Annotation consequences are independently derived from the authenticated parental V coding origin, preserved homologous C/W/F codons, and standard-code translation of the edited query through the primary J tract. Junction translation starts at C and omits a terminal partial triplet. Local V/J endpoints and D/C calls remain unadjudicated; a frameshift inside the V-contributed junction may or may not remain in the selected local V tract, so only its out-of-frame-indel reason is alignment-dependent."
+      ]
+    }
+  ]
+}

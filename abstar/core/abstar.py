@@ -2,11 +2,15 @@
 # Distributed under the terms of the MIT License.
 # SPDX-License-Identifier: MIT
 
+import gzip
 import multiprocessing as mp
 import os
 import shutil
 import tempfile
+import traceback
 from collections import defaultdict
+from contextlib import contextmanager
+from pathlib import Path
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from datetime import datetime
 from typing import Iterable
@@ -18,8 +22,282 @@ from natsort import natsorted
 from tqdm.auto import tqdm
 
 from ..annotation.annotator import annotate
-from ..assigners.mmseqs import MMseqs
-from ..preprocess.merging import merge_fastqs
+from ..annotation.airr import (
+    translate_airr_alignment,
+    translate_airr_query,
+    write_airr_tsv,
+)
+from ..annotation.schema import ANNOTATION_WORK_SCHEMA
+from ..assigners.mmseqs import (
+    AssignmentExternalToolError,
+    AssignmentInputError,
+    MMseqs,
+)
+from ..preprocess.merging import MergeExternalToolError, merge_fastqs
+from .results import AnnotationChunkResult, AnnotationRunError, RecordFailure
+
+
+def _assert_record_conservation(
+    input_count: int,
+    annotated_count: int,
+    unassigned_count: int,
+    failures: Iterable[RecordFailure],
+) -> None:
+    """Raise when input records are missing from explicit pipeline outcomes."""
+    failures = tuple(failures)
+    accounted = annotated_count + unassigned_count + len(failures)
+    if accounted != input_count:
+        raise AnnotationRunError(
+            [
+                RecordFailure(
+                    "run",
+                    "<run>",
+                    "output",
+                    "internal_error",
+                    f"record conservation failed: input={input_count}, accounted={accounted}",
+                )
+            ]
+        )
+
+
+def _sort_annotation_workframe(frame: pl.DataFrame) -> pl.DataFrame:
+    """Sort deterministic row keys by their numeric sample and record ordinals."""
+    if frame.is_empty():
+        return frame
+    if frame["row_id"].n_unique() != frame.height:
+        raise AnnotationRunError(
+            [
+                RecordFailure(
+                    "run",
+                    "<run>",
+                    "output",
+                    "internal_error",
+                    "duplicate internal row_id in annotation output",
+                )
+            ]
+        )
+    return (
+        frame.with_columns(
+            pl.col("row_id")
+            .str.extract(r"^abstar_(\d+)_", 1)
+            .cast(pl.UInt64)
+            .alias("__sample_ordinal"),
+            pl.col("row_id")
+            .str.extract(r"_(\d+)$", 1)
+            .cast(pl.UInt64)
+            .alias("__record_ordinal"),
+        )
+        .sort("__sample_ordinal", "__record_ordinal")
+        .drop("__sample_ordinal", "__record_ordinal")
+    )
+
+
+def _chunk_failure_result(
+    input_file: str,
+    output_directory: str,
+    log_directory: str,
+    error: BaseException,
+) -> AnnotationChunkResult:
+    """Represent a crashed annotation worker as one failure per input record."""
+    input_frame = pl.read_parquet(input_file)
+    traceback_text = "".join(
+        traceback.format_exception(type(error), error, error.__traceback__)
+    )
+    failures = tuple(
+        RecordFailure(
+            row_id=str(record["row_id"]),
+            sequence_id=str(record["sequence_id"]),
+            stage="annotation",
+            category="internal_error",
+            message=str(error) or type(error).__name__,
+            traceback_text=traceback_text,
+        )
+        for record in input_frame.iter_rows(named=True)
+    )
+    basename = os.path.basename(input_file)
+    output_path = os.path.join(output_directory, f"{basename}_annotated.parquet")
+    pl.DataFrame(schema=ANNOTATION_WORK_SCHEMA).write_parquet(output_path)
+    failed_log_path = os.path.join(log_directory, f"{basename}.failed")
+    with open(failed_log_path, "w") as log:
+        log.write(traceback_text)
+    return AnnotationChunkResult(output_path, failures, failed_log_path, None)
+
+
+def _raise_pipeline_failure(
+    error: Exception,
+    *,
+    sample_ordinal: int,
+    sample_name: str,
+    log_directory: str,
+    stage: str,
+    category: str,
+    partial_output_paths: Iterable[str] = (),
+) -> None:
+    """Persist a pipeline-boundary diagnostic before raising its run error."""
+    traceback_text = traceback.format_exc()
+    message = str(error) or type(error).__name__
+    partial_output_paths = list(partial_output_paths)
+    failed_log_file = os.path.join(log_directory, f"{sample_name}.failed")
+    try:
+        os.makedirs(log_directory, exist_ok=True)
+        with open(failed_log_file, "w") as failed_log:
+            failed_log.write(traceback_text)
+    except OSError as log_error:
+        # A caller project may itself be unwritable or a regular file. Retain
+        # its failure in a separate directory, independent of caller storage.
+        retained_directory = None
+        try:
+            retained_directory = tempfile.mkdtemp(prefix="abstar-failed-")
+            failed_log_file = os.path.join(retained_directory, f"{sample_name}.failed")
+            with open(failed_log_file, "w") as failed_log:
+                failed_log.write(traceback_text)
+                failed_log.write(f"\nCould not write the project diagnostic: {log_error}\n")
+            partial_output_paths.append(failed_log_file)
+        except OSError as fallback_error:
+            # Preserve the original failure even when both diagnostic stores
+            # are unavailable. Never report an incomplete fallback artifact.
+            if retained_directory is not None:
+                shutil.rmtree(retained_directory, ignore_errors=True)
+            message += (
+                f"\nCould not persist diagnostics: {log_error}; "
+                f"fallback diagnostic failed: {fallback_error}"
+            )
+    else:
+        partial_output_paths.append(failed_log_file)
+    failure = RecordFailure(
+        row_id=f"abstar_{sample_ordinal}_{stage}",
+        sequence_id=sample_name,
+        stage=stage,
+        category=category,
+        message=message,
+        traceback_text=traceback_text,
+    )
+    raise AnnotationRunError([failure], partial_output_paths) from error
+
+
+def _write_sample_outputs(
+    public_df, project_path, sample_name, sample_ordinal, output_format, annotated_files,
+):
+    """Stage both formats before publishing; report any promoted files as partial."""
+    published = []
+    try:
+        with tempfile.TemporaryDirectory(
+            prefix="output-", dir=os.path.join(project_path, "tmp"),
+        ) as staging:
+            if "airr" in output_format:
+                airr_file = os.path.join(staging, f"{sample_name}.tsv")
+                write_airr_tsv(public_df, airr_file)
+            if "parquet" in output_format:
+                parquet_file = os.path.join(
+                    staging, f"{sample_name}.parquet"
+                )
+                # Map official sequence fields only at the final file boundary.
+                # API objects/work Parquets retain their assembled meanings;
+                # public Parquet coordinates and all other values stay native.
+                parquet_rows = public_df.to_dicts()
+                for row in parquet_rows:
+                    row["sequence"] = row["sequence_input"]
+                    frame = row["v_frame"] if row["v_frame"] is not None else row["frame"]
+                    row["sequence_aa"] = translate_airr_query(
+                        row["sequence_oriented"], query_start=row["v_sequence_start"], frame=frame,
+                    )
+                    row["sequence_alignment_aa"], row["germline_alignment_aa"] = translate_airr_alignment(
+                        row["sequence_alignment"], row["germline_alignment"], frame=frame,
+                    )
+                pl.DataFrame(parquet_rows, schema=public_df.schema).write_parquet(parquet_file)
+
+            for fmt, suffix in (("airr", "tsv"), ("parquet", "parquet")):
+                if fmt in output_format:
+                    final_path = os.path.join(project_path, fmt, f"{sample_name}.{suffix}")
+                    os.replace(os.path.join(staging, f"{sample_name}.{suffix}"), final_path)
+                    published.append(final_path)
+    except Exception as error:
+        _raise_pipeline_failure(
+            error, sample_ordinal=sample_ordinal, sample_name=sample_name,
+            log_directory=os.path.join(project_path, "logs"), stage="output",
+            category="internal_error", partial_output_paths=[*annotated_files, *published],
+        )
+    return published
+
+
+@contextmanager
+def _project_workspace(project_path, debug, published_outputs):
+    """Own API scratch; secondary retention errors never replace run failures."""
+    owned = project_path is None
+    workspace = (
+        tempfile.mkdtemp(prefix="abstar-debug-" if debug else "abstar-")
+        if owned else os.path.abspath(project_path)
+    )
+    keep_workspace = debug or not owned
+    try:
+        yield workspace
+    except AnnotationRunError as error:
+        paths = [*error.partial_output_paths, *published_outputs]
+        if owned:
+            # This workspace belongs only to this run, so these cannot be
+            # historical project diagnostics. Debug retains the same paths.
+            paths.extend(str(path) for path in sorted((Path(workspace) / "logs").glob("*.failed")))
+            keep_workspace = True
+            if not debug:
+                retained = None
+                try:
+                    retained_root = tempfile.mkdtemp(prefix="abstar-failed-")
+                    retained = os.path.join(retained_root, "project")
+                    shutil.move(workspace, retained)
+                except OSError as retention_error:
+                    diagnostic = f"Could not retain failed workspace: {retention_error}"
+                    error.retention_diagnostics += (diagnostic,)
+                    error.args = (f"{error}\n{diagnostic}",)
+                    # The move may have transferred some or all files before
+                    # failing. Keep both owned locations; list actual survivors.
+                if retained is not None:
+                    paths.extend(
+                        os.path.join(retained, os.path.relpath(path, workspace))
+                        for path in tuple(paths)
+                        if Path(path).is_relative_to(workspace)
+                    )
+        error.partial_output_paths = tuple(dict.fromkeys(
+            path for path in paths if os.path.isfile(path)
+        ))
+        raise
+    finally:
+        if owned and not keep_workspace:
+            shutil.rmtree(workspace, ignore_errors=True)
+
+
+def _validate_assignment_database(assigner: MMseqs) -> None:
+    """Check required source and index components in the resolved database."""
+    components = []
+    index_names = [path.name for path in (Path(assigner.germdb_path) / "mmseqs").glob("*")]
+    for segment in ("v", "j", "d", "c"):
+        segment_components = [
+            os.path.join(directory, f"{segment}.fasta")
+            for directory in ("ungapped", "imgt_gapped")
+        ]
+        segment_components.extend(
+            os.path.join("mmseqs", f"{segment}{suffix}")
+            for suffix in ("", ".dbtype", ".index", "_h", "_h.dbtype", "_h.index")
+        )
+        # Custom VJ-only databases may omit D/C entirely. Once a segment is
+        # present its source and search components must be available together.
+        if segment in ("d", "c"):
+            present = any(
+                os.path.lexists(os.path.join(assigner.germdb_path, component))
+                for component in segment_components
+            ) or any(
+                name == segment or name.startswith((f"{segment}.", f"{segment}_"))
+                for name in index_names
+            )
+            if not present:
+                continue
+        components.extend(segment_components)
+    missing = [component for component in components
+               if not os.path.isfile(os.path.join(assigner.germdb_path, component))]
+    if missing:
+        raise FileNotFoundError(
+            f"Incomplete germline database {assigner.germdb_name!r} for receptor "
+            f"{assigner.receptor!r}: missing {', '.join(missing)}"
+        )
 
 #  TODO: inputs/returns
 #  --------------------
@@ -138,13 +416,14 @@ def run(
         annotated sequecnes will be returned as ``Sequence`` objects and log/tmp directories will be placed in
         ``"/tmp"``.
 
-        .. warning::
-            If ``debug=False`` (the default), the temporary directory will be removed during cleanup. If a
-            directory named ``"tmp"`` exists in the provided `project_path`, it will be deleted.
+        Without a project, owned temporary workspaces are cleaned unless ``debug=True``.
+        On failure, diagnostic/partial work is retained separately and exposed through
+        ``AnnotationRunError.partial_output_paths``. Caller project directories are retained.
 
     germline_database : str = "human",
         Name of the germline database to be used for assignment/annotation. Built-in options are
-        "human", "mouse", and "macaque" and "humouse".
+        BCR: "human", "macaque", "c57bl6", "balbc", and "human+c57bl6".
+        The built-in TCR database is "human".
 
     receptor : str = "bcr",
         Name of the receptor to be used for assignment/annotation. Options are "bcr" and "tcr".
@@ -207,6 +486,14 @@ def run(
 
     """
     # validate public arguments before creating any project directories
+    if not callable(getattr(abutils.tl, "translate", None)):
+        raise AnnotationRunError([
+            RecordFailure(
+                "run", "<run>", "preprocess", "internal_error",
+                "abutils.tl.translate is required; install a compatible abutils "
+                "version (>=0.6.0) in the Python environment running abstar.",
+            )
+        ])
     if isinstance(output_format, str):
         output_format = [output_format]
     else:
@@ -223,258 +510,380 @@ def run(
         raise ValueError(
             f"Unsupported output format: {invalid}. Supported formats are 'airr' and 'parquet'."
         )
-    if not isinstance(chunksize, int) or chunksize <= 0:
+    if isinstance(chunksize, bool) or not isinstance(chunksize, int) or chunksize <= 0:
         raise ValueError("chunksize must be a positive integer")
-    if not isinstance(mmseqs_chunksize, int) or mmseqs_chunksize <= 0:
+    if (
+        isinstance(mmseqs_chunksize, bool)
+        or not isinstance(mmseqs_chunksize, int)
+        or mmseqs_chunksize <= 0
+    ):
         raise ValueError("mmseqs_chunksize must be a positive integer")
     if n_processes is not None and (
-        not isinstance(n_processes, int) or n_processes <= 0
+        isinstance(n_processes, bool)
+        or not isinstance(n_processes, int)
+        or n_processes <= 0
     ):
         raise ValueError("n_processes must be a positive integer or None")
 
-    # set up log/output/temp directories
-    if project_path is not None:
-        return_sequences = False
-        project_path = os.path.abspath(project_path)
-    else:
-        return_sequences = True
+    return_sequences = project_path is None
+    if return_sequences:
         sequences_to_return = []
         dataframes_to_return = []
         output_format = ["parquet"]
-        project_path = tempfile.TemporaryDirectory(prefix="abstar", dir="/tmp").name
-    log_dir = os.path.join(project_path, "logs")
-    abutils.io.make_dir(log_dir)
-    temp_dir = os.path.join(project_path, "tmp")
-    abutils.io.make_dir(temp_dir)
-    for fmt in output_format:
-        abutils.io.make_dir(os.path.join(project_path, fmt))
+    published_outputs = []
+    with _project_workspace(project_path, debug, published_outputs) as project_path:
+        log_dir = os.path.join(project_path, "logs")
+        temp_dir = os.path.join(project_path, "tmp")
+        # Discover files and validate/materialize iterable inputs before creating
+        # the project. _process_inputs writes only after finding a nonempty input.
+        try:
+            sequence_files = _process_inputs(sequences, temp_dir)
+            os.makedirs(log_dir, exist_ok=True)
+            os.makedirs(temp_dir, exist_ok=True)
+            for fmt in output_format:
+                os.makedirs(os.path.join(project_path, fmt), exist_ok=True)
+        except OSError as error:
+            _raise_pipeline_failure(
+                error, sample_ordinal=0, sample_name="run", log_directory=log_dir,
+                stage="output", category="internal_error",
+            )
 
-    # setup logging
-    global logger
-    if started_from_cli:
-        logger = _setup_logging(
-            log_dir,
-            add_stream_handler=verbose,
-            single_line_handler=True,
-            debug=debug,
-        )
-    elif verbose or concise_logging:
-        verbose = True
-        logger = abutils.log.NotebookLogger(verbose=verbose, end="")
-    else:
-        logger = abutils.log.null_logger()
-
-    if started_from_cli:
-        _log_run_parameters(
-            project_path=project_path,
-            germline_database=germline_database,
-            receptor=receptor,
-            output_format=output_format,
-            umi_pattern=umi_pattern,
-            umi_length=umi_length,
-            merge=merge,
-            merge_kwargs=merge_kwargs,
-            interleaved_fastq=interleaved_fastq,
-            chunksize=chunksize,
-            n_processes=n_processes,
-            copy_inputs_to_project=copy_inputs_to_project,
-            verbose=verbose,
-            debug=debug,
-        )
-
-    # process input sequences
-    sequence_files = _process_inputs(sequences, temp_dir)
-    if copy_inputs_to_project:
-        _copy_inputs_to_project(sequence_files, project_path)
-
-    # merge FASTQ files
-    if merge or interleaved_fastq:
-        merge_dir = os.path.join(project_path, "merged")
-        abutils.io.make_dir(merge_dir)
-        merge_log_dir = os.path.join(log_dir, "merge_fastqs")
-        abutils.io.make_dir(merge_log_dir)
-        # log merge info
-        if not concise_logging:
-            logger.info("\n\n\n")
-            logger.info("MERGE FASTQS\n")
-            logger.info("============\n")
-            logger.info(f"merge directory: {merge_dir}\n")
-            # merging
-        sequence_files = merge_fastqs(
-            sequence_files,
-            merge_dir,
-            interleaved=interleaved_fastq,
-            show_progress=verbose,
-            log_directory=merge_log_dir,
-            **(merge_kwargs or {}),
-        )
-
-    # print sequence file info
-    if started_from_cli:
-        _log_sequence_file_info(sequence_files)
-
-    # annotation config
-    if n_processes is None:
-        n_processes = mp.cpu_count()
-    annot_kwargs = {
-        "output_directory": temp_dir,
-        "germline_database": germline_database,
-        "log_directory": log_dir,
-        "umi_pattern": umi_pattern,
-        "umi_length": umi_length,
-        "debug": debug,
-    }
-
-    # initialize the assigner
-    assigner = MMseqs(
-        output_directory=temp_dir,
-        log_directory=log_dir,
-        germdb_name=germline_database,
-        receptor=receptor,
-        logger=logger,
-        concise_logging=concise_logging,
-        chunksize=mmseqs_chunksize,
-        threads=mmseqs_threads,
-        debug=debug,
-    )
-
-    # annotate sequences
-    sequence_files = natsorted(sequence_files)
-    sample_names = _get_sample_names(sequence_files)
-    total_input_count = 0
-    for sequence_file in sequence_files:
-        start_time = datetime.now()
-        to_delete = []
-
-        sample_name = sample_names[sequence_file]
-        # log sample info
+        # setup logging
+        global logger
         if started_from_cli:
-            logger.info("\n\n")
-            logger.info("-" * (len(sample_name) + 4))
-            logger.info("\n")
-            logger.info(f"  {sample_name}\n")
-            logger.info("-" * (len(sample_name) + 4))
-            logger.info("\n")
-
-        # assign VDJC genes, the returned assign_file is in parquet format
-        assign_file, raw_sequence_count = assigner(
-            sequence_file, sample_name=sample_name
-        )
-        total_input_count += raw_sequence_count
-        assigner.cleanup()
-
-        # split into annotation jobs
-        split_assign_files = abutils.io.split_parquet(
-            assign_file, temp_dir, num_rows=chunksize
-        )
-
-        # run annotation jobs
-        annotated_files = []
-        failed_log_files = []
-        succeeded_log_files = []
-        # log annotation info
-        if concise_logging:
-            logger.info("\nsequence annotation: ")
+            logger = _setup_logging(
+                log_dir,
+                add_stream_handler=verbose,
+                single_line_handler=True,
+                debug=debug,
+            )
+        elif verbose or concise_logging:
+            verbose = True
+            logger = abutils.log.NotebookLogger(verbose=verbose, end="")
         else:
-            logger.info("\n")
-            logger.info("sequence annotation:\n")
-        if verbose and started_from_cli:
-            progress_bar = tqdm(
-                total=len(split_assign_files),
-                bar_format="{desc:<2.5}{percentage:3.0f}%|{bar:25}{r_bar}",
-            )
-        elif verbose:
-            progress_bar = tqdm(
-                total=len(split_assign_files),
-            )
-        with ProcessPoolExecutor(
-            max_workers=n_processes,
-            mp_context=mp.get_context("spawn"),
-        ) as executor:
-            futures = {
-                executor.submit(annotate, f, **annot_kwargs): index
-                for index, f in enumerate(split_assign_files)
-            }
-            chunk_results = [None] * len(futures)
-            for future in as_completed(futures):
-                chunk_results[futures[future]] = future.result()
-                if verbose:
-                    progress_bar.update(1)
-            for annotated, failed, succeeded in chunk_results:
-                annotated_files.append(annotated)
-                failed_log_files.append(failed)
-                succeeded_log_files.append(succeeded)
-        if verbose:
-            progress_bar.close()
+            logger = abutils.log.null_logger()
 
-        # get output Sequences
-        if return_sequences:
-            if as_dataframe:
-                sequence_df = pl.read_parquet(annotated_files)
-                dataframes_to_return.append(sequence_df)
-                sequence_count = sequence_df.height
-            else:
-                annotated_sequences = abutils.io.read_parquet(annotated_files)
-                sequences_to_return.extend(annotated_sequences)
-                sequence_count = len(annotated_sequences)
-
-            # log results summary
-            duration = datetime.now() - start_time
-            _log_results_summary(
-                sequence_count=sequence_count,
-                sequences_per_second=raw_sequence_count / duration.total_seconds(),
-                seconds=duration.total_seconds(),
-                concise_logging=concise_logging,
+        if started_from_cli:
+            _log_run_parameters(
+                project_path=project_path,
+                germline_database=germline_database,
+                receptor=receptor,
+                output_format=output_format,
+                umi_pattern=umi_pattern,
+                umi_length=umi_length,
+                merge=merge,
+                merge_kwargs=merge_kwargs,
+                interleaved_fastq=interleaved_fastq,
+                chunksize=chunksize,
+                n_processes=n_processes,
+                copy_inputs_to_project=copy_inputs_to_project,
+                verbose=verbose,
+                debug=debug,
             )
 
-        # or assemble output files (including logs)
-        else:
-            output_df = pl.scan_parquet(annotated_files)
-            if "airr" in output_format:
-                airr_file = os.path.join(project_path, f"airr/{sample_name}.tsv")
-                output_df.sink_csv(airr_file, separator="\t")
-            if "parquet" in output_format:
-                parquet_file = os.path.join(
-                    project_path, f"parquet/{sample_name}.parquet"
+        if copy_inputs_to_project:
+            input_root = (
+                sequences
+                if isinstance(sequences, str) and os.path.isdir(sequences)
+                else None
+            )
+            _copy_inputs_to_project(sequence_files, project_path, input_root=input_root)
+
+        # merge FASTQ files
+        if merge or interleaved_fastq:
+            merge_dir = os.path.join(project_path, "merged")
+            abutils.io.make_dir(merge_dir)
+            merge_log_dir = os.path.join(log_dir, "merge_fastqs")
+            abutils.io.make_dir(merge_log_dir)
+            # log merge info
+            if not concise_logging:
+                logger.info("\n\n\n")
+                logger.info("MERGE FASTQS\n")
+                logger.info("============\n")
+                logger.info(f"merge directory: {merge_dir}\n")
+                # merging
+            try:
+                sequence_files = merge_fastqs(
+                    sequence_files,
+                    merge_dir,
+                    interleaved=interleaved_fastq,
+                    show_progress=verbose,
+                    log_directory=merge_log_dir,
+                    **(merge_kwargs or {}),
                 )
-                output_df.sink_parquet(parquet_file)
-            # assemble logs
+            except MergeExternalToolError as error:
+                _raise_pipeline_failure(
+                    error,
+                    sample_ordinal=0,
+                    sample_name="merge_fastqs",
+                    log_directory=log_dir,
+                    stage="preprocess",
+                    category="external_tool",
+                )
+
+        # print sequence file info
+        if started_from_cli:
+            _log_sequence_file_info(sequence_files)
+
+        # annotation config
+        if n_processes is None:
+            n_processes = mp.cpu_count()
+        annot_kwargs = {
+            "output_directory": temp_dir,
+            "germline_database": germline_database,
+            "log_directory": log_dir,
+            "umi_pattern": umi_pattern,
+            "umi_length": umi_length,
+            "debug": debug,
+        }
+
+        # initialize the assigner
+        assigner = MMseqs(
+            output_directory=temp_dir,
+            log_directory=log_dir,
+            germdb_name=germline_database,
+            receptor=receptor,
+            logger=logger,
+            concise_logging=concise_logging,
+            chunksize=mmseqs_chunksize,
+            threads=mmseqs_threads,
+            debug=debug,
+        )
+
+        # annotate sequences
+        sequence_files = natsorted(sequence_files)
+        sample_names = _get_sample_names(sequence_files)
+        total_input_count = 0
+        total_annotated_count = 0
+        total_unassigned_count = 0
+        all_failures = []
+        for sample_ordinal, sequence_file in enumerate(sequence_files):
+            start_time = datetime.now()
+            to_delete = []
+
+            sample_name = sample_names[sequence_file]
+            # log sample info
+            if started_from_cli:
+                logger.info("\n\n")
+                logger.info("-" * (len(sample_name) + 4))
+                logger.info("\n")
+                logger.info(f"  {sample_name}\n")
+                logger.info("-" * (len(sample_name) + 4))
+                logger.info("\n")
+
+            # assign VDJC genes, the returned assign_file is in parquet format
+            try:
+                _validate_assignment_database(assigner)
+            except FileNotFoundError as error:
+                _raise_pipeline_failure(
+                    error, sample_ordinal=sample_ordinal, sample_name=sample_name,
+                    log_directory=log_dir, stage="assignment", category="invalid_input",
+                )
+            try:
+                assign_file, raw_sequence_count = assigner(
+                    sequence_file,
+                    sample_name=sample_name,
+                    sample_ordinal=sample_ordinal,
+                )
+            except AssignmentInputError as error:
+                _raise_pipeline_failure(
+                    error,
+                    sample_ordinal=sample_ordinal,
+                    sample_name=sample_name,
+                    log_directory=log_dir,
+                    stage="preprocess",
+                    category="invalid_input",
+                )
+            except AssignmentExternalToolError as error:
+                _raise_pipeline_failure(
+                    error,
+                    sample_ordinal=sample_ordinal,
+                    sample_name=sample_name,
+                    log_directory=log_dir,
+                    stage="assignment",
+                    category="external_tool",
+                )
+            except Exception as error:
+                _raise_pipeline_failure(
+                    error,
+                    sample_ordinal=sample_ordinal,
+                    sample_name=sample_name,
+                    log_directory=log_dir,
+                    stage="assignment",
+                    category="internal_error",
+                )
+            total_input_count += raw_sequence_count
+            assigner.cleanup()
+
+            # split into annotation jobs
+            split_assign_files = abutils.io.split_parquet(
+                assign_file, temp_dir, num_rows=chunksize
+            )
+
+            # run annotation jobs
+            annotated_files = []
+            failed_log_files = []
+            succeeded_log_files = []
+            # log annotation info
+            if concise_logging:
+                logger.info("\nsequence annotation: ")
+            else:
+                logger.info("\n")
+                logger.info("sequence annotation:\n")
+            if verbose and started_from_cli:
+                progress_bar = tqdm(
+                    total=len(split_assign_files),
+                    bar_format="{desc:<2.5}{percentage:3.0f}%|{bar:25}{r_bar}",
+                )
+            elif verbose:
+                progress_bar = tqdm(
+                    total=len(split_assign_files),
+                )
+            with ProcessPoolExecutor(
+                max_workers=n_processes,
+                mp_context=mp.get_context("spawn"),
+            ) as executor:
+                futures = {
+                    executor.submit(annotate, f, **annot_kwargs): index
+                    for index, f in enumerate(split_assign_files)
+                }
+                chunk_results = [None] * len(futures)
+                for future in as_completed(futures):
+                    result_index = futures[future]
+                    try:
+                        chunk_results[result_index] = future.result()
+                    except Exception as error:
+                        chunk_results[result_index] = _chunk_failure_result(
+                            split_assign_files[result_index], temp_dir, log_dir, error
+                        )
+                    if verbose:
+                        progress_bar.update(1)
+                for result in chunk_results:
+                    annotated_files.append(result.output_path)
+                    failed_log_files.append(result.failed_log_path)
+                    succeeded_log_files.append(result.succeeded_log_path)
+                    all_failures.extend(result.failures)
+            if verbose:
+                progress_bar.close()
+
+            work_frames = [pl.read_parquet(path) for path in annotated_files]
+            work_df = _sort_annotation_workframe(pl.concat(work_frames, how="diagonal"))
+            sample_failures = [
+                failure for result in chunk_results for failure in result.failures
+            ]
+            annotated_count = work_df.filter(
+                pl.col("annotation_status") == "annotated"
+            ).height
+            unassigned_count = work_df.filter(
+                pl.col("annotation_status") == "unassigned"
+            ).height
+            _assert_record_conservation(
+                raw_sequence_count,
+                annotated_count,
+                unassigned_count,
+                sample_failures,
+            )
+            total_annotated_count += annotated_count
+            total_unassigned_count += unassigned_count
+            public_df = work_df.drop("row_id")
+
             failed_log_file = os.path.join(log_dir, f"{sample_name}.failed")
             _assemble_logs(failed_log_files, failed_log_file)
             if debug:
-                # only log succeeded sequences if we're in debug mode
                 succeeded_log_file = os.path.join(log_dir, f"{sample_name}.succeeded")
                 _assemble_logs(succeeded_log_files, succeeded_log_file)
 
-            # log results summary
-            sequence_count = output_df.select(pl.count()).collect().row(0)[0]
-            duration = datetime.now() - start_time
-            _log_results_summary(
-                sequence_count=sequence_count,
-                sequences_per_second=raw_sequence_count / duration.total_seconds(),
-                seconds=duration.total_seconds(),
-                concise_logging=concise_logging,
-            )
+            if sample_failures:
+                with open(failed_log_file, "a") as failed_log:
+                    failed_log.write(
+                        f"\nRECEPTOR: {receptor}\nGERMLINE DATABASE: {germline_database}\n"
+                    )
+                    for failure in sample_failures:
+                        failed_log.write(
+                            f"\nROW ID: {failure.row_id}\nSEQUENCE ID: {failure.sequence_id}\n"
+                            f"{failure.stage}/{failure.category}: {failure.message}\n"
+                        )
+                raise AnnotationRunError(sample_failures, [*annotated_files, failed_log_file])
 
-        # collect files for removal
-        to_delete.append(assign_file)
-        to_delete.extend(split_assign_files)
-        to_delete.extend(annotated_files)
-        to_delete.extend(succeeded_log_files)
-        to_delete.extend(failed_log_files)
+            # get output Sequences
+            if return_sequences:
+                if as_dataframe:
+                    dataframes_to_return.append(public_df)
+                    sequence_count = public_df.height
+                else:
+                    annotated_sequences = [
+                        Sequence(record, id_key="sequence_id", seq_key="sequence")
+                        for record in public_df.to_dicts()
+                    ]
+                    sequences_to_return.extend(annotated_sequences)
+                    sequence_count = len(annotated_sequences)
 
-        # remove tmp files
-        if not debug:
-            _delete_files(to_delete)
+                # log results summary
+                duration = datetime.now() - start_time
+                _log_results_summary(
+                    sequence_count=sequence_count,
+                    sequences_per_second=raw_sequence_count / duration.total_seconds(),
+                    seconds=duration.total_seconds(),
+                    concise_logging=concise_logging,
+                )
 
-    if return_sequences:
-        if as_dataframe:
-            return pl.concat(dataframes_to_return, how="vertical")
-        if total_input_count == 1 and len(sequences_to_return) == 1:
-            return sequences_to_return[0]
-        return sequences_to_return
-    else:
-        return
+            # or assemble output files (including logs)
+            else:
+                published_outputs.extend(_write_sample_outputs(
+                    public_df, project_path, sample_name, sample_ordinal,
+                    output_format, annotated_files,
+                ))
+
+                # log results summary
+                sequence_count = public_df.height
+                duration = datetime.now() - start_time
+                _log_results_summary(
+                    sequence_count=sequence_count,
+                    sequences_per_second=raw_sequence_count / duration.total_seconds(),
+                    seconds=duration.total_seconds(),
+                    concise_logging=concise_logging,
+                )
+
+            # collect files for removal
+            to_delete.append(assign_file)
+            to_delete.extend(split_assign_files)
+            to_delete.extend(annotated_files)
+            to_delete.extend(succeeded_log_files)
+            to_delete.extend(failed_log_files)
+
+            # remove tmp files
+            if not debug:
+                _delete_files(to_delete)
+
+        _assert_record_conservation(
+            total_input_count,
+            total_annotated_count,
+            total_unassigned_count,
+            all_failures,
+        )
+        if return_sequences:
+            if as_dataframe:
+                return pl.concat(dataframes_to_return, how="vertical")
+            if total_input_count == 1 and len(sequences_to_return) == 1:
+                return sequences_to_return[0]
+            return sequences_to_return
+        else:
+            return
+
+
+def _has_input_content(path: str) -> bool:
+    """Check for nonwhitespace bytes without parsing or materializing records."""
+    open_input = gzip.open if path.endswith(".gz") else open
+    try:
+        with open_input(path, "rb") as handle:
+            while chunk := handle.read(8192):
+                if chunk.strip():
+                    return True
+    except (OSError, EOFError):
+        # Unreadable/corrupt files still belong to the assigner's input boundary,
+        # which classifies the error and persists diagnostics before raising.
+        return True
+    return False
 
 
 def _process_inputs(
@@ -499,6 +908,8 @@ def _process_inputs(
     """
     sequence_files = None
     if isinstance(sequences, str):
+        if not sequences.strip():
+            raise ValueError("Input sequences cannot be empty.")
         # input is a string -- either a file/directory path or a raw sequence string
         if os.path.isfile(sequences):
             sequence_files = [os.path.abspath(sequences)]
@@ -520,6 +931,7 @@ def _process_inputs(
         # input is a Sequence or an iterable of Sequences
         if not sequences:
             raise ValueError("Input sequences cannot be empty.")
+        abutils.io.make_dir(temp_dir)
         temp_file = open(os.path.join(temp_dir, "sequences.fasta"), "w")
         fastas = [seq.fasta for seq in sequences]
         temp_file.write("\n".join(fastas))
@@ -532,10 +944,15 @@ def _process_inputs(
     sequence_files = natsorted(os.path.abspath(path) for path in sequence_files)
     if not sequence_files:
         raise ValueError("No supported FASTA or FASTQ files were found in the input directory.")
+    sequence_files = [path for path in sequence_files if _has_input_content(path)]
+    if not sequence_files:
+        raise ValueError("Input sequence files cannot be empty.")
     return sequence_files
 
 
-def _copy_inputs_to_project(sequence_files: Iterable[str], project_path: str) -> None:
+def _copy_inputs_to_project(
+    sequence_files: Iterable[str], project_path: str, input_root: str | None = None
+) -> None:
     """
     Copy input sequences to the project directory.
 
@@ -546,12 +963,19 @@ def _copy_inputs_to_project(sequence_files: Iterable[str], project_path: str) ->
 
     project_path : str
         The path to the project directory.
+
+    input_root : Optional[str]
+        Original input directory, used to preserve all nested relative paths.
     """
     inputs_path = os.path.join(project_path, "input")
     abutils.io.make_dir(inputs_path)
     sequence_files = [os.path.abspath(path) for path in sequence_files]
-    common_root = os.path.commonpath(sequence_files)
-    if len(sequence_files) == 1 or os.path.isfile(common_root):
+    common_root = (
+        os.path.abspath(input_root)
+        if input_root is not None
+        else os.path.commonpath(sequence_files)
+    )
+    if input_root is None and (len(sequence_files) == 1 or os.path.isfile(common_root)):
         common_root = os.path.dirname(common_root)
     for f in sequence_files:
         relative_path = os.path.relpath(f, common_root)
@@ -752,7 +1176,7 @@ def _log_results_summary(
     )
 
 
-ABSTAR_SPLASH = """
+ABSTAR_SPLASH = r"""
          __         __ 
   ____ _/ /_  _____/ /_____ ______
  / __ `/ __ \/ ___/ __/ __ `/ ___/

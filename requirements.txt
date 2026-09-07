@@ -1,9 +1,9 @@
-abutils>=0.5.1
+abutils>=0.6,<0.7
+biopython>=1.80
 click
 matplotlib
 numpy
 pandas
 parasail
-polars
-pyarrow
-pytest
+polars>=1.6,<2
+pyarrow>=16.1,<26

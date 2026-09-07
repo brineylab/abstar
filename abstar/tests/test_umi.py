@@ -4,10 +4,10 @@
 
 import os
 import pytest
+from abstar import run
 from abutils import Sequence
 
 from ..annotation.umi import UMI, parse_umis
-from ..core.abstar import run
 
 
 def test_umi_slice_positive_length():
@@ -178,7 +178,8 @@ def test_file_retains_record_without_detected_umi(tmp_path):
         allowed_mismatches=0,
     )
 
-    output = open(output_path).read()
+    with open(output_path) as output_file:
+        output = output_file.read()
     assert ">matched_AAAA" in output
     assert ">unmatched\n" in output
 
@@ -196,6 +197,7 @@ def test_file_rejects_explicit_in_place_output(tmp_path):
         )
 
 
+@pytest.mark.e2e
 def test_annotation_pipeline_retains_sequence_without_umi(single_hc_sequence):
     result = run(
         single_hc_sequence,
@@ -207,3 +209,40 @@ def test_annotation_pipeline_retains_sequence_without_umi(single_hc_sequence):
     assert isinstance(result, Sequence)
     assert result.id == single_hc_sequence.id
     assert result["umi"] is None
+
+
+@pytest.mark.e2e
+def test_annotation_pipeline_conserves_umi_present_and_absent_records(
+    public_bcr_cases,
+):
+    baseline = run(
+        [case.as_sequence() for case in public_bcr_cases[:2]],
+        n_processes=1,
+        mmseqs_threads=1,
+    )
+    inputs = [
+        Sequence(
+            "TTTTTTTTACGT" + public_bcr_cases[0].sequence,
+            id=public_bcr_cases[0].sequence_id,
+        ),
+        public_bcr_cases[1].as_sequence(),
+    ]
+
+    result = run(
+        inputs,
+        umi_pattern="TTTTTTTT[UMI]",
+        umi_length=4,
+        n_processes=1,
+        mmseqs_threads=1,
+    )
+
+    assert [record.id for record in result] == [record.id for record in inputs]
+    assert [record["annotation_status"] for record in result] == ["annotated", "annotated"]
+    assert [record["failure_reason"] for record in result] == [None, None]
+    assert [record["umi"] for record in result] == ["ACGT", None]
+    for observed, expected in zip(result, baseline):
+        assert (
+            observed["v_call"], observed["d_call"], observed["j_call"], observed["c_call"]
+        ) == (
+            expected["v_call"], expected["d_call"], expected["j_call"], expected["c_call"]
+        )

@@ -25,12 +25,16 @@
 import datetime
 import difflib
 import json
+import logging
 import os
+import shlex
 import shutil
+import stat
 import subprocess as sp
 import sys
 import tempfile
 import uuid
+from contextlib import contextmanager
 from concurrent.futures import ThreadPoolExecutor
 from typing import Iterable
 
@@ -47,7 +51,49 @@ from tqdm.auto import tqdm
 from ..gl import get_germline, get_germline_database_path
 from ..utils import MATRIX_PATH
 
+try:
+    import fcntl as _fcntl
+except ImportError:  # pragma: no cover - exercised through the Windows backend test
+    _fcntl = None
+
+try:
+    import msvcrt as _msvcrt
+except ImportError:  # pragma: no cover - unavailable on POSIX
+    _msvcrt = None
+
+
+logger = logging.getLogger(__name__)
+
 __all__ = ["build_germline_database"]
+
+
+class GermlineBuildExternalToolError(RuntimeError):
+    """A custom-database build command failed with inspectable diagnostics."""
+
+    def __init__(self, message, *, command=(), returncode=None, stdout="", stderr=""):
+        self.command = tuple(command)
+        self.returncode = returncode
+        self.stdout = stdout
+        self.stderr = stderr
+        if self.command:
+            message += (
+                f"\nCOMMAND: {shlex.join(self.command)}\nEXIT STATUS: {returncode}"
+                f"\nSTDOUT:\n{stdout}\nSTDERR:\n{stderr}"
+            )
+        super().__init__(message)
+
+
+class GermlinePublicationError(RuntimeError):
+    """Publication and rollback both failed, leaving a recoverable backup."""
+
+    def __init__(self, primary_error, rollback_error, backup_path):
+        self.primary_error = primary_error
+        self.rollback_error = rollback_error
+        self.backup_path = backup_path
+        super().__init__(
+            f"database publication failed: {primary_error}; rollback failed: "
+            f"{rollback_error}; existing database retained at {backup_path}"
+        )
 
 # ===============================
 #
@@ -172,12 +218,14 @@ def build_germline_database(
         raise ValueError("database name must be a non-empty path-safe name")
 
     database_root = get_database_directory(receptor, location)
-    database_dir = os.path.join(database_root, name.lower())
-    replacing = os.path.exists(database_dir)
+    normalized_name = name.lower()
+    database_dir = os.path.join(database_root, normalized_name)
+    initial_destination = inspect_database_destination(database_dir)
+    replacing = initial_destination is not None
     if replacing:
         confirm_overwrite_existing_db(name)
 
-    staging_dir = tempfile.mkdtemp(prefix=f".{name.lower()}.staging-", dir=database_root)
+    staging_dir = tempfile.mkdtemp(prefix=f".{normalized_name}.staging-", dir=database_root)
     gapped_vdjs = []
     gapped_constants = []
     try:
@@ -271,7 +319,16 @@ def build_germline_database(
                 raise FileNotFoundError(f"The file {manifest} does not exist.")
             transfer_manifest_data(manifest, staging_dir)
 
-        publish_database(staging_dir, database_dir, replacing)
+        validate_staged_database(
+            staging_dir, receptor, require_manifest=manifest is not None
+        )
+        with database_build_lock(database_root, normalized_name):
+            current_destination = inspect_database_destination(database_dir)
+            if current_destination != initial_destination:
+                raise RuntimeError(
+                    f"germline database destination {database_dir} changed during build"
+                )
+            publish_database(staging_dir, database_dir, replacing)
         staging_dir = None
     finally:
         if staging_dir is not None:
@@ -568,12 +625,247 @@ def publish_database(staging_dir: str, database_dir: str, replacing: bool) -> No
         os.replace(database_dir, backup_dir)
     try:
         os.replace(staging_dir, database_dir)
-    except Exception:
+    except Exception as primary_error:
         if backup_dir is not None:
-            os.replace(backup_dir, database_dir)
+            try:
+                os.replace(backup_dir, database_dir)
+            except Exception as rollback_error:
+                raise GermlinePublicationError(
+                    primary_error, rollback_error, backup_dir
+                ) from primary_error
         raise
     if backup_dir is not None:
-        shutil.rmtree(backup_dir)
+        try:
+            shutil.rmtree(backup_dir)
+        except OSError as error:
+            _log_retained_backup(backup_dir, error)
+
+
+def _log_retained_backup(backup_dir: str, error: OSError) -> None:
+    """Report recoverable cleanup trouble without changing publication success."""
+    _safe_log_warning(
+        "Database published successfully, but backup cleanup failed: %s; "
+        "retained backup at %s",
+        error,
+        backup_dir,
+    )
+
+
+def _safe_log_warning(message: str, *args) -> None:
+    """Emit a secondary diagnostic without changing a completed operation."""
+    try:
+        logger.warning(message, *args)
+    except Exception:
+        # A broken logging handler cannot replace the operation's real outcome.
+        pass
+
+
+def inspect_database_destination(database_dir: str) -> tuple[int, int] | None:
+    """Return a safe directory identity without following destination links."""
+    try:
+        metadata = os.lstat(database_dir)
+    except FileNotFoundError:
+        return None
+    if stat.S_ISLNK(metadata.st_mode):
+        raise ValueError(
+            f"germline database destination must not be a symlink: {database_dir}"
+        )
+    if not stat.S_ISDIR(metadata.st_mode):
+        raise ValueError(
+            f"germline database destination must be a directory: {database_dir}"
+        )
+    return metadata.st_dev, metadata.st_ino
+
+
+@contextmanager
+def database_build_lock(database_root: str, name: str):
+    """Coordinate publication by abstar builders targeting the same database."""
+    lock_path = os.path.join(database_root, f".{name}.lock")
+    try:
+        lock_metadata = os.lstat(lock_path)
+    except FileNotFoundError:
+        pass
+    else:
+        if stat.S_ISLNK(lock_metadata.st_mode):
+            raise ValueError(f"database build lock must not be a symlink: {lock_path}")
+        if not stat.S_ISREG(lock_metadata.st_mode):
+            raise ValueError(f"database build lock must be a regular file: {lock_path}")
+    flags = os.O_CREAT | os.O_RDWR
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    descriptor = os.open(lock_path, flags, 0o600)
+    locked = False
+    try:
+        metadata = os.fstat(descriptor)
+        if not stat.S_ISREG(metadata.st_mode):
+            raise ValueError(f"database build lock must be a regular file: {lock_path}")
+        _lock_database_descriptor(descriptor)
+        locked = True
+        yield lock_path
+    finally:
+        if locked:
+            try:
+                _unlock_database_descriptor(descriptor)
+            except Exception as error:
+                _safe_log_warning(
+                    "Database build lock unlock failed for %s: %s; descriptor "
+                    "close will still be attempted and the publication outcome "
+                    "is unchanged",
+                    lock_path,
+                    error,
+                )
+        try:
+            os.close(descriptor)
+        except Exception as error:
+            _safe_log_warning(
+                "Database build lock descriptor close failed for %s: %s; OS-level "
+                "descriptor cleanup may be required and the publication outcome "
+                "is unchanged",
+                lock_path,
+                error,
+            )
+
+
+def _lock_database_descriptor(descriptor: int) -> None:
+    if _fcntl is not None:
+        _fcntl.flock(descriptor, _fcntl.LOCK_EX)
+        return
+    if _msvcrt is not None:
+        if os.fstat(descriptor).st_size == 0:
+            os.write(descriptor, b"\0")
+        os.lseek(descriptor, 0, os.SEEK_SET)
+        _msvcrt.locking(descriptor, _msvcrt.LK_LOCK, 1)
+        return
+    raise RuntimeError("no supported database build lock backend is available")
+
+
+def _unlock_database_descriptor(descriptor: int) -> None:
+    if _fcntl is not None:
+        _fcntl.flock(descriptor, _fcntl.LOCK_UN)
+        return
+    os.lseek(descriptor, 0, os.SEEK_SET)
+    _msvcrt.locking(descriptor, _msvcrt.LK_UNLCK, 1)
+
+
+_MMSEQS_COMPONENT_SUFFIXES = (
+    "",
+    ".dbtype",
+    ".index",
+    "_h",
+    "_h.dbtype",
+    "_h.index",
+)
+
+
+def validate_staged_database(
+    database_dir: str, receptor: str, *, require_manifest: bool = False
+) -> None:
+    """Validate a complete custom database before it becomes discoverable."""
+    database_dir = os.path.abspath(database_dir)
+    staging_metadata = os.lstat(database_dir)
+    if stat.S_ISLNK(staging_metadata.st_mode) or not stat.S_ISDIR(staging_metadata.st_mode):
+        raise ValueError("staged germline database root must be a real directory")
+    missing = []
+    segment_components = {}
+    for segment in "vdjc":
+        components = [
+            os.path.join("imgt_gapped", f"{segment}.fasta"),
+            os.path.join("ungapped", f"{segment}.fasta"),
+            *[
+                os.path.join("mmseqs", f"{segment}{suffix}")
+                for suffix in _MMSEQS_COMPONENT_SUFFIXES
+            ],
+        ]
+        segment_components[segment] = components
+        present = any(os.path.lexists(os.path.join(database_dir, path)) for path in components)
+        if segment in "vj" or present:
+            missing.extend(
+                path for path in components
+                if not os.path.lexists(os.path.join(database_dir, path))
+            )
+    if require_manifest:
+        manifest = os.path.join(database_dir, "manifest.txt")
+        if not os.path.lexists(manifest):
+            missing.append("manifest.txt")
+    if missing:
+        raise ValueError(
+            "incomplete staged germline database: missing " + ", ".join(missing)
+        )
+
+    for segment, components in segment_components.items():
+        if not os.path.lexists(os.path.join(database_dir, components[0])):
+            continue
+        for component in components:
+            _validate_staged_file(
+                database_dir,
+                component,
+                require_nonempty=True,
+            )
+    if require_manifest:
+        _validate_staged_file(database_dir, "manifest.txt", require_nonempty=True)
+
+    for segment, components in segment_components.items():
+        gapped_path = os.path.join(database_dir, components[0])
+        if not os.path.lexists(gapped_path):
+            continue
+        ungapped_path = os.path.join(database_dir, components[1])
+        gapped = list(abutils.io.read_fasta(gapped_path))
+        ungapped = list(abutils.io.read_fasta(ungapped_path))
+        gapped_ids = [str(sequence.id) for sequence in gapped]
+        ungapped_ids = [str(sequence.id) for sequence in ungapped]
+        if not gapped or not ungapped:
+            raise ValueError(
+                f"staged germline database {segment.upper()} FASTA contains no sequences"
+            )
+        for sequence in [*gapped, *ungapped]:
+            if not sequence.sequence:
+                raise ValueError(
+                    f"staged germline database {segment.upper()} FASTA record "
+                    f"{sequence.id} has empty nucleotide content"
+                )
+        if len(gapped_ids) != len(set(gapped_ids)):
+            raise ValueError(
+                f"staged germline database {components[0]} contains duplicate IDs"
+            )
+        if len(ungapped_ids) != len(set(ungapped_ids)):
+            raise ValueError(
+                f"staged germline database {components[1]} contains duplicate IDs"
+            )
+        if gapped_ids != ungapped_ids:
+            raise ValueError(
+                f"staged germline database {segment.upper()} gapped and ungapped IDs differ"
+            )
+        for gapped_sequence, ungapped_sequence in zip(gapped, ungapped):
+            if gapped_sequence.sequence.replace(".", "") != ungapped_sequence.sequence:
+                raise ValueError(
+                    f"staged germline database {segment.upper()} gapped and ungapped "
+                    f"sequences differ for {gapped_sequence.id}"
+                )
+
+
+def _validate_staged_file(
+    database_dir: str, relative_path: str, *, require_nonempty: bool
+) -> None:
+    """Require an owned regular file beneath real staged directories."""
+    current = database_dir
+    parts = relative_path.split(os.sep)
+    for part in parts[:-1]:
+        current = os.path.join(current, part)
+        metadata = os.lstat(current)
+        if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISDIR(metadata.st_mode):
+            raise ValueError(
+                f"staged germline database component parent must be a real directory: "
+                f"{relative_path}"
+            )
+    path = os.path.join(database_dir, relative_path)
+    metadata = os.lstat(path)
+    if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISREG(metadata.st_mode):
+        raise ValueError(
+            f"staged germline database component must be a regular non-symlink file: "
+            f"{relative_path}"
+        )
+    if require_nonempty and metadata.st_size == 0:
+        raise ValueError(f"staged germline database component is empty: {relative_path}")
 
 
 def confirm_overwrite_existing_db(name: str) -> bool:
@@ -909,7 +1201,10 @@ def _make_mmseqs_db(input_file: str, output_file: str, debug: bool = False) -> N
         print(createdb.stderr)
 
     # create MMseqs2 index
-    with tempfile.TemporaryDirectory() as index_tmp:
+    with tempfile.TemporaryDirectory(
+        prefix=f".{os.path.basename(output_file)}.index-",
+        dir=os.path.dirname(output_file),
+    ) as index_tmp:
         createindex_cmd = [
             mmseqs_bin,
             "createindex",
@@ -930,13 +1225,19 @@ def _run_mmseqs_command(command: list[str]) -> sp.CompletedProcess:
     try:
         return sp.run(command, check=True, capture_output=True, text=True)
     except sp.CalledProcessError as error:
-        details = "\n".join(
-            value.strip() for value in (error.stdout, error.stderr) if value
-        )
-        message = f"MMseqs command failed: {' '.join(command)}"
-        if details:
-            message = f"{message}\n{details}"
-        raise RuntimeError(message) from error
+        raise GermlineBuildExternalToolError(
+            "MMseqs command failed",
+            command=command,
+            returncode=error.returncode,
+            stdout=error.stdout or "",
+            stderr=error.stderr or "",
+        ) from error
+    except OSError as error:
+        raise GermlineBuildExternalToolError(
+            "MMseqs command could not be started",
+            command=command,
+            stderr=str(error),
+        ) from error
 
 
 # def print_segment_info(segment: str, input_file: str) -> None:
