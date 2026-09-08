@@ -633,15 +633,25 @@ def assert_emitted_evidence_reconstructs(row, ab):
             reconstruct_segment_evidence(ab, 'c')
             assert_translated_segment_evidence(ab, 'c')
     reconstruct_v_evidence(ab)
+    # IMGT regions can extend beyond retained V assignment evidence. Validate
+    # their complete query interval independently instead of requiring them
+    # to be a prefix of the (possibly truncated) V-gene alignment.
+    from Bio.Seq import Seq
+    region_query = ab.sequence_oriented[ab.v_sequence_start:ab.fwr3_end]
+    vdj_query = ab.sequence_oriented[ab.v_sequence_start:ab.j_sequence_end]
+    coding = vdj_query[ab.frame - 1:]
+    vdj_query_aa = str(Seq(coding[:len(coding) // 3 * 3]).translate())
     for suffix in ('', '_aa'):
         regions = [getattr(ab, region + suffix)
                    for region in ('fwr1', 'cdr1', 'fwr2', 'cdr2', 'fwr3')]
-        assert all(regions[:-1])
-        if not regions[-1]:
-            # A truncated local V can omit the complete FWR3 endpoint; these
-            # fixtures do not adjudicate partial-region extraction behavior.
-            assert ab.v_germline_end < len(ab.v_germline_gapped[:312].replace('.', ''))
-        assert getattr(ab, 'v_sequence' + suffix).startswith(''.join(regions)), ab.sequence_id
+        assert all(regions)
+        if suffix:
+            # Retain the AA prefix contract for frameshift probes: independent
+            # AA region endpoints need not match their NT endpoints. The
+            # consistency audit reports those disagreements separately.
+            assert vdj_query_aa.startswith(''.join(regions)), ab.sequence_id
+        else:
+            assert ''.join(regions) == region_query, ab.sequence_id
     assert_translated_segment_evidence(ab, 'v')
 
 @pytest.mark.e2e

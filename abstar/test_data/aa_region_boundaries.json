@@ -1,0 +1,669 @@
+{
+  "records": [
+    {
+      "name": "fwr4_2_AA length only",
+      "source": {
+        "dataset": "1279050",
+        "parquet_row": 3646,
+        "comparison_parquet_row": 17
+      },
+      "assignment": {
+        "sequence_id": "ACTGAACGTTGAACTC-1_contig_1",
+        "sequence_input": "CTTTCTGAGAGTCAAGGACCTCCCGCACAAGAACATGAAACACCTGTGGTTCTTCCTCCTCCTGGTGGCAGCTCCCAGATGGGTCCTGTCCCAGGTGCAGCTACAGCAGTGGGGCGCAGGACTGTTGAAGCCTTCGGAGACCCTGTCCCTCACCTGCGCTGTCTATGGTGGGTCCTTCACTGGTTACTACTGGAGCTGGATCCGCCAGCCCCCAGGGAAGGGGCTGGAGTGGATTGGGGAAATCAATCATGGTGGAAGCACCAACTACAACCCGTCCCTCAAGAGTCGAGTCACCATATCAGTAGACACGTCCAAGAACCAGTTCTCCCTGAAGCTGAGCTCTGTGACCGCCGCGGACACGGCTGTGTATTACTGTGCGAGAGACGGTGGTTGGACAACTGGAACGATAGGTATGGGCCAGGGAACCCTGGTCACCGTCTCCTCAGGGAGTGCATCCGCCCCAACCCTTTTCCCCCTCGTCTCCTGTGAGAATTCCCCGTCGGATACGAGCAGCGTG",
+        "rev_comp": false,
+        "c_call": "IGHM*01,IGHM*03,IGHM*04,IGHM*05,IGHM*06,IGHM*07,IGHM*08",
+        "v_call": "IGHV4-34*01__homo_sapiens",
+        "d_call": "IGHD1-1*01__homo_sapiens",
+        "j_call": "IGHJ4*02__homo_sapiens"
+      },
+      "expected": {
+        "fwr1_aa": "QVQLQQWGAGLLKPSETLSLTCAVY",
+        "cdr1_aa": "GGSFTGYY",
+        "fwr2_aa": "WSWIRQPPGKGLEWIGE",
+        "cdr2_aa": "INHGGST",
+        "fwr3_aa": "NYNPSLKSRVTISVDTSKNQFSLKLSSVTAADTAVYYC",
+        "cdr3_aa": "ARDGGWTTGT",
+        "fwr4_aa": "IGMGQGTLVTVS"
+      },
+      "unchanged": {
+        "sequence_id": "ACTGAACGTTGAACTC-1_contig_1",
+        "v_call": "IGHV4-34*01",
+        "d_call": "IGHD1-1*01",
+        "j_call": "IGHJ4*02",
+        "v_score": 574.0,
+        "j_score": 56.0,
+        "v_cigar": "91S292M",
+        "j_cigar": "414S16N28M",
+        "junction": "TGTGCGAGAGACGGTGGTTGGACAACTGGAACGATAGG",
+        "junction_aa": "CARDGGWTTGTI",
+        "productive": false,
+        "productivity_issues": "junction does not end with conserved W|junction length is not a multiple of 3",
+        "v_sequence_start": 91,
+        "v_sequence_end": 383,
+        "j_sequence_start": 414,
+        "j_sequence_end": 442
+      }
+    },
+    {
+      "name": "fwr4_1_AA content only",
+      "source": {
+        "dataset": "1279050",
+        "parquet_row": 28337,
+        "comparison_parquet_row": 63
+      },
+      "assignment": {
+        "sequence_id": "TACTTACGTTATCGGT-1_contig_2",
+        "sequence_input": "AGCTCTGGGAGAAGAGCCCCAGCCCCAGAATTCCCAGGAGTTTCCATTCGGTGATCAGCACTGAACACAGAGGACTCACCATGGAGTTTGGGCTGAGCTGGGTTTTCCTTGTTGCTATTATAAAAGGTGTCCAGTGTCAGGTGCAGCTGGTGGAGTCTGGGGGAGGCTTGGTCAAGCCTGGAGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGATTCACCTTCAGTGACTTCTACATGAGCTGGATCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTTTCATACATTAGTAGTGGTGGTTCTACCATATACTATGCAGACTCTGTGAGGGGCCGATTCACCATCTCCAGGGACAACGCCAAGAACTCACTGTATCTGCAAATGAACAGCCTGACAGCCGAGGACACGGCCGTGTATTACTGTGCGGGGCGGGTGGCTCAAGGCCAGGGAACCCTGGTCACCGTCTCCTCAGGGAGTGCATCCGCCCCAACCCTTTTCCCCCTCGTCTCCTGTGAGAATTCCCCGTCGGATACGAGCAGCGTG",
+        "rev_comp": false,
+        "c_call": "IGHM*01,IGHM*03,IGHM*04,IGHM*05,IGHM*06,IGHM*07,IGHM*08",
+        "v_call": "IGHV3-11*01__homo_sapiens",
+        "d_call": "IGHD5-12*01__homo_sapiens",
+        "j_call": "IGHJ4*02__homo_sapiens"
+      },
+      "expected": {
+        "fwr1_aa": "QVQLVESGGGLVKPGGSLRLSCAAS",
+        "cdr1_aa": "GFTFSDFY",
+        "fwr2_aa": "MSWIRQAPGKGLEWVSY",
+        "cdr2_aa": "ISSGGSTI",
+        "fwr3_aa": "YYADSVRGRFTISRDNAKNSLYLQMNSLTAEDTAVYYC",
+        "cdr3_aa": "AGR",
+        "fwr4_aa": "VAQGQGTLVTV"
+      },
+      "unchanged": {
+        "sequence_id": "TACTTACGTTATCGGT-1_contig_2",
+        "v_call": "IGHV3-11*01",
+        "d_call": "IGHD5-12*01",
+        "j_call": "IGHJ4*02",
+        "v_score": 547.0,
+        "j_score": 52.0,
+        "v_cigar": "137S291M",
+        "j_cigar": "443S17N26M",
+        "junction": "TGTGCGGGGCGGGTGG",
+        "junction_aa": "CAGRV",
+        "productive": false,
+        "productivity_issues": "junction does not end with conserved W|junction length is not a multiple of 3",
+        "v_sequence_start": 137,
+        "v_sequence_end": 428,
+        "j_sequence_start": 443,
+        "j_sequence_end": 469
+      },
+      "public_unchanged": {
+        "d_call": "IGHD5-12*01__homo_sapiens"
+      }
+    },
+    {
+      "name": "fwr3_-1_False",
+      "source": {
+        "dataset": "1279051",
+        "parquet_row": 12107,
+        "comparison_parquet_row": 98
+      },
+      "assignment": {
+        "sequence_id": "CTCACACAGACAAGCC-1_contig_2",
+        "sequence_input": "TGGGGGCTGGGGTCTCAGGAGGCAGCGCTCTCGGGACGTCTCCACCATGGCCTGGGCTCTGCTATTCCTCACCCTCCTCACTCAGGGCGCAGGGTCCTGGGCCCAGTCTGCCCTGACTCAGCCTGCCTCCGTGTCTGGGTCTCCTGGACAGTCGATCACCATCGCCTGCACTGGAACCAGCAATGATGTTGGTGGTTATACCTATGTCTCCTGGTACCAACAACACCCAGGCAAAGCCCCCAAACTCCTGATTTATGATGTCAATAATCGACCCTCAGGGGTTTCTCATCGCTTTTCCGGCTCCAAGTCCGGCAATACGGCCTCCCTGACCATCTCTGGGCTCCAGGCTGAAGACGAGGCTGATTATTTCTGTAGCACCTCTCATACTAGCGACACCACTCTCTTCGGAACTGGGACCAAGGTCACCGTCCTAGGTCAGCCCAAGGCCAACCCCACTGTCACTCTGTTCCCGCCCTCCTCTGAGGAGCTCCAAGCCAACAAGGCCACACTAGTGTGTCTGATCAGTGACTTCTACCCGGGAGCTGTGACAGTGGCCTGGAAGGCAGATGGCAGCCCCGTCAAGGCGGGAGTGGAGACCACCAAACCCTCCAAACAGAGCAACAACAAGTACGCGGCCAGCAGCTA",
+        "rev_comp": false,
+        "c_call": "IGLC1*02",
+        "v_call": "IGLV2-14*03__homo_sapiens",
+        "d_call": null,
+        "j_call": "IGLJ1*01__homo_sapiens"
+      },
+      "expected": {
+        "fwr1_aa": "QSALTQPASVSGSPGQSITIACTGT",
+        "cdr1_aa": "SNDVGGYTY",
+        "fwr2_aa": "VSWYQQHPGKAPKLLIY",
+        "cdr2_aa": "DVN",
+        "fwr3_aa": "NRPSGVSHRFSGSKSGNTASLTISGLQAEDEADYFCS",
+        "cdr3_aa": "TSHTSDTTL",
+        "fwr4_aa": "FGTGTKVTVL"
+      },
+      "unchanged": {
+        "sequence_id": "CTCACACAGACAAGCC-1_contig_2",
+        "v_call": "IGLV2-14*03",
+        "d_call": null,
+        "j_call": "IGLJ1*01",
+        "v_score": 473.0,
+        "j_score": 62.0,
+        "v_cigar": "103S268M3I29M",
+        "j_cigar": "403S7N31M",
+        "junction": "AGCACCTCTCATACTAGCGACACCACTCTCTTC",
+        "junction_aa": "STSHTSDTTLF",
+        "productive": false,
+        "productivity_issues": "junction does not start with conserved C",
+        "v_sequence_start": 103,
+        "v_sequence_end": 403,
+        "j_sequence_start": 403,
+        "j_sequence_end": 434
+      }
+    },
+    {
+      "name": "fwr4_2_AA content only",
+      "source": {
+        "dataset": "1279054",
+        "parquet_row": 5821,
+        "comparison_parquet_row": 169
+      },
+      "assignment": {
+        "sequence_id": "CAGCATATCAGCAACT-1_contig_1",
+        "sequence_input": "AGCTCTGGGAGAGGAGCCCCAGCCTTGGGATTCCCAAGTGTTTTCATTCAGTGATCAGGACTGAACACAGAGGACTCACCATGGAGTTTGGGCTGAGCTGGATTTTCCTTGCTGCTATTTTAAAAGGTGTCCAGTGTGAGGTGCAGCTGGTGGAGTCTGGGGGAGGCTTGGTAAAGCCTGGGGGGTCCCTTAGACTCTCCTGTGCAGCCTCTGGATTCACTTTCAGTAACGCCTGGATGAACTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTTGGCCGTATTAAAAGTATAGCTGATGGTGGGACAACAGACTACGCTGCACCCGTGAAAGGCAGATTCACCATCTCAAGAGATGATTCAAAGAACACGCTATATTTCCAAATGAACAGCCTGAAAACCGAGGACACAGCCATGTATTATTGTACCGCAGACTATAGTGGGAGTTACGGGGTTGGCCAGGGAACCCTGGTCACCGTCTCGTCAGGGAGTGCATCCGCCCCAACCCTTTTCCCCCTCGTCTCCTGTGAGAATTCCCCGTCGGATACGAGCAGCGTG",
+        "rev_comp": false,
+        "c_call": "IGHM*01,IGHM*03,IGHM*04,IGHM*05,IGHM*06,IGHM*07,IGHM*08",
+        "v_call": "IGHV3-15*01__homo_sapiens",
+        "d_call": "IGHD1-26*01__homo_sapiens",
+        "j_call": "IGHJ4*02__homo_sapiens"
+      },
+      "expected": {
+        "fwr1_aa": "EVQLVESGGGLVKPGGSLRLSCAAS",
+        "cdr1_aa": "GFTFSNAW",
+        "fwr2_aa": "MNWVRQAPGKGLEWVGR",
+        "cdr2_aa": "IKSIADGGTT",
+        "fwr3_aa": "DYAAPVKGRFTISRDDSKNTLYFQMNSLKTEDTAMYYC",
+        "cdr3_aa": "TADYSGS",
+        "fwr4_aa": "YGVGQGTLVTV"
+      },
+      "unchanged": {
+        "sequence_id": "CAGCATATCAGCAACT-1_contig_1",
+        "v_call": "IGHV3-15*01",
+        "d_call": "IGHD1-26*01",
+        "j_call": "IGHJ4*02",
+        "v_score": 549.0,
+        "j_score": 52.0,
+        "v_cigar": "137S302M",
+        "j_cigar": "461S17N26M",
+        "junction": "TGTACCGCAGACTATAGTGGGAGTTACGG",
+        "junction_aa": "CTADYSGSY",
+        "productive": false,
+        "productivity_issues": "junction does not end with conserved W|junction length is not a multiple of 3",
+        "v_sequence_start": 137,
+        "v_sequence_end": 439,
+        "j_sequence_start": 461,
+        "j_sequence_end": 487
+      }
+    },
+    {
+      "name": "junction_1_True",
+      "source": {
+        "dataset": "1279054",
+        "parquet_row": 9253,
+        "comparison_parquet_row": 179
+      },
+      "assignment": {
+        "sequence_id": "CGTAGCGGTTGGTGGA-1_contig_2",
+        "sequence_input": "AGCTCTGGGAGAAGAGCCCCAGCCCCAGAATTCCCAGGAGTTTCCATTCGGTGATCAGCACTGAACACAGAGGACTCACCATGGAGTTTGGGCTGAGCTGGGTTTTCCTTGTTGCTATTATAAAAGGTGTCCAGTGTCAGGTGCAGCTGGTGGAGTCTGGGGGAGGCTTGGTCAAGCCTGGAGGGTCCCTGAGACTCTCCTGTGTGGTCTGTGGACTCACCTTCAGTGACTGCAACATAAACTGGATCCGCCAGGCTCCAGGGAAGGGGCTGGAACTCTGTGAAGGGCCGACTCCCCATCTCCAGGGACAACGCCAAGAACTCACTGTTTCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCCGTGTATTACTGTGCGCGTGCTGGACGGTTTTTGGAGTGGTTATACTAGCCGGGGTTGACTTGTGGCGCCAGGGATCCCTGGTCACCGTCTCCTCAACTTC",
+        "rev_comp": false,
+        "c_call": null,
+        "v_call": "IGHV3-11*01__homo_sapiens,IGHV3-11*04__homo_sapiens,IGHV3-11*05__homo_sapiens,IGHV3-11*06__homo_sapiens",
+        "d_call": "IGHD3-3*01__homo_sapiens",
+        "j_call": "IGHJ4*02__homo_sapiens"
+      },
+      "expected": {
+        "fwr1_aa": "QVQLVESGGGLVKPGGSLRLSCVVC",
+        "cdr1_aa": "GLTFSDCN",
+        "fwr2_aa": "INWIRQAPGKGL",
+        "cdr2_aa": "",
+        "fwr3_aa": "ELCEGPTPHLQGQRQELTVSANEQPESRGHGRVLL",
+        "cdr3_aa": "CACWTVFGVVILAGVDL",
+        "fwr4_aa": "WRQGSLVTVSS"
+      },
+      "unchanged": {
+        "sequence_id": "CGTAGCGGTTGGTGGA-1_contig_2",
+        "v_call": "IGHV3-11*01,IGHV3-11*04,IGHV3-11*05,IGHV3-11*06",
+        "d_call": "IGHD3-3*01",
+        "j_call": "IGHJ4*02",
+        "v_score": 324.0,
+        "j_score": 62.0,
+        "v_cigar": "137S137M47D107M",
+        "j_cigar": "420S6N41M",
+        "junction": "TGTGCGCGTGCTGGACGGTTTTTGGAGTGGTTATACTAGCCGGGGTTGACTTGTGG",
+        "junction_aa": "CARAGRFLEWLY*PGLTC",
+        "productive": false,
+        "productivity_issues": "out-of-frame indel(s)|junction does not end with conserved W|junction length is not a multiple of 3|V/J junction is out of frame",
+        "v_sequence_start": 137,
+        "v_sequence_end": 381,
+        "j_sequence_start": 420,
+        "j_sequence_end": 461
+      }
+    },
+    {
+      "name": "fwr3_1_False",
+      "source": {
+        "dataset": "1279055",
+        "parquet_row": 5648,
+        "comparison_parquet_row": 205
+      },
+      "assignment": {
+        "sequence_id": "CTACGTCTCCTAGTGA-1_contig_2",
+        "sequence_input": "GCTGGGGTCTCAGGAGGCAGCGCTCTCAGGACATCTCCACCATGGCCTGGGCTCTGCTGCTCCTCACCCTCCTCACTCAGGGCACAGGGTCCGGGGCCCAGTCTGCCCTGACTCAGCCTGCCTCCGTGTCTGGGTCTCCTGGACAGTCGATCACCTTCTCCTGCTCTGGAACCAGCAGTGACGTTGGTGCTTATACCTCTGTCTCCTGGTACCAACTGCACCCAGGCAAAGCCCCCAAAGTCATGATTTCTGAGGTCACTAATCAGCCCTCAGGGGTCCCTTCTCGCTTCTCTGGCTCGAAGTCTGGCAACACGGCCTCCCTGACCATCTCTGGGCTCCAGGCTGAGGACGAGCCTCATTACTTTTGCTCATATACAAGCAGCTGCACGGCTTTCGGCGGAGGGACCAAACTGACCGTCCTAGGTCAGCCCAAGGCTGCCCCCTCGGTCACTCTGTTCCCGCCCTCCTCTGAGGAGCTTCAAGCCAACAAGGCCACACTGGTGTGTCTCATAAGTGACTTCTACCCGGGAGCCGTGACAGTGGCCTGGAAGGCAGATAGCAGCCCCGTCAAGGCGGGAGTGGAGACCACCACACCCTCCAAACAAAGCAACAACAAGTACGCGGCCAGCAGCTA",
+        "rev_comp": false,
+        "c_call": "IGLC2*02,IGLC3*04",
+        "v_call": "IGLV2-14*05__homo_sapiens",
+        "d_call": null,
+        "j_call": "IGLJ2*01__homo_sapiens,IGLJ3*02__homo_sapiens"
+      },
+      "expected": {
+        "fwr1_aa": "QSALTQPASVSGSPGQSITFSCSGT",
+        "cdr1_aa": "SSDVGAYTS",
+        "fwr2_aa": "VSWYQLHPGKAPKVMIS",
+        "cdr2_aa": "EVT",
+        "fwr3_aa": "NQPSGVPSRFSGSKSGNTASLTISGLQAEDEPHYF",
+        "cdr3_aa": "CSYTSSCTA",
+        "fwr4_aa": "FGGGTKLTVL"
+      },
+      "unchanged": {
+        "sequence_id": "CTACGTCTCCTAGTGA-1_contig_2",
+        "v_call": "IGLV2-14*05",
+        "d_call": null,
+        "j_call": "IGLJ2*01,IGLJ3*02",
+        "v_score": 469.0,
+        "j_score": 57.0,
+        "v_cigar": "98S257M3D33M",
+        "j_cigar": "392S7N31M",
+        "junction": "TTTTGCTCATATACAAGCAGCTGCACGGCTTTC",
+        "junction_aa": "FCSYTSSCTAF",
+        "productive": false,
+        "productivity_issues": "junction does not start with conserved C",
+        "v_sequence_start": 98,
+        "v_sequence_end": 388,
+        "j_sequence_start": 392,
+        "j_sequence_end": 423
+      }
+    },
+    {
+      "name": "mixed_1_True",
+      "source": {
+        "dataset": "1279055",
+        "parquet_row": 7990,
+        "comparison_parquet_row": 217
+      },
+      "assignment": {
+        "sequence_id": "GGACGTCTCAAGGCTT-1_contig_2",
+        "sequence_input": "ATTTTCAGGTGTTTTCATTTGGTGATCAGGACTGAACAGAGAGAACTCACCATGGACTTTGGGCTGAACTGGCTTTTCCTTGTGGCTATTTTAAAAGGTGTCCAGTGTGAGGTGCAGTTGTTGGAGTCTGGGGGAGACTTGGTTCAGCGGGGGGGGTCCCTGAGACTCTCCTGTGCATCCTCTGGATTGACCTTCAAAAACTATGCCCTGACCTGGGTCCGCCAGGCTCCAGGGAAGGGGCCGGAGTGGGTCTCTAGTATTGTTCGGGGTGGTACTACCTACTACGCGGAATCCGTGAAGGGCCGGTTCACCATCTCGAGAGACGATGCCAAGAACACACTGTATCTGCATCTGAACAGCCTGACAGCCGCAGACACGGGCATGTACATTTGTGTCGCGAGAAGTGGCACCTCGTCGTATTTCTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCCGCCTCCACCAAGGGCCCATCGGTCTTCCCCCTGGCACCCTCCTCCAAGAGCACCTCTGGGGGCACAGCGGCCCTGGGCTGCCTGGTCAAGGACTACTTCCCCGAACCGGTGACGGTGTCGTGGAACTCAGGCGCCCTGACCAGCGGCGTGCACACCTTCCCGGCTGTCCTACAGTCCTCAGGA",
+        "rev_comp": false,
+        "c_call": "IGHG1*01,IGHG1*02,IGHG1*03,IGHG1*04,IGHG1*06,IGHG1*07,IGHG1*08,IGHG1*10,IGHG1*11,IGHG1*12,IGHG1*13,IGHG1*15,IGHG1*16,IGHG1*17",
+        "v_call": "IGHV3-23*01__homo_sapiens",
+        "d_call": "IGHD3-16*03__homo_sapiens",
+        "j_call": "IGHJ4*02__homo_sapiens"
+      },
+      "expected": {
+        "fwr1_aa": "EVQLLESGGDLVQRGGSLRLSCASS",
+        "cdr1_aa": "GLTFKNYA",
+        "fwr2_aa": "LTWVRQAPGKGPEWVS",
+        "cdr2_aa": "SIVRGGTT",
+        "fwr3_aa": "YYAESVKGRFTISRDDAKNTLYLHLNSLTAADTGMYIC",
+        "cdr3_aa": "VARSGTSSYF",
+        "fwr4_aa": "WGQGTLVTVS"
+      },
+      "unchanged": {
+        "sequence_id": "GGACGTCTCAAGGCTT-1_contig_2",
+        "v_call": "IGHV3-23*01",
+        "d_call": "IGHD3-16*03",
+        "j_call": "IGHJ4*02",
+        "v_score": 361.0,
+        "j_score": 66.0,
+        "v_cigar": "108S145M3D126M",
+        "j_cigar": "422S13N33M",
+        "junction": "TGTGTCGCGAGAAGTGGCACCTCGTCGTATTTCTGG",
+        "junction_aa": "CVARSGTSSYFW",
+        "productive": true,
+        "productivity_issues": "",
+        "v_sequence_start": 108,
+        "v_sequence_end": 379,
+        "j_sequence_start": 422,
+        "j_sequence_end": 455
+      }
+    },
+    {
+      "name": "fwr3_2_True",
+      "source": {
+        "dataset": "1279059",
+        "parquet_row": 1833,
+        "comparison_parquet_row": 320
+      },
+      "assignment": {
+        "sequence_id": "ACACTGACATGGTCAT-1_contig_2",
+        "sequence_input": "AGCTGTGGGCTCAGAAGCAGAGTTCTGGGGTGTCTCCACCATGGCCTGGACCCCTCTCTGGCTCACTCCCCTCACTCTTTGCATAGGTTCTGTGGTTTCCTCTGAGCTGACTCAGGACCCTGCTGTGTCTGTGGCCTTGGGCCAGACAGTCAGGATCACATGCCAGGGAGACAGCCTCAGAAGCTATTATGCAAGCTGGTACCAGCAGAAGCCAGGACAGGCCCCTGTTCTTGTCATCCATGGTAAAAACAACCGGCCCTCAGGCATCCCAGACCGATTCTCTGACTCCAGCTCAGGAACCACAGCTTCCTTGACCATCACTGGGGCTCAGGCGGAAGATGAGGCTGACTATTACTGTAAATCCCGGTCCCGGGACAGCAGTGGTGTTCATTGGGTGTTCGGCGGAGGGACCAAGGTGACCGTCCTAGGTCAGCCCAAGGCTGCCCCCTCGGTCACTCTGTTCCCACCCTCCTCTGAGGAGCTTCAAGCCAACAAGGCCACACTGGTGTGTCTCATAAGTGACTTCTACCCGGGAGCCGTGACAGTGGCCTGGAAGGCAGATAGCAGCCCCGTCAAGGCGGGAGTGGAGACCACCACACCCTCCAAACAAAGCAACAACAAGTACGCGGCCAGCAGCTA",
+        "rev_comp": false,
+        "c_call": "IGLC3*03",
+        "v_call": "IGLV3-19*01__homo_sapiens",
+        "d_call": null,
+        "j_call": "IGLJ3*02__homo_sapiens"
+      },
+      "expected": {
+        "fwr1_aa": "SSELTQDPAVSVALGQTVRITCQGD",
+        "cdr1_aa": "SLRSYY",
+        "fwr2_aa": "ASWYQQKPGQAPVLVIH",
+        "cdr2_aa": "GKN",
+        "fwr3_aa": "NRPSGIPDRFSDSSSGTTASLTITGAQAEDEADYYC",
+        "cdr3_aa": "KSRSRDSSGVHWV",
+        "fwr4_aa": "FGGGTKVTVL"
+      },
+      "unchanged": {
+        "sequence_id": "ACACTGACATGGTCAT-1_contig_2",
+        "v_call": "IGLV3-19*01",
+        "d_call": null,
+        "j_call": "IGLJ3*02",
+        "v_score": 497.0,
+        "j_score": 71.0,
+        "v_cigar": "97S263M6I19M",
+        "j_cigar": "390S38M",
+        "junction": "TGTAAATCCCGGTCCCGGGACAGCAGTGGTGTTCATTGGGTGTTC",
+        "junction_aa": "CKSRSRDSSGVHWVF",
+        "productive": true,
+        "productivity_issues": "",
+        "v_sequence_start": 97,
+        "v_sequence_end": 385,
+        "j_sequence_start": 390,
+        "j_sequence_end": 428
+      }
+    },
+    {
+      "name": "fwr3_1_True",
+      "source": {
+        "dataset": "1279071",
+        "parquet_row": 24902,
+        "comparison_parquet_row": 731
+      },
+      "assignment": {
+        "sequence_id": "TAAACCGGTTAGATGA-1_contig_2",
+        "sequence_input": "GGGGGCGCCAGGGGTCCCTTCCAATATCAGCACCATGGCCTGGACTCCTCTCTTTCTGTTCCTCCTCACTTGCTGCCCAGGGTCCAATTCTCAGACTGTGGTGACTCAGGAGCCCGCACTGACTGTGTCCCCAGGAGGGACAGTCACTCTCACCTGTGCTTCCAGCACTGGTGCAGTCACCAGTGCTTTCTCTCCAAATTGGTTCCAGCTGAAACCTGGACAAGCACCCAGGGCACTGATTTATAATGTCAACAACAGACACTCCTGGACCCCTGCCCGGTTCTCAGGCTCCCTCGTTGGGGGCAAAGCTGCCCTGACACTGTCAGGTGTGCAGCCTGAGGACGAGGCTGAATATTACTGTCTGTTGCTCTTTTCTGGTGGTGCTCGAGTGTTCGGCGGAGGGACCAAGCTGACCGTCCTAGGTCAGCCCAAGGCTGCCCCCTCGGTCACTCTGTTCCCACCCTCCTCTGAGGAGCTTCAAGCCAACAAGGCCACACTGGTGTGTCTCATAAGTGACTTCTACCCGGGAGCCGTGACAGTGGCCTGGAAGGCAGATAGCAGCCCCGTCAAGGCGGGAGTGGAGACCACCACACCCTCCAAACAAAGCAACAACAAGTACGCGGCCAGCAGCTA",
+        "rev_comp": false,
+        "c_call": "IGLC3*03",
+        "v_call": "IGLV7-43*01__homo_sapiens",
+        "d_call": null,
+        "j_call": "IGLJ3*02__homo_sapiens"
+      },
+      "expected": {
+        "fwr1_aa": "QTVVTQEPALTVSPGGTVTLTCASS",
+        "cdr1_aa": "TGAVTSAFS",
+        "fwr2_aa": "PNWFQLKPGQAPRALIY",
+        "cdr2_aa": "NVN",
+        "fwr3_aa": "NRHSWTPARFSGSLVGGKAALTLSGVQPEDEAEYYC",
+        "cdr3_aa": "LLLFSGGARV",
+        "fwr4_aa": "FGGGTKLTVL"
+      },
+      "unchanged": {
+        "sequence_id": "TAAACCGGTTAGATGA-1_contig_2",
+        "v_call": "IGLV7-43*01",
+        "d_call": null,
+        "j_call": "IGLJ3*02",
+        "v_score": 473.0,
+        "j_score": 68.0,
+        "v_cigar": "91S271M3I21M",
+        "j_cigar": "388S4N34M",
+        "junction": "TGTCTGTTGCTCTTTTCTGGTGGTGCTCGAGTGTTC",
+        "junction_aa": "CLLLFSGGARVF",
+        "productive": true,
+        "productivity_issues": "",
+        "v_sequence_start": 91,
+        "v_sequence_end": 386,
+        "j_sequence_start": 388,
+        "j_sequence_end": 422
+      }
+    },
+    {
+      "name": "fwr4_1_AA length only",
+      "source": {
+        "dataset": "1287149",
+        "parquet_row": 5471,
+        "comparison_parquet_row": 1171
+      },
+      "assignment": {
+        "sequence_id": "AGACGTTCAAGTACCT-1_contig_2",
+        "sequence_input": "AGCTCTCAGAGAGGTGCCTTAGCCCTGGATTCCAAGGCATTTCCACTTGGTGATCAGCACTGAACACAGAGGACTCACCATGGAGTTGGGGCTGTGCTGGGTTTTCCTTGTTGCTATTTTAGAAGGTGTCCAGTGTGAGGTGCAGTTGGTGGAATCTGGGGGAGGCTTGGTACAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGATTCATCTTCAGTAGCTTTAGCATGAGCTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGATTTCATGCATTAGTAGTGCTAGTGGTAGCATATACTACGCAGACTCTGTGAAGGGCCGATTCACCATCTCCAGAGACAATGCCAAGAACGCACTGTTTCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCTGTGTATTACTGTGCGAGAGGATTAATAAATCTGGTGGGCCAAGGGACAATGGTCACCGTCTCTGCAGGGAGTGCATCCGCCCCAACCCTTTTCCCCCTCGTCTCCTGTGAGAATTCCCCGTCGGATACGAGCAGCGTG",
+        "rev_comp": false,
+        "c_call": "IGHM*01,IGHM*03,IGHM*04,IGHM*05,IGHM*06,IGHM*07,IGHM*08",
+        "v_call": "IGHV3-48*01__homo_sapiens",
+        "d_call": "IGHD3-16*03__homo_sapiens",
+        "j_call": "IGHJ3*02__homo_sapiens"
+      },
+      "expected": {
+        "fwr1_aa": "EVQLVESGGGLVQPGGSLRLSCAAS",
+        "cdr1_aa": "GFIFSSFS",
+        "fwr2_aa": "MSWVRQAPGKGLEWISC",
+        "cdr2_aa": "ISSASGSI",
+        "fwr3_aa": "YYADSVKGRFTISRDNAKNALFLQMNSLRAEDTAVYYC",
+        "cdr3_aa": "ARGLIN",
+        "fwr4_aa": "LVGQGTMVTVS"
+      },
+      "unchanged": {
+        "sequence_id": "AGACGTTCAAGTACCT-1_contig_2",
+        "v_call": "IGHV3-48*01",
+        "d_call": "IGHD3-16*03",
+        "j_call": "IGHJ3*02",
+        "v_score": 525.0,
+        "j_score": 56.0,
+        "v_cigar": "136S295M",
+        "j_cigar": "447S18N28M",
+        "junction": "TGTGCGAGAGGATTAATAAATCTGG",
+        "junction_aa": "CARGLINL",
+        "productive": false,
+        "productivity_issues": "junction does not end with conserved W|junction length is not a multiple of 3",
+        "v_sequence_start": 136,
+        "v_sequence_end": 431,
+        "j_sequence_start": 447,
+        "j_sequence_end": 475
+      },
+      "public_unchanged": {
+        "d_call": "IGHD3-16*03__homo_sapiens"
+      }
+    },
+    {
+      "name": "mixed_-1_True",
+      "source": {
+        "dataset": "1287152",
+        "parquet_row": 7719,
+        "comparison_parquet_row": 1278
+      },
+      "assignment": {
+        "sequence_id": "CCCAGTTTCCTAAGTG-1_contig_2",
+        "sequence_input": "AGCTCTGAGAGAGGAGCCCAGCCCTGGGATTTTCAGGTGTTTTCATTTGGTGATCAGGACTGAACAGAGAGAAATCACCATGGAATTTGGGCTGAGCTGGCTTTTTCTTGTGGCTATTTTAAAAGGTGTCCAGTGTGAGGTGCAGTTGTTGGAGTCTGGGGGAGGCTTCGTACAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGATTCACCTTTAGCGACTATGCCATGACCTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTCTCATCAATTAATACTGATTCCACATATTACGCAGACTCCGTGAAGGGCCGGTTCACCATCTCCAGAGACAATTCCAAGAACACGCTGTTTCTGCAAATGAACAGCCTGAGAGCCGAGGACACAGCCGTATATTACTGCGGGGCGAGGGATAGACGTGGATATGGTGACTACGATTGGGGCTTCTTTGACTTCTGGGGCCAGGGAGCCCTGGTCACCGTCTCCTCAGGGAGTGCATCCGCCCCAACCCTTTTCCCCCTCGTCTCCTGTGAGAATTCCCCGTCGGATACGAGCAGCGTG",
+        "rev_comp": false,
+        "c_call": "IGHM*01,IGHM*03,IGHM*04,IGHM*05,IGHM*06,IGHM*07,IGHM*08",
+        "v_call": "IGHV3-23*01__homo_sapiens",
+        "d_call": "IGHD5-12*01__homo_sapiens",
+        "j_call": "IGHJ4*02__homo_sapiens"
+      },
+      "expected": {
+        "fwr1_aa": "EVQLLESGGGFVQPGGSLRLSCAAS",
+        "cdr1_aa": "GFTFSDYA",
+        "fwr2_aa": "MTWVRQAPGKGLEWVSS",
+        "cdr2_aa": "INTDST",
+        "fwr3_aa": "YYADSVKGRFTISRDNSKNTLFLQMNSLRAEDTAVYYC",
+        "cdr3_aa": "GARDRRGYGDYDWGFFDF",
+        "fwr4_aa": "WGQGALVTVSS"
+      },
+      "unchanged": {
+        "sequence_id": "CCCAGTTTCCTAAGTG-1_contig_2",
+        "v_call": "IGHV3-23*01",
+        "d_call": "IGHD5-12*01",
+        "j_call": "IGHJ4*02",
+        "v_score": 460.0,
+        "j_score": 79.0,
+        "v_cigar": "136S152M6D129M",
+        "j_cigar": "459S1N47M",
+        "junction": "TGCGGGGCGAGGGATAGACGTGGATATGGTGACTACGATTGGGGCTTCTTTGACTTCTGG",
+        "junction_aa": "CGARDRRGYGDYDWGFFDFW",
+        "productive": true,
+        "productivity_issues": "",
+        "v_sequence_start": 136,
+        "v_sequence_end": 417,
+        "j_sequence_start": 459,
+        "j_sequence_end": 506
+      }
+    },
+    {
+      "name": "junction_2_True",
+      "source": {
+        "dataset": "1287166",
+        "parquet_row": 33907,
+        "comparison_parquet_row": 1874
+      },
+      "assignment": {
+        "sequence_id": "GGGCACTGTGCACTTA-1_contig_2",
+        "sequence_input": "AGGAGTCAGACCCAGTCAGGACACAGCATGGACATGAGGGTGCCCGCTCAGCGCCTGGGGCTCCTGCTGCTCTGGTTCCCAGGTGCCAGATGTGCCATCCGGATGACCCAGTCTCCATTCTCCCTGTCTGCATCTGTAGAAGACAGAGTCACCATCACTTGCTGGGCCAGTCAGGGCATTAGCAGTTATTTAGCCTGGTATCAGCAAAAAGCAGCAAAAGCCCCTAAGTCTTCATCTCTTATGTATTCAGTTTGCAAAGTGGGGTCCCATCAAGGTTCAGCGGCAGTGGATCTGGGACGGATTACACTCTCACCATCAGCAGCCTGCAGCCTGAGGATTTTGCAACTTATTCCTGTCAACAGTCTTATTCTATGCCTCGATACGATCGGCCAAGGGACCAAGTTGGATATCAAACGCTAGAACTGTGGCTGCACCATCTGTCTTCATCTTCCCGCCATCTGATGAGCAGTTGAAATCTGGAACTGCCTCTGTTGTGTGCCTGCTGAATAACTTCTATCCCAGAGAGGCCAAAGTACAGTGGAAGGTGGATAACGC",
+        "rev_comp": false,
+        "c_call": "IGKC*01,IGKC*02,IGKC*04,IGKC*05",
+        "v_call": "IGKV1D-43*01__homo_sapiens",
+        "d_call": null,
+        "j_call": "IGKJ1*01__homo_sapiens"
+      },
+      "expected": {
+        "fwr1_aa": "AIRMTQSPFSLSASVEDRVTITCWAS",
+        "cdr1_aa": "QGISSY",
+        "fwr2_aa": "LAWYQQKAAKAPKSSS",
+        "cdr2_aa": "LMY",
+        "fwr3_aa": "SVCKVGSHQGSAAVDLGRITLSPSAACSLRILQLIP",
+        "cdr3_aa": "VNSLILCLDT",
+        "fwr4_aa": "IGQGTKLDIK"
+      },
+      "unchanged": {
+        "sequence_id": "GGGCACTGTGCACTTA-1_contig_2",
+        "v_call": "IGKV1D-43*01",
+        "d_call": null,
+        "j_call": "IGKJ1*01",
+        "v_score": 498.0,
+        "j_score": 53.0,
+        "v_cigar": "93S135M1D140M",
+        "j_cigar": "381S4N34M",
+        "junction": "TGTCAACAGTCTTATTCTATGCCTCGATACGATC",
+        "junction_aa": "CQQSYSMPRYD",
+        "productive": false,
+        "productivity_issues": "out-of-frame indel(s)|junction does not end with conserved F|junction length is not a multiple of 3|V/J junction is out of frame",
+        "v_sequence_start": 93,
+        "v_sequence_end": 368,
+        "j_sequence_start": 381,
+        "j_sequence_end": 415
+      }
+    },
+    {
+      "name": "junction_1_False",
+      "source": {
+        "dataset": "1279050",
+        "parquet_row": 1480,
+        "comparison_parquet_row": 3585
+      },
+      "assignment": {
+        "sequence_id": "AAGGTTCAGGGTGTTG-1_contig_3",
+        "sequence_input": "AGCTCTGGGAGAAGAGCCCCAGCCCCAGAATTCCCAGGAGTTTCCATTCGGTGATCAGCACTGAACACAGAGGACTCACCATGGAGTTTGGGCTGAGCTGGGTTTTCCTTGTTGCTATTATAAAAGGTGTCCAGTGTCAGGTGCAGCTGGTGGAGTCTGGGGGAGGCTTGGTCAAGCCTGGAGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGATTCACCTTCAGTGACTACTATATGAGGTGGATCCGCCAGGCTCCAGGGAGGGGCTGGAGTGGGTTTCATATATTAGTAATAGTACTAGTTACACAAATATGCAGACTCTGTGAAGGGCCGATTCACCATCTCCAGAGACAACGCCAACAACTCACTGTATCTGCAAATGAAGAGCCTGAGAGCCGAGGACACGGCTTTGTATTACTGTGCGAGAGATTCGCTCGGGGGGTAGTTGTTACAGTTGTACCTATTGACTTCTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAGGGAGTGCATCCGCCCCAACCCTTTTCCCCCTCGTCTCCTGTGAGAATTCCCCGTCGGATACGAGCAGCGTG",
+        "rev_comp": false,
+        "c_call": "IGHM*01,IGHM*03,IGHM*04,IGHM*05,IGHM*06,IGHM*07,IGHM*08",
+        "v_call": "IGHV3-11*06__homo_sapiens",
+        "d_call": "IGHD1-1*01__homo_sapiens",
+        "j_call": "IGHJ4*02__homo_sapiens"
+      },
+      "expected": {
+        "fwr1_aa": "QVQLVESGGGLVKPGGSLRLSCAAS",
+        "cdr1_aa": "GFTFSDYY",
+        "fwr2_aa": "MRWIRQAPGRGWSGFH",
+        "cdr2_aa": "ILVIVLVT",
+        "fwr3_aa": "QICRLCEGPIHHLQRQRQQLTVSANEEPESRGHGFVLL",
+        "cdr3_aa": "CERFARGVVVTVVPIDF",
+        "fwr4_aa": "WGQGTLVTVSS"
+      },
+      "unchanged": {
+        "sequence_id": "AAGGTTCAGGGTGTTG-1_contig_3",
+        "v_call": "IGHV3-11*06",
+        "d_call": "IGHD1-1*01",
+        "j_call": "IGHJ4*02",
+        "v_score": 519.0,
+        "j_score": 79.0,
+        "v_cigar": "137S126M1D49M1D119M",
+        "j_cigar": "465S6N42M",
+        "junction": "TGTGCGAGAGATTCGCTCGGGGGGTAGTTGTTACAGTTGTACCTATTGACTTCTGG",
+        "junction_aa": "CARDSLGG*LLQLYLLTS",
+        "productive": false,
+        "productivity_issues": "out-of-frame indel(s)|junction does not end with conserved W|junction length is not a multiple of 3|V/J junction is out of frame",
+        "v_sequence_start": 137,
+        "v_sequence_end": 431,
+        "j_sequence_start": 465,
+        "j_sequence_end": 507
+      }
+    },
+    {
+      "name": "junction_2_False",
+      "source": {
+        "dataset": "1279050",
+        "parquet_row": 34226,
+        "comparison_parquet_row": 3586
+      },
+      "assignment": {
+        "sequence_id": "TTCGAAGAGGCTACGA-1_contig_1",
+        "sequence_input": "GAGAGAGGAGCCTTAGCCCTGGATTCCAAGGCCTCTCCACTTGGTGATCAGCACTGAGCACCGAGGATTCACCATGGAACTGGGGCTCCGCTGGGTTTTCCTTGTTGCTATTTTAAAAGGTGTCCAGTGTGACGTGCAGCAGGTGTCCAGTGTGATGTGCAGCTGGTGGAGTCGGGGGAGGCCTGGTCAAGCCGGGGGGGTCCCTGAGACGAGAGCGGACCCAGCGGTCCGCCAGGCTCCAGGAAAGGGGCTGGAGTGGGTCACATGTAGTCCTAGTAATAATAAAAACATATATTGCGCAGAGTCATTGAAGGGCCGATTCAGCATCTCCAGAGACAACGCCAAAAACTCACTGTCTGTGCAAATGAACAGTCTGAGAGCCGGGGACACGGTGCGTATTCCTGTGCGAGAGATATGGGTTACGAGATTTTGGCTGATTATCTCGAAGTACTACTGTGACTGCTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAGGGAGTGCATCCGCCCCAACCCTTTTCCCCCTCGTCTCCTGTGAGAATTCCCCGTCGGATACGAGCAGCGTG",
+        "rev_comp": false,
+        "c_call": "IGHM*01,IGHM*03,IGHM*04,IGHM*05,IGHM*06,IGHM*07,IGHM*08",
+        "v_call": "IGHV3-21*01__homo_sapiens",
+        "d_call": "IGHD3-9*01__homo_sapiens",
+        "j_call": "IGHJ4*02__homo_sapiens"
+      },
+      "expected": {
+        "fwr1_aa": "",
+        "cdr1_aa": "",
+        "fwr2_aa": "VRQAPGKGLEWVTC",
+        "cdr2_aa": "SPSNNKNI",
+        "fwr3_aa": "YCAESLKGRFSISRDNAKNSLSVQMNSLRAGDTVRIP",
+        "cdr3_aa": "VREIWVTRFWLIISKYYCDC",
+        "fwr4_aa": "WGQGTLVTVSS"
+      },
+      "unchanged": {
+        "sequence_id": "TTCGAAGAGGCTACGA-1_contig_1",
+        "v_call": "IGHV3-21*01",
+        "d_call": "IGHD3-9*01",
+        "j_call": "IGHJ4*02",
+        "v_score": 244.0,
+        "j_score": 86.0,
+        "v_cigar": "225S107N167M1D21M",
+        "j_cigar": "449S48M",
+        "junction": "TGTGCGAGAGATATGGGTTACGAGATTTTGGCTGATTATCTCGAAGTACTACTGTGACTGCTGG",
+        "junction_aa": "CARDMGYEILADYLEVLL*LL",
+        "productive": false,
+        "productivity_issues": "out-of-frame indel(s)|junction does not end with conserved W|junction length is not a multiple of 3|V/J junction is out of frame",
+        "v_sequence_start": 225,
+        "v_sequence_end": 413,
+        "j_sequence_start": 449,
+        "j_sequence_end": 497
+      }
+    },
+    {
+      "name": "frame3_control",
+      "source": {
+        "dataset": "1279050",
+        "parquet_row": 44
+      },
+      "assignment": {
+        "sequence_id": "AAACCTGGTCCTGCTT-1_contig_2",
+        "sequence_input": "AGAGCTCTGGAGAAGAGCTGCTCAGTCAGGACCCAGAGGGAACCATGGAAACCCCAGCGCAGCTTCTCTTCCTCCTGCTACTCTGGCTCCCAGATATCACCGGACAAATTGTGTTGACGCAGTCTCCAGGGACCCTGTCTTTGTCTCCAGGGGAAAGAGCCACCCTCTCCTGCAGGGCCAGTCAGAGTGTTAGCAGCAACTCCTTAGTCTGGTATCAGCAAAAACCTGGCCAGGCTCCCAGGCTCCTCATCTATGGTGCATCCAACAGGGCCACTGGCATCCCAGACAGGTTCAGTGGCAGTGGGTCTGAGACAGACTTCATTCTCACCATCAGCAGACTGGAGCCTGAAGATTTTGCAGTGTATTACTGTCAACAGTATGATAATTCACGTCTTACTTTCGGCGGAGGGACCAAGGTGGAGATCAAACGAACTGTGGCTGCACCATCTGTCTTCATCTTCCCGCCATCTGATGAGCAGTTGAAATCTGGAACTGCCTCTGTTGTGTGCCTGCTGAATAACTTCTATCCCAGAGAGGCCAAAGTACAGTGGAAGGTGGATAACGC",
+        "rev_comp": false,
+        "c_call": "IGKC*01,IGKC*02,IGKC*04,IGKC*05",
+        "v_call": "IGKV3-20*01__homo_sapiens",
+        "d_call": null,
+        "j_call": "IGKJ4*01__homo_sapiens"
+      },
+      "expected": {
+        "fwr1_aa": "IVLTQSPGTLSLSPGERATLSCRAS",
+        "cdr1_aa": "QSVSSNS",
+        "fwr2_aa": "LVWYQQKPGQAPRLLIY",
+        "cdr2_aa": "GAS",
+        "fwr3_aa": "NRATGIPDRFSGSGSETDFILTISRLEPEDFAVYYC",
+        "cdr3_aa": "QQYDNSRLT",
+        "fwr4_aa": "FGGGTKVEIK"
+      },
+      "unchanged": {
+        "sequence_id": "AAACCTGGTCCTGCTT-1_contig_2",
+        "v_call": "IGKV3-20*01",
+        "d_call": null,
+        "j_call": "IGKJ4*01",
+        "v_score": 506.0,
+        "j_score": 68.0,
+        "v_cigar": "105S1N288M",
+        "j_cigar": "395S4N34M",
+        "junction": "TGTCAACAGTATGATAATTCACGTCTTACTTTC",
+        "junction_aa": "CQQYDNSRLTF",
+        "productive": true,
+        "productivity_issues": "",
+        "v_sequence_start": 105,
+        "v_sequence_end": 393,
+        "j_sequence_start": 395,
+        "j_sequence_end": 429
+      }
+    }
+  ]
+}

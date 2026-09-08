@@ -3,9 +3,9 @@
   "files": {
     "abstar/annotation/annotator.py": 96,
     "abstar/annotation/germline.py": 92,
-    "abstar/annotation/junction.py": 93,
-    "abstar/annotation/positions.py": 76,
-    "abstar/annotation/regions.py": 95,
+    "abstar/annotation/junction.py": 94,
+    "abstar/annotation/positions.py": 79,
+    "abstar/annotation/regions.py": 97,
     "abstar/annotation/umi.py": 80,
     "abstar/assigners/mmseqs.py": 96,
     "abstar/core/abstar.py": 93,

@@ -23,6 +23,24 @@ class RegionSequence(NamedTuple):
     sequence: str
 
 
+def _region_start_after_split_deletion(aligned_query, start, stop):
+    """Leave a split complete-codon deletion's residual bases to the prior region.
+
+    ``stop`` is exclusive or None when the retained alignment lacks the region
+    endpoint. Start normalization must still happen in that latter case.
+    """
+    sequence = aligned_query[start:stop]
+    leading = len(sequence) - len(sequence.lstrip("-"))
+    preceding = aligned_query[:start]
+    deletion_length = leading + len(preceding) - len(preceding.rstrip("-"))
+    if leading % 3 and deletion_length % 3 == 0:
+        while leading % 3:
+            start += 3
+            sequence = aligned_query[start:stop]
+            leading = len(sequence) - len(sequence.lstrip("-"))
+    return start
+
+
 def get_region_sequence(
     region: str,
     aln: abutils.tl.PairwiseAlignment,
@@ -182,6 +200,10 @@ def get_region_sequence(
 
     # if we couldn't determine start/end (eg., empty inputs), return empty string
     if region_start is None or region_end is None:
+        if not aa and region_start is not None:
+            region_start = _region_start_after_split_deletion(
+                aln.aligned_query, region_start, None,
+            )
         return RegionSequence(region_start, region_end, "")
 
     # NOTE: alignment numbering is inclusive, so we +1 the end position for Python slicing
@@ -199,26 +221,21 @@ def get_region_sequence(
         # the rationale is that if a codon starts in a particular region, it "belongs" to that region, even though a portion of the codon is technically located in the next region
         region_sequence = aln.aligned_query[region_start : region_end + 1]
         gap_length_5p = len(region_sequence) - len(region_sequence.rstrip("-"))
-        gap_length_3p = len(region_sequence) - len(region_sequence.lstrip("-"))
         # Rebalance only complete-codon deletions split across a boundary.
         # A one/two-base deletion can be compensated elsewhere in this region;
         # extending it alone duplicates residues from the following region.
         following = aln.aligned_query[region_end + 1:]
-        preceding = aln.aligned_query[:region_start]
         deletion_at_end = gap_length_5p + len(following) - len(following.lstrip("-"))
-        deletion_at_start = gap_length_3p + len(preceding) - len(preceding.rstrip("-"))
         # only extend the 3' end of the region if there are non-codon length 3' gaps
         if gap_length_5p > 0 and gap_length_5p % 3 != 0 and deletion_at_end % 3 == 0:
             while gap_length_5p % 3 != 0:
                 region_end += 3  # steal the residual portion of the codon from the start of the next region
                 region_sequence = aln.aligned_query[region_start : region_end + 1]
                 gap_length_5p = len(region_sequence) - len(region_sequence.rstrip("-"))
-        # only truncate the 5' end of the region if there are non-codon length 5' gaps
-        if gap_length_3p > 0 and gap_length_3p % 3 != 0 and deletion_at_start % 3 == 0:
-            while gap_length_3p % 3 != 0:
-                region_start += 3  # increase the start position, since the preceding region took part of the first codon
-                region_sequence = aln.aligned_query[region_start : region_end + 1]
-                gap_length_3p = len(region_sequence) - len(region_sequence.lstrip("-"))
+        region_start = _region_start_after_split_deletion(
+            aln.aligned_query, region_start, region_end + 1,
+        )
+        region_sequence = aln.aligned_query[region_start:region_end + 1]
     else:
         region_sequence = aln.aligned_query[region_start : region_end + 1]
 

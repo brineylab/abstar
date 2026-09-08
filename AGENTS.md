@@ -28,8 +28,11 @@ records before the normal input parser and assignment run.
   chunking, multiprocessing, output assembly, logging, and cleanup.
 - `abstar/assigners/mmseqs.py`: active V, J, D, and C assignment pipeline.
 - `abstar/annotation/annotator.py`: per-sequence annotation orchestration.
-- `abstar/annotation/junction.py`: conservative raw FWR3 anchor recovery when
-  the legacy alignment endpoint cannot be mapped to a query base.
+- `abstar/annotation/junction.py`: conservative raw FWR3 anchor recovery and
+  joint V-region boundary recovery constrained by retained alignment coordinates.
+- `scripts/audit_annotation_consistency.py`: read-only native-Parquet audit of
+  region assemblies and mask lengths against the direct oriented-query V(D)J
+  slice, preserving file/row identity independently of external sequence IDs.
 - `abstar/annotation/antibody.py`: annotation data model and logging state.
 - `abstar/annotation/germline.py`: germline lookup and segment realignment.
 - `abstar/annotation/{regions,positions,indels,mutations,mask,productivity}.py`:
@@ -122,6 +125,19 @@ python scripts/discover_bcr_cases.py \
   --output /tmp/abstar-bcr-candidates.jsonl \
   --per-dataset 25 --n-processes 2
 ```
+
+Audit existing native Parquet annotations without rerunning assignment:
+
+```bash
+python scripts/audit_annotation_consistency.py /path/to/parquet \
+  --report /tmp/abstar-consistency.json
+```
+
+The report must be new and outside the checkout and input trees. Exit 1 means
+inconsistencies were found; exit 0 means the implemented checks passed. The
+reference is `sequence_oriented[v_sequence_start:j_sequence_end]`, translated
+using the one-based `frame` for AA checks, not the final-file `sequence` fields.
+This checks internal consistency, not the biological correctness of boundaries.
 
 For an exact regression comparison after an explicitly requested corpus rerun,
 use the original FASTAs, both run roots, and reviewed expectations for every
@@ -340,6 +356,15 @@ nonempty input.
   those sequence and amino-acid fields.
 - Changes to schemas must be reflected in serializers, dataframe return paths,
   documentation, and compatibility tests.
+- FWR/CDR amino-acid regions project established nucleotide intervals into the
+  continuous V(D)J query frame. A codon crossing a region boundary belongs to
+  the downstream region; partial terminal codons do not translate. Keep
+  `cdr_mask_aa` and `cdr3_length` consistent with this partition. `junction_aa`
+  and CDR3 V/N/D/J subdivisions retain local junction-frame semantics and must
+  not be used to reconstruct continuous-query regions on out-of-frame reads.
+- FWR3 and CDR3 share the established junction-start-codon endpoint. Synchronize
+  the FWR3 region to that boundary without altering retained V alignment or
+  junction evidence; reject an invalid shared interval as a record error.
 - Preserve backward compatibility deliberately. If a behavioral break is
   necessary, document it and add a migration note.
 

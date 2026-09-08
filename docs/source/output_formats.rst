@@ -505,6 +505,51 @@ codons in the assembled query reading frame; a codon receives V, D, or J only
 when all three nucleotides belong to that segment. These masks exclude the
 constant region and do not depend on CDR3 or framework subdivisions.
 
+Independent V(D)J consistency checks
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``sequence_alignment.replace("-", "")`` provides the nucleotide V(D)J
+query without assembling FWR/CDR sequences. For a reference independent of
+both regional and gene-segment assembly, slice the oriented input directly.
+For native Parquet rows or Python-returned annotations:
+
+.. code-block:: python
+
+   from Bio.Seq import Seq
+
+   vdj_nt = row["sequence_oriented"][
+       row["v_sequence_start"]:row["j_sequence_end"]
+   ]
+   coding = vdj_nt[row["frame"] - 1:]
+   vdj_aa = str(Seq(coding[:len(coding) // 3 * 3]).translate())
+   regions = ("fwr1", "cdr1", "fwr2", "cdr2", "fwr3", "cdr3", "fwr4")
+   assert row["sequence_alignment"].replace("-", "") == vdj_nt
+   assert "".join(row[r] for r in regions) == vdj_nt
+   assert "".join(row[r + "_aa"] for r in regions) == vdj_aa
+
+These are diagnostic assertions for annotated records, not a guarantee that
+every existing annotation passes. In particular, independent regional
+translations can disagree across frameshifted boundaries. Compare sequence
+contents as well as all six mask lengths: equal lengths can conceal duplicated
+or mistranslated residues. The direct slice validates consistency with the
+annotated V/J coordinates; it does not establish that those coordinates are
+biologically correct. AIRR TSV uses different coordinate offsets, so do not
+apply this slice directly to its one-based starts.
+
+To audit a directory of native Parquet files without rerunning annotation:
+
+.. code-block:: bash
+
+   python scripts/audit_annotation_consistency.py /path/to/parquet \
+     --report /tmp/abstar-consistency.json
+
+The report must be new and outside the input and repository trees. It contains
+counts and candidate records identified by source Parquet path, zero-based
+Parquet row ordinal, and exact sequence ID. Unassigned records are counted
+separately. Exit status 1 indicates discovered inconsistencies; status 0 means
+all implemented checks passed. The audit does not verify biological truth or
+the contents of gene-segment and non-germline masks.
+
 
 Position Coordinates
 ~~~~~~~~~~~~~~~~~~~~
@@ -549,10 +594,72 @@ without advancing the reference template, including at the final reference
 base or when the retained reference starts inside a codon.
 
 All retained V nucleotide alignments, mutation and indel events, identities,
-and region sequences now use the same boundary-alignment trace. Re-aligning
+and mapped region sequences use the same boundary-alignment trace. Re-aligning
 that span with a different gap penalty could previously erase compensating
 indels or make annotation fail. Region boundary adjustment applies only to
 complete-codon deletions spanning a boundary, preserving each query base once.
+
+If retained V evidence ends before the FWR3 endpoint can be mapped, but the
+FWR3 start is mapped, FWR3 is recovered directly from the oriented query through
+the existing junction-start codon. This restores a previously empty FWR3 and
+its CDR-mask labels without extending V assignment evidence or moving the
+junction. Its amino-acid sequence follows the shared query-frame projection
+used for all FWR/CDR regions. The diagnostic log records the recovered interval.
+
+If retained V evidence stops before FWR3 begins, or a partial retained anchor
+contradicts the proposed junction boundary, a constrained recovery alignment
+starts at the last mapped upstream region boundary and fits through IMGT codon
+104 before the assigned J region. This is separate anatomical mapping evidence:
+all retained reference-to-query base coordinates (including deletions) are
+fixed, and gene calls, assignment scores, identities, mutations, and indels
+remain based on the retained alignment. Recovery can fill incomplete FWR2,
+CDR2, and FWR3 intervals and correct an unsupported junction anchor.
+
+Every recovered region boundary and all three anchor bases must agree across
+optimal alignments to the assigned primary V reference. A unique junction anchor alone is insufficient if the
+intermediate region boundaries remain ambiguous. Deleted boundaries, interrupted
+anchors, and unsupported mappings fail explicitly; no conserved-motif or
+productivity preference is used to resolve ties. Diagnostics include examples
+of competing coordinate projections. Default mode records these failures and
+continues; ``strict=True`` / ``--strict`` aborts as usual. Recovered sequences
+then follow ordinary junction construction, AA projection, and productivity
+assessment; a corrected anchor can consequently change those derived fields.
+
+FWR3 ends immediately after the established junction-start codon, sharing its
+boundary with CDR3. A retained V alignment can place an insertion immediately
+after that codon in FWR3 or map a repeated/deleted anchor differently from
+junction finding. The annotated region uses the junction boundary in both
+cases, preventing duplicated or omitted query bases. Retained V alignments,
+mutation/indel evidence, gene calls, and junction selection remain unchanged;
+this synchronization is not a new biological adjudication of ambiguous anchors.
+Invalid shared intervals produce explicit per-record errors rather than a
+silently truncated slice. Diagnostics record each endpoint adjustment.
+
+FWR4 starts at the existing junction-ending codon and ends at the final retained
+J endpoint. If J-boundary selection shortens the initial alignment (for example,
+to reject a downstream repeat), FWR4 and its CDR-mask labels stop at that same
+endpoint. This synchronization does not change the J assignment or junction.
+
+All FWR/CDR amino-acid fields are projected from their established nucleotide
+intervals into the continuous V(D)J translation, using ``v_sequence_start`` and
+``frame`` as the coding origin. A codon crossing a region boundary belongs to
+the downstream region. Leading bases before the coding origin and terminal
+incomplete codons are excluded. Consequently, contiguous nucleotide regions
+partition the translated sequence exactly once, even in nonproductive reads;
+``cdr_mask_aa`` uses that same partition. The amino-acid projection itself does not adjudicate nucleotide region
+boundaries; FWR3/CDR3 synchronization happens before that projection.
+
+Migration note: independently aligned V-region AA boundaries and locally
+translated CDR3/FWR4 fields could previously duplicate, omit, or mistranslate
+residues. Their corrected values may change region labels even when total AA
+assembly was previously correct. ``cdr3_length`` follows the corrected
+``cdr3_aa``. ``junction_aa`` and the ``cdr3_v_aa``, ``cdr3_n1_aa``,
+``cdr3_d_aa``, ``cdr3_n2_aa``, and ``cdr3_j_aa`` subdivisions retain their local
+junction-frame semantics for biological interpretation; on out-of-frame reads,
+they need not assemble into the continuous-query ``cdr3_aa``. Gene calls,
+retained alignment evidence, nucleotide coordinates, and productivity checks
+are unchanged. These region semantics apply to Python returns, Parquet, and
+AIRR TSV.
 
 .. list-table::
    :header-rows: 1
