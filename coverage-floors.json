@@ -7,8 +7,8 @@
     "abstar/annotation/positions.py": 79,
     "abstar/annotation/regions.py": 97,
     "abstar/annotation/umi.py": 80,
-    "abstar/assigners/mmseqs.py": 96,
-    "abstar/core/abstar.py": 93,
+    "abstar/assigners/mmseqs.py": 97,
+    "abstar/core/abstar.py": 95,
     "abstar/core/germline.py": 78,
     "abstar/preprocess/merging.py": 65
   }

@@ -33,6 +33,11 @@ records before the normal input parser and assignment run.
 - `scripts/audit_annotation_consistency.py`: read-only native-Parquet audit of
   region assemblies and mask lengths against the direct oriented-query V(D)J
   slice, preserving file/row identity independently of external sequence IDs.
+- `scripts/run_corpus.py`: fixed-corpus annotation, conservation, consistency,
+  and exact per-record baseline gate; `scripts/build_ci_corpus.py` selects its
+  inputs from explicit read-only source paths.
+- `test_data/bcr_corpus/`: committed enriched BCR corpus and baseline, excluded
+  from Python distributions and ordinary pytest matrix/coverage runs.
 - `abstar/annotation/antibody.py`: annotation data model and logging state.
 - `abstar/annotation/germline.py`: germline lookup and segment realignment.
 - `abstar/annotation/{regions,positions,indels,mutations,mask,productivity}.py`:
@@ -113,7 +118,25 @@ python -m pytest abstar/tests/test_database_integrity.py -q
 python -m sphinx -W --keep-going -b html docs/source docs/_build/html
 ```
 
-Broader discovery against the published BCR corpus is optional and never part
+The dedicated `.github/workflows/corpus.yml` job runs the committed enriched BCR
+subset on pushes and pull requests, separately from the pytest version matrix.
+Use its fixed Python 3.12 reproduction profile and a new external output path:
+
+```bash
+python -m pip install -r requirements-corpus.txt
+POLARS_MAX_THREADS=2 OMP_NUM_THREADS=2 python scripts/run_corpus.py \
+  --output /tmp/abstar-corpus-check
+```
+
+The runner checks immutable source identities, expected failures, independent
+region/mask consistency, and exact public fields against the committed baseline.
+It retains `report.json`, actual outputs, and diagnostics. Never refresh the
+baseline to silence an unexplained difference. Follow
+`abstar/tests/README.md` and `test_data/bcr_corpus/README.md` for reproduction
+and reviewed baseline updates. Five minutes is the target for the dedicated
+job; local timings do not establish hosted-runner performance.
+
+Broader discovery against the full published BCR corpus is optional and never part
 of ordinary push or pull-request CI. It requires all input paths explicitly and
 must write outside the source and input trees:
 
@@ -155,12 +178,9 @@ This compares all public Parquet fields and schemas for original successful
 records, verifies recovered failures against literal expectations, and checks
 record conservation using original FASTA ordinals even when IDs repeat.
 
-The scheduled nightly workflow is distinct from ordinary CI: it downloads an
-explicitly provisioned artifact containing `bcr_fastas/`,
-`sample_manifest.csv`, and `cellranger/`, then runs a bounded cohort. Candidate
-reports and logs live under `runner.temp`, outside the checkout. A separate
-scheduled documentation linkcheck runs independently of corpus provisioning;
-it is not an ordinary push or pull-request gate.
+Full external corpus discovery is a manual workflow; there is no scheduled corpus
+job. The scheduled documentation linkcheck is independent of corpus discovery
+and is not an ordinary push or pull-request gate.
 
 Useful CLI checks after an editable install:
 
@@ -305,6 +325,10 @@ real user database.
   fixtures or results into the source tree.
 
 ## Testing expectations
+
+For assignment-dependent regression failures and corpus baseline changes, follow
+[the test harness debugging guide](abstar/tests/README.md). Reproduce the exact
+cohort and environment before reducing inputs or changing expected results.
 
 Place tests in `abstar/tests/` and follow the existing `test_<module>.py`
 layout. For a change:
