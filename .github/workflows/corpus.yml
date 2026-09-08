@@ -1,0 +1,51 @@
+name: committed BCR corpus
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  corpus:
+    name: fixed BCR corpus / Python 3.12
+    runs-on: ubuntu-24.04
+    # Target about five minutes; leave time for cold installs and diagnostics.
+    timeout-minutes: 10
+    env:
+      CORPUS_PATH: ${{ github.workspace }}/test_data/bcr_corpus
+      CORPUS_OUTPUT: ${{ runner.temp }}/abstar-corpus-${{ github.run_id }}-${{ github.run_attempt }}
+      MPLCONFIGDIR: ${{ runner.temp }}/abstar-corpus-matplotlib
+      POLARS_MAX_THREADS: "2"
+      OMP_NUM_THREADS: "2"
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+      - name: Verify checked-out commit
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements-corpus.txt
+            requirements.txt
+      - name: Install corpus reproduction profile
+        run: |
+          python -m pip install -r requirements-corpus.txt
+          python -m pip check
+      - name: Check committed BCR corpus
+        run: python scripts/run_corpus.py --corpus "$CORPUS_PATH" --output "$CORPUS_OUTPUT"
+      - name: Upload corpus report and diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: bcr-corpus-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.CORPUS_OUTPUT }}
+          if-no-files-found: warn
+          retention-days: 7

@@ -3,6 +3,9 @@ include LICENSE
 include requirements*
 include docs/*.txt
 
+# The committed CI corpus belongs to the checkout, not installed distributions.
+prune test_data/bcr_corpus
+
 include abstar/annotation/*
 include abstar/assigners/*
 include abstar/core/*

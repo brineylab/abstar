@@ -162,6 +162,11 @@ def test_tcr_goldens(case):
         assert row["sequence_oriented"][definition["junction_start"]:definition["junction_end"]] == row["junction"]
         assert row["cdr3"] == case.junction[3:-3]
         assert row["cdr3_aa"] == definition["junction_aa"][1:-1]
+        regions = ("fwr1", "cdr1", "fwr2", "cdr2", "fwr3", "cdr3", "fwr4")
+        coding = row["sequence_oriented"][row["v_sequence_start"] + row["frame"] - 1:row["j_sequence_end"]]
+        protein = str(Seq(coding[:len(coding) // 3 * 3]).translate())
+        assert "".join(row[r + "_aa"] for r in regions) == protein
+        assert len(row["cdr_mask_aa"]) == len(protein)
         assert row["productive"] is case.productive
         assert row["productivity_issues"] == ""
         assert row["vj_in_frame"] is True

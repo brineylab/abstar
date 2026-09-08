@@ -113,7 +113,25 @@ needed for any of these commands:
     python -m pip install -r docs/doc_requirements.txt
     python -m sphinx -W --keep-going -b html docs/source docs/_build/html
 
-Optional corpus discovery requires explicit read-only source paths and an output
+The dedicated committed-corpus workflow runs a fixed, enriched BCR subset on
+pushes and pull requests. It runs once outside the pytest version matrix and
+coverage job. Its input and baseline are committed under
+``test_data/bcr_corpus/`` and are excluded from installed distributions.
+Reproduce it with Python 3.12 and a new output directory outside the checkout:
+
+.. code-block:: bash
+
+    python -m pip install -r requirements-corpus.txt
+    POLARS_MAX_THREADS=2 OMP_NUM_THREADS=2 python scripts/run_corpus.py \
+      --output /tmp/abstar-corpus-check
+
+The output includes a comparison report and persistent diagnostics. Unexpected
+biological changes and new record failures fail the job. Follow
+``abstar/tests/README.md`` and ``test_data/bcr_corpus/README.md`` before changing
+baseline expectations. The five-minute runtime target requires measurement on
+the hosted runner; local benchmarks alone do not establish it.
+
+Optional full-corpus discovery requires explicit read-only source paths and an output
 outside the source, input, and repository trees. It never runs in ordinary push
 or pull-request CI:
 
@@ -126,9 +144,8 @@ or pull-request CI:
       --output /tmp/abstar-bcr-candidates.jsonl \
       --per-dataset 25 --n-processes 2
 
-The scheduled nightly workflow is separate. It downloads an explicitly
-provisioned artifact with ``bcr_fastas/``, ``sample_manifest.csv``, and
-``cellranger/``, limits the per-dataset cohort, and uploads its outcome report.
+Full external corpus discovery is a manual workflow; there is no scheduled corpus
+job. The scheduled documentation linkcheck runs independently.
 
 
 Verify Installation

@@ -1,0 +1,800 @@
+{
+  "corpus_version": "bcr-ci-v1",
+  "expected_failures": [
+    {
+      "category": "internal_error",
+      "corpus_ordinal": 11457,
+      "exception_type": "abstar.annotation.junction.JunctionAnchorError",
+      "stage": "annotation"
+    }
+  ],
+  "files": {
+    "baseline-metadata.json": "8f309f5f8aa5aef821e57e6afc748eefda2b37f7060614a9ce0211c14d347062",
+    "baseline.parquet": "02e4983ce44257060cf0869fd22bd4bf9f8c657e7bd51d3b8c908e7d5bec1973",
+    "records.parquet": "c7d3f41fa89bf013f8e3b3665c29bd1206ea9337781772c43d8fd7dfc17f9011",
+    "sequences.fasta.gz": "b2b80cd28041acec9581f49819a87296a8ac7232aed31e9e3b8899e6f56ff06f"
+  },
+  "parameters": {
+    "chunksize": 500,
+    "germline_database": "human",
+    "mmseqs_threads": 2,
+    "n_processes": 2,
+    "receptor": "bcr"
+  },
+  "record_count": 50000,
+  "schema_version": 1,
+  "selection": {
+    "absent_fixture_candidates": [],
+    "algorithm": "sha256(bcr-ci-v1 NUL source_file NUL zero-based ordinal); smallest ranks in bounded per-stratum pools; round-robin sorted strata",
+    "background_sampling": "all original reads eligible, including difficult reads; panel membership is exclusive",
+    "background_strata": [
+      "donor",
+      "flow_class",
+      "locus",
+      "dataset"
+    ],
+    "deduplication": "exact case-sensitive sequence SHA256 across both panels; mandatory first, then difficult, then background; first selected identity retained; mandatory reasons unioned",
+    "difficult_fraction": 0.2,
+    "difficult_strata": [
+      "mechanism",
+      "donor",
+      "flow_class",
+      "locus",
+      "dataset"
+    ],
+    "difficulty_thresholds": {
+      "high_shm_v_identity_below": 0.9,
+      "long_igh_cdr3_aa_at_least": 25,
+      "long_light_cdr3_aa_at_least": 13,
+      "short_cdr3_aa_at_most": 5,
+      "v_truncation_start_at_least": 15
+    },
+    "fixture_policy": "exact source file, ID, and original-sequence hash must match; absent assignment fixtures excluded; curated real_bcr originals required; derived fixtures never loaded",
+    "mandatory_candidates": 100,
+    "matched_mandatory_candidates": 100,
+    "panel_counts": {
+      "background": 40000,
+      "difficult": 10000
+    },
+    "pool_factor": 4,
+    "reason_counts": {
+      "c_deletion": 3,
+      "c_insertion": 3,
+      "frameshift": 122,
+      "high_shm": 2261,
+      "j_allele_tie": 1794,
+      "long_cdr3": 1717,
+      "missing_annotation": 19,
+      "nonproductive": 1716,
+      "original_fixture:aa_region_boundaries": 15,
+      "original_fixture:fwr3_cdr3_boundaries": 14,
+      "original_fixture:fwr4_endpoints": 6,
+      "original_fixture:lc_anchor_failures": 19,
+      "original_fixture:missing_fwr3": 6,
+      "original_fixture:real_bcr": 36,
+      "original_fixture:region_boundary_recovery": 3,
+      "reverse_complement": 26,
+      "short_cdr3": 1379,
+      "stop_codon": 2,
+      "v_allele_tie": 1974,
+      "v_deletion": 1289,
+      "v_insertion": 1037,
+      "v_truncation": 120
+    },
+    "selected_strata_count": 298,
+    "size": 50000,
+    "source_difficulty_counts": {
+      "c_deletion": 3,
+      "c_insertion": 3,
+      "frameshift": 131,
+      "high_shm": 67072,
+      "j_allele_tie": 32544,
+      "long_cdr3": 59329,
+      "missing_annotation": 20,
+      "nonproductive": 18849,
+      "reverse_complement": 26,
+      "short_cdr3": 11083,
+      "stop_codon": 2,
+      "v_allele_tie": 58332,
+      "v_deletion": 17071,
+      "v_insertion": 14087,
+      "v_truncation": 138
+    },
+    "source_record_count": 3441852,
+    "source_strata_count": 298
+  },
+  "sources": {
+    "builder_sha256": "7c0811afa5dffe9a34310bd73e912341d9b6db5133fe94d962f20b0b7b1ea764",
+    "files": [
+      {
+        "annotation_file": "1279049.parquet",
+        "annotation_sha256": "ee019ed500fc8525011a68a19f7921ec31a23ed0ec3bbfb96f9c8540cf020236",
+        "fasta_sha256": "a9becd5bf28dbefa811e267178b837c4cc0ddcae3ac040d0d430ed0c13206868",
+        "record_count": 20534,
+        "source_file": "1279049.fasta"
+      },
+      {
+        "annotation_file": "1279050.parquet",
+        "annotation_sha256": "99b154f3982659b4e63b24eab6dafe2a7da8cdfb64e4239bdc985cfb633f1b16",
+        "fasta_sha256": "e170d3a0a3f5fb2034bd17d1e54cb5714dbbb6fae65fb014f799c673f59507e6",
+        "record_count": 35591,
+        "source_file": "1279050.fasta"
+      },
+      {
+        "annotation_file": "1279051.parquet",
+        "annotation_sha256": "9f3ba4e1b3cd7ccc4341f2c0bc3a3e441acffda218e66977c25a5bed51e2d635",
+        "fasta_sha256": "d7aa74382442e4f39b367d6f6fd7217eb0a7118d1d5533dda0ea18911389173b",
+        "record_count": 26142,
+        "source_file": "1279051.fasta"
+      },
+      {
+        "annotation_file": "1279052.parquet",
+        "annotation_sha256": "b4fb321fc97235388611ff872a61f5a8c8ef3aa2134edee117bde376d8f1944d",
+        "fasta_sha256": "2117df426e230d980769ab5fe6ddf8d8c6bfb86bfda80c1032ed78c444d39889",
+        "record_count": 2499,
+        "source_file": "1279052.fasta"
+      },
+      {
+        "annotation_file": "1279053.parquet",
+        "annotation_sha256": "acbdef1354885204b61cbc0b9b0148779d49237c1d02efe3a1c72fa92b6921fa",
+        "fasta_sha256": "1bb8d595225d94c67d2fc34aabdb4726f92d97959411da0d18cd8d8f10c48f75",
+        "record_count": 23466,
+        "source_file": "1279053.fasta"
+      },
+      {
+        "annotation_file": "1279054.parquet",
+        "annotation_sha256": "23792a2cc7af060ccae8856ec58fd4b7aec5761508bea3968a6641ee7159e227",
+        "fasta_sha256": "ff509c8b863e0007c7f92c6edf268642d35940e0c8e75277b3c35a76f8900ba3",
+        "record_count": 21880,
+        "source_file": "1279054.fasta"
+      },
+      {
+        "annotation_file": "1279055.parquet",
+        "annotation_sha256": "58a2252c1f4d111cb95ef29b1c28d77a199c5a459d9d04a3ba03a21911e9e6eb",
+        "fasta_sha256": "a5e5b4514d33f47c557af9f86dbe7353918a308a776f76c49096ff71a831636a",
+        "record_count": 12260,
+        "source_file": "1279055.fasta"
+      },
+      {
+        "annotation_file": "1279057.parquet",
+        "annotation_sha256": "3154195ce889fa88996afb4cba75316548a805a10fa0ba9ac7f2c046d36d5270",
+        "fasta_sha256": "69aa1972bbb959f36666cfa669169477e798ba881b21000894ec992f75699c7d",
+        "record_count": 21976,
+        "source_file": "1279057.fasta"
+      },
+      {
+        "annotation_file": "1279058.parquet",
+        "annotation_sha256": "6b0a351287e1d43df0f3979d44597bb3df879167fe3f098be3db181f6e070056",
+        "fasta_sha256": "6cdc12b8c98519f878a09971a7f25a640664493b0a865b61ffdb617b9aaad172",
+        "record_count": 34853,
+        "source_file": "1279058.fasta"
+      },
+      {
+        "annotation_file": "1279059.parquet",
+        "annotation_sha256": "7c1b7ccafeb94b82433499820fa15163155c27acec21d174174d67d94c0b5613",
+        "fasta_sha256": "b1a022bd6a84a55b77d0b977549c28512f4aacc0066ebf7a0276b7acd4f60981",
+        "record_count": 31699,
+        "source_file": "1279059.fasta"
+      },
+      {
+        "annotation_file": "1279060.parquet",
+        "annotation_sha256": "7f98f4d16ef0a0f175e6792ba157a54763898e1d4b9c4fb38287abf53f8ef01e",
+        "fasta_sha256": "3e121353940039dc5900c02bab97353f6c581e0da8b8f9bf0fe52e6ad706b470",
+        "record_count": 2908,
+        "source_file": "1279060.fasta"
+      },
+      {
+        "annotation_file": "1279061.parquet",
+        "annotation_sha256": "744bbebbf8d92d6011f7865df67013db250e17c5ad81341520b28ca043d9efba",
+        "fasta_sha256": "8575d83076040e4ae47d5ea739815834b0652210c19a8734c378a1da0e757731",
+        "record_count": 24196,
+        "source_file": "1279061.fasta"
+      },
+      {
+        "annotation_file": "1279062.parquet",
+        "annotation_sha256": "190d909e8d4347e407689ad1cebb04cb14538099987ecd23270afbc9b6dfa3e3",
+        "fasta_sha256": "2fca66320ebf65c1636477a322723e7aeddf1ce7f8bd11177c41b8a8fe86c287",
+        "record_count": 23886,
+        "source_file": "1279062.fasta"
+      },
+      {
+        "annotation_file": "1279063.parquet",
+        "annotation_sha256": "638b7327b864c194e8bcfa0c16fcaba32b5a78232e8929c84653544259da716f",
+        "fasta_sha256": "04a5c52a10b7b400de95fbcfc329fa427c9b08c8c6717452d03010b9e7227074",
+        "record_count": 10402,
+        "source_file": "1279063.fasta"
+      },
+      {
+        "annotation_file": "1279065.parquet",
+        "annotation_sha256": "2caa99f4847c37fd04ef72bc37a4b5cdbf29054256c4060953f3b97b1f8583cf",
+        "fasta_sha256": "2f395a38726d0426386b47eea211e5ed5088341016a40544ff51ad691e078b03",
+        "record_count": 19122,
+        "source_file": "1279065.fasta"
+      },
+      {
+        "annotation_file": "1279066.parquet",
+        "annotation_sha256": "c1b0b5602126799d7258295303dbe769f4248a21fb21fa1f5d33a5ef66f53af3",
+        "fasta_sha256": "4bef181977bb6cc7baed59c8547762b89c6ddf4a602811112ae2e09ceaec6e41",
+        "record_count": 28338,
+        "source_file": "1279066.fasta"
+      },
+      {
+        "annotation_file": "1279067.parquet",
+        "annotation_sha256": "9bf7901bfe599729f473c5e48e2bf34326746e7009398a1ee3ccf5674d833c43",
+        "fasta_sha256": "9057000b6cf6368704e683acac4c89cc385ed1bf5c271b23094d4c691702920e",
+        "record_count": 19282,
+        "source_file": "1279067.fasta"
+      },
+      {
+        "annotation_file": "1279068.parquet",
+        "annotation_sha256": "d6ecaf361ba39a685bf3feeab2f997ff501e5e03871e54d1f3c05eb5fe123656",
+        "fasta_sha256": "5d2315a3d9c431a5a2ff4a061ef7f8112427df10b4223006f87f97e584040aa4",
+        "record_count": 1935,
+        "source_file": "1279068.fasta"
+      },
+      {
+        "annotation_file": "1279069.parquet",
+        "annotation_sha256": "ab42b4d8a5817484b4079990c83a1d70dfb53c75cf4b807dff58f29ccf549a78",
+        "fasta_sha256": "5d61f47413cd76aa209dc2b969b1e73675b7c57a1ce248df3436566f274a4b8f",
+        "record_count": 28883,
+        "source_file": "1279069.fasta"
+      },
+      {
+        "annotation_file": "1279070.parquet",
+        "annotation_sha256": "b143a8e8c931b45b3a840b672b0d89c0e597541ced5d545ce9a68f47f26b74ed",
+        "fasta_sha256": "7a5e72d88fc9416c69a844f5015c21ad25d803322b4794cd89e858cb037e5949",
+        "record_count": 26173,
+        "source_file": "1279070.fasta"
+      },
+      {
+        "annotation_file": "1279071.parquet",
+        "annotation_sha256": "e59fd430561fb149bc9fbe9d4575777e13dacc2aae6b6abcf6079d2d64e7348e",
+        "fasta_sha256": "7b40ddc4cf99c5f36890bc80bd85441a17c0067a5b3087e395e929ddc4ebb48a",
+        "record_count": 31953,
+        "source_file": "1279071.fasta"
+      },
+      {
+        "annotation_file": "1279072.parquet",
+        "annotation_sha256": "9d5b649af82cf5f4a9bbdf1606642a53b767a601acb32a7f46ad28693692f393",
+        "fasta_sha256": "ec43ca120b0c66c5366bedc63e87f1dd591556507eb06fbf49228fe89761ed82",
+        "record_count": 5707,
+        "source_file": "1279072.fasta"
+      },
+      {
+        "annotation_file": "1279073.parquet",
+        "annotation_sha256": "7f6d5bb546fed2614905697d2cd991ebeb1e7b16af254774c2ea3f2a8be5a2e9",
+        "fasta_sha256": "4b2d422e4d702c9e9dbc8a1a9a4249421439b58458891477dbfe59178b438e05",
+        "record_count": 22516,
+        "source_file": "1279073.fasta"
+      },
+      {
+        "annotation_file": "1279074.parquet",
+        "annotation_sha256": "b2cf17b9c54883a79b6e41f4083273f8c3160a6d6613877cb3dc7d98eb145486",
+        "fasta_sha256": "502ba89aafd297207b38d5c9edec9bbf90df1c298f8168dc1a46c0ed49e05186",
+        "record_count": 32802,
+        "source_file": "1279074.fasta"
+      },
+      {
+        "annotation_file": "1279075.parquet",
+        "annotation_sha256": "2aaa417983443b164d3eaabe7222fc19410317d69398a871bdb3d4ede8662fb9",
+        "fasta_sha256": "fe226b48ac641933ebfcc17e9d9afec6c0231dd5c5d0e944a08ccc06e51e38f2",
+        "record_count": 20005,
+        "source_file": "1279075.fasta"
+      },
+      {
+        "annotation_file": "1279076.parquet",
+        "annotation_sha256": "ebe40bfbaee4be2c807eb7a166f4362c93cf41da42e58cefc9a28c75a8139682",
+        "fasta_sha256": "d796cb277114f386bb1cd4c9ca83a4e308951562a4e874724bb25ce48aefd611",
+        "record_count": 2037,
+        "source_file": "1279076.fasta"
+      },
+      {
+        "annotation_file": "1279077.parquet",
+        "annotation_sha256": "5bbfe3519c24fe800f2899cf409bcd423c5049c206ee3550da4f717caf1ee31a",
+        "fasta_sha256": "62e8bf265d47fef06360f665dc7e1e1367130f7e473c7329b803c5171521ed98",
+        "record_count": 28120,
+        "source_file": "1279077.fasta"
+      },
+      {
+        "annotation_file": "1279078.parquet",
+        "annotation_sha256": "eeab5daed96e82231ce043f2f63ff1c4258e4d4c45a290cf70a3b318c37c905e",
+        "fasta_sha256": "b8fe86da60604320a6a6bf8fecc5662593ecef6190ea264d7e02cbdf8caac6a5",
+        "record_count": 24223,
+        "source_file": "1279078.fasta"
+      },
+      {
+        "annotation_file": "1279079.parquet",
+        "annotation_sha256": "41c6de6b5021be7cff74356b9f8acf898e414bfbc4e14d1f11429459825838f5",
+        "fasta_sha256": "aae92013d1393fd9b79f4543d1a9ff85377bf674844ba9fcadf999f38efeb113",
+        "record_count": 32872,
+        "source_file": "1279079.fasta"
+      },
+      {
+        "annotation_file": "1279080.parquet",
+        "annotation_sha256": "c8ac7524f503633770629714a8d3f8c57e85161c92583aebbe1dabe50b82f2fb",
+        "fasta_sha256": "9056c4a1c4e29ccd4d9fefa1096449c1c6fcf66219f18769b965e8e567f34be2",
+        "record_count": 5610,
+        "source_file": "1279080.fasta"
+      },
+      {
+        "annotation_file": "1287144.parquet",
+        "annotation_sha256": "16f023674f1236e81fde308b6c70013d6f840a40fada2c020e7f9edb089d098b",
+        "fasta_sha256": "adc8a0a45b0b9216b4cb98435258686e62e6f0a3d7456b94d5d0c4025b807fb0",
+        "record_count": 47219,
+        "source_file": "1287144.fasta"
+      },
+      {
+        "annotation_file": "1287145.parquet",
+        "annotation_sha256": "12e56c709caebf9d594636c16ac50848c192f210427fc4516b70565c245e92e6",
+        "fasta_sha256": "5ef2f032011a3d7ea6e104dbe76768b779414477833c750389ef33f22909187c",
+        "record_count": 47669,
+        "source_file": "1287145.fasta"
+      },
+      {
+        "annotation_file": "1287146.parquet",
+        "annotation_sha256": "9ebd935d0bba0364a55097f64329ce2264cb3cdc5b2eae598c52b5f805f59681",
+        "fasta_sha256": "d63be5b3a8035270e15712575f552a34523519f4d60ec2b9d73f5c2626c0f687",
+        "record_count": 48108,
+        "source_file": "1287146.fasta"
+      },
+      {
+        "annotation_file": "1287147.parquet",
+        "annotation_sha256": "f5ffc997709cb54cf52312596de2285386a4572cd4ecd2abe3f016812918b050",
+        "fasta_sha256": "3714b858353e7220aee542be784595f34a56a1d25173fa3f6c4960920927f84b",
+        "record_count": 47533,
+        "source_file": "1287147.fasta"
+      },
+      {
+        "annotation_file": "1287148.parquet",
+        "annotation_sha256": "9b92acb3642a6cf295dae2ae33fd9ba6786e4c556851bebea360d994b47998fb",
+        "fasta_sha256": "c1106552489ec91973815b052a3bb0ab48ba2aa735cb079b8393ed5d4d4ef74a",
+        "record_count": 44153,
+        "source_file": "1287148.fasta"
+      },
+      {
+        "annotation_file": "1287149.parquet",
+        "annotation_sha256": "b47c63922b4ef5c7511fb8491798c5898440413d3d42f6804947de490952d741",
+        "fasta_sha256": "42263d006d621d0ea63f5e9d5fb7b109fd9bb64a16a14b41ec4557eca9c96305",
+        "record_count": 44721,
+        "source_file": "1287149.fasta"
+      },
+      {
+        "annotation_file": "1287150.parquet",
+        "annotation_sha256": "34106de7da83c1a2a30e1cdc736e75077c21da123e74c626017d8be1eedd381e",
+        "fasta_sha256": "828c7cf35685ba91c9e53a83e3284aa4d87b4616bc7af166e0cdea525887d8a5",
+        "record_count": 42439,
+        "source_file": "1287150.fasta"
+      },
+      {
+        "annotation_file": "1287151.parquet",
+        "annotation_sha256": "e7a7919d163f1dacd42a6118f2e12c19469614cb3cca883f66267ae6813dd917",
+        "fasta_sha256": "9a9eadfd37c94202b06f97b96bb88a3fd71cd49df521e44f3940208d9a85cf54",
+        "record_count": 43227,
+        "source_file": "1287151.fasta"
+      },
+      {
+        "annotation_file": "1287152.parquet",
+        "annotation_sha256": "b80ac550b1d43f2190c1df00c0e407cd5ade31e15da6512aa767452e9f9d81bc",
+        "fasta_sha256": "786dfcb2b0661ff3139ea4533c78ce6df006ab1dcbdc78debafffc435517e662",
+        "record_count": 23565,
+        "source_file": "1287152.fasta"
+      },
+      {
+        "annotation_file": "1287153.parquet",
+        "annotation_sha256": "cfaab69e2bfb8515a7954692512d55d53f1a524219bf5e432f4965c1e0afeb9c",
+        "fasta_sha256": "926c72051f0157600e76cba597abf60ff6736fdc4642b843c8a375581c22fdeb",
+        "record_count": 47490,
+        "source_file": "1287153.fasta"
+      },
+      {
+        "annotation_file": "1287154.parquet",
+        "annotation_sha256": "862c2d5e51ff5971c3fd326c7d1331a9e3623ec15b23eae034baeac403753984",
+        "fasta_sha256": "4ceff48b63d12601975d17f1c543d185095ab6b6614fc0dd259a9864a269f3ae",
+        "record_count": 50081,
+        "source_file": "1287154.fasta"
+      },
+      {
+        "annotation_file": "1287155.parquet",
+        "annotation_sha256": "db22df7df81a7e4c8835a1c1fade4ef0058e20131baa56e46079e70e0789dbf5",
+        "fasta_sha256": "3378dd4d13dc5f34eaf1696ef7f349a85e7125acb3233e78ddf8e282cd7af635",
+        "record_count": 48462,
+        "source_file": "1287155.fasta"
+      },
+      {
+        "annotation_file": "1287156.parquet",
+        "annotation_sha256": "e87e704769b8c77e1fa01cbfec9c6661a0a97f83db1550710daa40943fb2e901",
+        "fasta_sha256": "7aff727b8063e87a6991dd6b288df167702af7e90118eb905e15e29c3700bc4d",
+        "record_count": 44780,
+        "source_file": "1287156.fasta"
+      },
+      {
+        "annotation_file": "1287157.parquet",
+        "annotation_sha256": "3e3004214ed8a4fc40e1cf96743635f53bd25eb0d9c04e371343b1390a91b2c6",
+        "fasta_sha256": "586060f3c968ac8e2b72f0444c08c05da4d312dff6555e728db25253c232a5bd",
+        "record_count": 44374,
+        "source_file": "1287157.fasta"
+      },
+      {
+        "annotation_file": "1287158.parquet",
+        "annotation_sha256": "c7292f3a8bbef8f9f185a05eee74c9abda544e0e6074b1d09a5e791a73b96625",
+        "fasta_sha256": "6080bbbe7d03b5f367ed6191e5c2f78c9b63c11274e9ae49f8a7e062a2944e66",
+        "record_count": 44235,
+        "source_file": "1287158.fasta"
+      },
+      {
+        "annotation_file": "1287159.parquet",
+        "annotation_sha256": "45ec70eb926574d0f645017816a42ef929ae7cee77a4ce02f8332b4121f8ab74",
+        "fasta_sha256": "c0cbbca9b1491b410b2dba57878ddf763e41a062dd66f6b4be497c0f4b2d6853",
+        "record_count": 45364,
+        "source_file": "1287159.fasta"
+      },
+      {
+        "annotation_file": "1287160.parquet",
+        "annotation_sha256": "87fa3620c1c5a2c60712b734de4df8ad0ab2a6a682af324346d6fce9ad6e78b9",
+        "fasta_sha256": "429fc3b2d06bb530a22b9d4d737f8cf75f0cdcda4ab0080e086f0caf1ea0d0df",
+        "record_count": 48402,
+        "source_file": "1287160.fasta"
+      },
+      {
+        "annotation_file": "1287161.parquet",
+        "annotation_sha256": "e30730bdf5c5e9b26021e9651f53edb88c18972f87ae7ecb05eba501ffe7f441",
+        "fasta_sha256": "accde4bf8d260333f1cb256d3c2339b71491e23eb0211b2afc3b5839266ff556",
+        "record_count": 49648,
+        "source_file": "1287161.fasta"
+      },
+      {
+        "annotation_file": "1287162.parquet",
+        "annotation_sha256": "a4ffa0e9cda8435952b63ff07c8bcffa7958dfa7957feb46a1279eb7e0128fcc",
+        "fasta_sha256": "3931b022a97920996d78298d9d5b9033876614f28ccc07d13d598ff21f29c85a",
+        "record_count": 48759,
+        "source_file": "1287162.fasta"
+      },
+      {
+        "annotation_file": "1287163.parquet",
+        "annotation_sha256": "c5548a53b47d95712ee5244b953c57c773fe6a4ad1faa62486039e7d0e48e039",
+        "fasta_sha256": "ab5dd28e780a6979563a63dce8d07d0cbb7998be903d1b031cf0f11ef07210c5",
+        "record_count": 50884,
+        "source_file": "1287163.fasta"
+      },
+      {
+        "annotation_file": "1287164.parquet",
+        "annotation_sha256": "6a70267b795327cd62ef61e16adfd1f49ade93dc69c4e78a6ed635f8dc8f733c",
+        "fasta_sha256": "76571df583de2ac3b9bb7b07bdeafd614bbc19e4d0c7ea46421bb7e35a6dee82",
+        "record_count": 50099,
+        "source_file": "1287164.fasta"
+      },
+      {
+        "annotation_file": "1287165.parquet",
+        "annotation_sha256": "c8c0674686f80c430c6f13b13d2c929faa7840b51712d773cdceb04ec11f5c36",
+        "fasta_sha256": "3193e04296b35257bb7d416f374d98b46e49d82a808b94a18bde8573825cd28a",
+        "record_count": 50583,
+        "source_file": "1287165.fasta"
+      },
+      {
+        "annotation_file": "1287166.parquet",
+        "annotation_sha256": "c15b2bc9073b0e4a6b68ffd754105553836667b8c8d872e287bcf57454009beb",
+        "fasta_sha256": "96fb87e32cf9e79f6c703e2450419776a201ea8db0763def5dfe20eb2c355b6f",
+        "record_count": 48726,
+        "source_file": "1287166.fasta"
+      },
+      {
+        "annotation_file": "1287167.parquet",
+        "annotation_sha256": "934e4954fe16537a0f62c1f9cb257a15a2084aab828881f6ee4fed3df7aa6282",
+        "fasta_sha256": "71c9fc47fdf066e73d5284332a43f9499246babf817baa2b02bbd4bb99ea74d9",
+        "record_count": 46870,
+        "source_file": "1287167.fasta"
+      },
+      {
+        "annotation_file": "1287168.parquet",
+        "annotation_sha256": "2ba7d03dcb4510ba1dd6b4f16c5b5095371039369b125ac854488550d5873307",
+        "fasta_sha256": "994fd46d0964d6ae34ca5a193681fa5f096319af0650082e69e82f232504be5d",
+        "record_count": 51062,
+        "source_file": "1287168.fasta"
+      },
+      {
+        "annotation_file": "1287169.parquet",
+        "annotation_sha256": "d719cb34d77847501b0a220f614df85278d2dba66e1742bc903571d64d634159",
+        "fasta_sha256": "f8c5a8bfc9cf560e5b0f22a0bd8d3f4d81deac22f597e82f4224c3fb1ae2977e",
+        "record_count": 54769,
+        "source_file": "1287169.fasta"
+      },
+      {
+        "annotation_file": "1287170.parquet",
+        "annotation_sha256": "15a59b9a303f918a2cb81ce16124f5b344a5de4bfe699ed5d1e04d57ccbdc468",
+        "fasta_sha256": "84a697cbdac54c7ae593a4f5a2590e56c1e2a33b9f915d5e96b810b85a004a86",
+        "record_count": 50453,
+        "source_file": "1287170.fasta"
+      },
+      {
+        "annotation_file": "1287171.parquet",
+        "annotation_sha256": "a8de5a2e76becabc0a8aeab3907a9f397217937ebf66c7305599f774eb2b85d5",
+        "fasta_sha256": "c613fd0d3bbd1907411e11f5cc1348352ac1fa67d7f3958c480682ba1d60ddb8",
+        "record_count": 56548,
+        "source_file": "1287171.fasta"
+      },
+      {
+        "annotation_file": "1287172.parquet",
+        "annotation_sha256": "3a17d73baeacf788cf6592d8bf0aaf616339c3f7ebf39b0fce7301837a1abc18",
+        "fasta_sha256": "e4575471b68ce312537f444a1d9f6ddd697f2fe7af239df483836041588c5120",
+        "record_count": 50481,
+        "source_file": "1287172.fasta"
+      },
+      {
+        "annotation_file": "1287173.parquet",
+        "annotation_sha256": "b7d167e6bb5ceafd8c4091c440f4eff314d732c63a4a13fc169a297520c68a73",
+        "fasta_sha256": "9729a223a8904cb99510a41d584c5704c921c1b8c28f96350c50b818e4540ddc",
+        "record_count": 55850,
+        "source_file": "1287173.fasta"
+      },
+      {
+        "annotation_file": "1287174.parquet",
+        "annotation_sha256": "7bc4be69a354f0a7128aefc7a905b9bb105932064babee749f9d2a6a455bfb5d",
+        "fasta_sha256": "e1a6c44cb3c39df296f2437bf15e30b7e0836dd991ffc808a47b719a0a742649",
+        "record_count": 50844,
+        "source_file": "1287174.fasta"
+      },
+      {
+        "annotation_file": "1287175.parquet",
+        "annotation_sha256": "3295ec8be1160bd50d1e6ad111ff80f0966b1817165768670c8e5087cc76f45e",
+        "fasta_sha256": "5c270892afa0eebc82324ea424825aad51d9515b7ba408b331d2d7edb116fdcc",
+        "record_count": 53197,
+        "source_file": "1287175.fasta"
+      },
+      {
+        "annotation_file": "1287176.parquet",
+        "annotation_sha256": "97216cc2125d4f36b4a5b8826612a6b0933ed7a34549b5a67117a4eb80c4e17c",
+        "fasta_sha256": "4d3a11269133cfe3176d1098651711e13c9c105af16b9d7f1fce37f5ea287da6",
+        "record_count": 39583,
+        "source_file": "1287176.fasta"
+      },
+      {
+        "annotation_file": "1287177.parquet",
+        "annotation_sha256": "7b37b8408bf13612a0877959dd4c90c548bca001cbdea939a36fdb4d153181d2",
+        "fasta_sha256": "2631eb24af9c63574981f574cb11abc4461824c4011fdc539687bb81652a2ea9",
+        "record_count": 40399,
+        "source_file": "1287177.fasta"
+      },
+      {
+        "annotation_file": "1287178.parquet",
+        "annotation_sha256": "d2b1954608465856c417abd4a373048fa497c2ea67add1473c1cd42cdabd8ffe",
+        "fasta_sha256": "638fb5f4dd6e389bfbf22bcdcd861d606ef351476b393b5e1297c5dd97fd2246",
+        "record_count": 39188,
+        "source_file": "1287178.fasta"
+      },
+      {
+        "annotation_file": "1287179.parquet",
+        "annotation_sha256": "f30c2f0c8d41163e148f924932ed02f1cc6d1ecdcdba90878ab0ec5d24e8c4f6",
+        "fasta_sha256": "2ee8f5744ae2d6e7f77e649c790934db5e5baa7619ed6cebe4e93906c9ecd3f9",
+        "record_count": 38583,
+        "source_file": "1287179.fasta"
+      },
+      {
+        "annotation_file": "1287180.parquet",
+        "annotation_sha256": "49853858505ce8710e9cd1f34e14f84ac28e52de0068616fc772485d6277b3d2",
+        "fasta_sha256": "795c1780d805d76416ee3812af4b8390d11c3acc3556d70e42622bb60bd090f5",
+        "record_count": 32495,
+        "source_file": "1287180.fasta"
+      },
+      {
+        "annotation_file": "1287181.parquet",
+        "annotation_sha256": "08e0449ef723dd27159b66fc0c069ff1258455283f4b31bbc10382538857322f",
+        "fasta_sha256": "403f1a18beff5a03e46138e79c1df3a5190cba71042134ff44639c16b6b4dba0",
+        "record_count": 32577,
+        "source_file": "1287181.fasta"
+      },
+      {
+        "annotation_file": "1287182.parquet",
+        "annotation_sha256": "da5d8b537ea7e8db1336f0dcb9e58d5cdb0e294a13a0650f8a403e64a4633388",
+        "fasta_sha256": "c09822294677b589b71ffaef3c7ccb27c54e819af2fd09e290f9ca65e671cdb4",
+        "record_count": 34302,
+        "source_file": "1287182.fasta"
+      },
+      {
+        "annotation_file": "1287183.parquet",
+        "annotation_sha256": "ed53bb9a0a1af207f2642c06ec1c726f400e86e8c1c5e5dc5b2ef527677ec235",
+        "fasta_sha256": "d2fa0070401c24c8ad2d85d27ab6e530db7f12cb4b6e224c25891ad6a022ab1f",
+        "record_count": 36104,
+        "source_file": "1287183.fasta"
+      },
+      {
+        "annotation_file": "1287184.parquet",
+        "annotation_sha256": "a313ad838486a0d27ec35bbd64dc9f755c409c298286b59f2259eab90615d641",
+        "fasta_sha256": "e07a3f5da6b724ae115e9893da5fe5a6bf5e2bc63b550e2f9a561392759e7dd3",
+        "record_count": 40407,
+        "source_file": "1287184.fasta"
+      },
+      {
+        "annotation_file": "1287185.parquet",
+        "annotation_sha256": "c93842e1d10b477b54871e08fa482040e26b4a37467ec80137e0c284dac39d0c",
+        "fasta_sha256": "40ff5d7afbf5e328620901494c3040e84bbdd30e1d4ab33d5d0e438be3bc008c",
+        "record_count": 40163,
+        "source_file": "1287185.fasta"
+      },
+      {
+        "annotation_file": "1287186.parquet",
+        "annotation_sha256": "ec06b3126e7393d2aeb85bc6140bc47e78e225b2055dfa86a0db14cd3a7f0bed",
+        "fasta_sha256": "809694e45ff2f1c089f4b30a42f6e46a60278c935a3d5cdda8fa416e080058f3",
+        "record_count": 49720,
+        "source_file": "1287186.fasta"
+      },
+      {
+        "annotation_file": "1287187.parquet",
+        "annotation_sha256": "4ed2c2c875ea570d4f65bdd0225e981c2dbc6358f3dff7584b8229e732a162c8",
+        "fasta_sha256": "7742d49a71c7df5565a3bc23909ad4358d8410801c43a6c733ab6a3057196012",
+        "record_count": 41210,
+        "source_file": "1287187.fasta"
+      },
+      {
+        "annotation_file": "1287188.parquet",
+        "annotation_sha256": "842bd5d5dea27639ba5bc1c6542590a21e9a0861890a13a2928cf5906cd12467",
+        "fasta_sha256": "b8091f2137b96f340612b3a55dc43a152e00b84c0f81078a2a6fdcc42645403c",
+        "record_count": 34195,
+        "source_file": "1287188.fasta"
+      },
+      {
+        "annotation_file": "1287189.parquet",
+        "annotation_sha256": "6147650fe1a210eb20874dd0f626a720128dac7322ecb66cefcbe0352bf44914",
+        "fasta_sha256": "0166eeced59f7da5b9c49dd32659e0975c9df099cdc4c11148d0a7a067da017b",
+        "record_count": 30218,
+        "source_file": "1287189.fasta"
+      },
+      {
+        "annotation_file": "1287190.parquet",
+        "annotation_sha256": "dcc12d992c21ac3aefd055bb99960ed5b949bb9496781c31616df723e1e5cbfb",
+        "fasta_sha256": "daaa8c0cc1c009e611e59bf587de0eef3190df393041472491a9f4d5c754c410",
+        "record_count": 35932,
+        "source_file": "1287190.fasta"
+      },
+      {
+        "annotation_file": "1287191.parquet",
+        "annotation_sha256": "4b0b25056cd3be4155103389171d14377f0bfb798a30e171a64d977fcd7a3ebf",
+        "fasta_sha256": "6e48ed62df9871332fa3d5620129a54968017f3f93a3ba6144ce6a9824911e24",
+        "record_count": 34273,
+        "source_file": "1287191.fasta"
+      },
+      {
+        "annotation_file": "1287192.parquet",
+        "annotation_sha256": "fafd36763df8e3f5efc7ff92c597a52420c178d38b73292e10bb120c961e1f6a",
+        "fasta_sha256": "f4320bec49fca608202c280cccca0c5e30cf24c69fdb26c343b42c6358115aca",
+        "record_count": 43800,
+        "source_file": "1287192.fasta"
+      },
+      {
+        "annotation_file": "1287193.parquet",
+        "annotation_sha256": "3b529b62df1bcb322766aaa74f271b95a830cdf6ef8388e748c15ec48b7e0cc1",
+        "fasta_sha256": "46b68344c30c4504079e1d521317578bfb4730d4d20c195fe3661b838f2cbbaf",
+        "record_count": 46134,
+        "source_file": "1287193.fasta"
+      },
+      {
+        "annotation_file": "1287194.parquet",
+        "annotation_sha256": "a986a4a924f2329bd309f523d24e42dfa4e62387562c973c6936bf2d2c23cb32",
+        "fasta_sha256": "6077fd960820902474ce7c2357aee0d89aee0caaf612158a0f23cfab52a29c54",
+        "record_count": 44860,
+        "source_file": "1287194.fasta"
+      },
+      {
+        "annotation_file": "1287195.parquet",
+        "annotation_sha256": "9490335de8305b442312be5e9c39229c7fbb90ace27dfd9bff8d034bd439f0b2",
+        "fasta_sha256": "030f21b5f16cd111f3454a86de8ff7cc0b52e205315222d850bf103a9836ce25",
+        "record_count": 44089,
+        "source_file": "1287195.fasta"
+      },
+      {
+        "annotation_file": "1287196.parquet",
+        "annotation_sha256": "bea9539d4865b5304d24eaf455723e4a748faf90970919d5ce7ec2a7448333bc",
+        "fasta_sha256": "ea6132f0dba86d100e58bdb543995058f0e9599c1fe9501d5db9f6b348ab6509",
+        "record_count": 41063,
+        "source_file": "1287196.fasta"
+      },
+      {
+        "annotation_file": "1287197.parquet",
+        "annotation_sha256": "b85bcaaa8542acf0db3af76492a8b64e55317b624888164602767bba225c39c8",
+        "fasta_sha256": "131c65b73bd597508ef61696b7f95181cb34e0b6ecf089eb1850f57ae51547ab",
+        "record_count": 39985,
+        "source_file": "1287197.fasta"
+      },
+      {
+        "annotation_file": "1287198.parquet",
+        "annotation_sha256": "d0d49c22de30fa0452ee9cf6bc5b191d52a209285d7ba8491b2185ed0f2d1b50",
+        "fasta_sha256": "62f5ac6165073c63a82a551e96aff9ed643e9bfaf5e7d2a38f3e23554c610da5",
+        "record_count": 38932,
+        "source_file": "1287198.fasta"
+      },
+      {
+        "annotation_file": "1287199.parquet",
+        "annotation_sha256": "982138569bf6561f8ec4b79cabec167294c613a28eb73921b6995a1766a271f1",
+        "fasta_sha256": "f8effdd83c38e53bdb2514838d9294a88044ad506a0abbb4ec626ccbdb7e6055",
+        "record_count": 38354,
+        "source_file": "1287199.fasta"
+      },
+      {
+        "annotation_file": "1287200.parquet",
+        "annotation_sha256": "4ba5f895d376810b6bb9628c9b6a0e9bcc1f864955f4700e99cb61a18b2bffad",
+        "fasta_sha256": "344c0fcbe7857d771652a419b4f1b0936dcdc030fb3fe47ee6eb06a0e6d2d0aa",
+        "record_count": 46172,
+        "source_file": "1287200.fasta"
+      },
+      {
+        "annotation_file": "1287201.parquet",
+        "annotation_sha256": "cc9a4b8201dc26c1a340fe7cd16fb4408460f9774beb5119ec49e2f4029e91b4",
+        "fasta_sha256": "ca24d2f2b41c255024d21c532201eba6435ff0b685b2f1b167231d1a48f61431",
+        "record_count": 47011,
+        "source_file": "1287201.fasta"
+      },
+      {
+        "annotation_file": "1287202.parquet",
+        "annotation_sha256": "9c6a534da7e3b0e75e8e060d659159bababed42e308729021be268ce43bf17db",
+        "fasta_sha256": "e05dbc57a39704f2a97246c38d4aed1a07f4ec826bd0ebb46d630ef3e367cecb",
+        "record_count": 46361,
+        "source_file": "1287202.fasta"
+      },
+      {
+        "annotation_file": "1287203.parquet",
+        "annotation_sha256": "9894c5cedf8041f941a4b852e9966a949f11c25291f0e0572060d321ff7a78af",
+        "fasta_sha256": "5aae87c347e79c2adf89012e2be6792f444d5617905cd7876ec88b661ecb7060",
+        "record_count": 48605,
+        "source_file": "1287203.fasta"
+      },
+      {
+        "annotation_file": "1287204.parquet",
+        "annotation_sha256": "108fc1aa76fdee7b2f290eca40142ccf0790f0a75e5611a66c2213140b7462ac",
+        "fasta_sha256": "589c6fa4cfba76dcf4350ed37065df989c1e66c3c9c03a5766e49e0e0fcffc8a",
+        "record_count": 43165,
+        "source_file": "1287204.fasta"
+      },
+      {
+        "annotation_file": "1287205.parquet",
+        "annotation_sha256": "6a6d67d02931fd6170dbfde371204bc30e4ca2c6f7e77a14eb2d3604b4f1d0db",
+        "fasta_sha256": "71702df419bc4f6c83f779befa471019220413289ed956e76b534214b47790ac",
+        "record_count": 42601,
+        "source_file": "1287205.fasta"
+      },
+      {
+        "annotation_file": "1287206.parquet",
+        "annotation_sha256": "2f5389b1bbfe8773551a39265170682084d4e08a93c83948f98f9ec6c1790a80",
+        "fasta_sha256": "b8eb2d30650f8f8a0528c5213a6f81a1734e1e31082947377d349c3ae4b60c38",
+        "record_count": 39172,
+        "source_file": "1287206.fasta"
+      },
+      {
+        "annotation_file": "1287207.parquet",
+        "annotation_sha256": "c9cce0ed581e848a69401a739749d68134d825ccac2896c7ac7bf049d96110bb",
+        "fasta_sha256": "ec2b7052eb4afd23b69f9f4eee2e1c7c5e6fb5d933b7f7f29c27171853dbfe28",
+        "record_count": 39734,
+        "source_file": "1287207.fasta"
+      }
+    ],
+    "fixtures": [
+      {
+        "file": "abstar/test_data/region_boundary_recovery.json",
+        "sha256": "8102cdb08be952698b691b4c935d6588f8b2ce37373b737cc72de70fbde5e4ba"
+      },
+      {
+        "file": "abstar/test_data/lc_anchor_failures.json",
+        "sha256": "674198e8cc101a2b9e6b1776218e6a11f316c708a273de24c0dd590ea46daf30"
+      },
+      {
+        "file": "abstar/test_data/missing_fwr3.json",
+        "sha256": "13223e62bcebe62fd659649fd52fec943d87c7f47d8e336b55bbad224d7f9005"
+      },
+      {
+        "file": "abstar/test_data/fwr3_cdr3_boundaries.json",
+        "sha256": "efbc033d891f0ed187e0bff2c7f825127586ef0d2b9f0d11408ae14f527f47fb"
+      },
+      {
+        "file": "abstar/test_data/aa_region_boundaries.json",
+        "sha256": "782f5c86adb46a5693aad41478ba1173825c0299508cb5eb31b009768bfabf56"
+      },
+      {
+        "file": "abstar/test_data/fwr4_endpoints.json",
+        "sha256": "ef07d2ab726e88136eecd734f55189f9db705080f1f44244e9b3c4050ad6de32"
+      },
+      {
+        "file": "abstar/tests/data/real_bcr/cases.json",
+        "sha256": "d97e50b59a40d52a64a36585278a83399ca876e89d656d0ab2dc2ea8a2e302f6"
+      }
+    ],
+    "manifest_sha256": "3cd5c256180ee138d2f696cfcd18a75737290d65fad12f952598a0e64b849362"
+  }
+}

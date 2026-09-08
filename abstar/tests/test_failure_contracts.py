@@ -683,12 +683,14 @@ def test_public_mixed_worker_failures_account_for_every_row(
     project = tmp_path / "mixed-failure"
     with pytest.raises(AnnotationRunError) as captured:
         abstar.run(records, project_path=str(project), output_format=["airr", "parquet"],
-                   n_processes=n_processes, chunksize=chunksize, mmseqs_threads=1)
+                   n_processes=n_processes, chunksize=chunksize, mmseqs_threads=1,
+                   strict=crash_scope == "record")
     error = captured.value
     failed_indices = [0, 1] if crash_scope == "worker" and chunksize == 2 else [1]
     assert [(f.row_id, f.sequence_id) for f in error.failures] == [
         (f"abstar_0_{i}", records[i].id) for i in failed_indices]
-    diagnostic = (project / "logs" / "sequences.failed").read_text()
+    diagnostic = "\n".join(Path(path).read_text() for path in error.partial_output_paths
+                           if Path(path).suffix == ".failed")
     for failure in error.failures:
         assert (failure.stage, failure.category) == ("annotation", "internal_error")
         assert f"TASK17-{crash_scope.upper()}-CRASH" in failure.message

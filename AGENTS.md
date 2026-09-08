@@ -28,6 +28,16 @@ records before the normal input parser and assignment run.
   chunking, multiprocessing, output assembly, logging, and cleanup.
 - `abstar/assigners/mmseqs.py`: active V, J, D, and C assignment pipeline.
 - `abstar/annotation/annotator.py`: per-sequence annotation orchestration.
+- `abstar/annotation/junction.py`: conservative raw FWR3 anchor recovery and
+  joint V-region boundary recovery constrained by retained alignment coordinates.
+- `scripts/audit_annotation_consistency.py`: read-only native-Parquet audit of
+  region assemblies and mask lengths against the direct oriented-query V(D)J
+  slice, preserving file/row identity independently of external sequence IDs.
+- `scripts/run_corpus.py`: fixed-corpus annotation, conservation, consistency,
+  and exact per-record baseline gate; `scripts/build_ci_corpus.py` selects its
+  inputs from explicit read-only source paths.
+- `test_data/bcr_corpus/`: committed enriched BCR corpus and baseline, excluded
+  from Python distributions and ordinary pytest matrix/coverage runs.
 - `abstar/annotation/antibody.py`: annotation data model and logging state.
 - `abstar/annotation/germline.py`: germline lookup and segment realignment.
 - `abstar/annotation/{regions,positions,indels,mutations,mask,productivity}.py`:
@@ -108,7 +118,25 @@ python -m pytest abstar/tests/test_database_integrity.py -q
 python -m sphinx -W --keep-going -b html docs/source docs/_build/html
 ```
 
-Broader discovery against the published BCR corpus is optional and never part
+The dedicated `.github/workflows/corpus.yml` job runs the committed enriched BCR
+subset on pushes and pull requests, separately from the pytest version matrix.
+Use its fixed Python 3.12 reproduction profile and a new external output path:
+
+```bash
+python -m pip install -r requirements-corpus.txt
+POLARS_MAX_THREADS=2 OMP_NUM_THREADS=2 python scripts/run_corpus.py \
+  --output /tmp/abstar-corpus-check
+```
+
+The runner checks immutable source identities, expected failures, independent
+region/mask consistency, and exact public fields against the committed baseline.
+It retains `report.json`, actual outputs, and diagnostics. Never refresh the
+baseline to silence an unexplained difference. Follow
+`abstar/tests/README.md` and `test_data/bcr_corpus/README.md` for reproduction
+and reviewed baseline updates. Five minutes is the target for the dedicated
+job; local timings do not establish hosted-runner performance.
+
+Broader discovery against the full published BCR corpus is optional and never part
 of ordinary push or pull-request CI. It requires all input paths explicitly and
 must write outside the source and input trees:
 
@@ -121,12 +149,38 @@ python scripts/discover_bcr_cases.py \
   --per-dataset 25 --n-processes 2
 ```
 
-The scheduled nightly workflow is distinct from ordinary CI: it downloads an
-explicitly provisioned artifact containing `bcr_fastas/`,
-`sample_manifest.csv`, and `cellranger/`, then runs a bounded cohort. Candidate
-reports and logs live under `runner.temp`, outside the checkout. A separate
-scheduled documentation linkcheck runs independently of corpus provisioning;
-it is not an ordinary push or pull-request gate.
+Audit existing native Parquet annotations without rerunning assignment:
+
+```bash
+python scripts/audit_annotation_consistency.py /path/to/parquet \
+  --report /tmp/abstar-consistency.json
+```
+
+The report must be new and outside the checkout and input trees. Exit 1 means
+inconsistencies were found; exit 0 means the implemented checks passed. The
+reference is `sequence_oriented[v_sequence_start:j_sequence_end]`, translated
+using the one-based `frame` for AA checks, not the final-file `sequence` fields.
+This checks internal consistency, not the biological correctness of boundaries.
+
+For an exact regression comparison after an explicitly requested corpus rerun,
+use the original FASTAs, both run roots, and reviewed expectations for every
+baseline failure. Write a new report outside the checkout and run/input trees:
+
+```bash
+python scripts/compare_annotation_runs.py \
+  --baseline /path/to/original_run --candidate /path/to/rerun \
+  --fasta-dir /path/to/bcr_fastas \
+  --expected abstar/test_data/lc_anchor_failures.json \
+  --report /tmp/abstar-comparison.json
+```
+
+This compares all public Parquet fields and schemas for original successful
+records, verifies recovered failures against literal expectations, and checks
+record conservation using original FASTA ordinals even when IDs repeat.
+
+Full external corpus discovery is a manual workflow; there is no scheduled corpus
+job. The scheduled documentation linkcheck is independent of corpus discovery
+and is not an ordinary push or pull-request gate.
 
 Useful CLI checks after an editable install:
 
@@ -196,9 +250,16 @@ For changes in assignment or annotation logic:
 - Constrain J and D candidates by receptor and compatible chain locus.
 - Verify productivity using frame, junction, stop-codon, ambiguity, and
   receptor-appropriate motif rules.
-- Never represent an internal exception as an ordinary successful empty
-  output. Expected biological non-assignment, invalid input, and programming
-  errors must remain distinguishable.
+- Sequence annotation exceptions are recoverable by default: omit their incomplete
+  rows, persist per-record diagnostics and a failure index, report counts (and an
+  API warning), and continue other records/samples. `strict=True` / `--strict`
+  restores abort-on-record-error behavior. An all-failed sample may have empty
+  output only with explicit persistent failure accounting. Biological nonassignment,
+  invalid input, and programming errors must remain distinguishable.
+- Record diagnostics use `logs/<input-stem>/<encoded-id>__<row-key>.failed`;
+  `logs/failures.tsv` indexes exact IDs and source paths. `logs/run.json` records
+  parameters, versions, and source hashes. Preserve diagnostics across reruns and
+  no-project API cleanup; worker/tool/output/storage failures remain fatal.
 - Check record conservation: every input record must result in an annotation or
   an explicit, inspectable failure status.
 
@@ -265,6 +326,10 @@ real user database.
 
 ## Testing expectations
 
+For assignment-dependent regression failures and corpus baseline changes, follow
+[the test harness debugging guide](abstar/tests/README.md). Reproduce the exact
+cohort and environment before reducing inputs or changing expected results.
+
 Place tests in `abstar/tests/` and follow the existing `test_<module>.py`
 layout. For a change:
 
@@ -315,6 +380,15 @@ nonempty input.
   those sequence and amino-acid fields.
 - Changes to schemas must be reflected in serializers, dataframe return paths,
   documentation, and compatibility tests.
+- FWR/CDR amino-acid regions project established nucleotide intervals into the
+  continuous V(D)J query frame. A codon crossing a region boundary belongs to
+  the downstream region; partial terminal codons do not translate. Keep
+  `cdr_mask_aa` and `cdr3_length` consistent with this partition. `junction_aa`
+  and CDR3 V/N/D/J subdivisions retain local junction-frame semantics and must
+  not be used to reconstruct continuous-query regions on out-of-frame reads.
+- FWR3 and CDR3 share the established junction-start-codon endpoint. Synchronize
+  the FWR3 region to that boundary without altering retained V alignment or
+  junction evidence; reject an invalid shared interval as a record error.
 - Preserve backward compatibility deliberately. If a behavioral break is
   necessary, document it and add a migration note.
 

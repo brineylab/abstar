@@ -132,6 +132,8 @@ def cli():
     default=True,
     help="Whether to print verbose output",
 )
+@click.option("--strict", is_flag=True, default=False,
+              help="Abort on a sequence annotation error instead of logging it and continuing.")
 @click.option(
     "--debug",
     is_flag=True,
@@ -163,6 +165,7 @@ def run(
     verbose: bool = False,
     started_from_cli: bool = False,
     debug: bool = False,
+    strict: bool = False,
 ) -> Iterable[Sequence] | Sequence | None:
     """
     Annotate antibody or TCR sequences.
@@ -192,6 +195,7 @@ def run(
             verbose=verbose,
             started_from_cli=started_from_cli,
             debug=debug,
+            strict=strict,
         )
     except AnnotationRunError as error:
         artifacts = [Path(path) for path in error.partial_output_paths]

@@ -24,6 +24,7 @@ from .germline import (
     reassign_dgene,
 )
 from .indels import annotate_deletions, annotate_insertions
+from .junction import recover_fwr3_anchor, recover_v_region_boundaries
 from .mask import (
     generate_cdr_mask,
     generate_gene_segment_mask,
@@ -38,6 +39,7 @@ from .regions import get_region_sequence, identify_cdr3_regions
 from .schema import ANNOTATION_WORK_SCHEMA
 from .umi import parse_umis
 from ..core.results import AnnotationChunkResult, RecordFailure
+from ..core.diagnostics import write_record_diagnostic
 
 
 class RetainedAlignment(NamedTuple):
@@ -148,6 +150,7 @@ def annotate(
     umi_pattern: str | None = None,
     umi_length: int | None = None,
     debug: bool = False,
+    failure_directory: str | None = None,
 ) -> AnnotationChunkResult:
     """
     Annotates a Parquet file of V(D)J-assigned antibody sequences.
@@ -191,6 +194,10 @@ def annotate(
     debug : bool, default=False
         Whether to write log files for failed and succeeded sequences.
 
+    failure_directory : Optional[str], default=None
+        Existing persistent sample directory for individual record diagnostics.
+        Diagnostic write failures propagate to the controller as worker failures.
+
     Returns
     -------
     AnnotationChunkResult
@@ -207,6 +214,7 @@ def annotate(
     failures = []
     for record_ordinal, r in enumerate(df.iter_rows(named=True)):
         r.setdefault("row_id", f"abstar_0_{record_ordinal}")
+        assignment_record = dict(r)
         receptor_type = r.pop("receptor_type", None)
         ab = Antibody(**r)
         if receptor_type is not None:
@@ -234,9 +242,15 @@ def annotate(
                 umi_length=umi_length,
                 debug=debug,
             )
+        except (OSError, MemoryError):
+            # Storage and resource failures are infrastructure failures, not
+            # evidence that this biological record alone cannot be annotated.
+            raise
         except Exception as error:
             traceback_text = traceback.format_exc()
             ab.exception("ANNOTATION EXCEPTION", traceback_text)
+            if failure_directory is not None:
+                write_record_diagnostic(failure_directory, assignment_record, ab, error)
             failures.append(
                 RecordFailure(
                     row_id=str(ab.row_id),
@@ -566,7 +580,8 @@ def annotate_single_sequence(
 
     # we include the conserved C codon (which forms the start of the junction) to avoid an edge case
     # in which a sequence has a deletion at the position immediately preceding the conserved C codon
-    # because the C is so highly conserved, it's basically impossible for a sequence to have a deletion at that position
+    # Deletions spanning this codon can still make the endpoint unmappable;
+    # the raw FWR3 recovery below handles that case conservatively.
     germ_fr3_sequence = ab.v_germline_gapped[196 - 1 : 312].replace(".", "")
     ab.log("FR3 GERMLINE SEQUENCE:", germ_fr3_sequence)
 
@@ -624,14 +639,23 @@ def annotate_single_sequence(
     ab.log("ALIGNED FWR3 GERMLINE:", fr3_sg.aligned_target)
     ab.log("FWR3 ALIGNMENT END:", fr3_sg.query_end)
 
-    ab.junction_start = (
-        get_ungapped_position_from_aligned(
-            position=fr3_sg.query_end,
-            aligned_sequence=v_sg.aligned_query,
-        )
-        # + 1  # junction start is the position after the end of the FR3 alignment
-        - 2  # back up to the start of the conserved C codon (start of the junction)
+    anchor_end = get_ungapped_position_from_aligned(
+        position=fr3_sg.query_end,
+        aligned_sequence=v_sg.aligned_query,
     )
+    ab.junction_start = None if anchor_end is None else anchor_end - 2
+    recovered_regions = recover_v_region_boundaries(ab, *v_retained, **ALIGNMENT_PARAMS)
+    if recovered_regions is not None:
+        ab.junction_start = recovered_regions.anchor.start
+        ab.log("REGION BOUNDARY RECOVERY: oriented-query intervals", recovered_regions.intervals)
+        ab.log("RECOVERED ANCHOR INTERVAL:", (recovered_regions.anchor.start, recovered_regions.anchor.end))
+        ab.log("RECOVERY ALIGNMENT SCORE:", recovered_regions.anchor.score)
+    elif anchor_end is None:
+        anchor = recover_fwr3_anchor(ab, *v_retained, **ALIGNMENT_PARAMS)
+        ab.junction_start = anchor.start
+        ab.log("JUNCTION ANCHOR RECOVERY: raw FWR3 alignment")
+        ab.log("RECOVERED ANCHOR INTERVAL:", (anchor.start, anchor.end))
+        ab.log("RECOVERY ALIGNMENT SCORE:", anchor.score)
     ab.log("JUNCTION START:", ab.junction_start)
 
     # junction end
@@ -1141,50 +1165,94 @@ def annotate_single_sequence(
     ab.log("GERMLINE START AA:", v_germline_aa_start + 1)
 
     for region in v_regions:
-        # nucleotide region
-        region_start, region_end, region_sequence = get_region_sequence(
-            region,
-            # aln=v_sg,
-            aln=v_retained,
-            gapped_germline=ab.v_germline_gapped,
-            germline_start=ab.v_germline_start + 1,  # needs to be 1-indexed
-            ab=ab,
-        )
+        if recovered_regions is not None and region in recovered_regions.intervals:
+            query_start, query_end = recovered_regions.intervals[region]
+            region_sequence = ab.sequence_oriented[query_start:query_end]
+        else:
+            # nucleotide region
+            region_start, region_end, region_sequence = get_region_sequence(
+                region,
+                # aln=v_sg,
+                aln=v_retained,
+                gapped_germline=ab.v_germline_gapped,
+                germline_start=ab.v_germline_start + 1,  # needs to be 1-indexed
+                ab=ab,
+            )
+            query_start, query_end = region_alignment_to_query_interval(
+                v_retained.aligned_query, region_start, region_end, ab.v_sequence_start,
+            )
+            if (region == "fwr3" and region_start is None and region_end is None
+                    and any((ab.fwr1, ab.cdr1, ab.fwr2, ab.cdr2))):
+                # Upstream V regions are present, so this is not a read beginning
+                # after FWR3. There is no supported boundary from which to recover.
+                raise ValueError("Missing FWR3 has no mapped start in retained V evidence")
+            recovered_fwr3 = region == "fwr3" and region_start is not None and region_end is None
+            if recovered_fwr3:
+                # Retained V evidence can stop inside FWR3 (even within its final
+                # anchor codon). The region still exists in the oriented query.
+                # Keep its mapped start and use the already established junction
+                # start + anchor codon as its half-open end; do not change V calls,
+                # retained evidence, or the junction to make the region fit.
+                query_start = ab.v_sequence_start + len(
+                    v_retained.aligned_query[:region_start].replace("-", "")
+                )
+                query_end = ab.junction_start + 3
+                if not (ab.v_sequence_start <= query_start < ab.v_sequence_end
+                        <= query_end <= ab.j_sequence_end):
+                    raise ValueError("Missing FWR3 has conflicting retained V and junction boundaries")
+                region_sequence = ab.sequence_oriented[query_start:query_end]
+                ab.log("FWR3 REGION RECOVERY: oriented query interval", (query_start, query_end))
+        if region == "fwr3" and query_start is not None:
+            # Region extraction can include an insertion after the anchor or
+            # map a repeated/deleted anchor differently from junction finding.
+            # FWR3 and CDR3 must share the established junction boundary;
+            # retain the V alignment separately as assignment/mutation evidence.
+            junction_boundary = ab.junction_start + 3
+            if not (ab.v_sequence_start <= query_start < junction_boundary <= ab.j_sequence_end):
+                raise ValueError("FWR3 and junction boundaries do not define a valid interval")
+            if query_end != junction_boundary:
+                ab.log("FWR3 BOUNDARY SYNCHRONIZATION: old/new oriented-query end",
+                       (query_end, junction_boundary))
+                query_end = junction_boundary
+                region_sequence = ab.sequence_oriented[query_start:query_end]
         setattr(ab, region, region_sequence)
-        query_start, query_end = region_alignment_to_query_interval(
-            v_retained.aligned_query, region_start, region_end, ab.v_sequence_start,
-        )
         setattr(ab, f"{region}_start", query_start)
         setattr(ab, f"{region}_end", query_end)
         ab.log(f"{region.upper()} SEQUENCE:", region_sequence)
 
-        # amino acid region
-        _, _, region_sequence_aa = get_region_sequence(
-            region,
-            # aln=v_sg_aa,
-            aln=v_global_aa,
-            gapped_germline=ab.v_germline_gapped_aa,
-            germline_start=v_germline_aa_start + 1,  # needs to be 1-indexed
-            ab=ab,
-            aa=True,
-            nt_region_start=region_start,
-        )
-        setattr(ab, f"{region}_aa", region_sequence_aa)
-        ab.log(f"{region.upper()} SEQUENCE AA:", region_sequence_aa)
-
     # J regions
-    ab.fwr4_start = ab.junction_start + fr4_sg.query_begin
-    ab.fwr4_end = ab.junction_start + fr4_sg.query_end + 1
+    # The FWR4 alignment establishes the junction anchor, but subsequent J
+    # boundary selection can shorten the retained J sequence. Use that final
+    # oriented-query endpoint so regions and masks describe the same V(D)J.
+    ab.fwr4_start = ab.junction_end - 3
+    ab.fwr4_end = ab.j_sequence_end
     ab.fwr4 = ab.sequence_oriented[ab.fwr4_start:ab.fwr4_end]
     ab.cdr3_start = ab.junction_start + 3
     ab.cdr3_end = ab.junction_end - 3
     if not ab.cdr3:
         ab.cdr3_start = ab.cdr3_end = None
-    ab.fwr4_aa = abutils.tl.translate(ab.fwr4)
     ab.log("FR4 SEQUENCE:", ab.fwr4)
-    ab.log("FR4 SEQUENCE AA:", ab.fwr4_aa)
+    # Project every region through the same continuous query reading frame.
+    # Floor both boundaries: a codon crossing a boundary belongs to the
+    # downstream region, so adjacent regions neither duplicate nor omit it.
+    # Leading bases before the coding origin and terminal partial codons are
+    # excluded by the translated sequence bounds. Junction motif evidence and
+    # its locally translated subdivisions retain their separate semantics.
+    coding_origin = ab.v_sequence_start + ab.frame - 1
+    for region in (*v_regions, "cdr3", "fwr4"):
+        start, end = getattr(ab, f"{region}_start"), getattr(ab, f"{region}_end")
+        if start is None or end is None:
+            protein = ""
+        else:
+            aa_start = max(0, (start - coding_origin) // 3)
+            aa_end = max(0, (end - coding_origin) // 3)
+            protein = ab.sequence_aa[aa_start:aa_end]
+        setattr(ab, f"{region}_aa", protein)
+        ab.log(f"{region.upper()} SEQUENCE AA:", protein)
+    ab.cdr3_length = len(ab.cdr3_aa)
 
     # CDR3 regions
+    ab.log("CONTINUOUS-QUERY CDR3 LENGTH:", ab.cdr3_length)
     ab = identify_cdr3_regions(ab)
 
     ab.log("\n--------------")
