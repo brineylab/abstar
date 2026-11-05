@@ -25,6 +25,11 @@ order, with the same meanings. See the breaking-change notice in
   nucleotide alignment columns.
 - AIRR TSV writes ``T``/``F`` booleans and empty null cells, and the
   AIRR-required fields lead the field order in every output.
+- A record whose coordinates cannot form a valid interval (for example an
+  empty region with ``end == start``) now fails individually as a recorded
+  annotation failure in every output format, while other records continue.
+- ``scripts/audit_annotation_consistency.py`` requires 0.9.0 Parquet and
+  rejects 0.8.x files, whose 0-based coordinates it would misread.
 
 Added
 ~~~~~

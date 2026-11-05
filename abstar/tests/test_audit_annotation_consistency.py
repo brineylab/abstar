@@ -24,6 +24,7 @@ def row():
     record = dict(
         sequence_id="10E8", annotation_status="annotated", productive=True,
         sequence_oriented="GGGATGAAATGTTTTCCCGGGTGGCCC", frame=1,
+        sequence_vdj="ATGAAATGTTTTCCCGGGTGG",
         v_sequence_start=4, j_sequence_end=24,  # public 1-based closed
         v_sequence="ATGAAATGT", np1="TTT", d_sequence="CCC", np2="",
         j_sequence="GGGTGG", sequence_alignment="ATGAAA-TGTTTTCCCGGGTGG",
@@ -73,6 +74,19 @@ def test_reference_translation_uses_frame_and_ignores_partial_terminal_codon(aud
     found = audit.audit_frame(pl.DataFrame([row])).row(0, named=True)
     assert found["vdj_aa_length"] == 7
     assert "regions_aa_content" in found["checks"]
+
+
+def test_pre_0_9_parquet_without_sequence_vdj_is_rejected(audit, row):
+    # 0.8.x Parquet has 0-based starts; auditing it as 1-based would flag every record.
+    del row["sequence_vdj"]
+    with pytest.raises(ValueError, match="sequence_vdj"):
+        audit.audit_frame(pl.DataFrame([row]))
+
+
+def test_sequence_vdj_must_equal_oriented_slice(audit, row):
+    row["sequence_vdj"] = "A" * 21
+    found = audit.audit_frame(pl.DataFrame([row]))
+    assert "sequence_vdj_content" in found.row(0, named=True)["checks"]
 
 
 def test_missing_columns_are_explicit(audit, row):

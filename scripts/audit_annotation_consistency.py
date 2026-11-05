@@ -21,8 +21,9 @@ REGIONS = ("fwr1", "cdr1", "fwr2", "cdr2", "fwr3", "cdr3", "fwr4")
 SEGMENTS = ("v_sequence", "np1", "d_sequence", "np2", "j_sequence")
 MASKS = tuple(m + suffix for m in ("cdr_mask", "gene_segment_mask", "nongermline_mask")
               for suffix in ("", "_aa"))
+# sequence_vdj exists only in 0.9+ Parquet, so it also rejects 0-based 0.8.x files.
 REQUIRED = {
-    "sequence_id", "annotation_status", "sequence_oriented", "sequence_alignment",
+    "sequence_id", "annotation_status", "sequence_oriented", "sequence_alignment", "sequence_vdj",
     "frame", "v_sequence_start", "j_sequence_end", *SEGMENTS, *MASKS,
     *(r + suffix for r in REGIONS for suffix in ("", "_aa", "_start", "_end")),
 }
@@ -88,6 +89,7 @@ def audit_frame(frame):
         "vdj_reference_invalid": ~pl.col("reference_valid"),
         "vdj_alphabet_invalid": ~pl.col("vdj_nt").str.contains("(?i)^[ACGTRYSWKMBDHVN]+$"),
         "segments_nt_content": pl.col("segments_nt") != pl.col("vdj_nt"),
+        "sequence_vdj_content": pl.col("sequence_vdj") != pl.col("vdj_nt"),
         "alignment_nt_content": pl.col("sequence_alignment").is_null() | (pl.col("sequence_alignment").str.replace_all("-", "", literal=True) != pl.col("vdj_nt")),
         "regions_nt_content": pl.col("regions_nt") != pl.col("vdj_nt"),
         "regions_aa_content": pl.col("regions_aa") != pl.col("vdj_aa"),
