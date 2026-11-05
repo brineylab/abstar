@@ -37,3 +37,10 @@ Added
 - ``sequence_vdj`` and ``sequence_vdj_aa``: the assembled V(D)J nucleotide
   sequence (no constant region) and its translation, for every locus. The
   gene-segment, CDR, and non-germline masks index these fields.
+
+Fixed
+~~~~~
+
+- Constrain ``baltic<1``. ``baltic`` 1.0 breaks ``import abutils`` (and so
+  ``import abstar``) on Python 3.10. This is a temporary constraint until a
+  fixed ``abutils`` release.
