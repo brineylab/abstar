@@ -16,11 +16,14 @@ jobs:
     timeout-minutes: 10
     env:
       CORPUS_PATH: ${{ github.workspace }}/test_data/bcr_corpus
-      CORPUS_OUTPUT: ${{ runner.temp }}/abstar-corpus-${{ github.run_id }}-${{ github.run_attempt }}
-      MPLCONFIGDIR: ${{ runner.temp }}/abstar-corpus-matplotlib
       POLARS_MAX_THREADS: "2"
       OMP_NUM_THREADS: "2"
     steps:
+      # The runner context is unavailable in job-level env.
+      - name: Set runner-temporary paths
+        run: |
+          echo "CORPUS_OUTPUT=$RUNNER_TEMP/abstar-corpus-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" >> "$GITHUB_ENV"
+          echo "MPLCONFIGDIR=$RUNNER_TEMP/abstar-corpus-matplotlib" >> "$GITHUB_ENV"
       - uses: actions/checkout@v7
         with:
           ref: ${{ github.sha }}

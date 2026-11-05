@@ -24,6 +24,16 @@ def test_workflow_shell_syntax_and_expression_boundary():
                     assert result.returncode == 0, (path, result.stderr)
 
 
+def test_workflow_and_job_env_avoid_runner_context():
+    """GitHub rejects the whole workflow when runner context appears above step level."""
+    for path in WORKFLOWS.glob("*.yml"):
+        workflow = yaml.load(path.read_text(), Loader=yaml.BaseLoader)
+        envs = [workflow.get("env", {})] + [job.get("env", {}) for job in workflow["jobs"].values()]
+        for env in envs:
+            for value in env.values():
+                assert "runner." not in value, (path, value)
+
+
 def test_scheduled_linkcheck_is_independent_of_corpus_and_push_pr():
     candidates = []
     for path in WORKFLOWS.glob("*.yml"):
