@@ -9,6 +9,7 @@ from Bio.Seq import Seq
 
 from abstar.annotation.antibody import Antibody
 from abstar.annotation.annotator import annotate_single_sequence
+from abstar.tests.helpers import public_coordinate
 
 CASES = json.loads((Path(__file__).parents[1] / 'test_data/lc_anchor_failures.json').read_text())['records']
 
@@ -167,13 +168,11 @@ def test_real_cli_recovers_cases_in_airr_and_parquet(tmp_path):
     assert len(parquet) == len(airr) == 20
     for native, text, case in zip(parquet, airr, CASES):
         for field, expected in case['expected'].items():
-            assert native[field] == expected, (case['source_file'], field)
+            assert native[field] == public_coordinate(field, expected), (case['source_file'], field)
         assert text['junction'] == case['expected']['junction']
         assert text['junction_aa'] == case['expected']['junction_aa']
         assert text['productive'] == 'T' and text['rev_comp'] == 'F'
-        for field in ('v_sequence_start', 'j_sequence_start'):
-            assert int(text[field]) == native[field] + 1
-        for field in ('v_sequence_end', 'j_sequence_end'):
+        for field in ('v_sequence_start', 'j_sequence_start', 'v_sequence_end', 'j_sequence_end'):
             assert int(text[field]) == native[field]
     with (project / 'logs/failures.tsv').open() as handle:
         assert list(csv.DictReader(handle, delimiter='\t')) == []

@@ -361,7 +361,9 @@ def test_unassigned_reverse_strand_preserves_oriented_sequence(tmp_path):
 
     assert record["annotation_status"] == "unassigned"
     assert record["sequence_oriented"] == "ACGGTT"
-    assert record["sequence"] == "ACGGTT"
+    # Public sequence is the original input; there is no V(D)J to publish.
+    assert record["sequence"] == "AACCGT"
+    assert record["sequence_vdj"] is None
 
 
 def _assert_assignment_failure_category(

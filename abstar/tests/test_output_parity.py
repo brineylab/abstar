@@ -49,14 +49,14 @@ def paired_output(request, public_bcr_cases, tmp_path_factory):
         chunksize=2, mmseqs_threads=1,
     )
     assert result is None
-    # RAW CSV parsing handles literal quotes but performs no type/coordinate
-    # conversion. normalize_airr_row owns the one inverse start conversion.
+    # RAW CSV parsing handles literal quotes but performs no type conversion;
+    # normalize_airr_row decodes text only.
     with (project / 'airr/sequences.tsv').open(encoding='utf-8', newline='') as handle:
         reader = csv.DictReader(handle, delimiter='\t')
         raw_rows = list(reader)
         fields = reader.fieldnames
     parquet = pl.read_parquet(project / 'parquet/sequences.parquet')
-    assert len(fields) == len(set(fields)) == len(OUTPUT_SCHEMA) == 168
+    assert len(fields) == len(set(fields)) == len(OUTPUT_SCHEMA) == 170
     assert set(fields) == set(parquet.columns) == set(OUTPUT_SCHEMA)
     assert parquet.schema == pl.Schema(OUTPUT_SCHEMA)
     assert not list((project / 'tmp').rglob('*.parquet'))
@@ -80,7 +80,9 @@ def test_every_shared_public_field_has_identical_meaning(paired_output, public_b
             assert row['rev_comp'] is (scenario == 'reverse-complement')
             for field in ('junction', 'junction_aa', 'cdr3', 'cdr3_aa', 'productive',
                           'v_sequence_start', 'v_sequence_end', 'j_sequence_start', 'j_sequence_end'):
-                assert row[field] == case.expected[field], (case.sequence_id, field)
+                # Fixture coordinates are 0-based half-open; public starts are 1-based.
+                expected = case.expected[field] + 1 if field.endswith('_start') else case.expected[field]
+                assert row[field] == expected, (case.sequence_id, field)
     elif scenario == 'indel':
         assert parquet['productive'].to_list() == [False, False, True, True]
         assert parquet['v_frameshift'].to_list() == [True, True, False, False]
@@ -100,9 +102,9 @@ def test_every_shared_public_field_has_identical_meaning(paired_output, public_b
         official_reader.close()
     assert len(official_rows) == len(inputs)
     assert [row['sequence_id'] for row in official_rows] == [record.id for record in inputs]
-    # The official reader has ALREADY converted these starts. Never feed these
-    # dictionaries to normalize_airr_row or subtract again.
-    assert [row['v_sequence_start'] for row in official_rows] == parquet['v_sequence_start'].to_list()
+    # The official reader converts starts back to 0-based; public Parquet does not.
+    assert [None if row['v_sequence_start'] is None else row['v_sequence_start'] + 1
+            for row in official_rows] == parquet['v_sequence_start'].to_list()
 
 
 @pytest.mark.e2e
@@ -121,9 +123,7 @@ def test_final_parquet_official_sequences_match_independent_source_evidence(pair
 @pytest.mark.e2e
 @pytest.mark.parametrize('as_dataframe', (False, True))
 @pytest.mark.parametrize('input_count', (1, 3))
-def test_no_project_api_keeps_internal_sequence_meanings_and_return_shapes(
-    public_bcr_cases, as_dataframe, input_count,
-):
+def test_no_project_api_returns_public_rows(public_bcr_cases, as_dataframe, input_count):
     cases = public_bcr_cases[:input_count]
     result = abstar.run([case.as_sequence() for case in cases], as_dataframe=as_dataframe,
                         output_format=['airr', 'parquet'], n_processes=1, mmseqs_threads=1)
@@ -136,19 +136,46 @@ def test_no_project_api_keeps_internal_sequence_meanings_and_return_shapes(
             assert isinstance(result, Sequence)
             result = [result]
         assert isinstance(result, list) and all(isinstance(row, Sequence) for row in result)
+        assert [record.sequence for record in result] == [case.sequence for case in cases]
         rows = [row.annotations for row in result]
     assert len(rows) == input_count
     for row, case in zip(rows, cases):
-        assert set(row) == set(OUTPUT_SCHEMA)
+        assert list(row) == list(OUTPUT_SCHEMA)
         assert row['sequence_id'] == case.sequence_id
-        assembled = case.sequence[case.expected['v_sequence_start']:case.expected['j_sequence_end']]
-        assert row['sequence'] == assembled != case.sequence
+        start, end = case.expected['v_sequence_start'], case.expected['j_sequence_end']
+        assembled = case.sequence[start:end]
+        assert row['sequence'] == case.sequence != assembled
+        assert row['sequence_vdj'] == assembled
+        assert (row['v_sequence_start'], row['j_sequence_end']) == (start + 1, end)
         coding = assembled[row['frame'] - 1:]
-        assert row['sequence_aa'] == str(Seq(coding[:len(coding) // 3 * 3]).translate())
-        assert len(row['gene_segment_mask']) == len(assembled)
-        assert len(row['gene_segment_mask_aa']) == len(row['sequence_aa'])
-        assert row['sequence_aa'] != expected_airr_amino_acids(row)['sequence_aa']
+        assert row['sequence_vdj_aa'] == str(Seq(coding[:len(coding) // 3 * 3]).translate())
+        assert row['sequence_aa'] == expected_airr_amino_acids(row)['sequence_aa']
+        assert len(row['gene_segment_mask']) == len(row['sequence_vdj'])
+        assert len(row['gene_segment_mask_aa']) == len(row['sequence_vdj_aa'])
         assert row['productive'] == case.expected['productive']
+
+
+@pytest.mark.e2e
+def test_dataframe_return_equals_final_parquet(public_bcr_cases, tmp_path):
+    from polars.testing import assert_frame_equal
+    sequences = [case.as_sequence() for case in public_bcr_cases]
+    sequences.insert(1, Sequence('N', id='unassigned'))
+    returned = abstar.run(sequences, as_dataframe=True, n_processes=1, mmseqs_threads=1)
+    abstar.run(sequences, project_path=str(tmp_path), output_format='parquet',
+               n_processes=1, mmseqs_threads=1)
+    assert_frame_equal(returned, pl.read_parquet(tmp_path / 'parquet/sequences.parquet'))
+
+
+@pytest.mark.e2e
+def test_reverse_complement_public_sequence_is_original_input(paired_output):
+    scenario, inputs, _, parquet, _ = paired_output
+    if scenario != 'reverse-complement':
+        pytest.skip('reverse-complement scenario only')
+    for row, original in zip(parquet.to_dicts(), inputs):
+        assert row['rev_comp'] is True
+        assert row['sequence'] == original.sequence
+        oriented = str(Seq(original.sequence).reverse_complement())
+        assert row['sequence_vdj'] == oriented[row['v_sequence_start'] - 1:row['j_sequence_end']]
 
 
 def test_raw_tsv_normalization_changes_only_representation():
@@ -164,8 +191,8 @@ def test_raw_tsv_normalization_changes_only_representation():
     expected = dict.fromkeys(OUTPUT_SCHEMA)
     expected.update({field: value for field, value in raw.items() if value != ''})
     expected.update(v_identity=0.875, v_score=137.0, v_support=1.23e-45,
-                    productive=False, rev_comp=True, v_sequence_start=0, v_sequence_end=9,
-                    cdr3_start=3, cdr3_end=6)
+                    productive=False, rev_comp=True, v_sequence_start=1, v_sequence_end=9,
+                    cdr3_start=4, cdr3_end=6)
     assert normalize_airr_row(raw) == expected
     assert raw == before
     assert normalize_parquet_row(expected) == expected

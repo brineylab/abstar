@@ -7,6 +7,7 @@ import pytest
 
 from abstar.annotation.antibody import Antibody
 from abstar.annotation.annotator import annotate_single_sequence
+from abstar.tests.helpers import public_coordinate
 
 REGIONS = ('fwr1', 'cdr1', 'fwr2', 'cdr2', 'fwr3', 'cdr3', 'fwr4')
 CASES = json.loads((Path(__file__).parents[1] / 'test_data/aa_region_boundaries.json').read_text())['records']
@@ -63,7 +64,7 @@ def test_aa_region_partition_public_outputs(tmp_path, entrypoint):
     for row, text, case in zip(rows, airr, CASES):
         assert row['sequence'] == case['assignment']['sequence_input']
         for key, expected in (case['expected'] | case['unchanged'] | case.get('public_unchanged', {})).items():
-            assert row[key] == expected, key
+            assert row[key] == public_coordinate(key, expected), key
         assert text['productive'] == ('T' if row['productive'] else 'F')
         assert text['junction_aa'] == row['junction_aa']
         for r in REGIONS:
@@ -101,6 +102,6 @@ def test_no_project_python_return_uses_continuous_regions():
     result = abstar.run(abutils.Sequence(case['assignment']['sequence_input'], id=case['assignment']['sequence_id']),
                         n_processes=1, mmseqs_threads=1, strict=True)
     for key, value in case['expected'].items():
-        assert result[key] == value
-    assert result['sequence_aa'] == ''.join(result[r + '_aa'] for r in REGIONS)
-    assert len(result['cdr_mask_aa']) == len(result['sequence_aa'])
+        assert result[key] == public_coordinate(key, value)
+    assert result['sequence_vdj_aa'] == ''.join(result[r + '_aa'] for r in REGIONS)
+    assert len(result['cdr_mask_aa']) == len(result['sequence_vdj_aa'])

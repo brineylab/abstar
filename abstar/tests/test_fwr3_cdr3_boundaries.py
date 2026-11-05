@@ -7,16 +7,18 @@ import pytest
 
 from abstar.annotation.antibody import Antibody
 from abstar.annotation.annotator import annotate_single_sequence
+from abstar.tests.helpers import public_coordinate
 
 REGIONS = ('fwr1', 'cdr1', 'fwr2', 'cdr2', 'fwr3', 'cdr3', 'fwr4')
 CASES = json.loads((Path(__file__).parents[1] / 'test_data/fwr3_cdr3_boundaries.json').read_text())['records']
 
 
-def assert_partition(row):
-    nt = row['sequence_oriented'][row['v_sequence_start']:row['j_sequence_end']]
+def assert_partition(row, public=False):
+    # Public rows use 1-based closed coordinates; internal rows are 0-based half-open.
+    nt = row['sequence_oriented'][row['v_sequence_start'] - public:row['j_sequence_end']]
     coding = nt[row['frame'] - 1:]
     protein = str(Seq(coding[:len(coding) // 3 * 3]).translate())
-    assert row['fwr3_end'] == row['cdr3_start']
+    assert row['fwr3_end'] + public == row['cdr3_start']
     assert ''.join(row[r] for r in REGIONS) == nt
     assert ''.join(row[r + '_aa'] for r in REGIONS) == protein
     assert row['sequence_alignment'].replace('-', '') == nt
@@ -66,16 +68,16 @@ def test_shared_boundary_survives_public_outputs(tmp_path, entrypoint):
     assert len(rows) == len(airr) == len(CASES)
     for row, text, case in zip(rows, airr, CASES):
         for key, expected in (case['expected'] | case['unchanged'] | case.get('public_unchanged', {})).items():
-            assert row[key] == expected, key
+            assert row[key] == public_coordinate(key, expected), key
         assert row['sequence'] == case['assignment']['sequence_input']
-        assert int(text['fwr3_start']) == row['fwr3_start'] + 1
+        assert int(text['fwr3_start']) == row['fwr3_start']
         assert int(text['fwr3_end']) + 1 == int(text['cdr3_start'])
         assert int(text['fwr3_end']) == row['fwr3_end']
         assert text['fwr3'] == row['fwr3']
         assert text['fwr3_aa'] == row['fwr3_aa']
         assert text['junction'] == row['junction']
         assert text['productive'] == ('T' if row['productive'] else 'F')
-        assert_partition(row)
+        assert_partition(row, public=True)
     with (project / 'logs/failures.tsv').open() as handle:
         assert list(csv.DictReader(handle, delimiter='\t')) == []
 
@@ -89,8 +91,8 @@ def test_shared_boundary_no_project_python_return():
     result = abstar.run(abutils.Sequence(case['assignment']['sequence_input'], id=case['assignment']['sequence_id']),
                         n_processes=1, mmseqs_threads=1, strict=True)
     for key, expected in case['expected'].items():
-        assert result[key] == expected
-    assert_partition(result)
+        assert result[key] == public_coordinate(key, expected)
+    assert_partition(result, public=True)
 
 
 @pytest.mark.parametrize('invalid_boundary', ['start_after_anchor', 'anchor_after_j'])

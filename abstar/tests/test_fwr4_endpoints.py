@@ -8,6 +8,7 @@ import pytest
 
 from abstar.annotation.antibody import Antibody
 from abstar.annotation.annotator import annotate_single_sequence
+from abstar.tests.helpers import public_coordinate
 
 
 CASES = json.loads(
@@ -16,12 +17,12 @@ CASES = json.loads(
 REGIONS = ("fwr1", "cdr1", "fwr2", "cdr2", "fwr3", "cdr3", "fwr4")
 
 
-def assert_expected(row, expected):
+def assert_expected(row, expected, public=False):
     for field, value in expected.items():
         if field in ("cdr_mask_length", "cdr_mask_aa_length"):
             assert len(row[field.removesuffix("_length")]) == value, field
         else:
-            assert row[field] == value, field
+            assert row[field] == (public_coordinate(field, value) if public else value), field
 
 
 @pytest.mark.parametrize("case", CASES, ids=lambda c: c["name"])
@@ -92,9 +93,9 @@ def test_final_fwr4_endpoint_survives_public_serialization(tmp_path, entrypoint)
         airr = list(csv.DictReader(handle, delimiter="\t"))
     assert len(rows) == len(airr) == len(CASES)
     for row, text, case in zip(rows, airr, CASES):
-        assert_expected(row, case["expected"])
+        assert_expected(row, case["expected"], public=True)
         assert row["sequence"] == case["assignment"]["sequence_input"]
-        assert int(text["fwr4_start"]) == row["fwr4_start"] + 1
+        assert int(text["fwr4_start"]) == row["fwr4_start"]
         assert int(text["fwr4_end"]) == int(text["j_sequence_end"]) == row["j_sequence_end"]
         assert text["fwr4"] == row["fwr4"]
         assert text["fwr4_aa"] == row["fwr4_aa"]

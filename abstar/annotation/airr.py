@@ -141,7 +141,7 @@ def write_airr_tsv(frame: pl.DataFrame, path: str | Path) -> None:
     rows = []
     for source in frame.iter_rows(named=True):
         encoded = {}
-        for field, value in to_public_row(source).items():
+        for field, value in source.items():
             if isinstance(value, bool):
                 value = "T" if value else "F"
             elif value is None:

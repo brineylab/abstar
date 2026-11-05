@@ -5,6 +5,7 @@ from Bio.Seq import Seq
 import pytest
 from abstar.annotation.antibody import Antibody
 from abstar.annotation.annotator import annotate_single_sequence
+from abstar.tests.helpers import public_coordinate
 
 CASES = json.loads((Path(__file__).parents[1] / 'test_data/region_boundary_recovery.json').read_text())['records']
 REGIONS = ('fwr1', 'cdr1', 'fwr2', 'cdr2', 'fwr3', 'cdr3', 'fwr4')
@@ -103,16 +104,16 @@ def test_public_recovery_preserves_ambiguous_failure_and_other_records(tmp_path,
     for row, text, case in zip(rows, airr, recovered):
         for key, value in case['expected'].items():
             if key not in ('junction_start', 'junction_end'):
-                assert row[key] == value, key
+                assert row[key] == public_coordinate(key, value), key
         for key, value in case['unchanged'].items():
-            assert row[key] == value, key
+            assert row[key] == public_coordinate(key, value), key
         assert row['sequence'] == case['assignment']['sequence_input']
         assert text['junction'] == row['junction']
         assert text['productive'] == 'T'
         for r in REGIONS:
             assert text[r] == row[r]
             assert text[r + '_aa'] == row[r + '_aa']
-        assert int(text['fwr3_start']) == row['fwr3_start'] + 1
+        assert int(text['fwr3_start']) == row['fwr3_start']
         assert int(text['fwr3_end']) == row['fwr3_end']
     with (project / 'logs/failures.tsv').open() as handle:
         failures = list(csv.DictReader(handle, delimiter='\t'))

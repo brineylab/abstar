@@ -36,6 +36,7 @@ from .positions import (
 )
 from .productivity import assess_productivity
 from .regions import get_region_sequence, identify_cdr3_regions
+from .airr import to_public_row
 from .schema import ANNOTATION_WORK_SCHEMA
 from .umi import parse_umis
 from ..core.results import AnnotationChunkResult, RecordFailure
@@ -211,6 +212,7 @@ def annotate(
 
     # do annotations
     annotated = []
+    public_rows = []
     failures = []
     for record_ordinal, r in enumerate(df.iter_rows(named=True)):
         r.setdefault("row_id", f"abstar_0_{record_ordinal}")
@@ -233,6 +235,7 @@ def annotate(
             ab.sequence = ab.sequence_oriented
             ab.germline_database = germline_database
             annotated.append(ab)
+            public_rows.append({"row_id": str(ab.row_id), **to_public_row(ab.to_dict())})
             continue
         try:
             ab = annotate_single_sequence(
@@ -242,6 +245,8 @@ def annotate(
                 umi_length=umi_length,
                 debug=debug,
             )
+            # Public meanings are built once here; every output reads these rows.
+            public_rows.append({"row_id": str(ab.row_id), **to_public_row(ab.to_dict())})
         except (OSError, MemoryError):
             # Storage and resource failures are infrastructure failures, not
             # evidence that this biological record alone cannot be annotated.
@@ -266,10 +271,7 @@ def annotate(
     # gather the results
     failed = [a for a in annotated if a.exceptions]
     succeeded = [a for a in annotated if not a.exceptions]
-    succeeded_df = pl.DataFrame(
-        [{"row_id": str(s.row_id), **s.to_dict()} for s in succeeded],
-        schema=ANNOTATION_WORK_SCHEMA,
-    )
+    succeeded_df = pl.DataFrame(public_rows, schema=ANNOTATION_WORK_SCHEMA)
 
     # write logs
     basename = os.path.basename(input_file)

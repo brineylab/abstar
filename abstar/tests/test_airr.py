@@ -321,8 +321,9 @@ def test_cigar_replay_and_np_columns_preserve_retained_traces(shared_airr_run):
                                      receptor='bcr', exact_match=True,
                                      force_constant=segment == 'c').sequence
             aq, ag, qs, gs = replay_cigar(row[f'{segment}_cigar'], query, reference)
-            assert qs == (row[f'{segment}_sequence_start'], row[f'{segment}_sequence_end'])
-            assert gs == (row[f'{segment}_germline_start'], row[f'{segment}_germline_end'])
+            # Public coordinates are 1-based closed; replay yields 0-based half-open.
+            assert qs == (row[f'{segment}_sequence_start'] - 1, row[f'{segment}_sequence_end'])
+            assert gs == (row[f'{segment}_germline_start'] - 1, row[f'{segment}_germline_end'])
             assert aq.replace('-', '') == row[f'{segment}_sequence'] == query[slice(*qs)]
             assert ag.replace('-', '') == row[f'{segment}_germline'] == reference[slice(*gs)]
             assert len(aq) == len(ag)
@@ -411,7 +412,7 @@ def test_literal_quotes_round_trip_all_fields_and_rows(serialization, tmp_path, 
         {'sequence_id': '00123', 'sequence_input': 'N', 'sequence_oriented': 'N',
          'rev_comp': False, 'productive': False, 'annotation_status': 'unassigned'},
     ]
-    frame = pl.DataFrame(rows, schema=OUTPUT_SCHEMA)
+    frame = pl.DataFrame([serialization.to_public_row(row) for row in rows], schema=OUTPUT_SCHEMA)
     path = tmp_path / 'quotes.tsv'
     serialization.write_airr_tsv(frame, path)
     validated = read_validated(path)
@@ -420,7 +421,7 @@ def test_literal_quotes_round_trip_all_fields_and_rows(serialization, tmp_path, 
     with path.open(newline='') as handle:
         raw = list(csv.DictReader(handle, delimiter='\t'))
     for source, encoded, official in zip(frame.to_dicts(), raw, validated):
-        expected = serialization.to_public_row(source)
+        expected = source
         assert set(encoded) == set(official) == set(expected)
         for field, value in expected.items():
             literal = '' if value is None else ('T' if value else 'F') if isinstance(value, bool) else str(value)
@@ -482,6 +483,7 @@ def test_official_paired_amino_acids_follow_shared_codon_columns(serialization, 
               'v_sequence_end': len(original) if original else None,
               'sequence_alignment': query, 'germline_alignment': germline,
               'sequence_alignment_aa': 'LEGACY', 'germline_alignment_aa': 'LEGACY'}
+    source = serialization.to_public_row(source)
     path = tmp_path / 'codons.tsv'
     serialization.write_airr_tsv(pl.DataFrame([source], schema=OUTPUT_SCHEMA), path)
     parsed = read_validated(path)
@@ -551,7 +553,7 @@ def test_unassigned_official_amino_acids_are_null(serialization, tmp_path):
     for field in ('sequence_aa', 'sequence_alignment_aa', 'germline_alignment_aa'):
         assert row[field] is None
     path = tmp_path / 'unassigned-aa.tsv'
-    serialization.write_airr_tsv(pl.DataFrame([source], schema=OUTPUT_SCHEMA), path)
+    serialization.write_airr_tsv(pl.DataFrame([row], schema=OUTPUT_SCHEMA), path)
     parsed = read_validated(path)
     assert len(parsed) == 1 and parsed[0]['sequence_id'] == 'unassigned'
     assert all(parsed[0][field] == '' for field in ('sequence_aa', 'sequence_alignment_aa', 'germline_alignment_aa'))
@@ -562,18 +564,14 @@ def test_public_official_amino_acids_map_to_source_nt_and_preserve_internals(sha
     from abstar.tests.helpers import assert_same_annotations, expected_airr_amino_acids
     from Bio.Data import CodonTable
     project, inputs, _ = shared_airr_run
-    # Final Parquet now carries official fields. Retained work chunks are the
-    # actual internal annotation data consumed by API returns and masks.
+    # Work chunks hold the public rows every output reads, so they equal final Parquet.
     internal = sorted(
         (row for path in (project / 'tmp').glob('*_annotated.parquet')
          for row in pl.read_parquet(path).to_dicts()),
         key=lambda row: int(row['row_id'].rsplit('_', 1)[1]),
     )
     final_parquet = pl.read_parquet(project / 'parquet/sequences.parquet').to_dicts()
-    unchanged_fields = tuple(field for field in OUTPUT_SCHEMA if field not in (
-        'sequence', 'sequence_aa', 'sequence_alignment_aa', 'germline_alignment_aa',
-    ))
-    assert_same_annotations(internal, final_parquet, unchanged_fields)
+    assert_same_annotations(internal, final_parquet, tuple(OUTPUT_SCHEMA))
     official = read_validated(project / 'airr/sequences.tsv')
     assert len(internal) == len(official) == len(inputs) == 15
     assert [row['sequence_id'] for row in internal] == [row['sequence_id'] for row in official]
@@ -587,14 +585,14 @@ def test_public_official_amino_acids_map_to_source_nt_and_preserve_internals(sha
         if source['annotation_status'] == 'unassigned':
             assert set(expected.values()) == {None}
             continue
-        # Internal legacy translations still match their assembled VDJ,
-        # preserving the inputs used by existing productivity and masks.
-        assembled = source['sequence'][source['frame'] - 1:]
-        assert source['sequence_aa'] == ''.join(codons.get(assembled[i:i + 3], 'X')
-                                               for i in range(0, len(assembled) - 2, 3))
-        assert len(source['gene_segment_mask_aa']) == len(source['sequence_aa'])
+        # The V(D)J translation used by productivity and masks is sequence_vdj_aa.
+        assembled = source['sequence_vdj'][source['frame'] - 1:]
+        assert source['sequence_vdj_aa'] == ''.join(codons.get(assembled[i:i + 3], 'X')
+                                                   for i in range(0, len(assembled) - 2, 3))
+        assert len(source['gene_segment_mask_aa']) == len(source['sequence_vdj_aa'])
         assert len(published['sequence_alignment_aa']) == len(published['germline_alignment_aa'])
-        assert published['sequence_aa'] != source['sequence_aa'] or source['sequence'] == source['sequence_oriented']
+        assert (published['sequence_aa'] != source['sequence_vdj_aa']
+                or source['sequence_vdj'] == source['sequence_oriented'])
         first = source['frame'] - 1
         aligned_query, aligned_germline = source['sequence_alignment'], source['germline_alignment']
         # All selected retained V traces start with residues in both rows.
@@ -613,6 +611,6 @@ def test_public_official_amino_acids_map_to_source_nt_and_preserve_internals(sha
     assert by_id['10E8']['sequence_alignment_aa'] == by_id['IGH-reverse']['sequence_alignment_aa']
     assert by_id['10E8']['germline_alignment_aa'] == by_id['IGH-reverse']['germline_alignment_aa']
     partial = next(row for row in internal if row['sequence_id'] == 'partial-V-codon')
-    assert (partial['v_sequence_start'], partial['v_germline_start'], partial['frame']) == (138, 2, 2)
+    assert (partial['v_sequence_start'], partial['v_germline_start'], partial['frame']) == (139, 3, 2)
     assert by_id['IGH-v-insert-1']['productive'] is False
     assert by_id['IGH-v-delete-1']['productive'] is False

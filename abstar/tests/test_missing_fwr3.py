@@ -8,6 +8,7 @@ from Bio.Seq import Seq
 
 from abstar.annotation.antibody import Antibody
 from abstar.annotation.annotator import annotate_single_sequence
+from abstar.tests.helpers import public_coordinate
 
 
 CASES = json.loads(
@@ -136,6 +137,6 @@ def test_missing_fwr3_public_entrypoints(tmp_path, entrypoint):
         row = frame.row(0, named=True)
         assert not list((project / "tmp").glob("*.parquet"))
     for field, expected in case["expected"].items():
-        assert row[field] == expected, field
+        assert row[field] == public_coordinate(field, expected), field
     assert len(row["cdr_mask"]) == 361
     assert len(row["cdr_mask_aa"]) == 120
