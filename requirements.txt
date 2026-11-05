@@ -1,6 +1,4 @@
-abutils>=0.6,<0.7
-# baltic 1.0 breaks importing abutils 0.6 on Python 3.10; drop once abutils is fixed.
-baltic<1
+abutils>=0.6.1
 biopython>=1.80
 click
 matplotlib

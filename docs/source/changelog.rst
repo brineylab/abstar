@@ -41,6 +41,5 @@ Added
 Fixed
 ~~~~~
 
-- Constrain ``baltic<1``. ``baltic`` 1.0 breaks ``import abutils`` (and so
-  ``import abstar``) on Python 3.10. This is a temporary constraint until a
-  fixed ``abutils`` release.
+- Require ``abutils>=0.6.1``. Earlier ``abutils`` releases allow ``baltic``
+  1.0, which breaks ``import abutils`` (and so ``import abstar``) on Python 3.10.

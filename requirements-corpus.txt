@@ -1,7 +1,7 @@
 # Reproduction profile for the dedicated committed-corpus job (Python 3.12).
 # Deliberate profile updates require a repeatability check and baseline review.
 -e .
-abutils==0.6.0
+abutils==0.6.1
 biopython==1.88
 polars==1.44.1
 pyarrow==25.0.0

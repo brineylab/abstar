@@ -8,7 +8,7 @@ abstar supports Python 3.10 through 3.13. The release matrix tests both the
 lowest declared dependency profile and the newest versions allowed by these
 bounds:
 
-- ``abutils>=0.6,<0.7``
+- ``abutils>=0.6.1``
 - ``polars>=1.6,<2``
 - ``pyarrow>=16.1,<26``
 - ``biopython>=1.80``
