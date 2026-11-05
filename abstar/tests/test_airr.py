@@ -37,8 +37,13 @@ def test_exact_public_field_order(serialization):
     assert serialization.AIRR_SCHEMA_VERSION == '2.0'
     assert tuple(RearrangementSchema.required) == required
     assert tuple(serialization.AIRR_REQUIRED_FIELDS) == required
-    assert tuple(serialization.AIRR_FIELDS) == required + tuple(
-        field for field in OUTPUT_SCHEMA if field not in required and field != 'row_id')
+    # OUTPUT_SCHEMA is the one public order for every output surface.
+    assert tuple(serialization.AIRR_FIELDS) == tuple(OUTPUT_SCHEMA)
+    assert tuple(OUTPUT_SCHEMA)[:len(required)] == required
+    fields = list(OUTPUT_SCHEMA)
+    assert fields.index('sequence_vdj') < fields.index('sequence_vdj_aa')
+    assert fields.index('sequence_aa') + 1 == fields.index('sequence_vdj_aa')
+    assert OUTPUT_SCHEMA['sequence_vdj'] == OUTPUT_SCHEMA['sequence_vdj_aa'] == pl.String
     assert len(serialization.AIRR_FIELDS) == len(set(serialization.AIRR_FIELDS))
     assert 'row_id' not in serialization.AIRR_FIELDS
 
@@ -66,7 +71,7 @@ def test_row_conversion_is_pure_and_converts_every_coordinate(serialization):
     for prefix in prefixes:
         row[prefix + '_start'], row[prefix + '_end'] = 1, 4
     before = deepcopy(row)
-    result = serialization.to_airr_row(row)
+    result = serialization.to_public_row(row)
     assert row == before
     assert result['sequence'] == 'AACG'
     assert result['sequence_id'] == '00123'
@@ -75,6 +80,50 @@ def test_row_conversion_is_pure_and_converts_every_coordinate(serialization):
     for prefix in prefixes:
         assert (result[prefix + '_start'], result[prefix + '_end']) == (2, 4)
     assert 'row_id' not in result
+
+
+
+def _coordinate_fields():
+    return [field for field in OUTPUT_SCHEMA
+            if field.endswith('_start') and field[:-6] + '_end' in OUTPUT_SCHEMA]
+
+
+def test_public_row_maps_vdj_sequences_and_every_schema_coordinate(serialization):
+    row = {'sequence_id': 'vdj', 'sequence': 'ATGAAACCC', 'sequence_aa': 'MKP',
+           'sequence_input': 'TTATGAAACCCGG', 'sequence_oriented': 'TTATGAAACCCGG',
+           'rev_comp': False, 'annotation_status': 'annotated', 'frame': 1}
+    starts = _coordinate_fields()
+    assert len(starts) == 15
+    for offset, start in enumerate(starts):
+        row[start], row[start[:-6] + '_end'] = offset, offset + 3
+    public = serialization.to_public_row(row)
+    assert list(public) == list(OUTPUT_SCHEMA)
+    assert public['sequence'] == row['sequence_input']
+    assert (public['sequence_vdj'], public['sequence_vdj_aa']) == ('ATGAAACCC', 'MKP')
+    for start in starts:
+        end = start[:-6] + '_end'
+        assert (public[start], public[end]) == (row[start] + 1, row[end]), start
+
+
+def test_unassigned_public_row_has_no_vdj_or_coordinates(serialization):
+    row = {'sequence_id': 'unassigned', 'sequence_input': 'NNNN', 'sequence_oriented': 'NNNN',
+           'sequence': 'NNNN', 'rev_comp': False, 'annotation_status': 'unassigned'}
+    public = serialization.to_public_row(row)
+    assert public['sequence'] == 'NNNN'
+    assert public['sequence_vdj'] is None and public['sequence_vdj_aa'] is None
+    assert all(public[field] is None for field in OUTPUT_SCHEMA if field.endswith(('_start', '_end')))
+
+
+def test_light_chain_public_row_keeps_null_d_coordinates(serialization):
+    row = {'sequence_id': 'igk', 'sequence': 'ATGAAA', 'sequence_aa': 'MK',
+           'sequence_input': 'ATGAAA', 'sequence_oriented': 'ATGAAA', 'rev_comp': False,
+           'annotation_status': 'annotated', 'locus': 'IGK', 'frame': 1,
+           'v_sequence_start': 0, 'v_sequence_end': 3, 'j_sequence_start': 3, 'j_sequence_end': 6,
+           'd_sequence_start': None, 'd_sequence_end': None}
+    public = serialization.to_public_row(row)
+    assert public['sequence_vdj'] == 'ATGAAA'
+    assert (public['v_sequence_start'], public['j_sequence_end']) == (1, 6)
+    assert public['d_sequence_start'] is None and public['d_sequence_end'] is None
 
 
 @pytest.mark.parametrize('query,germline,query_start,germline_start,expected', [
@@ -371,7 +420,7 @@ def test_literal_quotes_round_trip_all_fields_and_rows(serialization, tmp_path, 
     with path.open(newline='') as handle:
         raw = list(csv.DictReader(handle, delimiter='\t'))
     for source, encoded, official in zip(frame.to_dicts(), raw, validated):
-        expected = serialization.to_airr_row(source)
+        expected = serialization.to_public_row(source)
         assert set(encoded) == set(official) == set(expected)
         for field, value in expected.items():
             literal = '' if value is None else ('T' if value else 'F') if isinstance(value, bool) else str(value)
@@ -474,7 +523,7 @@ def test_official_query_translation_uses_input_phase_and_orientation(serializati
               'sequence_alignment_aa': 'LEGACY', 'germline_alignment_aa': 'LEGACY',
               'sequence_vdjc_aa': 'UNCHANGED'}
     before = deepcopy(source)
-    result = serialization.to_airr_row(source)
+    result = serialization.to_public_row(source)
     assert result['sequence_aa'] == expected
     assert result['sequence'] == source['sequence_input']
     assert result['sequence_vdjc_aa'] == 'UNCHANGED'
@@ -489,7 +538,7 @@ def test_unknown_query_translation_context_emits_null(serialization, missing):
               'v_sequence_start': 0, 'v_sequence_end': 3, 'frame': 1,
               'sequence_aa': 'LEGACY'}
     source.pop(missing)
-    assert serialization.to_airr_row(source)['sequence_aa'] is None
+    assert serialization.to_public_row(source)['sequence_aa'] is None
 
 
 def test_unassigned_official_amino_acids_are_null(serialization, tmp_path):
@@ -498,7 +547,7 @@ def test_unassigned_official_amino_acids_are_null(serialization, tmp_path):
               'rev_comp': False, 'productive': None,
               'sequence_aa': 'LEGACY', 'sequence_alignment_aa': 'LEGACY',
               'germline_alignment_aa': 'LEGACY'}
-    row = serialization.to_airr_row(source)
+    row = serialization.to_public_row(source)
     for field in ('sequence_aa', 'sequence_alignment_aa', 'germline_alignment_aa'):
         assert row[field] is None
     path = tmp_path / 'unassigned-aa.tsv'

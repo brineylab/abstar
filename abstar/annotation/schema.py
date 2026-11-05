@@ -35,12 +35,14 @@ schema_dict = {
     "annotation_status": pl.String,
     "failure_reason": pl.String,
     "sequence": pl.String,
+    "sequence_vdj": pl.String,
     "germline": pl.String,
     "sequence_vdjc": pl.String,
     "germline_vdjc": pl.String,
     "sequence_lvdjc": pl.String,
     "germline_lvdjc": pl.String,
     "sequence_aa": pl.String,
+    "sequence_vdj_aa": pl.String,
     "germline_aa": pl.String,
     "sequence_vdjc_aa": pl.String,
     "germline_vdjc_aa": pl.String,
@@ -191,5 +193,14 @@ schema_dict = {
 }
 
 
-OUTPUT_SCHEMA = NoneDict(schema_dict)
+# AIRR-required fields lead; this is the single public field order.
+AIRR_REQUIRED_FIELDS = (
+    "sequence_id", "sequence", "rev_comp", "productive", "v_call", "d_call",
+    "j_call", "sequence_alignment", "germline_alignment", "junction",
+    "junction_aa", "v_cigar", "d_cigar", "j_cigar",
+)
+OUTPUT_SCHEMA = NoneDict(
+    {field: schema_dict[field] for field in AIRR_REQUIRED_FIELDS}
+    | {field: dtype for field, dtype in schema_dict.items() if field not in AIRR_REQUIRED_FIELDS}
+)
 ANNOTATION_WORK_SCHEMA = {"row_id": pl.String, **OUTPUT_SCHEMA}
