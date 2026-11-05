@@ -153,6 +153,6 @@ hosted timing must be established by an actual GitHub run.
 
 Initial local validation produced three agreeing full runs. The final normal
 check, restricted to two CPU cores, took **147.74 seconds** and matched all
-**168 public fields**: 49,999 annotated records, the one expected failure, and
+**170 public fields**: 49,999 annotated records, the one expected failure, and
 zero consistency findings. This excludes dependency installation and is not a
-GitHub-hosted benchmark. The complete corpus and baseline occupy about 43.5 MB.
+GitHub-hosted benchmark. The complete corpus and baseline occupy about 46.3 MB.
