@@ -43,3 +43,5 @@ Fixed
 
 - Require ``abutils>=0.6.1``. Earlier ``abutils`` releases allow ``baltic``
   1.0, which breaks ``import abutils`` (and so ``import abstar``) on Python 3.10.
+- Remove the upper bounds on ``abutils``, ``polars``, and ``pyarrow``. abstar
+  is tested with Polars 2 and PyArrow 26.

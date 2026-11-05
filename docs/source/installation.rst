@@ -9,8 +9,8 @@ lowest declared dependency profile and the newest versions allowed by these
 bounds:
 
 - ``abutils>=0.6.1``
-- ``polars>=1.6,<2``
-- ``pyarrow>=16.1,<26``
+- ``polars>=1.6``
+- ``pyarrow>=16.1``
 - ``biopython>=1.80``
 
 MMseqs2_ is used internally for germline gene assignment, but it is bundled with
