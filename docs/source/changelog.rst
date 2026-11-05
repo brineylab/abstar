@@ -3,7 +3,7 @@
 Changelog
 =========
 
-0.9.0 (unreleased)
+0.9.0 (2026-11-05)
 ------------------
 
 Breaking changes
