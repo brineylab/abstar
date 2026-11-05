@@ -13,6 +13,7 @@ from abutils import Sequence
 from Bio.Seq import Seq
 
 from .helpers import read_fasta_records
+from abstar.tests.helpers import public_coordinate
 
 
 TCR_DATA_DIR = Path(__file__).parent / "data" / "tcr"
@@ -162,12 +163,19 @@ def test_tcr_goldens(case):
         assert row["sequence_oriented"][definition["junction_start"]:definition["junction_end"]] == row["junction"]
         assert row["cdr3"] == case.junction[3:-3]
         assert row["cdr3_aa"] == definition["junction_aa"][1:-1]
+        regions = ("fwr1", "cdr1", "fwr2", "cdr2", "fwr3", "cdr3", "fwr4")
+        # Public coordinates are 1-based closed.
+        coding = row["sequence_oriented"][row["v_sequence_start"] - 1 + row["frame"] - 1:row["j_sequence_end"]]
+        protein = str(Seq(coding[:len(coding) // 3 * 3]).translate())
+        assert "".join(row[r + "_aa"] for r in regions) == protein
+        assert len(row["cdr_mask_aa"]) == len(protein)
         assert row["productive"] is case.productive
         assert row["productivity_issues"] == ""
         assert row["vj_in_frame"] is True
         for field in ("v_sequence_start", "v_sequence_end", "j_sequence_start", "j_sequence_end"):
-            assert row[field] == definition["alignment_evidence"][field]
-        assert row["sequence"] == case.sequence[:definition["alignment_evidence"]["j_sequence_end"]]
+            assert row[field] == public_coordinate(field, definition["alignment_evidence"][field])
+        assert row["sequence"] == (reverse if rev_comp else case.sequence)
+        assert row["sequence_vdj"] == case.sequence[:definition["alignment_evidence"]["j_sequence_end"]]
         assert row["sequence_vdjc"] == case.sequence
         assert row["v_identity"] == row["j_identity"] == 1.0
         assert row["v_mutations"] in (None, "")
@@ -178,11 +186,11 @@ def test_tcr_goldens(case):
             assert row["d_identity"] == 1.0
         else:
             assert row["d_gene"] is row["d_sequence"] is row["d_germline"] is None
-        assert row["c_sequence"] == row["c_germline"] == case.sequence[row["c_sequence_start"]:row["c_sequence_end"]]
+        assert row["c_sequence"] == row["c_germline"] == case.sequence[row["c_sequence_start"] - 1:row["c_sequence_end"]]
         assert row["c_identity"] == 1.0
         assert "row_id" not in row.annotations
+        assert row["sequence_alignment"].replace("-", "") == row["sequence_vdj"]
         for suffix in ("", "_aa"):
-            assert row[f"sequence_alignment{suffix}"].replace("-", "") == row[f"sequence{suffix}"]
             assert len(row[f"sequence_alignment{suffix}"]) == len(row[f"germline_alignment{suffix}"])
             assert len(row[f"sequence_vdjc{suffix}"]) == len(row[f"germline_vdjc{suffix}"])
             assert len(row[f"c_sequence{suffix}"]) == len(row[f"c_germline{suffix}"])
@@ -192,7 +200,8 @@ def test_tcr_goldens(case):
                 assert calls == sorted(set(calls))
                 assert all(call.startswith(case.locus) for call in calls)
     biological_fields = (
-        "sequence", "sequence_aa", "sequence_vdjc", "sequence_vdjc_aa", "locus",
+        # Public sequence is the input as given, so strands differ; the V(D)J must not.
+        "sequence_vdj", "sequence_vdj_aa", "sequence_vdjc", "sequence_vdjc_aa", "locus",
         "v_call", "d_call", "j_call", "c_call", "junction", "junction_aa",
         "productive", "productivity_issues",
         "v_sequence_start", "v_sequence_end", "d_sequence", "d_germline",

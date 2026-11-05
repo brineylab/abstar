@@ -27,6 +27,32 @@ def assert_same_annotations(
             )
 
 
+def public_coordinate(field: str, value):
+    """Map a 0-based half-open fixture coordinate to the public 1-based closed value."""
+    return value + 1 if field.endswith("_start") and value is not None else value
+
+
+def internal_as_public(values: Mapping[str, object]) -> dict[str, object]:
+    """Independent oracle: internal Antibody values expressed in public meanings.
+
+    Mirrors the documented contract, not the production converter: schema
+    starts gain one, ``sequence`` becomes the input, the assembled V(D)J moves
+    to ``sequence_vdj``/``sequence_vdj_aa``, and official AAs use the codon oracle.
+    """
+    from abstar.annotation.schema import OUTPUT_SCHEMA
+
+    public = dict(values)
+    for field in OUTPUT_SCHEMA:
+        if field.endswith("_start") and field[:-6] + "_end" in OUTPUT_SCHEMA:
+            public[field] = public_coordinate(field, values.get(field))
+    annotated = values.get("annotation_status") == "annotated"
+    public["sequence_vdj"] = values.get("sequence") if annotated else None
+    public["sequence_vdj_aa"] = values.get("sequence_aa") if annotated else None
+    public["sequence"] = values.get("sequence_input")
+    public.update(expected_airr_amino_acids(public))
+    return public
+
+
 def read_fasta_records(path: Path) -> dict[str, str]:
     """Read FASTA records, rejecting duplicate identifiers."""
     records = {}
@@ -58,7 +84,8 @@ def read_fasta_records(path: Path) -> dict[str, str]:
 def assert_airr_matches_annotations(expected, path, fields):
     """Compare through AIRR's explicit sequence, null and coordinate boundary.
 
-    The reference reader inversely converts known AIRR starts to Python offsets.
+    ``expected`` holds public rows. The reference reader subtracts one from
+    every ``*_start``; add it back so both sides use the public convention.
     Public extensions are parsed using their declared annotation types.
     """
     import airr
@@ -76,12 +103,11 @@ def assert_airr_matches_annotations(expected, path, fields):
                                        (actual, normalized_actual, True)):
         for row in rows:
             normalized = {}
-            official_aa = expected_airr_amino_acids(row) if not is_airr else {}
             for field in fields:
                 assert field in row
-                value = row['sequence_input'] if field == 'sequence' and not is_airr else row[field]
-                if field in official_aa:
-                    value = official_aa[field]
+                value = row[field]
+                if is_airr and field.endswith('_start') and isinstance(value, int):
+                    value += 1
                 if value == '' or value is None:
                     value = None
                 elif is_airr:
@@ -125,7 +151,8 @@ def expected_airr_amino_acids(row):
     if origin is not None and row.get('sequence_oriented') is not None:
         original = Seq(row['sequence_input'])
         oriented = str(original.reverse_complement() if row['rev_comp'] else original)
-        result['sequence_aa'] = translate(oriented[(origin + frame - 1) % 3:])
+        # Public starts are 1-based; the V coding origin is (start - 1) + (frame - 1).
+        result['sequence_aa'] = translate(oriented[(origin - 1 + frame - 1) % 3:])
     query, reference = row.get('sequence_alignment'), row.get('germline_alignment')
     if query is None or reference is None:
         return result
@@ -139,11 +166,11 @@ def expected_airr_amino_acids(row):
 
 
 def normalize_airr_row(row: Mapping[str, str]) -> dict[str, object]:
-    """Decode a RAW csv.DictReader TSV row to native, half-open values.
+    """Decode a RAW csv.DictReader TSV row to native Parquet values.
 
-    Do not pass AIRR reader objects: that reader already subtracts one from
-    coordinate starts. This helper changes representation only, never sequence
-    aliases, amino acids, calls, evidence, identifiers, or outcome meanings.
+    Do not pass AIRR reader objects: that reader subtracts one from coordinate
+    starts. This helper changes representation only (text to native types);
+    every public output already shares 1-based closed coordinates.
     """
     import polars as pl
     from abstar.annotation.schema import OUTPUT_SCHEMA
@@ -162,7 +189,6 @@ def normalize_airr_row(row: Mapping[str, str]) -> dict[str, object]:
             value = int(value)
             if field.endswith('_start'):
                 assert value >= 1, (field, value)
-                value -= 1
         elif dtype == pl.Float64:
             value = float(value)
         else:

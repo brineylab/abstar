@@ -145,6 +145,36 @@ def test_annotate_returns_correct_files(mock_assignment_parquet, tmp_path):
     assert os.path.exists(result.failed_log_path)
 
 
+def test_public_conversion_failure_is_isolated(mock_assignment_parquet, tmp_path, monkeypatch):
+    """A record whose public row cannot be built fails alone; others are written."""
+    from ..annotation import annotator
+
+    # Real assigner calls carry the species suffix; the bare fixture calls do not annotate.
+    source = pl.read_parquet(mock_assignment_parquet).with_columns(
+        pl.lit("IGHV3-15*01__homo_sapiens").alias("v_call"),
+        *(pl.col(call) + "__homo_sapiens" for call in ("d_call", "j_call")))
+    two = pl.concat([source, source.with_columns(pl.lit("other").alias("sequence_id"))])
+    input_file = str(tmp_path / "two.parquet")
+    two.write_parquet(input_file)
+    convert = annotator.to_public_row
+
+    def failing(row):
+        if row["sequence_id"] == "10E8_test":
+            raise ValueError("invalid half-open interval: [3, 3)")
+        return convert(row)
+
+    monkeypatch.setattr(annotator, "to_public_row", failing)
+    output_dir = tmp_path / "output"
+    output_dir.mkdir()
+    result = annotate(input_file=input_file, output_directory=str(output_dir),
+                      germline_database="human")
+    assert [(f.sequence_id, f.stage, f.category) for f in result.failures] == [
+        ("10E8_test", "annotation", "internal_error")]
+    written = pl.read_parquet(result.output_path)
+    assert written["sequence_id"].to_list() == ["other"]
+    assert written["v_sequence_start"][0] >= 1
+
+
 def test_annotate_creates_parquet_output(mock_assignment_parquet, tmp_path):
     """Test output parquet has correct schema."""
     output_dir = str(tmp_path / "output")

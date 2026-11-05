@@ -16,18 +16,14 @@ from pathlib import Path
 import abutils
 import polars as pl
 
-from .schema import OUTPUT_SCHEMA
+from .schema import AIRR_REQUIRED_FIELDS, OUTPUT_SCHEMA
 
 
 AIRR_SCHEMA_VERSION = "2.0"
-AIRR_REQUIRED_FIELDS = (
-    "sequence_id", "sequence", "rev_comp", "productive", "v_call", "d_call",
-    "j_call", "sequence_alignment", "germline_alignment", "junction",
-    "junction_aa", "v_cigar", "d_cigar", "j_cigar",
-)
-AIRR_FIELDS = AIRR_REQUIRED_FIELDS + tuple(
-    field for field in OUTPUT_SCHEMA
-    if field not in AIRR_REQUIRED_FIELDS and field != "row_id"
+AIRR_FIELDS = tuple(OUTPUT_SCHEMA)
+COORDINATE_FIELDS = tuple(
+    (field, field[: -len("_start")] + "_end") for field in OUTPUT_SCHEMA
+    if field.endswith("_start") and field[: -len("_start")] + "_end" in OUTPUT_SCHEMA
 )
 
 
@@ -111,15 +107,20 @@ def translate_airr_alignment(
                  for row in (aligned_query, aligned_germline))
 
 
-def to_airr_row(row: Mapping[str, object]) -> dict[str, object]:
-    """Copy public annotations and map original sequence and AIRR coordinates."""
+def to_public_row(row: Mapping[str, object]) -> dict[str, object]:
+    """Convert an internal annotation row to the public row every output shares.
+
+    Internally ``sequence``/``sequence_aa`` are the assembled V(D)J and its
+    translation; publicly they are the original input and its full-query
+    translation, with the V(D)J moved to ``sequence_vdj``/``sequence_vdj_aa``.
+    All coordinates become AIRR 1-based closed intervals.
+    """
     output = {field: row.get(field) for field in AIRR_FIELDS}
+    annotated = row.get("annotation_status") == "annotated"
+    output["sequence_vdj"] = row.get("sequence") if annotated else None
+    output["sequence_vdj_aa"] = row.get("sequence_aa") if annotated else None
     output["sequence"] = row.get("sequence_input")
-    prefixes = [f"{segment}_{axis}" for segment in ("v", "d", "j", "c")
-                for axis in ("sequence", "germline")]
-    prefixes += ["fwr1", "cdr1", "fwr2", "cdr2", "fwr3", "cdr3", "fwr4"]
-    for prefix in prefixes:
-        start_field, end_field = f"{prefix}_start", f"{prefix}_end"
+    for start_field, end_field in COORDINATE_FIELDS:
         output[start_field], output[end_field] = to_airr_interval(
             row.get(start_field), row.get(end_field)
         )
@@ -140,7 +141,7 @@ def write_airr_tsv(frame: pl.DataFrame, path: str | Path) -> None:
     rows = []
     for source in frame.iter_rows(named=True):
         encoded = {}
-        for field, value in to_airr_row(source).items():
+        for field, value in source.items():
             if isinstance(value, bool):
                 value = "T" if value else "F"
             elif value is None:

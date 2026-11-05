@@ -1,0 +1,294 @@
+{
+  "coordinate_system": "zero-based half-open oriented input",
+  "records": [
+    {
+      "name": "heavy",
+      "source": {
+        "dataset": "1279049",
+        "parquet_row": 347
+      },
+      "assignment": {
+        "sequence_id": "AACCGCGCAACACCTA-1_contig_1",
+        "sequence_input": "GCCCTGAGAGCATCACTCAACAACCACATCTGTCCTCTAGAGAAAACCCTGTGAGCACAGCTCCTCACCATGGACTGGACCTGGAGGATCCTCTTCTTGGTGGCAGCAGCTACAAGTGCCCACTCCCAGGTGCAGCTGGTGCAGTCTGGGGCTGAGGTGAAGAAGCCTGGGGCCTCAGTGAAGGTCTCCTGCAAGGCTTCTGGATACACCTTCACCAGTTATGATATCAACTGGGTGCGACAGGCCACTGGACAAGGGCTTGAGTGGATGGGATGGATGAACCCTAACAGTGGTAACACAGGCTATGCACAGAAGTTCCAGGGCAGAGTCACCATGACCAGGAACACCTCCATAAGCACAGCCTACATGGAGCTGAGCAGCCTGAGATCTGAGGACACGGCCGTGTATTACTGCTGGATACAGCTATGGCCGCGCCCCCCACCTAATGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAGGGAGTGCATCCGCCCCAACCCTTTTCCCCCTCGTCTCCTGTGAGAATTCCCCGTCGGATACGAGCAGCGTG",
+        "quality": null,
+        "germline_database": "human",
+        "locus": "IGH",
+        "rev_comp": false,
+        "v_call": "IGHV1-8*01__homo_sapiens",
+        "v_support": 7.581e-149,
+        "d_call": "IGHD5-5*01__homo_sapiens",
+        "d_support": 0.0001709,
+        "j_call": "IGHJ4*02__homo_sapiens",
+        "j_support": 1.418e-17,
+        "c_call": "IGHM*01,IGHM*03,IGHM*04,IGHM*05,IGHM*06,IGHM*07,IGHM*08",
+        "c_support": 1.286e-36
+      },
+      "expected": {
+        "sequence_id": "AACCGCGCAACACCTA-1_contig_1",
+        "v_call": "IGHV1-8*01",
+        "d_call": "IGHD5-5*01",
+        "j_call": "IGHJ4*02",
+        "locus": "IGH",
+        "frame": 1,
+        "productive": true,
+        "productivity_issues": "",
+        "junction": "TGCTGGATACAGCTATGGCCGCGCCCCCCACCTAATGACTACTGG",
+        "junction_aa": "CWIQLWPRPPPNDYW",
+        "cdr3": "TGGATACAGCTATGGCCGCGCCCCCCACCTAATGACTAC",
+        "cdr3_aa": "WIQLWPRPPPNDY",
+        "v_sequence_start": 126,
+        "v_sequence_end": 413,
+        "j_sequence_start": 446,
+        "j_sequence_end": 487,
+        "fwr3_start": 300,
+        "fwr3_end": 414,
+        "fwr3": "GGCTATGCACAGAAGTTCCAGGGCAGAGTCACCATGACCAGGAACACCTCCATAAGCACAGCCTACATGGAGCTGAGCAGCCTGAGATCTGAGGACACGGCCGTGTATTACTGC",
+        "fwr3_aa": "GYAQKFQGRVTMTRNTSISTAYMELSSLRSEDTAVYYC"
+      }
+    },
+    {
+      "name": "kappa",
+      "source": {
+        "dataset": "1279053",
+        "parquet_row": 11131
+      },
+      "assignment": {
+        "sequence_id": "CTCGAAAGTATATGGA-1_contig_1",
+        "sequence_input": "AGGAGTCAGACCCAGTCAGGACACAGCATGGACATGAGGGTCCCCGCTCAGCTCCTGGGGCTCCTGCTGCTCTGGCTCCCAGGTGCCAAATGTGACATCCAGATGACCCAGTCTCCTTCCACCCTGTCTGCATCTGTAGGAGACAGAGTCACCATCACTTGCCGGGCCAGTCAGAGTATTAGTAGCTGGTTGGCCTGGTATCAGCAGAAACCAGGGAAAGCCCCTAAGCTCCTGATCTATAAGGCGTCTAGTTTAGAAAGTGGGGTCCCATCAAGGTTCAGCGGCAGTGGATCTGGGACAGAATTCACTCTCACCATCAGCAGCCTGCAGCCTGATGATTTTGCAACTTATTACTGTTATTCGGGGACGTTCGGCCAAGGGACCAAGGTGGAAATCAAACGAACTGTGGCTGCACCATCTGTCTTCATCTTCCCGCCATCTGATGAGCAGTTGAAATCTGGAACTGCCTCTGTTGTGTGCCTGCTGAATAACTTCTATCCCAGAGAGGCCAAAGTACAGTGGAAGGTGGATAACGC",
+        "quality": null,
+        "germline_database": "human",
+        "locus": "IGK",
+        "rev_comp": false,
+        "v_call": "IGKV1-5*03__homo_sapiens",
+        "v_support": 7.365e-136,
+        "d_call": null,
+        "d_support": null,
+        "j_call": "IGKJ1*01__homo_sapiens",
+        "j_support": 1.058e-14,
+        "c_call": "IGKC*01,IGKC*02,IGKC*04,IGKC*05",
+        "c_support": 1.916e-73
+      },
+      "expected": {
+        "sequence_id": "CTCGAAAGTATATGGA-1_contig_1",
+        "v_call": "IGKV1-5*03",
+        "d_call": null,
+        "j_call": "IGKJ1*01",
+        "locus": "IGK",
+        "frame": 1,
+        "productive": true,
+        "productivity_issues": "",
+        "junction": "TGTTATTCGGGGACGTTC",
+        "junction_aa": "CYSGTF",
+        "cdr3": "TATTCGGGGACG",
+        "cdr3_aa": "YSGT",
+        "v_sequence_start": 93,
+        "v_sequence_end": 356,
+        "j_sequence_start": 364,
+        "j_sequence_end": 400,
+        "fwr3_start": 249,
+        "fwr3_end": 357,
+        "fwr3": "AGTTTAGAAAGTGGGGTCCCATCAAGGTTCAGCGGCAGTGGATCTGGGACAGAATTCACTCTCACCATCAGCAGCCTGCAGCCTGATGATTTTGCAACTTATTACTGT",
+        "fwr3_aa": "SLESGVPSRFSGSGSGTEFTLTISSLQPDDFATYYC"
+      }
+    },
+    {
+      "name": "lambda",
+      "source": {
+        "dataset": "1279050",
+        "parquet_row": 13347
+      },
+      "assignment": {
+        "sequence_id": "CGAGAAGGTAAGTGGC-1_contig_2",
+        "sequence_input": "GGGGTCTCAGGAGGCAGCGCTCTCGGGACGTCTCCACCATGGCCTGGGCTCTGCTATTCCTCACCCTCCTCACTCAGGGCACAGGGTCCTGGGCCCAGTCTGCCCTGACTCAGCCTGCCTCCGTGTCTGGGTCTCCTGGACAGTCGATCACCATCTCCTGCACTGGAACCAGCAGTGACGTTGGTCGTTATAACTATGTCTCCTGGTACCAACATCACCCAGGCAAAGCCCCCAAACTCATTATTTATGATGTCAGTGATCGGCCCTCAGGGGTTTCTAATCGCTTCTCTGGCTCCAAGTCTGGCACCTCAGCCTCCCTGGCCATCAGTGGGCTCCAGTCTGAGGATGAGGCTGATTATTACTGTGCAGCATGGAATGACAGCCTGAATGGTTGGGTGTTCGGCGGAGGGACCAAGTTGACCGTCCTAGGTCAGCCCAAGGCTGCCCCCTCGGTCACTCTGTTCCCACCCTCCTCTGAGGAGCTTCAAGCCAACAAGGCCACACTGGTGTGTCTCATAAGTGACTTCTACCCGGGAGCCGTGACAGTGGCCTGGAAGGCAGATAGCAGCCCCGTCAAGGCGGGAGTGGAGACCACCACACCCTCCAAACAAAGCAACAACAAGTACGCGGCCAGCAGCTA",
+        "quality": null,
+        "germline_database": "human",
+        "locus": "IGL",
+        "rev_comp": false,
+        "v_call": "IGLV2-14*03__homo_sapiens,IGLV2-14*04__homo_sapiens",
+        "v_support": 1.273e-122,
+        "d_call": null,
+        "d_support": null,
+        "j_call": "IGLJ3*02__homo_sapiens",
+        "j_support": 5.281e-15,
+        "c_call": "IGLC3*03",
+        "c_support": 6.678e-116
+      },
+      "expected": {
+        "sequence_id": "CGAGAAGGTAAGTGGC-1_contig_2",
+        "v_call": "IGLV2-14*03,IGLV2-14*04",
+        "d_call": null,
+        "j_call": "IGLJ3*02",
+        "locus": "IGL",
+        "frame": 1,
+        "productive": true,
+        "productivity_issues": "",
+        "junction": "TGTGCAGCATGGAATGACAGCCTGAATGGTTGGGTGTTC",
+        "junction_aa": "CAAWNDSLNGWVF",
+        "cdr3": "GCAGCATGGAATGACAGCCTGAATGGTTGGGTG",
+        "cdr3_aa": "AAWNDSLNGWV",
+        "v_sequence_start": 95,
+        "v_sequence_end": 364,
+        "j_sequence_start": 391,
+        "j_sequence_end": 429,
+        "fwr3_start": 257,
+        "fwr3_end": 365,
+        "fwr3": "GATCGGCCCTCAGGGGTTTCTAATCGCTTCTCTGGCTCCAAGTCTGGCACCTCAGCCTCCCTGGCCATCAGTGGGCTCCAGTCTGAGGATGAGGCTGATTATTACTGT",
+        "fwr3_aa": "DRPSGVSNRFSGSKSGTSASLAISGLQSEDEADYYC"
+      }
+    },
+    {
+      "name": "frame_two",
+      "source": {
+        "dataset": "1279050",
+        "parquet_row": 19557
+      },
+      "assignment": {
+        "sequence_id": "GACGGCTAGAGTAAGG-1_contig_2",
+        "sequence_input": "GGGGCTTTCTGAGAGTCAAGGATCTCATGTGCAAGAAAATGAAGCACCTGTGGTTCTTCCTCCTGCTGGTGGCGGCTCCCAGATGGGTCCTGTCCCTGCTGCAGCTGGAGGAGTCGGGCCCAGGACTAGTGAAGCCTTCGGAGACCCTGTCCCTCACGTGCACTGTCTCTGGTGGCTCCATCAGTAATGATTCTTATTGGTGGGGCTGGGTCCGCCAGTCCCCAGGGATGGATCTGGAGTGGATCGGCAGTATCTTTTATAGTGGGAGCACATACTACAACCCGTCCTTCAGGAGTCCAGTCACCCTATCCGTGGACACGTCGAAGAATCAGTTCTCCTTGAGGTTGACCTCTGTGACCGCCGCAGACACGGCCCGATACTTCTGTGTGGGGAGAATTTATCTCTACTACTACTACGGGACGGACATCTGGGGCCAAGGGACCACGGTCACTGTCGCCTCAGCCTCCACCAAGGGCCCATCGGTCTTCCCCCTGGCGCCCTGCTCCAGGAGCACCTCCGAGAGCACAGCGGCCCTGGGCTGCCTGGTCAAGGACTACTTCCCCGAACCGGTGACGGTGTCGTGGAACTCAGGCGCCCTGACCAGCGGCGTGCACACCTTCCCGGCTGTCCTACAGTCCTCAGGA",
+        "quality": null,
+        "germline_database": "human",
+        "locus": "IGH",
+        "rev_comp": false,
+        "v_call": "IGHV4-39*08__homo_sapiens",
+        "v_support": 7.048e-100,
+        "d_call": null,
+        "d_support": null,
+        "j_call": "IGHJ6*02__homo_sapiens",
+        "j_support": 3.579e-20,
+        "c_call": "IGHG4*09,IGHG4*10,IGHG4A*01,IGHG4A*02",
+        "c_support": 1.733e-99
+      },
+      "expected": {
+        "sequence_id": "GACGGCTAGAGTAAGG-1_contig_2",
+        "v_call": "IGHV4-39*08",
+        "d_call": "IGHD3-10*01__homo_sapiens",
+        "j_call": "IGHJ6*02",
+        "locus": "IGH",
+        "frame": 2,
+        "productive": true,
+        "productivity_issues": "",
+        "junction": "TGTGTGGGGAGAATTTATCTCTACTACTACTACGGGACGGACATCTGG",
+        "junction_aa": "CVGRIYLYYYYGTDIW",
+        "cdr3": "GTGGGGAGAATTTATCTCTACTACTACTACGGGACGGACATC",
+        "cdr3_aa": "VGRIYLYYYYGTDI",
+        "v_sequence_start": 97,
+        "v_sequence_end": 373,
+        "j_sequence_start": 403,
+        "j_sequence_end": 462,
+        "fwr3_start": 272,
+        "fwr3_end": 386,
+        "fwr3": "TACTACAACCCGTCCTTCAGGAGTCCAGTCACCCTATCCGTGGACACGTCGAAGAATCAGTTCTCCTTGAGGTTGACCTCTGTGACCGCCGCAGACACGGCCCGATACTTCTGT",
+        "fwr3_aa": "YYNPSFRSPVTLSVDTSKNQFSLRLTSVTAADTARYFC"
+      }
+    },
+    {
+      "name": "frame_three",
+      "source": {
+        "dataset": "1279050",
+        "parquet_row": 28275
+      },
+      "assignment": {
+        "sequence_id": "TACTTACAGATCACGG-1_contig_2",
+        "sequence_input": "TTGGGGGCTTTCTGAGAGTCATGGATCTCATGTGCAAGAAAATGAAGCACCTGTGGTTCTCCCTCCTGCTGGTGGCGGCTCCCAGATGGGTCCTGTCCGAGTTGCAGCTGCAGGAGTCGGGCCCAGGACTGGTGAAGCCTTCGGAGACCCTGTCCCTCACCTGCCTTGTCTCTGGTGGCTCCATCAGTAATAATGATTACTACTGGGGCTGGATCCGCCAGACCCCAAGAAAGGGACTGGAGTGGATTGGGAGTGTCTTCCATACTGGGAGCTCCCACTACACCCCGTCCCTCAAGAGTCGAGTCTCCGTGTCCGTAGACACGTCCAGGAGTGAATTTTCCCTGAAACTGAAGTCTGTGACCGCCGCAGACACCTCTCTTTACTTCTGTGTGGGGCTTCGCACTGGGAGCTATGTGGCTGACTACTGGGGCCAGGGAGTCCGGGTCACCGTCTCCTCAGCATCCCCGACCAGCCCCAAGGTCTTCCCGCTGAGCCTCGACAGCACCCCCCAAGATGGGAACGTGGTCGTCGCATGCCTGGTCCAGGGCTTCTTCCCCCAGGAGCCACTCAGTGTGACCTGGAGCGAAAGCGGACAGAACGTGACCGCCAGAAACTTCCC",
+        "quality": null,
+        "germline_database": "human",
+        "locus": "IGH",
+        "rev_comp": false,
+        "v_call": "IGHV4-39*07__homo_sapiens",
+        "v_support": 9.081e-95,
+        "d_call": "IGHD1-26*01__homo_sapiens",
+        "d_support": 0.7912,
+        "j_call": "IGHJ4*02__homo_sapiens",
+        "j_support": 3.646e-13,
+        "c_call": "IGHA2*01,IGHA2*02,IGHA2*03,IGHA2*06,IGHA2*07",
+        "c_support": 4.932e-87
+      },
+      "expected": {
+        "sequence_id": "TACTTACAGATCACGG-1_contig_2",
+        "v_call": "IGHV4-39*07",
+        "d_call": "IGHD1-26*01",
+        "j_call": "IGHJ4*02",
+        "locus": "IGH",
+        "frame": 3,
+        "productive": true,
+        "productivity_issues": "",
+        "junction": "TGTGTGGGGCTTCGCACTGGGAGCTATGTGGCTGACTACTGG",
+        "junction_aa": "CVGLRTGSYVADYW",
+        "cdr3": "GTGGGGCTTCGCACTGGGAGCTATGTGGCTGACTAC",
+        "cdr3_aa": "VGLRTGSYVADY",
+        "v_sequence_start": 99,
+        "v_sequence_end": 373,
+        "j_sequence_start": 418,
+        "j_sequence_end": 459,
+        "fwr3_start": 275,
+        "fwr3_end": 389,
+        "fwr3": "CACTACACCCCGTCCCTCAAGAGTCGAGTCTCCGTGTCCGTAGACACGTCCAGGAGTGAATTTTCCCTGAAACTGAAGTCTGTGACCGCCGCAGACACCTCTCTTTACTTCTGT",
+        "fwr3_aa": "HYTPSLKSRVSVSVDTSRSEFSLKLKSVTAADTSLYFC"
+      }
+    },
+    {
+      "name": "frameshift",
+      "source": {
+        "dataset": "1279059",
+        "parquet_row": 16855
+      },
+      "assignment": {
+        "sequence_id": "GAAACTCTCGTCCAGG-1_contig_2",
+        "sequence_input": "GGTGCTTTCTGAGAGTCATGGACCTCCTGCACAAGAACATGAAACACCTGTGGTTCTTCCTCCTCCTGGTGGCAGCTCCCAGATGGGTCCTGTCCCAGGTGCAGCTACAGCAGTGGGGCGCAGGACTGTTGAAGGCCTCGGAGACCCGGTCCCTCATTTGCGTTGTCTGTGGAGGGTCTTGCAGTACTTACTACTGGGGGTGGATCCGCCAGCCCCCAGGGATGGGGCTGGAGTGGGTTCGAGAGATCATTGATACTGAAAGTGCCAACTACAACCCGTCCCTCAGGAGTCGAATCACCTTTTCAGTGGACCCGTCCAGGAGCCACTTCTCCCTGAAGGCTCTGGGAGGAGAAGCAGGATGGGAGATTCTGTGCAGGACCCTCTCACAGTGGAATACCTGGCTCCCGTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAGGGAGTGCATCCGCCCCAACCCTTTTCCCCCTCGTCTCCTGTGAGAATTCCCCGTCGGATACGAGCAGCGTG",
+        "quality": null,
+        "germline_database": "human",
+        "locus": "IGH",
+        "rev_comp": false,
+        "v_call": "IGHV4-34*01__homo_sapiens",
+        "v_support": 6.018e-79,
+        "d_call": "IGHD2-15*01__homo_sapiens",
+        "d_support": 8.499,
+        "j_call": "IGHJ5*02__homo_sapiens",
+        "j_support": 1.89e-14,
+        "c_call": "IGHM*01,IGHM*03,IGHM*04,IGHM*05,IGHM*06,IGHM*07,IGHM*08",
+        "c_support": 1.286e-36
+      },
+      "expected": {
+        "sequence_id": "GAAACTCTCGTCCAGG-1_contig_2",
+        "v_call": "IGHV4-34*01",
+        "d_call": "IGHD2-15*01",
+        "j_call": "IGHJ5*02",
+        "locus": "IGH",
+        "frame": 1,
+        "productive": false,
+        "productivity_issues": "junction does not end with conserved W|junction length is not a multiple of 3|V/J junction is out of frame",
+        "junction": "TGTGCAGGACCCTCTCACAGTGGAATACCTGGCTCCCGTGG",
+        "junction_aa": "CAGPSHSGIPGSR",
+        "cdr3": "GCAGGACCCTCTCACAGTGGAATACCTGGCTCCCG",
+        "cdr3_aa": "CRTLSQWNTWLP",
+        "v_sequence_start": 95,
+        "v_sequence_end": 338,
+        "j_sequence_start": 403,
+        "j_sequence_end": 441,
+        "fwr3_start": 266,
+        "fwr3_end": 372,
+        "fwr3": "AACTACAACCCGTCCCTCAGGAGTCGAATCACCTTTTCAGTGGACCCGTCCAGGAGCCACTTCTCCCTGAAGGCTCTGGGAGGAGAAGCAGGATGGGAGATTCTGT",
+        "fwr3_aa": "NYNPSLRSRITFSVDPSRSHFSLKALGGEAGWEIL"
+      }
+    }
+  ],
+  "review": "Literal FWR3 query slices bounded by retained mapped starts and existing junction anchors; complete-codon AA expectations translated independently. Assignment records captured from the real MMseqs pipeline.",
+  "unrecoverable": [
+    {
+      "source": {
+        "dataset": "1279072",
+        "parquet_row": 2587
+      },
+      "assignment": {
+        "sequence_id": "CTAATGGTCCAGAGGA-1_contig_3",
+        "sequence_input": "ATACTTTCTGAGAGTCCTGGACCTCCTGTGCAAGAACATGAAACATCTGTGGTTCTTCCTTCTCCTGGTGGCAGCTCCCAGATGGGTCCTGTCCCAGATGCAACTTCAGGAGTCGGGCCCAGGACTGGTGAGGCCTTCGGAGACCCTGTCCCTCACGTGCACTGTCTCTGGTGCCTCCGCCACTAGTTACTACTGGAGTTGGATCCGGCAGCCCCCAGGGAAGGGGCTGGAGTGGCTCTCAAGTTATTCTGATAGTGGTGACTACATATACTACGCAGATTCCGTGAAGGGCCGGTTCACCATGTCCAGAGACAGAGACAACAATAGGGTTTATCTAGAAATGCGCAGCCTGAGAGCCGAGGACACGGCCCTATATTACTGTGCGAAACATCGGGCTCCACTGGTGACAGGTCCAGCGGACTTTGACTCCTGGGGCCAGGGAACCCTGGTCACCGTCTCCGCAGCATCC",
+        "rev_comp": false,
+        "c_call": null,
+        "v_call": "IGHV4-4*08__homo_sapiens,IGHV4-4*09__homo_sapiens,IGHV4-59*01__homo_sapiens,IGHV4-59*12__homo_sapiens,IGHV4-59*i03__homo_sapiens,IGHV4-NL1*01__homo_sapiens",
+        "d_call": "IGHD4-4*01__homo_sapiens",
+        "j_call": "IGHJ4*02__homo_sapiens"
+      },
+      "expected_error": "region boundary recovery has competing optimal boundaries"
+    }
+  ]
+}

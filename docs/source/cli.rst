@@ -88,9 +88,16 @@ Output Options
     Directory inputs retain their paths relative to the original input directory
     under ``PROJECT_PATH/input/``.
 
-If assignment or annotation fails internally or in an external tool, the command
-exits nonzero and prints a structured stage/category summary followed by paths to
-retained failure artifacts. Ordinary biological non-assignment is recorded in the
+``--strict``
+    Abort on sequence annotation errors. By default, log the failed records and
+    continue processing the remaining records, chunks, and samples.
+
+Recoverable sequence annotation errors do not change the successful exit status.
+Per-sample progress reports annotated, unassigned, and failed counts, with a final
+failure total and index location. Failed records are omitted from normal output.
+An entirely failed sample writes a schema-bearing empty output and has explicit
+failure diagnostics. Input, assignment, worker, and output/storage failures still
+exit nonzero with a structured stage/category summary and retained artifact paths. Ordinary biological non-assignment is recorded in the
 output as ``annotation_status=unassigned`` with a ``failure_reason``.
 
 MMseqs failure diagnostics include the safely rendered argument list, exit
@@ -269,3 +276,28 @@ Related Topics
     read_merging
     umis
     germline_dbs
+
+Record failure diagnostics
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Individual annotation exceptions are saved under
+``logs/<input-stem>/<encoded-sequence-id>__<internal-row-key>.failed``. For example,
+``1279054.fasta`` uses ``logs/1279054/``. Each diagnostic contains the original
+assignment record (including sequence and gene-call evidence), accumulated annotation
+log, and traceback. IDs are preserved exactly inside the diagnostic; filenames are
+encoded and bounded to support path characters and long IDs. Internal row keys
+separate repeated IDs within a sample. Duplicate sample stems receive unique names.
+
+``logs/failures.tsv`` has one row per recovered record failure: input file, sample,
+internal row key, original sequence ID, stage/category, exception type/message,
+traceback location, and a diagnostic path relative to ``logs/``. Grouping by exception
+type and traceback location helps identify candidate failure modes. It is an index
+of sequence errors, not a substitute for fatal pipeline diagnostics.
+
+``logs/run.json`` records run parameters, dependency versions, source hashes, and
+input paths. On rerun, previous indexes and metadata receive unique archive suffixes;
+existing diagnostic directories remain intact and new failures use a fresh directory
+suffix if necessary. The unsuffixed index and metadata describe the latest run.
+
+Migration: use ``--strict`` if a downstream workflow depends on nonzero exit status
+for an individual annotation exception.

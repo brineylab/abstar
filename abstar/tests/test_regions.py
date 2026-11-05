@@ -510,3 +510,23 @@ def test_edge_cases(antibody):
     _, _, result = result
     assert isinstance(result, str)
     assert "-" not in result
+
+
+@pytest.mark.parametrize('nt_start,expected', [
+    (0, 'DVEVVESGGGLVQPGGSLRLSCAASG'),
+    (1, 'EVVESGGGLVQPGGSLRLSCAASG'),
+])
+def test_legacy_protein_region_keeps_nt_supported_leading_residues(nt_start, expected):
+    """The standalone alignment helper retains its NT-supported start contract."""
+    from types import SimpleNamespace
+
+    reference = 'EVQLVESGGGLVQPGGSLRLSCAASGFTFS'
+    alignment = SimpleNamespace(
+        aligned_query='DVEV--VESGGGLVQPGGSLRLSCAASGFTFS',
+        aligned_target='--' + reference,
+    )
+    result = get_region_sequence(
+        'fwr1', alignment, reference, 1, Antibody(sequence_id='leading-aa'),
+        aa=True, nt_region_start=nt_start,
+    )
+    assert result.sequence == expected

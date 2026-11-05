@@ -579,20 +579,18 @@ def assert_translated_segment_evidence(ab, segment):
 
 def assert_emitted_evidence_reconstructs(row, ab):
     import math
-    from abstar.tests.helpers import expected_airr_amino_acids
+    from abstar.tests.helpers import internal_as_public
 
     assert row['annotation_status'] == 'annotated'
     assert row['failure_reason'] is None
     assert 'row_id' not in row
-    official = {'sequence': ab.sequence_input, **expected_airr_amino_acids(vars(ab))}
+    official = internal_as_public(vars(ab))
     for field, value in row.items():
-        if hasattr(ab, field):
-            expected = official[field] if field in official else getattr(ab, field)
-            assert expected == value, (ab.sequence_id, field)
+        assert official[field] == value, (ab.sequence_id, field)
     for suffix in ('', '_aa'):
-        # File sequence/AA fields now use official meanings. The published
-        # masks still index the same internal assembled V(D)J and translation.
+        # Published masks index the assembled V(D)J, published as sequence_vdj.
         sequence = getattr(ab, f'sequence{suffix}')
+        assert row[f'sequence_vdj{suffix}'] == sequence
         assert getattr(ab, f'sequence_alignment{suffix}').replace('-', '') == sequence
         assert len(row[f'sequence_alignment{suffix}']) == len(row[f'germline_alignment{suffix}'])
         assert len(row[f'gene_segment_mask{suffix}']) == len(sequence)
@@ -633,15 +631,25 @@ def assert_emitted_evidence_reconstructs(row, ab):
             reconstruct_segment_evidence(ab, 'c')
             assert_translated_segment_evidence(ab, 'c')
     reconstruct_v_evidence(ab)
+    # IMGT regions can extend beyond retained V assignment evidence. Validate
+    # their complete query interval independently instead of requiring them
+    # to be a prefix of the (possibly truncated) V-gene alignment.
+    from Bio.Seq import Seq
+    region_query = ab.sequence_oriented[ab.v_sequence_start:ab.fwr3_end]
+    vdj_query = ab.sequence_oriented[ab.v_sequence_start:ab.j_sequence_end]
+    coding = vdj_query[ab.frame - 1:]
+    vdj_query_aa = str(Seq(coding[:len(coding) // 3 * 3]).translate())
     for suffix in ('', '_aa'):
         regions = [getattr(ab, region + suffix)
                    for region in ('fwr1', 'cdr1', 'fwr2', 'cdr2', 'fwr3')]
-        assert all(regions[:-1])
-        if not regions[-1]:
-            # A truncated local V can omit the complete FWR3 endpoint; these
-            # fixtures do not adjudicate partial-region extraction behavior.
-            assert ab.v_germline_end < len(ab.v_germline_gapped[:312].replace('.', ''))
-        assert getattr(ab, 'v_sequence' + suffix).startswith(''.join(regions)), ab.sequence_id
+        assert all(regions)
+        if suffix:
+            # Retain the AA prefix contract for frameshift probes: independent
+            # AA region endpoints need not match their NT endpoints. The
+            # consistency audit reports those disagreements separately.
+            assert vdj_query_aa.startswith(''.join(regions)), ab.sequence_id
+        else:
+            assert ''.join(regions) == region_query, ab.sequence_id
     assert_translated_segment_evidence(ab, 'v')
 
 @pytest.mark.e2e
@@ -802,7 +810,8 @@ def assert_derived_annotation_consequences(case, row):
     assert row['annotation_status'] == 'annotated'
     for field in ('junction', 'junction_aa', 'productive', 'vj_in_frame', 'stop_codon'):
         assert row[field] == expected[field], (case.case_id, field, row[field], expected[field])
-    assert (row['v_sequence_start'] + row['frame'] - 1) % 3 == expected['coding_origin_mod3']
+    # Public starts are 1-based; the coding origin is a 0-based offset.
+    assert (row['v_sequence_start'] - 1 + row['frame'] - 1) % 3 == expected['coding_origin_mod3']
     issues = set((row['productivity_issues'] or '').split('|')) - {''}
     conditional = set(expected['alignment_dependent_issues'])
     assert issues - conditional == set(expected['productivity_issues']), (case.case_id, issues, expected)
@@ -873,8 +882,9 @@ def test_pilot_loss_cohort_has_no_internal_failures(pilot_loss_cases):
         assert_pilot_adjudicated_outcome(row.annotations, case)
         assert 'row_id' not in row.annotations
         for suffix in ('', '_aa'):
-            sequence = row[f'sequence{suffix}']
-            assert row[f'sequence_alignment{suffix}'].replace('-', '') == sequence
+            sequence = row[f'sequence_vdj{suffix}']
+            if suffix == '':
+                assert row['sequence_alignment'].replace('-', '') == sequence
             assert len(row[f'gene_segment_mask{suffix}']) == len(sequence)
             assert len(row[f'nongermline_mask{suffix}']) == len(sequence)
 
@@ -1038,6 +1048,8 @@ def test_primary_j_boundary_rejects_downstream_j5_repeat(original_annotations):
 
 
 def assert_pilot_adjudicated_outcome(row, case):
+    from abstar.tests.helpers import public_coordinate
+
     expected = case.expected
     assert row['sequence_id'] == case.sequence_id
     assert row['sequence_input'] == row['sequence_oriented'] == case.sequence
@@ -1047,7 +1059,8 @@ def assert_pilot_adjudicated_outcome(row, case):
     for field in ('locus', 'rev_comp', 'v_sequence_start', 'v_sequence_end',
                   'j_sequence_start', 'j_sequence_end',
                   'junction', 'junction_aa', 'cdr3', 'cdr3_aa'):
-        assert row[field] == expected_for_selected_reference(case, field, row['j_call']), (case.sequence_id, field)
+        expected_value = public_coordinate(field, expected_for_selected_reference(case, field, row['j_call']))
+        assert row[field] == expected_value, (case.sequence_id, field)
     for field in ('v_call', 'j_call'):
         calls = {call.split('*')[0] for call in row[field].split(',')}
         assert calls and calls <= set(expected[field]), (case.sequence_id, field)
@@ -1092,8 +1105,8 @@ def test_pilot_loss_empty_d_translation_retains_nucleotide_evidence(
     assert case.sequence[start:end] == sequence
     assert 'row_id' not in row
 
-    assert (row['d_sequence_start'], row['d_sequence_end']) == (start, end)
-    assert (row['d_germline_start'], row['d_germline_end']) == (gl_start, gl_end)
+    assert (row['d_sequence_start'], row['d_sequence_end']) == (start + 1, end)
+    assert (row['d_germline_start'], row['d_germline_end']) == (gl_start + 1, gl_end)
     # Replay the assignment for the internal junction boundaries too.
     assignment = pl.read_parquet(tmp_path / 'tmp' / 'chunk_0.parquet').row(0, named=True)
     receptor = assignment.pop('receptor_type')

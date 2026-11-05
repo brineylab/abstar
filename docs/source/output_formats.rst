@@ -13,27 +13,75 @@ are supported:
 
 .. _AIRR Data Standards 2.0 Rearrangement schema: https://docs.airr-community.org/en/stable/datarep/rearrangements.html
 
+.. warning::
 
-AIRR TSV and Python Coordinates
--------------------------------
+   **Breaking change in 0.9.0.** Every public output (AIRR TSV, Parquet, and
+   the dataframe or ``Sequence`` objects returned by ``abstar.run()``) now has
+   the same fields, in the same order, with the same meanings. Compared with
+   0.8.x:
 
-AIRR TSV uses **1-based closed intervals**. Python annotations, dataframe
-returns, and final or temporary Parquet retain **0-based half-open intervals**.
-For example, an
-internal interval ``[137, 439)`` is written as start ``138``, end ``439``;
-``[0, 1)`` is written as ``1, 1``. Missing intervals have empty start/end cells.
-This applies to V/D/J/C query and germline coordinates and to
+   - **Coordinates are 1-based closed intervals everywhere.** Every
+     ``*_start`` value is one greater than in 0.8.x; every ``*_end`` value is
+     unchanged.
+   - **``sequence`` is the original input**, and ``sequence_aa`` translates the
+     full oriented query (see `Official Amino-acid Fields`_). In 0.8.x both
+     held the assembled V(D)J. The V(D)J is now in the new
+     ``sequence_vdj`` and ``sequence_vdj_aa`` fields, which the masks index.
+     A returned ``Sequence`` object's ``.sequence`` is therefore the input.
+   - ``sequence_alignment_aa`` and ``germline_alignment_aa`` translate the
+     paired nucleotide alignment columns instead of aligning the two
+     translations.
+   - TSV booleans are ``T``/``F``, and the AIRR-required fields lead the field
+     order in every output.
+
+   For example, record ``AAACCTGAGACCACGA-1_contig_2`` (535 nt input, 343 nt
+   V(D)J):
+
+   .. list-table::
+      :header-rows: 1
+
+      * - Field
+        - 0.8.x
+        - 0.9.0
+      * - ``sequence``
+        - 343 nt V(D)J (``CAGGTGCAGCTG...``)
+        - 535 nt input (``GGGAGCATCACC...``)
+      * - ``sequence_vdj``
+        - (absent)
+        - 343 nt V(D)J (``CAGGTGCAGCTG...``)
+      * - ``v_sequence_start`` / ``v_sequence_end``
+        - ``121`` / ``417``
+        - ``122`` / ``417``
+      * - ``cdr3_start`` / ``cdr3_end``
+        - ``409`` / ``430``
+        - ``410`` / ``430``
+
+   To compare 0.8.x output with 0.9.0, add one to every 0.8.x ``*_start`` and
+   use ``sequence_vdj`` wherever 0.8.x code used ``sequence``. To slice a 0.9.0
+   coordinate pair in Python, use ``seq[start - 1:end]``. See
+   :ref:`changelog`.
+
+
+Coordinates
+-----------
+
+Every public output uses **1-based closed intervals**, as AIRR requires.
+Annotation internals (``Antibody`` objects) use 0-based half-open intervals and
+are converted once, when each record's public row is built. For example, an
+internal interval ``[137, 439)`` is published as start ``138``, end ``439``;
+``[0, 1)`` is published as ``1, 1``. Missing intervals are null (empty TSV
+cells). This applies to V/D/J/C query and germline coordinates and to
 ``fwr1/cdr1/fwr2/cdr2/fwr3/cdr3/fwr4_start/end``.
 
 Query coordinates address ``sequence_oriented``. Germline coordinates address
-the ungapped reference of the corresponding gene. In both final file formats,
+the ungapped reference of the corresponding gene. In every output,
 ``sequence`` is always the original, unmodified ``sequence_input``. When
 ``rev_comp`` is true, all
 alignments and query coordinates refer to its reverse complement. Opaque
 identifiers, including duplicate IDs and leading zeroes, retain their input
 order. The private internal ``row_id`` is never serialized.
 
-The first TSV columns, in order, are ``sequence_id``, ``sequence``, ``rev_comp``,
+The first columns of every output, in order, are ``sequence_id``, ``sequence``, ``rev_comp``,
 ``productive``, ``v_call``, ``d_call``, ``j_call``, ``sequence_alignment``,
 ``germline_alignment``, ``junction``, ``junction_aa``, ``v_cigar``, ``d_cigar``,
 and ``j_cigar``. All remaining public fields follow in the declared output
@@ -58,12 +106,12 @@ The C CIGAR describes the separately retained constant-region alignment.
 Official Amino-acid Fields
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-In AIRR TSV and final Parquet files, ``sequence_aa`` translates the full
+In every output, ``sequence_aa`` translates the full
 ``sequence_oriented`` query.
 The retained V frame is one-based within ``v_sequence``. Its first complete
-codon starts at the internal oriented-query offset
-``v_sequence_start + v_frame - 1``; the full-query translation therefore starts
-at ``(v_sequence_start + v_frame - 1) % 3``. The ``frame`` alias is used when
+codon starts at the 0-based oriented-query offset
+``(v_sequence_start - 1) + (v_frame - 1)``; the full-query translation therefore
+starts at that offset modulo 3. The ``frame`` alias is used when
 ``v_frame`` is absent. Leading and terminal partial codons are omitted.
 A reverse-complement input and its forward counterpart have the same
 ``sequence_aa``. Translation includes input flanks; productivity is still
@@ -90,41 +138,31 @@ rows raise an error rather than producing inferred residues.
 Unassigned records retain ``sequence_input``, ``sequence_oriented``,
 ``annotation_status=unassigned``, and an inspectable ``failure_reason``.
 Their ``productive`` value and unavailable annotation fields remain null.
-Internal annotation errors raise a structured run error instead of producing
-successful empty output.
+Sequence annotation exceptions have no normal output row. They are recorded in
+``logs/failures.tsv`` and individual diagnostic files while other records continue.
+An all-failed sample has an empty output with explicit failure counts and logs.
+``strict=True`` / ``--strict`` instead raises a structured run error. Input, worker,
+external-tool, and output/storage errors always remain fatal.
 
-Compatibility note
-~~~~~~~~~~~~~~~~~~
+V(D)J and assembly fields
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Earlier TSV output exposed Python coordinate offsets, Python boolean text,
-and the assembled V(D)J sequence as ``sequence``. Consumers must use the AIRR
-conventions above for TSV. Final Parquet files now also expose the original
-input as ``sequence`` and derive the three official AA fields from their
-corresponding nucleotide query/alignment fields. Consumers of older Parquet
-files must account for these four changed field meanings. Parquet booleans
-and nulls remain native, and its coordinates remain zero-based half-open.
+``sequence_vdj`` is the assembled V(D)J nucleotide sequence (retained V, NP1,
+optional D and NP2, and J; no constant region) and ``sequence_vdj_aa`` is its
+translation in the V coding frame. Both are null for unassigned records. They
+are abstar extensions with the same names for every locus, including light
+chains and TCRs without a D gene. The ``germline``, ``*_gapped``, ``*_vdjc``
+and ``*_lvdjc`` assembly fields are also abstar extensions, including their
+legacy NP content; they must not be used as substitutes for the paired AIRR
+alignment fields. ``cdr3_length`` is also an abstar extension and counts
+amino acids.
 
-Python annotation objects, dataframe returns, and temporary work Parquets
-retain the assembled V(D)J ``sequence``, its ``sequence_aa``, and their existing
-AA alignments for compatibility with masks and productivity. The ``germline``,
-``*_gapped`` and ``*_vdjc`` assembly fields in both file formats
-remain abstar extensions, including their legacy NP content. They must not be
-used as substitutes for the paired AIRR alignment fields. ``cdr3_length`` is
-also an abstar extension and counts amino acids.
-
-The assembly extensions such as
-``sequence_vdjc_aa`` and ``germline_vdjc_aa`` retain their existing meanings;
-no AA fields are silently changed inside annotation objects.
-
-When comparing the two final formats, decode raw TSV numeric cells and
-``T``/``F``, reconcile empty strings with nulls, and subtract one from raw TSV
-starts. All shared fields, including the four official sequence fields, then
-compare directly without recomputing translations or changing gene calls,
-evidence, identifiers, order, or outcome reasons. The official
-``airr.read_rearrangement(..., validate=True)`` reader already normalizes known
-coordinate starts to Python offsets; do not subtract again. The pure
-``abstar.annotation.airr.to_airr_row()`` mapper converts an internal annotation
-row to AIRR sequence, coordinate and AA conventions.
+When comparing TSV with Parquet or Python returns, decode raw TSV numeric cells
+and ``T``/``F`` and reconcile empty strings with nulls; every field then compares
+directly. The official ``airr.read_rearrangement(..., validate=True)`` reader
+converts ``*_start`` values to 0-based offsets, so add one back before comparing
+its rows with Parquet. ``abstar.annotation.airr.to_public_row()`` is the single
+pure mapper from an internal annotation row to the public row.
 
 
 Specifying Output Format
@@ -444,13 +482,19 @@ Sequences
      - Description
    * - ``sequence``
      - String
-     - AIRR TSV/final Parquet: original input query. Python returns: assembled V(D)J sequence.
+     - Original input query
+   * - ``sequence_vdj``
+     - String
+     - Assembled V(D)J sequence, without the constant region (abstar extension)
    * - ``germline``
      - String
      - Corresponding germline sequence
    * - ``sequence_aa``
      - String
-     - AIRR TSV/final Parquet: full oriented query in the V-derived coding phase. Python returns: assembled V(D)J translation.
+     - Full oriented query translated in the V-derived coding phase
+   * - ``sequence_vdj_aa``
+     - String
+     - Translation of ``sequence_vdj`` (abstar extension)
    * - ``germline_aa``
      - String
      - Germline amino acid sequence
@@ -492,15 +536,60 @@ Masks
      - Mutation position mask
 
 
-Gene-segment masks contain one label per nucleotide or amino acid in the
-ungapped assembled V(D)J sequence (the Python-returned ``sequence`` or
-``sequence_aa``). Both final file formats' query fields include input flanks,
-so these masks are not indexed over their full ``sequence`` or ``sequence_aa``.
+Gene-segment masks contain one label per nucleotide or amino acid in
+``sequence_vdj`` or ``sequence_vdj_aa``. The ``sequence`` and ``sequence_aa``
+fields include input flanks, so these masks are not indexed over them.
 Nucleotide labels follow the
 retained V, NP1, optional D/NP2, and J spans. Amino acid labels use complete
 codons in the assembled query reading frame; a codon receives V, D, or J only
 when all three nucleotides belong to that segment. These masks exclude the
 constant region and do not depend on CDR3 or framework subdivisions.
+
+Independent V(D)J consistency checks
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``sequence_alignment.replace("-", "")`` provides the nucleotide V(D)J
+query without assembling FWR/CDR sequences. For a reference independent of
+both regional and gene-segment assembly, slice the oriented input directly.
+For any public row (Parquet, Python return, or decoded TSV):
+
+.. code-block:: python
+
+   from Bio.Seq import Seq
+
+   vdj_nt = row["sequence_oriented"][
+       row["v_sequence_start"] - 1:row["j_sequence_end"]
+   ]
+   coding = vdj_nt[row["frame"] - 1:]
+   vdj_aa = str(Seq(coding[:len(coding) // 3 * 3]).translate())
+   regions = ("fwr1", "cdr1", "fwr2", "cdr2", "fwr3", "cdr3", "fwr4")
+   assert row["sequence_vdj"] == vdj_nt
+   assert row["sequence_alignment"].replace("-", "") == vdj_nt
+   assert "".join(row[r] for r in regions) == vdj_nt
+   assert "".join(row[r + "_aa"] for r in regions) == vdj_aa
+
+These are diagnostic assertions for annotated records, not a guarantee that
+every existing annotation passes. In particular, independent regional
+translations can disagree across frameshifted boundaries. Compare sequence
+contents as well as all six mask lengths: equal lengths can conceal duplicated
+or mistranslated residues. The direct slice validates consistency with the
+annotated V/J coordinates; it does not establish that those coordinates are
+biologically correct. Rows from the official AIRR reader have 0-based starts,
+so do not apply this slice to them directly.
+
+To audit a directory of 0.9+ Parquet files without rerunning annotation:
+
+.. code-block:: bash
+
+   python scripts/audit_annotation_consistency.py /path/to/parquet \
+     --report /tmp/abstar-consistency.json
+
+The report must be new and outside the input and repository trees. It contains
+counts and candidate records identified by source Parquet path, zero-based
+Parquet row ordinal, and exact sequence ID. Unassigned records are counted
+separately. Exit status 1 indicates discovered inconsistencies; status 0 means
+all implemented checks passed. The audit does not verify biological truth or
+the contents of gene-segment and non-germline masks.
 
 
 Position Coordinates
@@ -520,7 +609,22 @@ N-region subdivisions, and fallback D calls when the retained V–J interval
 changes. ``v_score`` and ``j_score`` describe the boundary alignments;
 ``v_support`` and ``j_support`` retain search evidence. Productivity evaluates
 the junction start relative to the V-region origin and its one-based
-``frame``. Current internal coordinates remain zero-based, half-open.
+``frame``. Internal annotation coordinates are zero-based, half-open; public
+outputs are 1-based closed.
+
+If the junction-start alignment endpoint falls in a query gap, annotation
+attempts recovery by aligning raw oriented-query FWR3 bases through the complete
+IMGT 104 reference codon. The upstream boundary comes from the retained V
+alignment. Recovery requires a unique, contiguous three-base anchor projection
+across all optimal alignments and agreement with retained anchor evidence.
+Competing boundaries, incomplete codons, and conflicting evidence remain
+explicit per-sequence failures. The diagnostic log records the recovered
+interval and alignment score.
+
+Recovery does not search for a nearby cysteine or prefer a productive reading
+frame. Observed mutations, ambiguous bases, and frameshifts remain subject to
+the usual productivity checks. Sequences whose original endpoint maps to a
+query base continue through the existing junction calculation.
 
 ``c_sequence_gapped`` and ``c_germline_gapped`` now contain the retained C
 query/reference pair in the same alignment columns. Previously, the latter
@@ -532,10 +636,72 @@ without advancing the reference template, including at the final reference
 base or when the retained reference starts inside a codon.
 
 All retained V nucleotide alignments, mutation and indel events, identities,
-and region sequences now use the same boundary-alignment trace. Re-aligning
+and mapped region sequences use the same boundary-alignment trace. Re-aligning
 that span with a different gap penalty could previously erase compensating
 indels or make annotation fail. Region boundary adjustment applies only to
 complete-codon deletions spanning a boundary, preserving each query base once.
+
+If retained V evidence ends before the FWR3 endpoint can be mapped, but the
+FWR3 start is mapped, FWR3 is recovered directly from the oriented query through
+the existing junction-start codon. This restores a previously empty FWR3 and
+its CDR-mask labels without extending V assignment evidence or moving the
+junction. Its amino-acid sequence follows the shared query-frame projection
+used for all FWR/CDR regions. The diagnostic log records the recovered interval.
+
+If retained V evidence stops before FWR3 begins, or a partial retained anchor
+contradicts the proposed junction boundary, a constrained recovery alignment
+starts at the last mapped upstream region boundary and fits through IMGT codon
+104 before the assigned J region. This is separate anatomical mapping evidence:
+all retained reference-to-query base coordinates (including deletions) are
+fixed, and gene calls, assignment scores, identities, mutations, and indels
+remain based on the retained alignment. Recovery can fill incomplete FWR2,
+CDR2, and FWR3 intervals and correct an unsupported junction anchor.
+
+Every recovered region boundary and all three anchor bases must agree across
+optimal alignments to the assigned primary V reference. A unique junction anchor alone is insufficient if the
+intermediate region boundaries remain ambiguous. Deleted boundaries, interrupted
+anchors, and unsupported mappings fail explicitly; no conserved-motif or
+productivity preference is used to resolve ties. Diagnostics include examples
+of competing coordinate projections. Default mode records these failures and
+continues; ``strict=True`` / ``--strict`` aborts as usual. Recovered sequences
+then follow ordinary junction construction, AA projection, and productivity
+assessment; a corrected anchor can consequently change those derived fields.
+
+FWR3 ends immediately after the established junction-start codon, sharing its
+boundary with CDR3. A retained V alignment can place an insertion immediately
+after that codon in FWR3 or map a repeated/deleted anchor differently from
+junction finding. The annotated region uses the junction boundary in both
+cases, preventing duplicated or omitted query bases. Retained V alignments,
+mutation/indel evidence, gene calls, and junction selection remain unchanged;
+this synchronization is not a new biological adjudication of ambiguous anchors.
+Invalid shared intervals produce explicit per-record errors rather than a
+silently truncated slice. Diagnostics record each endpoint adjustment.
+
+FWR4 starts at the existing junction-ending codon and ends at the final retained
+J endpoint. If J-boundary selection shortens the initial alignment (for example,
+to reject a downstream repeat), FWR4 and its CDR-mask labels stop at that same
+endpoint. This synchronization does not change the J assignment or junction.
+
+All FWR/CDR amino-acid fields are projected from their established nucleotide
+intervals into the continuous V(D)J translation, using ``v_sequence_start`` and
+``frame`` as the coding origin. A codon crossing a region boundary belongs to
+the downstream region. Leading bases before the coding origin and terminal
+incomplete codons are excluded. Consequently, contiguous nucleotide regions
+partition the translated sequence exactly once, even in nonproductive reads;
+``cdr_mask_aa`` uses that same partition. The amino-acid projection itself does not adjudicate nucleotide region
+boundaries; FWR3/CDR3 synchronization happens before that projection.
+
+Migration note: independently aligned V-region AA boundaries and locally
+translated CDR3/FWR4 fields could previously duplicate, omit, or mistranslate
+residues. Their corrected values may change region labels even when total AA
+assembly was previously correct. ``cdr3_length`` follows the corrected
+``cdr3_aa``. ``junction_aa`` and the ``cdr3_v_aa``, ``cdr3_n1_aa``,
+``cdr3_d_aa``, ``cdr3_n2_aa``, and ``cdr3_j_aa`` subdivisions retain their local
+junction-frame semantics for biological interpretation; on out-of-frame reads,
+they need not assemble into the continuous-query ``cdr3_aa``. Gene calls,
+retained alignment evidence, nucleotide coordinates, and productivity checks
+are unchanged. These region semantics apply to Python returns, Parquet, and
+AIRR TSV.
 
 .. list-table::
    :header-rows: 1
