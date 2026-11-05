@@ -116,6 +116,7 @@ def difficulty_reasons(row, sequence):
         reasons.append('stop_codon')
     if row.get('v_identity') is not None and row['v_identity'] < .9:
         reasons.append('high_shm')
+    # Source Parquets predate 0.9 (0-based starts); the frozen selection keeps this threshold.
     if (row.get('v_germline_start') or 0) >= 15:
         reasons.append('v_truncation')
     length = row.get('cdr3_length')

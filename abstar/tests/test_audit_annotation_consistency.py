@@ -24,7 +24,7 @@ def row():
     record = dict(
         sequence_id="10E8", annotation_status="annotated", productive=True,
         sequence_oriented="GGGATGAAATGTTTTCCCGGGTGGCCC", frame=1,
-        v_sequence_start=3, j_sequence_end=24,
+        v_sequence_start=4, j_sequence_end=24,  # public 1-based closed
         v_sequence="ATGAAATGT", np1="TTT", d_sequence="CCC", np2="",
         j_sequence="GGGTGG", sequence_alignment="ATGAAA-TGTTTTCCCGGGTGG",
         cdr_mask="000111000222000333000", cdr_mask_aa="0102030",
@@ -36,7 +36,7 @@ def row():
         regions, ["ATG", "AAA", "TGT", "TTT", "CCC", "GGG", "TGG"], "MKCFPGW",
     )):
         record.update({region: nt, region + "_aa": aa,
-                       region + "_start": 3 + 3 * i, region + "_end": 6 + 3 * i})
+                       region + "_start": 4 + 3 * i, region + "_end": 6 + 3 * i})
     return record
 
 
@@ -98,3 +98,15 @@ def test_report_preserves_duplicate_ids_and_reports_unassigned_separately(audit,
         audit.main([str(root), "--report", str(destination)])
     with pytest.raises(ValueError, match="outside"):
         audit.main([str(root), "--report", str(root / "audit.json")])
+
+
+@pytest.mark.e2e
+def test_audit_clean_on_current_run_output(audit, public_bcr_cases, tmp_path):
+    import abstar
+
+    project = tmp_path / "project"
+    abstar.run([case.as_sequence() for case in public_bcr_cases[:2]], project_path=str(project),
+               output_format="parquet", n_processes=1, mmseqs_threads=1)
+    frame = pl.read_parquet(project / "parquet/sequences.parquet")
+    assert frame.height == 2
+    assert audit.audit_frame(frame).is_empty()

@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Audit final/native Parquets against a direct oriented-input V(D)J slice.
 
-This is a read-only discovery tool, not a biological adjudicator. Coordinates
-must be zero-based and half-open; AIRR TSV coordinates are not accepted.
+This is a read-only discovery tool, not a biological adjudicator. It reads
+abstar 0.9+ public Parquet, whose coordinates are 1-based and closed; Parquet
+from earlier versions (0-based, half-open) is not accepted.
 Exit 1 means inconsistent records were found; 0 means all tested checks passed.
 """
 import argparse
@@ -58,15 +59,15 @@ def audit_frame(frame):
     start, end, phase = pl.col("v_sequence_start"), pl.col("j_sequence_end"), pl.col("frame")
     valid = (
         start.is_not_null() & end.is_not_null() & phase.is_not_null()
-        & (start >= 0) & (end > start)
+        & (start >= 1) & (end >= start)
         & (end <= pl.col("sequence_oriented").str.len_chars()) & phase.is_in([1, 2, 3])
     ).fill_null(False)
     frame = frame.with_columns(valid.alias("reference_valid"))
-    # Invalid coordinates are reported explicitly, never accepted via Python's
-    # forgiving slice bounds or negative indexing.
+    # Public coordinates are 1-based closed. Invalid coordinates are reported
+    # explicitly, never accepted via forgiving slice bounds or negative indexing.
     frame = frame.with_columns(
         pl.when(pl.col("reference_valid"))
-        .then(pl.col("sequence_oriented").str.slice(start, (end - start).clip(lower_bound=0)))
+        .then(pl.col("sequence_oriented").str.slice(start - 1, (end - start + 1).clip(lower_bound=0)))
         .otherwise(None).alias("vdj_nt"),
         pl.concat_str([pl.col(c).fill_null("") for c in SEGMENTS]).alias("segments_nt"),
         pl.concat_str([pl.col(r) for r in REGIONS]).alias("regions_nt"),
@@ -98,14 +99,14 @@ def audit_frame(frame):
     for region in REGIONS:
         rstart, rend = pl.col(region + "_start"), pl.col(region + "_end")
         present = pl.col(region).str.len_chars() > 0
-        coordinates = ((rstart >= start) & (rend <= end) & (rend > rstart)).fill_null(False)
-        content = pl.col("sequence_oriented").str.slice(rstart, (rend - rstart).clip(lower_bound=0))
+        coordinates = ((rstart >= start) & (rend <= end) & (rend >= rstart)).fill_null(False)
+        content = pl.col("sequence_oriented").str.slice(rstart - 1, (rend - rstart + 1).clip(lower_bound=0))
         checks[region + "_coordinates"] = present & (
             ~coordinates | (pl.col(region) != content)
         )
         checks[region + "_null"] = pl.col(region).is_null() | pl.col(region + "_aa").is_null()
     for left, right in zip(REGIONS, REGIONS[1:]):
-        checks[left + "_" + right + "_boundary"] = pl.col(left + "_end") != pl.col(right + "_start")
+        checks[left + "_" + right + "_boundary"] = pl.col(left + "_end") + 1 != pl.col(right + "_start")
     frame = frame.with_columns(
         pl.concat_list([
             pl.when(expr.fill_null(False)).then(pl.lit(name)).otherwise(None)
@@ -146,7 +147,8 @@ def main(argv=None):
             candidate["source_parquet"] = str(path)
             candidates.append(candidate)
             check_counts.update(candidate["checks"])
-    report = dict(reference="sequence_oriented[v_sequence_start:j_sequence_end]; frame is one-based",
+    report = dict(reference="sequence_oriented[v_sequence_start - 1:j_sequence_end] "
+                            "(1-based closed coordinates); frame is one-based",
                   totals=dict(totals), check_counts=dict(check_counts), samples=samples, candidates=candidates)
     with destination.open("x") as handle:
         json.dump(report, handle, indent=2)

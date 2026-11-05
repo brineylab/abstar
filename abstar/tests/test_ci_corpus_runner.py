@@ -257,6 +257,7 @@ def test_environment_rejects_import_from_another_checkout(runner, tmp_path, monk
 def test_real_public_api_baseline_check_and_changed_gene(runner, tmp_path, monkeypatch):
     from abstar.tests.corpus import load_real_bcr_cases
     from abstar.annotation import germline
+    from abstar.tests.helpers import public_coordinate
     original_expanduser = germline.os.path.expanduser
     monkeypatch.setattr(germline.os.path, "expanduser", lambda value:
                         str(tmp_path / "user-db") if str(value).startswith("~/.abstar/") else original_expanduser(value))
@@ -273,7 +274,7 @@ def test_real_public_api_baseline_check_and_changed_gene(runner, tmp_path, monke
     assert baseline["junction_aa"].to_list() == ["CARYHPVLRNGFDVW"] * 2
     assert baseline["productive"].to_list() == [True, True]
     for field in ("v_sequence_start", "v_sequence_end", "j_sequence_start", "j_sequence_end", "rev_comp", "cdr3"):
-        assert baseline[field].to_list() == [case.expected[field]] * 2
+        assert baseline[field].to_list() == [public_coordinate(field, case.expected[field])] * 2
     for name in ("baseline.parquet", "baseline-metadata.json"):
         (corpus / name).write_bytes((proposed / name).read_bytes())
     refresh_hashes(corpus)
