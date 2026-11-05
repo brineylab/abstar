@@ -13,27 +13,75 @@ are supported:
 
 .. _AIRR Data Standards 2.0 Rearrangement schema: https://docs.airr-community.org/en/stable/datarep/rearrangements.html
 
+.. warning::
 
-AIRR TSV and Python Coordinates
--------------------------------
+   **Breaking change in 0.9.0.** Every public output (AIRR TSV, Parquet, and
+   the dataframe or ``Sequence`` objects returned by ``abstar.run()``) now has
+   the same fields, in the same order, with the same meanings. Compared with
+   0.8.x:
 
-AIRR TSV uses **1-based closed intervals**. Python annotations, dataframe
-returns, and final or temporary Parquet retain **0-based half-open intervals**.
-For example, an
-internal interval ``[137, 439)`` is written as start ``138``, end ``439``;
-``[0, 1)`` is written as ``1, 1``. Missing intervals have empty start/end cells.
-This applies to V/D/J/C query and germline coordinates and to
+   - **Coordinates are 1-based closed intervals everywhere.** Every
+     ``*_start`` value is one greater than in 0.8.x; every ``*_end`` value is
+     unchanged.
+   - **``sequence`` is the original input**, and ``sequence_aa`` translates the
+     full oriented query (see `Official Amino-acid Fields`_). In 0.8.x both
+     held the assembled V(D)J. The V(D)J is now in the new
+     ``sequence_vdj`` and ``sequence_vdj_aa`` fields, which the masks index.
+     A returned ``Sequence`` object's ``.sequence`` is therefore the input.
+   - ``sequence_alignment_aa`` and ``germline_alignment_aa`` translate the
+     paired nucleotide alignment columns instead of aligning the two
+     translations.
+   - TSV booleans are ``T``/``F``, and the AIRR-required fields lead the field
+     order in every output.
+
+   For example, record ``AAACCTGAGACCACGA-1_contig_2`` (535 nt input, 343 nt
+   V(D)J):
+
+   .. list-table::
+      :header-rows: 1
+
+      * - Field
+        - 0.8.x
+        - 0.9.0
+      * - ``sequence``
+        - 343 nt V(D)J (``CAGGTGCAGCTG...``)
+        - 535 nt input (``GGGAGCATCACC...``)
+      * - ``sequence_vdj``
+        - (absent)
+        - 343 nt V(D)J (``CAGGTGCAGCTG...``)
+      * - ``v_sequence_start`` / ``v_sequence_end``
+        - ``121`` / ``417``
+        - ``122`` / ``417``
+      * - ``cdr3_start`` / ``cdr3_end``
+        - ``409`` / ``430``
+        - ``410`` / ``430``
+
+   To compare 0.8.x output with 0.9.0, add one to every 0.8.x ``*_start`` and
+   use ``sequence_vdj`` wherever 0.8.x code used ``sequence``. To slice a 0.9.0
+   coordinate pair in Python, use ``seq[start - 1:end]``. See
+   :ref:`changelog`.
+
+
+Coordinates
+-----------
+
+Every public output uses **1-based closed intervals**, as AIRR requires.
+Annotation internals (``Antibody`` objects) use 0-based half-open intervals and
+are converted once, when each record's public row is built. For example, an
+internal interval ``[137, 439)`` is published as start ``138``, end ``439``;
+``[0, 1)`` is published as ``1, 1``. Missing intervals are null (empty TSV
+cells). This applies to V/D/J/C query and germline coordinates and to
 ``fwr1/cdr1/fwr2/cdr2/fwr3/cdr3/fwr4_start/end``.
 
 Query coordinates address ``sequence_oriented``. Germline coordinates address
-the ungapped reference of the corresponding gene. In both final file formats,
+the ungapped reference of the corresponding gene. In every output,
 ``sequence`` is always the original, unmodified ``sequence_input``. When
 ``rev_comp`` is true, all
 alignments and query coordinates refer to its reverse complement. Opaque
 identifiers, including duplicate IDs and leading zeroes, retain their input
 order. The private internal ``row_id`` is never serialized.
 
-The first TSV columns, in order, are ``sequence_id``, ``sequence``, ``rev_comp``,
+The first columns of every output, in order, are ``sequence_id``, ``sequence``, ``rev_comp``,
 ``productive``, ``v_call``, ``d_call``, ``j_call``, ``sequence_alignment``,
 ``germline_alignment``, ``junction``, ``junction_aa``, ``v_cigar``, ``d_cigar``,
 and ``j_cigar``. All remaining public fields follow in the declared output
@@ -58,12 +106,12 @@ The C CIGAR describes the separately retained constant-region alignment.
 Official Amino-acid Fields
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-In AIRR TSV and final Parquet files, ``sequence_aa`` translates the full
+In every output, ``sequence_aa`` translates the full
 ``sequence_oriented`` query.
 The retained V frame is one-based within ``v_sequence``. Its first complete
-codon starts at the internal oriented-query offset
-``v_sequence_start + v_frame - 1``; the full-query translation therefore starts
-at ``(v_sequence_start + v_frame - 1) % 3``. The ``frame`` alias is used when
+codon starts at the 0-based oriented-query offset
+``(v_sequence_start - 1) + (v_frame - 1)``; the full-query translation therefore
+starts at that offset modulo 3. The ``frame`` alias is used when
 ``v_frame`` is absent. Leading and terminal partial codons are omitted.
 A reverse-complement input and its forward counterpart have the same
 ``sequence_aa``. Translation includes input flanks; productivity is still
@@ -96,38 +144,25 @@ An all-failed sample has an empty output with explicit failure counts and logs.
 ``strict=True`` / ``--strict`` instead raises a structured run error. Input, worker,
 external-tool, and output/storage errors always remain fatal.
 
-Compatibility note
-~~~~~~~~~~~~~~~~~~
+V(D)J and assembly fields
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Earlier TSV output exposed Python coordinate offsets, Python boolean text,
-and the assembled V(D)J sequence as ``sequence``. Consumers must use the AIRR
-conventions above for TSV. Final Parquet files now also expose the original
-input as ``sequence`` and derive the three official AA fields from their
-corresponding nucleotide query/alignment fields. Consumers of older Parquet
-files must account for these four changed field meanings. Parquet booleans
-and nulls remain native, and its coordinates remain zero-based half-open.
+``sequence_vdj`` is the assembled V(D)J nucleotide sequence (retained V, NP1,
+optional D and NP2, and J; no constant region) and ``sequence_vdj_aa`` is its
+translation in the V coding frame. Both are null for unassigned records. They
+are abstar extensions with the same names for every locus, including light
+chains and TCRs without a D gene. The ``germline``, ``*_gapped``, ``*_vdjc``
+and ``*_lvdjc`` assembly fields are also abstar extensions, including their
+legacy NP content; they must not be used as substitutes for the paired AIRR
+alignment fields. ``cdr3_length`` is also an abstar extension and counts
+amino acids.
 
-Python annotation objects, dataframe returns, and temporary work Parquets
-retain the assembled V(D)J ``sequence``, its ``sequence_aa``, and their existing
-AA alignments for compatibility with masks and productivity. The ``germline``,
-``*_gapped`` and ``*_vdjc`` assembly fields in both file formats
-remain abstar extensions, including their legacy NP content. They must not be
-used as substitutes for the paired AIRR alignment fields. ``cdr3_length`` is
-also an abstar extension and counts amino acids.
-
-The assembly extensions such as
-``sequence_vdjc_aa`` and ``germline_vdjc_aa`` retain their existing meanings;
-no AA fields are silently changed inside annotation objects.
-
-When comparing the two final formats, decode raw TSV numeric cells and
-``T``/``F``, reconcile empty strings with nulls, and subtract one from raw TSV
-starts. All shared fields, including the four official sequence fields, then
-compare directly without recomputing translations or changing gene calls,
-evidence, identifiers, order, or outcome reasons. The official
-``airr.read_rearrangement(..., validate=True)`` reader already normalizes known
-coordinate starts to Python offsets; do not subtract again. The pure
-``abstar.annotation.airr.to_airr_row()`` mapper converts an internal annotation
-row to AIRR sequence, coordinate and AA conventions.
+When comparing TSV with Parquet or Python returns, decode raw TSV numeric cells
+and ``T``/``F`` and reconcile empty strings with nulls; every field then compares
+directly. The official ``airr.read_rearrangement(..., validate=True)`` reader
+converts ``*_start`` values to 0-based offsets, so add one back before comparing
+its rows with Parquet. ``abstar.annotation.airr.to_public_row()`` is the single
+pure mapper from an internal annotation row to the public row.
 
 
 Specifying Output Format
@@ -447,13 +482,19 @@ Sequences
      - Description
    * - ``sequence``
      - String
-     - AIRR TSV/final Parquet: original input query. Python returns: assembled V(D)J sequence.
+     - Original input query
+   * - ``sequence_vdj``
+     - String
+     - Assembled V(D)J sequence, without the constant region (abstar extension)
    * - ``germline``
      - String
      - Corresponding germline sequence
    * - ``sequence_aa``
      - String
-     - AIRR TSV/final Parquet: full oriented query in the V-derived coding phase. Python returns: assembled V(D)J translation.
+     - Full oriented query translated in the V-derived coding phase
+   * - ``sequence_vdj_aa``
+     - String
+     - Translation of ``sequence_vdj`` (abstar extension)
    * - ``germline_aa``
      - String
      - Germline amino acid sequence
@@ -495,10 +536,9 @@ Masks
      - Mutation position mask
 
 
-Gene-segment masks contain one label per nucleotide or amino acid in the
-ungapped assembled V(D)J sequence (the Python-returned ``sequence`` or
-``sequence_aa``). Both final file formats' query fields include input flanks,
-so these masks are not indexed over their full ``sequence`` or ``sequence_aa``.
+Gene-segment masks contain one label per nucleotide or amino acid in
+``sequence_vdj`` or ``sequence_vdj_aa``. The ``sequence`` and ``sequence_aa``
+fields include input flanks, so these masks are not indexed over them.
 Nucleotide labels follow the
 retained V, NP1, optional D/NP2, and J spans. Amino acid labels use complete
 codons in the assembled query reading frame; a codon receives V, D, or J only
@@ -511,18 +551,19 @@ Independent V(D)J consistency checks
 ``sequence_alignment.replace("-", "")`` provides the nucleotide V(D)J
 query without assembling FWR/CDR sequences. For a reference independent of
 both regional and gene-segment assembly, slice the oriented input directly.
-For native Parquet rows or Python-returned annotations:
+For any public row (Parquet, Python return, or decoded TSV):
 
 .. code-block:: python
 
    from Bio.Seq import Seq
 
    vdj_nt = row["sequence_oriented"][
-       row["v_sequence_start"]:row["j_sequence_end"]
+       row["v_sequence_start"] - 1:row["j_sequence_end"]
    ]
    coding = vdj_nt[row["frame"] - 1:]
    vdj_aa = str(Seq(coding[:len(coding) // 3 * 3]).translate())
    regions = ("fwr1", "cdr1", "fwr2", "cdr2", "fwr3", "cdr3", "fwr4")
+   assert row["sequence_vdj"] == vdj_nt
    assert row["sequence_alignment"].replace("-", "") == vdj_nt
    assert "".join(row[r] for r in regions) == vdj_nt
    assert "".join(row[r + "_aa"] for r in regions) == vdj_aa
@@ -533,10 +574,10 @@ translations can disagree across frameshifted boundaries. Compare sequence
 contents as well as all six mask lengths: equal lengths can conceal duplicated
 or mistranslated residues. The direct slice validates consistency with the
 annotated V/J coordinates; it does not establish that those coordinates are
-biologically correct. AIRR TSV uses different coordinate offsets, so do not
-apply this slice directly to its one-based starts.
+biologically correct. Rows from the official AIRR reader have 0-based starts,
+so do not apply this slice to them directly.
 
-To audit a directory of native Parquet files without rerunning annotation:
+To audit a directory of 0.9+ Parquet files without rerunning annotation:
 
 .. code-block:: bash
 
@@ -568,7 +609,8 @@ N-region subdivisions, and fallback D calls when the retained V–J interval
 changes. ``v_score`` and ``j_score`` describe the boundary alignments;
 ``v_support`` and ``j_support`` retain search evidence. Productivity evaluates
 the junction start relative to the V-region origin and its one-based
-``frame``. Current internal coordinates remain zero-based, half-open.
+``frame``. Internal annotation coordinates are zero-based, half-open; public
+outputs are 1-based closed.
 
 If the junction-start alignment endpoint falls in a query gap, annotation
 attempts recovery by aligning raw oriented-query FWR3 bases through the complete

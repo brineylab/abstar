@@ -158,8 +158,9 @@ python scripts/audit_annotation_consistency.py /path/to/parquet \
 
 The report must be new and outside the checkout and input trees. Exit 1 means
 inconsistencies were found; exit 0 means the implemented checks passed. The
-reference is `sequence_oriented[v_sequence_start:j_sequence_end]`, translated
-using the one-based `frame` for AA checks, not the final-file `sequence` fields.
+reference is `sequence_oriented[v_sequence_start - 1:j_sequence_end]` (public
+1-based closed coordinates), translated using the one-based `frame` for AA
+checks, not the public `sequence` fields.
 This checks internal consistency, not the biological correctness of boundaries.
 
 For an exact regression comparison after an explicitly requested corpus rerun,
@@ -367,17 +368,16 @@ nonempty input.
   changing arguments.
 - AIRR coordinates, field meanings, nulls, booleans, and sequence semantics
   must follow the targeted AIRR schema, not only match a Polars dtype.
-- Internal Python/dataframe coordinates and raw Parquet coordinates are
-  zero-based half-open. AIRR TSV converts once to one-based closed intervals,
-  writes booleans as `T`/`F` and nulls as empty cells, and retains the original
-  query in `sequence`. `rev_comp` means annotation coordinates and alignments
-  address its reverse complement. NP bases align to gaps in
-  `germline_alignment`.
-- Final Parquet uses the official `sequence`, `sequence_aa`,
-  `sequence_alignment_aa`, and `germline_alignment_aa` meanings while retaining
-  native booleans/nulls and internal coordinate offsets. No-project Python
-  objects and dataframe returns retain the legacy assembled V(D)J meanings for
-  those sequence and amino-acid fields.
+- `Antibody` annotation internals use zero-based half-open coordinates and
+  the assembled V(D)J as `sequence`. `abstar.annotation.airr.to_public_row()`
+  converts each record once, inside the annotation workers, to the public row
+  that every output reads: 1-based closed coordinates, the original query in
+  `sequence`, the V(D)J in `sequence_vdj`/`sequence_vdj_aa`, and the official
+  `sequence_aa`, `sequence_alignment_aa`, and `germline_alignment_aa`. Never
+  add a second conversion in a writer or return path; TSV only encodes
+  booleans as `T`/`F` and nulls as empty cells. `rev_comp` means annotation
+  coordinates and alignments address the reverse complement. NP bases align
+  to gaps in `germline_alignment`.
 - Changes to schemas must be reflected in serializers, dataframe return paths,
   documentation, and compatibility tests.
 - FWR/CDR amino-acid regions project established nucleotide intervals into the

@@ -76,13 +76,15 @@ paths; `logs/run.json` records versions, source hashes, and parameters. API call
 warn with the index location, including when no project directory was supplied.
 Duplicate visible IDs and input ordering are preserved.
 
-AIRR TSV targets the AIRR 2.0 Rearrangement schema. It writes 1-based closed
-coordinates, `T`/`F` booleans, and empty null cells. Python returns and Parquet
-coordinates are 0-based half-open. Both final file formats write the original,
-unmodified query as `sequence`; `rev_comp` indicates that calls, alignments,
-and coordinates address its reverse complement. See the
-[output-format documentation](https://abstar.readthedocs.io/en/latest/output_formats.html)
-for the official sequence and amino-acid compatibility boundary.
+Every output (AIRR TSV, Parquet, and Python returns) targets the AIRR 2.0
+Rearrangement schema with identical fields and meanings: 1-based closed
+coordinates and the original, unmodified query as `sequence`; `rev_comp`
+indicates that calls, alignments, and coordinates address its reverse
+complement. The assembled V(D)J is in `sequence_vdj` / `sequence_vdj_aa`. TSV
+writes `T`/`F` booleans and empty null cells. **0.9.0 changed coordinates and
+`sequence` meanings from 0.8.x**; see the
+[changelog](https://abstar.readthedocs.io/en/latest/changelog.html) and
+[output-format documentation](https://abstar.readthedocs.io/en/latest/output_formats.html).
 
 ## Test
 

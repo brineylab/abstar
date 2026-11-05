@@ -20,8 +20,10 @@ padding. NT means nucleotide and AA means amino acid. NP1/NP2 denote the interse
 sequence attributed to neither retained flanking germline segment; a null D call does
 not establish the biological absence of D-derived bases.
 
-Unless stated otherwise, query/reference intervals are **zero-based, half-open**
-(`[start, end)`, suitable for Python slicing). Query coordinates address the
+Unless stated otherwise, query/reference intervals are the **internal zero-based,
+half-open** annotation intervals (`[start, end)`, suitable for Python slicing). Every
+public output (TSV, Parquet, Python returns) reports them as one-based closed intervals:
+the start gains one and the end is unchanged. Query coordinates address the
 **oriented** input. IMGT positions and reported mutation/indel positions are one-based;
 low-level region alignment endpoints and MMseqs coordinates have their own explicitly
 noted conventions. AIRR TSV converts public intervals to one-based closed coordinates
@@ -1346,21 +1348,19 @@ oriented interval `[1,4)` addresses `GTT`; AIRR writes interval `[2,4]` while ke
 `sequence="AACG"`. This is a coordinate illustration, not an annotatable four-base
 antibody.
 
-**Handling.** Final AIRR and Parquet `sequence` preserve the full original input;
-annotation coordinates and alignments address `sequence_oriented`. AIRR performs a
-one-time zero-based half-open to one-based closed conversion; native Parquet retains
-zero-based half-open intervals and native booleans/nulls. No-project API
-objects/DataFrames deliberately retain legacy assembled V(D)J meanings for `sequence`
-and the legacy amino-acid fields. Output normalization tests compare every public field
-under the documented file representation conversions.
+**Handling.** Every public output's `sequence` preserves the full original input, and
+the assembled V(D)J is `sequence_vdj`; annotation coordinates and alignments address
+`sequence_oriented`. Each record is converted once, in the annotation worker, from
+zero-based half-open to one-based closed intervals; TSV, Parquet, and Python returns all
+read that one public row. Parquet keeps native booleans/nulls. Output parity tests
+compare every public field after decoding TSV text only.
 
-**Limits.** AIRR intervals cannot be directly sliced against the original reverse-strand
-`sequence`, and Parquet intervals must not be converted twice. External AIRR readers may
+**Limits.** Public intervals cannot be directly sliced against the original reverse-strand
+`sequence`; slice `sequence_oriented[start - 1:end]`. External AIRR readers may
 normalize coordinates on loading (the tests' AIRR reader does), so distinguish bytes on
-disk from reader-returned values. API/file sequence meanings are an intentional
-compatibility difference, not universal identical serialization.
+disk from reader-returned values.
 
-**Evidence.** [`to_airr_interval`, `to_airr_row`](../abstar/annotation/airr.py),
+**Evidence.** [`to_airr_interval`, `to_public_row`](../abstar/annotation/airr.py),
 [`_write_sample_outputs`](../abstar/core/abstar.py);
 [`test_row_conversion_is_pure_and_converts_every_coordinate`,
 `test_airr_region_coordinates_slice_the_oriented_query`,
@@ -1464,13 +1464,14 @@ full-query `sequence_aa="MKPG*"`. The same result follows with V start `2`, fram
 read `AATGAAACC` with start `0`, frame `2` yields `MK`, omitting leading/terminal
 incomplete codons.
 
-**Handling.** Official file `sequence_aa` translates the entire oriented query using
-phase `(v_sequence_start + frame - 1) % 3`, preferring `v_frame` when available. Thus
+**Handling.** Public `sequence_aa` translates the entire oriented query using phase
+`(v_sequence_start + frame - 1) % 3` with the internal zero-based start (the public
+start minus one), preferring `v_frame` when available. Thus
 full input AA can include flanking translated context while `sequence` remains original
 input. Missing query/origin/frame yields null rather than guessing a phase, and
 unassigned official AA fields are null.
 
-**Evidence.** [`translate_airr_query`, `to_airr_row`](../abstar/annotation/airr.py);
+**Evidence.** [`translate_airr_query`, `to_public_row`](../abstar/annotation/airr.py);
 [`test_official_query_translation_uses_input_phase_and_orientation`,
 `test_unknown_query_translation_context_emits_null`,
 `test_unassigned_official_amino_acids_are_null`](../abstar/tests/test_airr.py);

@@ -107,6 +107,7 @@ Custom databases can be built from FASTA/JSON files.
    :hidden:
    :caption: About
 
+   changelog
    license
 
 
