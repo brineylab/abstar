@@ -162,10 +162,6 @@ pub fn build(
     let searched: HashSet<String> = warnings.iter().map(|w| w.allele.clone()).collect();
     warnings.extend(validate(&alleles)?.into_iter().filter(|w| !searched.contains(&w.allele)));
 
-    let mut counts = BTreeMap::new();
-    for a in &alleles {
-        *counts.entry(format!("{}/{}/{}", a.locus, a.segment, a.species)).or_insert(0) += 1;
-    }
     let db = Database {
         manifest: Manifest {
             format_version: 1,
@@ -187,7 +183,7 @@ pub fn build(
         name: recipe.name,
         path: output_dir.to_path_buf(),
         n_alleles: db.alleles.len(),
-        counts,
+        counts: db.counts(),
         restricted,
         passed_through,
         warnings,

@@ -97,3 +97,14 @@ pub struct Database {
     pub manifest: Manifest,
     pub alleles: Vec<Allele>,
 }
+
+impl Database {
+    /// Allele counts keyed "LOCUS/SEGMENT/species", e.g. "IGH/V/human".
+    pub fn counts(&self) -> BTreeMap<String, usize> {
+        let mut counts = BTreeMap::new();
+        for a in &self.alleles {
+            *counts.entry(format!("{}/{}/{}", a.locus, a.segment, a.species)).or_insert(0) += 1;
+        }
+        counts
+    }
+}
