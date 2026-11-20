@@ -22,7 +22,7 @@ A run turns FASTA/FASTQ inputs into TSV and/or Parquet files plus a record of ho
 
 **Panics become error rows.** Each record is annotated under `catch_unwind`. A panic yields a row with status `error` and `failure_reason` of `internal_error: <message>`; the run continues. Under `strict`, the first such row aborts the run with `STRICT_RECORD_FAILURE`. The default panic message is suppressed only while a record is annotated, so the failure appears once, in the row.
 
-**Rows stay single lines.** A tab, CR or LF in a sequence ID or sequence (possible only from in-memory input or malformed files) is replaced by a space, because TSV cannot hold it. This keeps one row per record instead of aborting the run.
+**Rows stay single lines.** A tab, CR or LF in a sequence ID or sequence (possible only from in-memory input or malformed files), or in `source_file` (from an input file name), is replaced by a space, because TSV cannot hold it. This keeps one row per record instead of aborting the run.
 
 **Other.** The `loci` option must be a subset of the database's loci (`INVALID_ARGUMENT` otherwise) and is otherwise only recorded. A closed output pipe ends TSV streaming without an error. An empty input yields zero rows, not an error.
 

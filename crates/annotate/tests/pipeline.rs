@@ -331,3 +331,13 @@ fn output_dir_that_is_a_file_is_invalid_argument() {
     assert_eq!(e.code(), "INVALID_ARGUMENT");
     assert_eq!(std::fs::read_to_string(&f).unwrap(), "x");
 }
+
+#[test]
+fn tab_or_newline_in_file_name_does_not_panic() {
+    let d = tempfile::tempdir().unwrap();
+    let p = d.path().join("a\tb\nc.fasta");
+    std::fs::write(&p, ">r1\nACGT\n").unwrap();
+    let t = String::from_utf8(tsv(&[Input::File(p.clone())], &opts())).unwrap();
+    assert_eq!(t.lines().count(), 2);
+    assert!(t.contains(&p.to_string_lossy().replace(['\t', '\n'], " ")), "{t}");
+}

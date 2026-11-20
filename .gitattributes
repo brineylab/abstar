@@ -1,0 +1,6 @@
+# Data whose bytes are content: never convert line endings (e.g. CRLF on a Windows checkout).
+# The alleles.tsv sha256 is recorded in manifest.toml, and messy.fasta tests CRLF input on purpose.
+python/abstar/germline_dbs/** -text
+germline-sources/** -text
+crates/*/tests/data/** -text
+tests/python/data/** -text

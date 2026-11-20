@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """Startup and throughput benchmark for the installed `abstar` CLI. Reports; never gates (exit 0)."""
-import argparse, gzip, json, os, platform, resource, shutil, statistics, subprocess, sys, tempfile, time
+import argparse, gzip, json, os, platform, shutil, statistics, subprocess, sys, tempfile, time
 from pathlib import Path
 
 CORPUS = Path(__file__).resolve().parent.parent / "legacy/test_data/bcr_corpus/sequences.fasta.gz"

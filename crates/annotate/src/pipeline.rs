@@ -132,7 +132,8 @@ fn pool(opts: &RunOptions) -> Result<rayon::ThreadPool, RunError> {
         .map_err(|e| RunError::Internal(e.to_string()))
 }
 
-/// Tabs and newlines cannot be represented in TSV; replace them so one record stays one row.
+/// Tabs and newlines cannot be represented in TSV; replace them so one record stays one row
+/// (sequence IDs, sequences, and `source_file` from an odd file name).
 fn tsv_safe(s: &mut String) {
     if s.contains(['\t', '\n', '\r']) {
         *s = s.replace(['\t', '\n', '\r'], " ");
@@ -154,7 +155,11 @@ fn run_input(
     let source_file = match input {
         Input::Records(_) => None,
         i => Some(i.source()),
-    };
+    }
+    .map(|mut s| {
+        tsv_safe(&mut s);
+        s
+    });
     loop {
         // ponytail: sequential batches; overlap read/annotate/write if benches show I/O stalls
         let batch = src.next_batch(opts.batch_size)?;

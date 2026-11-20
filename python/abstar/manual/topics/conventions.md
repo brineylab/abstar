@@ -11,7 +11,7 @@ Conventions every abstar output follows. Decision records 0004, 0016, 0018 and 0
 - TSV: booleans are `T` and `F`, nulls are empty cells, list fields (such as `v_call_ties`) are comma-joined.
 - Parquet carries identical content with native types: bool, int, null, and real lists.
 - Both writers read the same in-memory record.
-- A tab, CR or LF inside a sequence ID or sequence (possible only from in-memory input or malformed files) is replaced by a space, so every record stays one line.
+- A tab, CR or LF inside a sequence ID or sequence (possible only from in-memory input or malformed files), or in `source_file` (from an input file name), is replaced by a space, so every record stays one line.
 - `sequence` is written exactly as read; it is not uppercased. ASCII spaces and tabs inside sequence lines are removed, since whitespace is not sequence content.
 
 ## Record statuses
