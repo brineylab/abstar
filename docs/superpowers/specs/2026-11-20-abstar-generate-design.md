@@ -1,6 +1,6 @@
 # abstar generate — design
 
-Status: draft (awaiting approval) · 2026-11-20
+Status: approved · 2026-11-20
 
 Second of the four design documents for the abstar rewrite (Project 2 in the
 [foundation design](2026-11-20-abstar-foundation-design.md#project-2--abstar-generate-next-design-doc)).
