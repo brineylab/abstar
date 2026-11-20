@@ -119,3 +119,12 @@ def test_sequences_to_files(tmp_path):
     assert len(s.inputs) == 1
     assert sorted(p.name for p in s.inputs[0].outputs.values()) == ["records.parquet", "records.tsv"]
     assert sum(s.counts.values()) == 2
+
+
+def test_long_sequences(tmp_path):
+    seq = "ACGT" * 125
+    df = abstar.run(seq)
+    assert df.shape[0] == 1 and df["annotation_status"][0] == "unassigned"
+    assert abstar.run([seq, seq]).shape[0] == 2
+    s = abstar.run(seq, tmp_path / "out")
+    assert [p.name for p in s.inputs[0].outputs.values()] == ["records.tsv"]

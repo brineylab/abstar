@@ -37,6 +37,13 @@ def _is_seq_file(name: str) -> bool:
     return name.endswith(_EXTS)
 
 
+def _exists(p: Path) -> bool:
+    try:
+        return p.exists()
+    except OSError:  # e.g. ENAMETOOLONG for a long sequence string
+        return False
+
+
 def _classify(item) -> tuple[str, object]:
     """('path', str) | ('seq', str) | ('rec', (id, seq))."""
     if isinstance(item, tuple):
@@ -44,12 +51,12 @@ def _classify(item) -> tuple[str, object]:
             return "rec", item
         raise AbstarError("INVALID_ARGUMENT", f"records must be (id, sequence) string pairs, got {item!r}")
     if isinstance(item, Path):
-        if not item.exists():
+        if not _exists(item):
             raise AbstarError("INPUT_NOT_FOUND", f"{item} does not exist")
         return "path", item
     if not isinstance(item, str):
         raise AbstarError("INVALID_ARGUMENT", f"unsupported input of type {type(item).__name__}")
-    if item and Path(item).exists():
+    if item and _exists(Path(item)):
         return "path", Path(item)
     if "/" in item or "\\" in item or _is_seq_file(item):
         raise AbstarError("INPUT_NOT_FOUND", f"{item} does not exist")
