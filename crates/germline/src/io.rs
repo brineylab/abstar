@@ -128,6 +128,9 @@ fn stage_and_swap(db: &Database, dir: &Path, staging: &Path) -> Result<(), Germl
     manifest.alleles_sha256 = hex_sha256(tsv.as_bytes());
     let toml = toml::to_string(&manifest)
         .map_err(|e| GermlineError::Invalid(format!("manifest: {e}")))?;
+    if let Some(parent) = staging.parent() {
+        fs::create_dir_all(parent)?;
+    }
     fs::create_dir(staging)?;
     fs::write(staging.join("alleles.tsv"), tsv)?;
     fs::write(staging.join("manifest.toml"), toml)?;

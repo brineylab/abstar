@@ -336,3 +336,19 @@ fn failed_build_leaves_no_directory() {
     left.sort();
     assert_eq!(left, ["r.toml", "v.fasta"]);
 }
+
+#[test]
+fn recipe_name_must_be_one_path_component() {
+    let tmp = tempfile::tempdir().unwrap();
+    let out = tmp.path().join("out");
+    for bad in ["", ".", "..", "../victim", "a/b", "a\\\\b", "a\\u0000b", "a\\nb"] {
+        let r = put(tmp.path(), "r.toml", &format!("name = \"{bad}\"\n[[source]]\ndatabase = \"x\"\n"));
+        let e = build(&r, &out, &no_dbs(), &opts()).unwrap_err();
+        assert_eq!(e.code(), "RECIPE_INVALID", "{bad:?}");
+        assert!(e.to_string().contains("single plain path component"), "{e}");
+    }
+    assert!(!out.exists());
+    // `+` stays legal (the built-in `human+c57bl6`)
+    let r = put(tmp.path(), "r.toml", "name = \"human+c57bl6\"\n[[source]]\ndatabase = \"x\"\n");
+    assert!(!build(&r, &out, &no_dbs(), &opts()).unwrap_err().to_string().contains("path component"));
+}

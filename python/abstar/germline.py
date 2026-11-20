@@ -100,7 +100,6 @@ def build(
     sources = spec.get("source", [])
     databases = [s["database"] for s in sources if isinstance(s, dict) and isinstance(s.get("database"), str)]
     paths = {db: str(resolve(db)[0]) for db in databases}
-    output_dir.parent.mkdir(parents=True, exist_ok=True)
     core = _core()
     try:
         r = core.germline_build(str(recipe), str(output_dir), overwrite, paths)

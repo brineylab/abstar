@@ -53,6 +53,11 @@ pub(crate) fn read(path: &Path) -> Result<Recipe, GermlineError> {
     let bad = |m: String| GermlineError::RecipeInvalid(format!("{}: {m}", path.display()));
     let text = std::fs::read_to_string(path).map_err(|e| bad(e.to_string()))?;
     let r: Recipe = toml::from_str(&text).map_err(|e| bad(e.to_string()))?;
+    // the name becomes a directory name: one plain path component, never a traversal
+    let n = r.name.as_str();
+    if n.is_empty() || n == "." || n == ".." || n.chars().any(|c| c == '/' || c == '\\' || c.is_control()) {
+        return Err(bad(format!("name {n:?} must be a single plain path component")));
+    }
     if r.sources.is_empty() {
         return Err(bad("no [[source]] entries".into()));
     }

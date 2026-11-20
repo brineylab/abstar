@@ -158,3 +158,20 @@ def test_run_to_stdout_broken_pipe(tmp_path):
     assert p.wait() == 0, err
     assert "Traceback" not in err
     assert sum(ast.literal_eval(err).values()) < 50_000  # stopped at the closed pipe
+
+
+def test_recipe_name_traversal_rejected(tmp_path, abstar_home):
+    victim = tmp_path / "x"
+    victim.mkdir()
+    (victim / "keep.txt").write_text("precious")
+    r = recipe(tmp_path, "mydb")
+    r.write_text(r.read_text().replace('name = "mydb"', 'name = "../x"'))
+    before = sorted(tmp_path.rglob("*"))
+    for overwrite in (False, True):
+        with pytest.raises(AbstarError) as e:
+            germline.build(r, overwrite=overwrite)
+        assert e.value.code == "RECIPE_INVALID"
+        assert "../x" in e.value.message
+    assert sorted(tmp_path.rglob("*")) == before
+    assert not abstar_home.exists()
+    assert (victim / "keep.txt").read_text() == "precious"

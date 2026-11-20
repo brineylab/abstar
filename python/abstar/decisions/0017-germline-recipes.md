@@ -34,3 +34,4 @@ Germline databases (0005) are built from OGRDB germline-set JSON, IMGT-style gap
 - V genes whose gapping is not IMGT-numbered get no anchor and a named warning rather than a silently wrong anchor.
 - OGRDB J anchors are authoritative; every place the motif disagrees is listed in the manifest warnings.
 - Germline sequences may contain IUPAC ambiguity codes. The annotator must treat them as ambiguous bases (neither a match nor a mutation by default), not as literal characters.
+- A recipe `name` must be a single plain path component: not empty, `.` or `..`, and free of `/`, `\` and control characters (`+`, as in `human+c57bl6`, is fine). The name becomes the database directory, so `name = "../victim"` with `overwrite` would otherwise replace and delete an unrelated directory, and a nested name would create a database that `list()` and `resolve()` cannot find.
