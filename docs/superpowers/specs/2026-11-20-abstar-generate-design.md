@@ -265,7 +265,7 @@ is always recorded alongside it.
   - **The valid set.** It is every joint configuration (V end, D start,
     D end, J start) that ties for the highest total score, with segments not
     overlapping. Two cases follow from this:
-    - N bases that happen to match the adjacent germline extend the set.
+    - N bases that happen to match the adjacent germline are claimed by that segment (+1 beats 0), so the boundary moves past the true cut. The set widens only when two segments can claim the same bases equally, e.g. a base matching both V's continuation and J's start. The true cut is always recorded separately.
     - A mutated base at a segment edge can be given to N with no penalty.
   - **Which alleles.** Ties are computed for every allele in that segment's
     valid set, and their union is taken.

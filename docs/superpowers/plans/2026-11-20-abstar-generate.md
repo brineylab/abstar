@@ -362,7 +362,7 @@ pub fn truth(s: &Simulated, c: &Candidates) -> Truth
 
 - [ ] **Step 1: Write the failing tests:**
   - `oracle_agreement`: over 3,000 seeds on the tiny database (which has near-identical alleles by design) at mutation uniform 0–0.3 with indels, every `Truth` field equals the brute-force oracle. The oracle enumerates every candidate × offset × every boundary 4-tuple directly.
-  - `n_matching_germline_widens_boundary`: hand-built case, V end at 100 and N1 starting with the next V germline base gives `v_end_valid == [100, 101]`.
+  - `n_matching_germline_widens_boundary`: (as built in Task 6) an N1 base matching the next V germline base moves `v_end_valid` to [101] when only V can claim it, and widens it to [100, 101] when J can claim it equally.
   - `mutated_edge_base_goes_to_n`: a mutated last V base gives `v_end_valid` containing true end − 1.
   - `closer_allele_makes_unrecoverable`: mutate toward a sibling allele until strictly closer; the true allele is absent and `unrecoverable_v` is set.
   - `short_d_null_valid`.
