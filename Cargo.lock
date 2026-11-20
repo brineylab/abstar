@@ -41,6 +41,7 @@ dependencies = [
  "abstar_germline",
  "pyo3",
  "pyo3-arrow",
+ "pyo3-build-config",
  "serde_json",
 ]
 

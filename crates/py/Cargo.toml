@@ -14,3 +14,6 @@ abstar_germline = { path = "../germline" }
 serde_json = "1"
 pyo3 = { version = "0.30", features = ["extension-module", "abi3-py311"] }
 pyo3-arrow = "0.21"
+
+[build-dependencies]
+pyo3-build-config = "0.30"
