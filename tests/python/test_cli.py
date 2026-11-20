@@ -120,3 +120,20 @@ def test_help_is_light():
            "bad = [m for m in ('polars', 'abstar._core') if m in sys.modules]; assert not bad, bad"
     p = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
     assert p.returncode == 0, p.stderr
+
+
+def test_seq_ambiguous_positionals_rejected(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    fa = tmp_path / "reads.fasta"
+    fa.write_text(FA)
+    for args in (["run", fa, "--seq", "ACGT"], ["run", "a", "b", "--seq", "ACGT"]):
+        p = abstar(*args)
+        assert p.returncode == 2 and "error[INVALID_ARGUMENT]" in p.stderr and "mutually exclusive" in p.stderr
+    assert not (tmp_path / "a").exists() and not (tmp_path / "b").exists() and fa.is_file()
+
+
+def test_api_run_dash_reads_stdin():
+    p = subprocess.run([sys.executable, "-c", "import abstar; print(abstar.run('-').height)"],
+                       input=FA, capture_output=True, text=True)
+    assert p.returncode == 0, p.stderr
+    assert p.stdout.strip() == "3"
