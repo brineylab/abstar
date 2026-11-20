@@ -1,0 +1,27 @@
+format_version = 1
+name = "tiny_igk"
+species = "human"
+locus = "IGK"
+
+[v_usage]
+"IGKV1-1" = 1.0
+[j_usage]
+IGKJ1 = 1.0
+[trim.v_3.default]
+values = [0, 1]
+probs = [0.5, 0.5]
+[trim.j_5.default]
+values = [0, 1]
+probs = [0.5, 0.5]
+[insertions.vj]
+values = [0, 1]
+probs = [0.5, 0.5]
+[n_markov]
+start = [0.25, 0.25, 0.25, 0.25]
+A = [0.25, 0.25, 0.25, 0.25]
+C = [0.25, 0.25, 0.25, 0.25]
+G = [0.25, 0.25, 0.25, 0.25]
+T = [0.25, 0.25, 0.25, 0.25]
+
+[d_given_j.IGKJ1]
+"IGKD1" = 1.0

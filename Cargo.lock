@@ -21,6 +21,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "abstar_generate"
+version = "1.0.0-dev.0"
+dependencies = [
+ "abstar_germline",
+ "serde",
+ "thiserror 1.0.69",
+ "toml 0.8.23",
+]
+
+[[package]]
 name = "abstar_germline"
 version = "1.0.0-dev.0"
 dependencies = [
