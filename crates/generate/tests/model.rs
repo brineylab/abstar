@@ -43,3 +43,26 @@ fn d_tables_required_for_igh_forbidden_for_igk() {
     assert_eq!(e.code(), "MODEL_INVALID");
     assert!(e.to_string().contains("d_given_j"), "{e}");
 }
+
+fn invalid_naming(file: &str, needle: &str) {
+    let e = load_model(&data(file)).unwrap_err();
+    assert_eq!(e.code(), "MODEL_INVALID", "{file}: {e}");
+    assert!(e.to_string().contains(needle), "{file}: {e}");
+}
+
+#[test]
+fn unknown_keys_rejected() {
+    invalid_naming("bad_typo.model.toml", "d_inversoin");
+    invalid_naming("bad_markov_key.model.toml", "n_markov.N");
+}
+
+#[test]
+fn allele_usage_validated() {
+    invalid_naming("bad_allele_sum.model.toml", "IGHV1-1");
+    invalid_naming("bad_allele_gene.model.toml", "IGHX9");
+}
+
+#[test]
+fn format_version_must_be_1() {
+    invalid_naming("bad_version.model.toml", "format_version");
+}

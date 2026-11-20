@@ -10,12 +10,14 @@ const TOL: f64 = 1e-6;
 
 /// Discrete distribution; negative values in trim tables are P-nucleotides.
 #[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Dist {
     pub values: Vec<i64>,
     pub probs: Vec<f64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Source {
     pub citation: String,
     pub used_for: String,
@@ -23,6 +25,7 @@ pub struct Source {
 
 /// One trim: a segment-wide default plus per-gene overrides.
 #[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct TrimSet {
     pub default: Dist,
     #[serde(default)]
@@ -30,6 +33,7 @@ pub struct TrimSet {
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Trims {
     pub v_3: TrimSet,
     pub d_5: Option<TrimSet>,
@@ -38,6 +42,7 @@ pub struct Trims {
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Model {
     pub format_version: u32,
     pub name: String,
@@ -107,6 +112,9 @@ fn check_trim(key: &str, t: &TrimSet) -> Result<(), GenerateError> {
 }
 
 fn validate(m: &Model) -> Result<(), GenerateError> {
+    if m.format_version != 1 {
+        return bad(format!("format_version: unsupported value {}, expected 1", m.format_version));
+    }
     let has_d = matches!(m.locus, Locus::IGH | Locus::TRB | Locus::TRD);
     if !(0.0..=1.0).contains(&m.d_inversion) {
         return bad(format!("d_inversion: {} outside [0, 1]", m.d_inversion));
@@ -157,10 +165,37 @@ fn validate(m: &Model) -> Result<(), GenerateError> {
         }
     }
 
+    if let Some(k) = m.n_markov.keys().find(|k| !["start", "A", "C", "G", "T"].contains(&k.as_str())) {
+        return bad(format!("n_markov.{k}: unknown key"));
+    }
+    check_allele_usage(m)?;
     for k in ["start", "A", "C", "G", "T"] {
         match m.n_markov.get(k) {
             Some(r) => check_sum(&format!("n_markov.{k}"), r.iter().copied())?,
             None => return bad(format!("n_markov.{k}: missing")),
+        }
+    }
+    Ok(())
+}
+
+fn check_allele_usage(m: &Model) -> Result<(), GenerateError> {
+    let mut sums: BTreeMap<&str, f64> = BTreeMap::new();
+    for (a, &p) in &m.allele_usage {
+        if !(0.0..=1.0).contains(&p) {
+            return bad(format!("allele_usage.{a}: probability {p} outside [0, 1]"));
+        }
+        let gene = a.split('*').next().unwrap_or(a);
+        let known = m.v_usage.contains_key(gene)
+            || m.j_usage.contains_key(gene)
+            || m.d_given_j.values().any(|r| r.contains_key(gene));
+        if !known {
+            return bad(format!("allele_usage.{a}: gene {gene} is not in v_usage, j_usage or d_given_j"));
+        }
+        *sums.entry(gene).or_default() += p;
+    }
+    for (g, s) in sums {
+        if (s - 1.0).abs() > TOL {
+            return bad(format!("allele_usage (gene {g}): probabilities sum to {s}, expected 1"));
         }
     }
     Ok(())
