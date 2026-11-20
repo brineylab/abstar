@@ -136,7 +136,7 @@ def test_run_to_files_and_stdout(tmp_path, capfd):
     out = _core.run_to_files([str(fasta)], [], str(tmp_path / "out"), db, ["airr"], None, False, ["IGH"])
     assert sum(out["counts"].values()) == 2
     assert Path(out["inputs"][0]["outputs"]["airr"]).is_file()
-    counts = _core.run_to_stdout([str(fasta)], db, None, False, None)
+    counts = _core.run_to_stdout([str(fasta)], [], db, None, False, None)
     assert sum(counts.values()) == 2
     assert capfd.readouterr().out.splitlines()[0].startswith("sequence_id\t")
     with pytest.raises(_core.CoreError) as e:
@@ -150,7 +150,7 @@ def test_run_to_stdout_broken_pipe(tmp_path):
     db = str(germline.resolve("mydb")[0])
     fasta = tmp_path / "many.fasta"
     fasta.write_text("".join(f">r{i}\nACGTACGTACGT\n" for i in range(50_000)))
-    code = f"from abstar import _core; print(_core.run_to_stdout([{str(fasta)!r}], {db!r}, 1, False, None), file=__import__('sys').stderr)"
+    code = f"from abstar import _core; print(_core.run_to_stdout([{str(fasta)!r}], [], {db!r}, 1, False, None), file=__import__('sys').stderr)"
     p = subprocess.Popen([sys.executable, "-c", code], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     assert p.stdout.readline().startswith(b"sequence_id\t")
     p.stdout.close()

@@ -16,7 +16,12 @@ def run_to_files(
     loci: list[str] | None,
 ) -> dict: ...
 def run_to_stdout(
-    inputs: list[str], db_path: str, threads: int | None, strict: bool, loci: list[str] | None
+    inputs: list[str],
+    records: list[tuple[str, str]],
+    db_path: str,
+    threads: int | None,
+    strict: bool,
+    loci: list[str] | None,
 ) -> dict: ...
 def run_in_memory(
     inputs: list[str],

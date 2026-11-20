@@ -50,6 +50,8 @@ def _classify(item) -> tuple[str, object]:
         if len(item) == 2 and all(isinstance(x, str) for x in item):
             return "rec", item
         raise AbstarError("INVALID_ARGUMENT", f"records must be (id, sequence) string pairs, got {item!r}")
+    if item == "-":  # stdin (the CLI's `-`); never a valid sequence
+        return "path", Path("-")
     if isinstance(item, Path):
         if not _exists(item):
             raise AbstarError("INPUT_NOT_FOUND", f"{item} does not exist")

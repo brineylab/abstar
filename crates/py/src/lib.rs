@@ -161,15 +161,20 @@ fn run_to_files<'py>(
 
 /// TSV to the process's stdout (fd 1), bypassing `sys.stdout`. A closed pipe returns normally.
 #[pyfunction]
+#[allow(clippy::too_many_arguments)]
 fn run_to_stdout<'py>(
     py: Python<'py>,
     inputs: Vec<String>,
+    records: Vec<(String, String)>,
     db_path: String,
     threads: Option<usize>,
     strict: bool,
     loci: Option<Vec<String>>,
 ) -> PyResult<Bound<'py, PyDict>> {
-    let ins = self::inputs(inputs);
+    let mut ins = self::inputs(inputs);
+    if !records.is_empty() {
+        ins.push(Input::Records(records));
+    }
     let opts = options(threads, strict, loci)?;
     let c = py.detach(|| {
         let db = load(&db_path)?;
