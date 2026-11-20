@@ -20,7 +20,9 @@ fn igh() -> Bound {
 }
 
 fn igk() -> Bound {
-    bind(model("tiny_igk"), &db(sim_igk_alleles())).unwrap()
+    let mut m = model("tiny_igk"); // no shm_model field: defaults to "none"
+    m.shm_model = "motif".into();
+    bind(m, &db(sim_igk_alleles())).unwrap()
 }
 
 fn naive() -> GenerateParams {
@@ -75,7 +77,7 @@ fn replay_rebuilds_read() {
     let (mut indels, mut inverted, mut mutated, mut dups) = (0, 0, 0, 0);
     for seed in 0..2000 {
         let p = GenerateParams { indel_duplication: seed % 2 == 1, ..busy() };
-        let b = if seed % 4 == 3 { &k } else { &h }; // tiny_igk: shm_model "none"
+        let b = if seed % 4 == 3 { &k } else { &h };
         let s = sim(b, &p, seed);
         assert_eq!(replay(&s), s.read, "seed {seed}");
         assert_eq!(s.origin.len(), s.read.len());
@@ -84,7 +86,7 @@ fn replay_rebuilds_read() {
         inverted += usize::from(s.d_inverted);
         mutated += usize::from(!s.mutations.is_empty());
     }
-    assert!(indels > 800 && dups > 100 && inverted > 300 && mutated > 1400, "{indels} {dups} {inverted} {mutated}");
+    assert!(indels > 800 && dups > 100 && inverted > 300 && mutated > 1900, "{indels} {dups} {inverted} {mutated}");
 }
 
 #[test]
@@ -146,10 +148,19 @@ fn p_nucleotides_are_palindromic() {
     let fixed = |v| TrimSet { default: Dist { values: vec![v], probs: vec![1.0] }, genes: Default::default() };
     m.trim.v_3 = fixed(-2);
     m.trim.j_5 = fixed(-3);
+    m.trim.d_5 = Some(fixed(-2));
+    m.trim.d_3 = Some(fixed(-2));
     let b = bind(m, &db(sim_igh_alleles())).unwrap();
     for seed in 0..50 {
         let s = sim(&b, &naive(), seed);
-        assert_eq!((s.v_trim_3, s.j_trim_5), (-2, -3));
+        assert_eq!((s.v_trim_3, s.d_trim_5, s.d_trim_3, s.j_trim_5), (-2, -2, -2, -3));
+        assert!(!s.d_inverted);
+        let d = seq(s.d.as_ref().unwrap());
+        let (d0, dl) = (pos_of(&s, Origin::D(0)).unwrap(), pos_of(&s, Origin::D(d.len() - 1)).unwrap());
+        assert_eq!(s.read[d0 - 2..d0], revcomp(&d[..2])[..], "seed {seed}");
+        assert_eq!(s.read[dl + 1..dl + 3], revcomp(&d[d.len() - 2..])[..], "seed {seed}");
+        assert_eq!(s.origin[d0 - 2..d0], [Origin::P; 2]);
+        assert_eq!(s.origin[dl + 1..dl + 3], [Origin::P; 2]);
         let v = seq(&s.v);
         let last_v = s.origin.iter().rposition(|o| matches!(o, Origin::V(_))).unwrap();
         assert_eq!(s.read[last_v + 1..last_v + 3], revcomp(&v[v.len() - 2..])[..], "seed {seed}");
@@ -337,10 +348,36 @@ fn realized_v_frequency_and_cap_warning() {
 }
 
 #[test]
-fn shm_model_none_means_no_mutation() {
-    let p = GenerateParams { mutation: Spec::Fixed(0.3), shm_model: Some("none".into()), ..naive() };
-    let s = sim(&igh(), &p, 1);
-    assert!(s.mutations.is_empty() && s.v_mutation_frequency == 0.0);
+fn mutation_needs_a_mutation_model() {
+    let raw = bind(model("tiny_igk"), &db(sim_igk_alleles())).unwrap();
+    let p = GenerateParams { mutation: Spec::Fixed(0.1), ..naive() };
+    let e = Simulator::new(&raw, &p).err().unwrap();
+    assert_eq!(e.code(), "INVALID_ARGUMENT");
+    assert!(e.to_string().contains("shm_model = \"motif\""), "{e}");
+    for preset_name in ["memory", "bnab"] {
+        assert!(Simulator::new(&raw, &preset(preset_name).unwrap()).is_err(), "{preset_name}");
+    }
+    assert!(Simulator::new(&raw, &naive()).is_ok());
+    let p = GenerateParams { shm_model: Some("motif".into()), ..p };
+    assert!(!sim(&raw, &p, 1).mutations.is_empty());
+    let p = GenerateParams { shm_model: Some("none".into()), ..p };
+    assert!(Simulator::new(&igh(), &p).is_err());
+}
+
+#[test]
+fn mutation_targets_final_read_divergence() {
+    let h = igh();
+    let p = GenerateParams { mutation: Spec::Fixed(0.2), truncate_5p: Spec::Fixed(60.0), ..naive() };
+    for seed in 0..200 {
+        let s = sim(&h, &p, seed);
+        assert_eq!(s.truncate_5, 60);
+        let nv = s.origin.iter().filter(|o| matches!(o, Origin::V(_))).count() as f64;
+        // exactly the target, to mutate's rounding: round(0.2 nV) / nV
+        let f = s.v_mutation_frequency;
+        assert!((f - (0.2 * nv).round() / nv).abs() < 1e-12, "seed {seed}: {f}");
+        assert!(f >= 0.2 - 0.5 / nv && f < 0.2 + 2.0 / nv, "seed {seed}: {f}");
+        assert!(s.mutations.iter().all(|m| m.pos >= 60 && m.pos < 60 + s.read.len()));
+    }
 }
 
 #[test]

@@ -85,7 +85,8 @@ pub struct Simulated {
     /// VJ loci use `np1` only.
     pub np1: String,
     pub np2: String,
-    /// Hits in order; hits on bases a deletion later removed are dropped.
+    /// Hits in order. Only V(D)J bases that reach the final read are mutated, so every
+    /// position lies in `truncate_5 .. truncate_5 + read.len()`.
     pub mutations: Vec<Mutation>,
     pub indels: Vec<Indel>,
     pub truncate_5: usize,
@@ -216,6 +217,13 @@ impl<'a> Simulator<'a> {
             x => return Err(invalid(format!("unknown shm_model '{x}'; valid: motif, none"))),
         };
         let table = p.shm_table.as_deref().map(load_s5f_dir).transpose()?;
+        if !mutates && table.is_none() && hi > 0.0 {
+            return Err(invalid(format!(
+                "mutation up to {hi} was requested, but model '{}' does not mutate (shm_model = \"none\"); \
+                 set shm_model = \"motif\" or supply shm_table to mutate it",
+                bound.model.name
+            )));
+        }
 
         let mut c = Vec::new();
         if p.constant_len.is_some() {
@@ -248,8 +256,9 @@ impl<'a> Simulator<'a> {
         Ok(Self { bound, params, table, mutates, c })
     }
 
+    /// User S5F tables when given, else the motif model if the model mutates.
     fn shm(&self) -> Option<&ContextModel> {
-        self.mutates.then(|| self.table.as_ref().unwrap_or(motif_model()))
+        self.table.as_ref().or(self.mutates.then(motif_model))
     }
 
     /// N bases for junction `key` ("vd", "dj" or "vj").
@@ -316,17 +325,50 @@ impl<'a> Simulator<'a> {
         push(&p_nt(&js, j_trim_5, false), &mut |_| Origin::P);
         push(&js[jt..], &mut |u| Origin::J(jt + u));
 
-        // mutate V(D)J; `germ` keeps the unmutated sequence
-        let germ_vdj = seq.clone();
+        // C prefix, never mutated
+        let vdj_len = seq.len();
+        let c = (p.constant_len.is_some()).then(|| pick_from(&self.c, rng).clone());
+        let mut c_len = 0;
+        if let (Some(c), Some(n)) = (&c, p.constant_len) {
+            let cs = c.sequence().into_bytes();
+            c_len = n.min(cs.len());
+            seq.extend(&cs[..c_len]);
+            org.extend((0..c_len).map(Origin::C));
+        }
+
+        // The indel placement and truncation are drawn before mutation, so mutation can
+        // target the V bases of the final read; the indel itself is applied after it.
+        let placed = (p.indel_rate > 0.0 && rng.random_bool(p.indel_rate))
+            .then(|| self.place_indel(&org, &v, &j, rng))
+            .flatten();
+        let n = match placed {
+            Some((IndelKind::Ins, _, l)) => seq.len() + l,
+            Some((IndelKind::Del, _, l)) => seq.len() - l,
+            None => seq.len(),
+        };
+        let nt = |s: crate::Spec, rng: &mut _| s.sample(rng).round().max(0.0) as usize;
+        let truncate_5 = nt(p.truncate_5p, rng).min(n);
+        let truncate_3 = nt(p.truncate_3p, rng).min(n - truncate_5);
+        // untruncated-read position of pre-indel position `i`; `None` if deleted
+        let after = |i: usize| match placed {
+            Some((IndelKind::Ins, r, l)) if i >= r => Some(i + l),
+            Some((IndelKind::Del, r, l)) if i >= r + l => Some(i - l),
+            Some((IndelKind::Del, r, _)) if i >= r => None,
+            _ => Some(i),
+        };
+        let kept = |i: usize| after(i).is_some_and(|x| (truncate_5..n - truncate_3).contains(&x));
+
+        // mutate the V(D)J bases that reach the final read; `germ` keeps the unmutated sequence
+        let germ = seq.clone();
         let mut mutations = Vec::new();
         let mut warnings = Vec::new();
         let target = p.mutation.sample(rng).clamp(0.0, 1.0);
         if let (Some(model), true) = (self.shm(), target > 0.0) {
-            let v_pos: Vec<usize> = (0..org.len()).filter(|&i| matches!(org[i], Origin::V(_))).collect();
-            let mutable = vec![true; seq.len()];
-            mutations = mutate(&mut seq, &mutable, &v_pos, target, model, rng);
+            let mutable: Vec<bool> = (0..vdj_len).map(kept).collect();
+            let v_pos: Vec<usize> = (0..vdj_len).filter(|&i| mutable[i] && matches!(org[i], Origin::V(_))).collect();
+            mutations = mutate(&mut seq[..vdj_len], &mutable, &v_pos, target, model, rng);
             let want = (target * v_pos.len() as f64).round() as usize;
-            let got = v_pos.iter().filter(|&&i| seq[i] != germ_vdj[i]).count();
+            let got = v_pos.iter().filter(|&&i| seq[i] != germ[i]).count();
             if got < want {
                 warnings.push(format!(
                     "SHM safety cap reached: realized V divergence {:.4} is below the target {target:.4}",
@@ -335,43 +377,13 @@ impl<'a> Simulator<'a> {
             }
         }
 
-        // C prefix, never mutated. Appended before indels (not after, as listed in the
-        // spec) only so indel equivalence ranges can see it; indels never touch C.
-        let mut germ = germ_vdj;
-        let c = (p.constant_len.is_some()).then(|| pick_from(&self.c, rng).clone());
-        let mut c_len = 0;
-        if let (Some(c), Some(n)) = (&c, p.constant_len) {
-            let cs = c.sequence().into_bytes();
-            c_len = n.min(cs.len());
-            seq.extend(&cs[..c_len]);
-            germ.extend(&cs[..c_len]);
-            org.extend((0..c_len).map(Origin::C));
-        }
-
         let mut indels = Vec::new();
-        if p.indel_rate > 0.0 && rng.random_bool(p.indel_rate) {
-            if let Some(i) = self.indel(&mut seq, &germ, &mut org, &v, &j, rng) {
-                let (r, l) = (i.read_pos, i.len);
-                mutations.retain_mut(|x| match i.kind {
-                    IndelKind::Ins => {
-                        x.pos += if x.pos >= r { l } else { 0 };
-                        true
-                    }
-                    IndelKind::Del if x.pos >= r + l => {
-                        x.pos -= l;
-                        true
-                    }
-                    IndelKind::Del => x.pos < r,
-                });
-                indels.push(i);
-            }
+        if let Some((kind, r, len)) = placed {
+            indels.push(self.apply_indel(kind, r, len, &mut seq, &germ, &mut org, rng));
+            mutations.retain_mut(|x| after(x.pos).map(|y| x.pos = y).is_some());
         }
 
-        // truncation
-        let n = seq.len();
-        let nt = |s: crate::Spec, rng: &mut _| s.sample(rng).round().max(0.0) as usize;
-        let truncate_5 = nt(p.truncate_5p, rng).min(n);
-        let truncate_3 = nt(p.truncate_3p, rng).min(n - truncate_5);
+        debug_assert_eq!(seq.len(), n);
         let read = seq[truncate_5..n - truncate_3].to_vec();
         let origin = org[truncate_5..n - truncate_3].to_vec();
 
@@ -406,29 +418,23 @@ impl<'a> Simulator<'a> {
         }
     }
 
-    /// Places one indel in V upstream of Cys104 or in J downstream of Trp/Phe118, at least
-    /// 3 nt from either codon and with germline on both sides (so never in the junction,
-    /// where inserted bases would be indistinguishable from N). `None` if nothing fits.
-    fn indel(
-        &self,
-        seq: &mut Vec<u8>,
-        germ: &[u8],
-        org: &mut Vec<Origin>,
-        v: &Allele,
-        j: &Allele,
-        rng: &mut impl Rng,
-    ) -> Option<Indel> {
-        let p = self.params;
+    /// Draws one indel placement `(kind, position, length)` in V upstream of Cys104 or in J
+    /// downstream of Trp/Phe118, at least 3 nt from either codon and with germline on both
+    /// sides (so never in the junction, where inserted bases would be indistinguishable
+    /// from N). `position` is the first deleted base or the base after the insertion.
+    /// `None` if nothing fits.
+    fn place_indel(&self, org: &[Origin], v: &Allele, j: &Allele, rng: &mut impl Rng) -> Option<(IndelKind, usize, usize)> {
         let (a, b) = (v.anchor?, j.anchor?);
-        let lens: Vec<usize> = if p.frameshift_indels { (1..=36).collect() } else { (3..=36).step_by(3).collect() };
+        let lens: Vec<usize> =
+            if self.params.frameshift_indels { (1..=36).collect() } else { (3..=36).step_by(3).collect() };
         let w: Vec<f64> = lens.iter().map(|&l| 1.0 / l as f64).collect();
         let len = lens[pick(&w, rng)];
         let kind = if rng.random_bool(0.5) { IndelKind::Del } else { IndelKind::Ins };
         // CDR1 (IMGT aa 27-38) and CDR2 (56-65) with 3-codon flanks, as gapped nt ranges
         let cdr = |g: usize| (69..123).contains(&g) || (156..204).contains(&g);
 
-        // position `at` = first deleted base / base after the insertion; V bases sit at their
-        // ungapped index (V is never 5'-trimmed), so for V `end` is also an ungapped index
+        // V bases sit at their ungapped index (V is never 5'-trimmed), so for V `end` is
+        // also an ungapped index
         let (mut at, mut weights) = (Vec::new(), Vec::new());
         for i in 1..org.len() {
             let end = if kind == IndelKind::Del { i + len } else { i };
@@ -440,10 +446,22 @@ impl<'a> Simulator<'a> {
             at.push(i);
             weights.push(wt);
         }
-        if at.is_empty() {
-            return None;
-        }
-        let r = at[pick(&weights, rng)];
+        (!at.is_empty()).then(|| (kind, at[pick(&weights, rng)], len))
+    }
+
+    /// Applies a placed indel to the (mutated) `seq`; equivalence is computed on `germ`.
+    #[allow(clippy::too_many_arguments)]
+    fn apply_indel(
+        &self,
+        kind: IndelKind,
+        r: usize,
+        len: usize,
+        seq: &mut Vec<u8>,
+        germ: &[u8],
+        org: &mut Vec<Origin>,
+        rng: &mut impl Rng,
+    ) -> Indel {
+        let p = self.params;
         let germline_pos = match org[r] {
             Origin::J(u) => u,
             _ => r,
@@ -486,14 +504,7 @@ impl<'a> Simulator<'a> {
                 bases
             }
         };
-        Some(Indel {
-            kind,
-            read_pos: r,
-            germline_pos,
-            len,
-            bases: String::from_utf8(bases).expect("ACGT"),
-            equiv: (lo, hi),
-        })
+        Indel { kind, read_pos: r, germline_pos, len, bases: String::from_utf8(bases).expect("ACGT"), equiv: (lo, hi) }
     }
 }
 
