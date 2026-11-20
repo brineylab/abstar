@@ -201,14 +201,12 @@ risk.
 - **Inside a database, allele IDs are made unique with a short species
   prefix** (e.g. `hs|IGHV1-2*01`, `mm|IGHV1-2*01`) in mixed-species
   databases. Single-species databases use plain names.
-- **Output never shows the prefix.** `v_call`, `d_call`, `j_call`, and
-  `c_call` contain standard allele names only, so they stay compatible with
-  AIRR tools.
-- **Species is reported per segment** in `v_species`, `d_species`,
-  `j_species`, and `c_species`. Each is aligned position-by-position with
-  its call list. A tie across species with identical names therefore reads
-  `v_call = IGHV1-2*01,IGHV1-2*01` and `v_species = human,mouse`, with
-  nothing deduplicated.
+- **Output never shows the prefix.** Call fields contain standard allele
+  names only, so they stay compatible with AIRR tools.
+- **Species is reported per segment** (`v_species`, `v_species_ties`, etc.;
+  see [Gene calls and ties](#gene-calls-and-ties)). A tie across species with
+  identical names reads `v_call_ties = [IGHV1-2*01, IGHV1-2*01]` and
+  `v_species_ties = [human, mouse]`, with nothing deduplicated.
 - Per-segment species is needed, rather than a single `species` column,
   because humanized-mouse sequences mix species within one rearrangement
   (e.g. human V/D/J with mouse C). *My call.*
@@ -283,6 +281,46 @@ version targeted. This one file drives:
 The foundation supplies the mechanism and the AIRR-required fields. The full
 field list (including which current extension fields survive) is decided in
 the annotator design.
+
+### Gene calls and ties
+
+*User decision.* Applies identically to V, D, J, and C (shown for V):
+
+| Field | Contents |
+|---|---|
+| `v_call` | Exactly one allele, always. Searchable, countable, sortable. |
+| `v_gene` | The gene of `v_call`. |
+| `v_species` | The species of `v_call`. |
+| `v_call_ties` | Every allele with the top score, including `v_call`. A native list in Parquet; comma-joined in TSV. |
+| `v_species_ties` | Aligned entry by entry with `v_call_ties`. |
+
+- Tied alleles share the top score by definition, so `v_score` covers them
+  all. There is no score list.
+- There is no ambiguity boolean: it is `len(v_call_ties) > 1`. Add one only
+  if TSV users ask.
+- The names deliberately avoid `v_calls`, which is one letter from `v_call`
+  and easy to confuse.
+
+**Primary-call rule.** `v_call` is the most probable allele among the ties,
+chosen by these deterministic tie-breakers in order:
+
+1. Best alignment score.
+2. Functional before ORF before pseudogene.
+3. Population usage frequency, if the database provides it (optional
+   `usage` column in `alleles.tsv`).
+4. A fixed natural sort order on allele name.
+
+The same input and database always give the same call. The known bias is
+small and runs in the least harmful direction: allele counts within tie sets
+lean toward common, functional alleles. Rigorous analyses use `v_call_ties`.
+
+**Evaluation consequences:**
+
+- A call is correct if `v_call` is in the generator's set of equally valid
+  answers. Coverage of that set by `v_call_ties` is scored separately.
+- Because tie-break 3 shares usage data with the generator, evaluation must
+  also include generated sets with **uniform** allele usage, so that
+  agreement between the two cannot inflate accuracy.
 
 Encoding rules:
 
@@ -489,8 +527,8 @@ first commit.
   Germline sets are a few hundred alleles, so exhaustive SIMD (vectorized)
   alignment after a k-mer prefilter is feasible.
 - Must handle large indels without falling over (keeps long reads viable).
-- Ambiguity is reported AIRR-legally (e.g. comma-separated tied calls in
-  `v_call`); exact representation to be designed.
+- Ties are reported as in [Gene calls and ties](#gene-calls-and-ties): a
+  single `v_call` plus a `v_call_ties` list.
 - Accuracy is evaluated against our generator **and** external tools and
   datasets (e.g. IgBLAST, partis's simulator, IGoR/OLGA, real corpora) to
   avoid overfitting.
