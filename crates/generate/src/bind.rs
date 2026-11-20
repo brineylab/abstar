@@ -13,6 +13,8 @@ pub struct Candidates {
     pub d: Vec<Allele>,
     pub j: Vec<Allele>,
     pub c: Vec<Allele>,
+    /// Compare D reverse complements too (the model's `d_inversion` > 0).
+    pub d_inversion: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -91,7 +93,13 @@ pub fn bind(model: Model, db: &Database) -> Result<Bound, GenerateError> {
     let alleles: Vec<&Allele> =
         db.alleles.iter().filter(|a| a.species == model.species && a.locus == model.locus).collect();
     let of = |s: Segment| alleles.iter().filter(|a| a.segment == s).map(|a| (*a).clone()).collect::<Vec<_>>();
-    let candidates = Candidates { v: of(Segment::V), d: of(Segment::D), j: of(Segment::J), c: of(Segment::C) };
+    let candidates = Candidates {
+        v: of(Segment::V),
+        d: of(Segment::D),
+        j: of(Segment::J),
+        c: of(Segment::C),
+        d_inversion: model.d_inversion > 0.0,
+    };
     let ungapped: Vec<&Allele> = candidates.v.iter().filter(|a| !a.sequence_gapped.contains('.')).collect();
     if !ungapped.is_empty() {
         let ex: Vec<&str> = ungapped.iter().take(3).map(|a| a.id.as_str()).collect();

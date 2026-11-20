@@ -110,7 +110,7 @@ pub struct Productivity {
     pub productive: bool,
 }
 
-fn revcomp(s: &[u8]) -> Vec<u8> {
+pub(crate) fn revcomp(s: &[u8]) -> Vec<u8> {
     s.iter()
         .rev()
         .map(|b| match b.to_ascii_uppercase() {

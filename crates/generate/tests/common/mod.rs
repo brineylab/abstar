@@ -127,3 +127,64 @@ pub fn sim_igk_alleles() -> Vec<Allele> {
         k("IGKC*01", C, "CGAACTGTGGCTGCACCATCTGTCTTCATCTTCCCGCCATCTGATGAGCAGTTGAAATCTGGAACTGCC".into()),
     ]
 }
+
+/// `s` with base `p` changed (A→G, anything else→A).
+pub fn snp(s: &str, p: usize) -> String {
+    let b = if &s[p..p + 1] == "A" { "G" } else { "A" };
+    let mut s = s.to_string();
+    s.replace_range(p..p + 1, b);
+    s
+}
+
+fn revcomp_str(s: &str) -> String {
+    s.bytes()
+        .rev()
+        .map(|b| match b {
+            b'A' => 'T',
+            b'C' => 'G',
+            b'G' => 'C',
+            _ => 'A',
+        })
+        .collect()
+}
+
+/// `sim_igh_alleles` plus near-identical siblings, so truth sets tie and go unrecoverable:
+/// - IGHV1-1*03: *01 with two SNPs near the 3' end;
+/// - IGHV1-1*04: *01 missing its first 30 gapped positions (5'-partial);
+/// - IGHV1-2*02: *01 without its last 3 bases;
+/// - IGHD1-1*02: one SNP; IGHD3-1*01: reverse complement of IGHD1-1*01 with one SNP;
+/// - IGHJ1*02: one SNP near the 5' end; IGHJ1*03: *01 without its first 3 bases;
+/// - IGHM*02: one SNP at 20.
+///
+/// The extra V and D genes have no model usage, so they are candidates only.
+pub fn tricky_igh_alleles() -> Vec<Allele> {
+    use Segment::*;
+    let mut out = sim_igh_alleles();
+    let g = |n: &str| out.iter().find(|a| a.name == n).unwrap().sequence_gapped.clone();
+    let (v11, v12, d11, j1, m) = (g("IGHV1-1*01"), g("IGHV1-2*01"), g("IGHD1-1*01"), g("IGHJ1*01"), g("IGHM*01"));
+    let h = |n, s, g: String| sim(n, Locus::IGH, s, g);
+    let n = v11.len();
+    out.extend([
+        h("IGHV1-1*03", V, snp(&snp(&v11, n - 2), n - 5)),
+        h("IGHV1-1*04", V, format!("{}{}", ".".repeat(30), &v11[30..])),
+        h("IGHV1-2*02", V, v12[..v12.len() - 3].to_string()),
+        h("IGHD1-1*02", D, snp(&d11, 8)),
+        h("IGHD3-1*01", D, snp(&revcomp_str(&d11), 3)),
+        h("IGHJ1*02", J, snp(&j1, 2)),
+        h("IGHJ1*03", J, j1[3..].to_string()),
+        h("IGHM*02", C, snp(&m, 20)),
+    ]);
+    out
+}
+
+/// `sim_igk_alleles` plus IGKV1-1*02 (one SNP 3 bases from the 3' end) and IGKJ1*02
+/// (one SNP at 1); the model uses both alleles of each gene.
+pub fn tricky_igk_alleles() -> Vec<Allele> {
+    use Segment::*;
+    let mut out = sim_igk_alleles();
+    let g = |n: &str| out.iter().find(|a| a.name == n).unwrap().sequence_gapped.clone();
+    let (v, j) = (g("IGKV1-1*01"), g("IGKJ1*01"));
+    let k = |n, s, g: String| sim(n, Locus::IGK, s, g);
+    out.extend([k("IGKV1-1*02", V, snp(&v, v.len() - 3)), k("IGKJ1*02", J, snp(&j, 1))]);
+    out
+}
