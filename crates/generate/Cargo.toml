@@ -10,6 +10,7 @@ serde = { version = "1", features = ["derive"] }
 toml = "0.8"
 thiserror = "1"
 rand = "0.9"
+rand_distr = "0.5"
 
 [dev-dependencies]
 rand_chacha = "0.9"

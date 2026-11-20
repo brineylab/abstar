@@ -213,7 +213,7 @@ pub fn load_s5f_dir(dir: &Path) -> Result<ContextModel, GenerateError> {
 }
 
 /// Samples an index ∝ `weights` (assumes a positive total).
-fn pick(weights: &[f64], rng: &mut impl Rng) -> usize {
+pub(crate) fn pick(weights: &[f64], rng: &mut impl Rng) -> usize {
     let mut u = rng.random::<f64>() * weights.iter().sum::<f64>();
     let last = weights.iter().rposition(|&w| w > 0.0).unwrap_or(0);
     weights.iter().position(|&w| w > 0.0 && { u -= w; u < 0.0 }).unwrap_or(last)
