@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/germline", "crates/annotate", "crates/py"]
+members = ["crates/germline", "crates/table", "crates/annotate", "crates/py"]
 exclude = ["spikes"]
 
 [workspace.package]

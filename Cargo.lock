@@ -7,6 +7,7 @@ name = "abstar_annotate"
 version = "1.0.0-dev.0"
 dependencies = [
  "abstar_germline",
+ "abstar_table",
  "arrow-array",
  "arrow-schema",
  "criterion",
@@ -17,7 +18,6 @@ dependencies = [
  "serde_json",
  "tempfile",
  "thiserror 1.0.69",
- "toml 1.2.1+spec-1.1.0",
 ]
 
 [[package]]
@@ -43,6 +43,17 @@ dependencies = [
  "pyo3-arrow",
  "pyo3-build-config",
  "serde_json",
+]
+
+[[package]]
+name = "abstar_table"
+version = "1.0.0-dev.0"
+dependencies = [
+ "arrow-array",
+ "arrow-schema",
+ "parquet",
+ "tempfile",
+ "toml 1.2.1+spec-1.1.0",
 ]
 
 [[package]]

@@ -6,6 +6,7 @@ license.workspace = true
 
 [dependencies]
 abstar_germline = { path = "../germline" }
+abstar_table = { path = "../table" }
 arrow-array = "60.1.0"
 arrow-schema = "60.1.0"
 flate2 = "1"
@@ -16,7 +17,7 @@ thiserror = "1"
 parquet = { version = "60.1.0", features = ["arrow", "zstd"] }
 
 [build-dependencies]
-toml = "1.2.1"
+abstar_table = { path = "../table", default-features = false, features = ["codegen"] }
 
 [dev-dependencies]
 tempfile = "3"
