@@ -72,3 +72,23 @@ jobs:
           python -m venv /tmp/sdist-venv
           /tmp/sdist-venv/bin/pip install dist/*.tar.gz
           /tmp/sdist-venv/bin/python -c "import abstar._core"
+
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: dtolnay/rust-toolchain@stable
+      - run: python -m venv .venv
+      - name: Build and install
+        run: |
+          . .venv/bin/activate
+          pip install maturin
+          maturin develop --release
+          pip install -r docs/requirements.txt
+      - name: Build docs
+        run: |
+          . .venv/bin/activate
+          sphinx-build -W -b html docs docs/_build

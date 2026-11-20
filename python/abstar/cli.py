@@ -162,11 +162,13 @@ def germline_info(
 
 @app.command()
 def manual(
-    topic: Annotated[Optional[str], typer.Argument()] = None,
-    subtopic: Annotated[Optional[str], typer.Argument()] = None,
+    topic: Annotated[Optional[str], typer.Argument(help="Topic name; omit for the whole manual.")] = None,
+    subtopic: Annotated[Optional[str], typer.Argument(help="Field name (fields) or decision ID (decisions).")] = None,
 ) -> None:
-    """Built-in manual (filled in by a later task)."""
-    print("abstar manual: not yet available")
+    """Print the manual as Markdown: abstar manual [TOPIC] [SUBTOPIC]. Topics: commands, run, germline, manual, fields, conventions, ambiguity, errors, decisions."""
+    from . import manual as _manual
+
+    print(_manual.render(topic, subtopic))
 
 
 def main() -> None:
