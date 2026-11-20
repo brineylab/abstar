@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 const HEADER: &str =
     "id\tname\tgene\tlocus\tsegment\tspecies\tfunctionality\tsequence_gapped\tanchor\tsource\tusage";
 
-fn hex_sha256(bytes: &[u8]) -> String {
+pub(crate) fn hex_sha256(bytes: &[u8]) -> String {
     Sha256::digest(bytes).iter().map(|b| format!("{b:02x}")).collect()
 }
 
