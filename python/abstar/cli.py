@@ -76,7 +76,8 @@ def run(
 
     from . import api, germline
 
-    items = sequences if seq is None else [("1", seq)]
+    # SEQUENCES is always a path (or `-`), never a sequence: that is what --seq is for.
+    items = [("1", seq)] if seq is not None else sequences if sequences == "-" else Path(sequences)
     if output_dir is not None:
         if verbose:
             _err(f"database: {germline.resolve(germline_db)[0]}\ninputs: {items}")

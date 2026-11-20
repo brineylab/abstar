@@ -9,7 +9,7 @@ EXIT_CODES: dict[int, str] = {
 }
 
 ERROR_CODES: dict[str, tuple[int, str]] = {
-    "INPUT_NOT_FOUND": (2, "an input file does not exist"),
+    "INPUT_NOT_FOUND": (2, "an input file does not exist, or a string is neither a file nor a sequence"),
     "INPUT_UNREADABLE": (2, "an input file could not be read or parsed"),
     "INVALID_ARGUMENT": (2, "an argument value is invalid"),
     "OUTPUT_NAME_CONFLICT": (2, "two inputs would write the same output file"),

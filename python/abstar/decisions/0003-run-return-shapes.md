@@ -4,6 +4,8 @@
 
 Accepted (2026-11-20)
 
+Partly superseded: 0020 gives the exact path-or-sequence rule and how the CLI treats its positional, and 0021 makes `-` mean stdin.
+
 ## Context
 
 Return types that vary with the data (for example a single object for one sequence and a table for many, or a different type when some records fail) make API use brittle, especially for agents. This is an explicit anti-goal.
@@ -15,7 +17,7 @@ Return types that vary with the data (for example a single object for one sequen
 - `output_dir=None`: always a Polars DataFrame, including for one sequence or zero. A single record is `df.row(0, named=True)`.
 - `output_dir` given: results stream to disk and a small `RunSummary` is returned (counts annotated/failed/unassigned, output paths, run metadata path).
 
-A string argument is treated as a file path if it exists; otherwise it is validated as a nucleotide sequence, and anything else is an error.
+A string argument is treated as a file path if it exists; otherwise it is validated as a nucleotide sequence, and anything else is an error. 0020 refines this rule and 0021 adds `-` for stdin.
 
 ## Alternatives considered
 

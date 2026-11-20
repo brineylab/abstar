@@ -1,6 +1,8 @@
 """`abstar.run()`: the single public entry point."""
 from __future__ import annotations
 
+import errno
+import os
 from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
@@ -12,6 +14,9 @@ if TYPE_CHECKING:
     import polars as pl
 
 _EXTS = (".fasta", ".fa", ".fna", ".fastq", ".fq")
+_NT = frozenset("ACGTNRYSWKMBDHVacgtnryswkmbdhv")
+# Errors that mean "this string cannot be a path" (a long sequence; an invalid name on Windows).
+_NOT_A_PATH = (errno.ENAMETOOLONG, errno.EINVAL)
 _FORMATS = {"airr", "parquet"}
 _STATUSES = ("annotated", "unassigned", "invalid_input", "error")
 
@@ -39,9 +44,14 @@ def _is_seq_file(name: str) -> bool:
 
 def _exists(p: Path) -> bool:
     try:
-        return p.exists()
-    except OSError:  # e.g. ENAMETOOLONG for a long sequence string
+        os.stat(p)
+        return True
+    except (FileNotFoundError, NotADirectoryError, ValueError):  # ValueError: embedded NUL
         return False
+    except OSError as e:
+        if e.errno in _NOT_A_PATH:
+            return False
+        raise AbstarError("INPUT_UNREADABLE", f"{p}: {e.strerror or e}") from None
 
 
 def _classify(item) -> tuple[str, object]:
@@ -60,8 +70,8 @@ def _classify(item) -> tuple[str, object]:
         raise AbstarError("INVALID_ARGUMENT", f"unsupported input of type {type(item).__name__}")
     if item and _exists(Path(item)):
         return "path", Path(item)
-    if "/" in item or "\\" in item or _is_seq_file(item):
-        raise AbstarError("INPUT_NOT_FOUND", f"{item} does not exist")
+    if not _NT.issuperset(item):
+        raise AbstarError("INPUT_NOT_FOUND", f"{item}: not an existing file and not a nucleotide sequence")
     return "seq", item
 
 
@@ -101,9 +111,11 @@ def run(
     `sequences` is a FASTA/FASTQ path (optionally gzipped), a directory of them
     (searched recursively, sorted by relative path), a single sequence string, an
     iterable of any one of those kinds, or an iterable of `(id, sequence)` tuples.
-    A string that exists on disk is a path; one that does not but contains `/` or
-    `\\`, or ends in a FASTA/FASTQ extension, raises `INPUT_NOT_FOUND`; any other
-    string is a sequence, with ID `"1"`..`"N"` by position. Mixing paths and
+    A string that exists on disk is a path; otherwise, if it consists only of
+    nucleotide characters (`ACGTN` and IUPAC `RYSWKMBDHV`, any case) it is a
+    sequence, with ID `"1"`..`"N"` by position, and anything else raises
+    `INPUT_NOT_FOUND`. A path that cannot be checked (for example, permission
+    denied) raises `INPUT_UNREADABLE`. `"-"` is stdin. Mixing paths and
     sequences raises `INVALID_ARGUMENT`. Iterables are consumed once.
 
     With `output_dir=None` a Polars DataFrame is returned and `formats` is

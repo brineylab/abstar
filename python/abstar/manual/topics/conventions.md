@@ -34,6 +34,6 @@ When writing to disk, `run.json` is written last, beside the outputs: its presen
 ## `sequence_id` rules
 
 - `sequence_id` is the FASTA or FASTQ header's first whitespace-delimited token, byte-for-byte, and is always a string.
-- A bare sequence string is one record with ID `"1"`. A list of sequence strings gets IDs `"1"` to `"N"` by position. A list of `(id, sequence)` pairs keeps its IDs.
+- A bare sequence string is one record with ID `"1"`. A list of sequence strings gets IDs `"1"` to `"N"` by position. A list of `(id, sequence)` pairs keeps its IDs. In `abstar.run()`, a string that is neither an existing file nor made only of valid sequence characters raises `INPUT_NOT_FOUND` (0020). On the command line, SEQUENCES is always a file, directory or `-`; use `--seq` for a sequence.
 - Valid sequence characters, case-insensitive: `ACGTN` plus the IUPAC codes `RYSWKMBDHV`.
 - Functionality values are `F`, `ORF`, `P`, `NF` and `unknown`.

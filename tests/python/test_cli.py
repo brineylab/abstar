@@ -146,3 +146,11 @@ def test_build_overwrite_refuses_non_database_dir(tmp_path):
     p = abstar("germline", "build", recipe(tmp_path, "mydb"), "--output", victim, "--overwrite")
     assert p.returncode == 2 and "error[DATABASE_EXISTS]" in p.stderr and "not a germline database" in p.stderr
     assert (victim / "thesis.docx").read_text() == "precious"
+
+
+def test_positional_is_always_a_path(tmp_path):
+    for args in (["run", "ACGT"], ["run", "sample1"], ["run", "reads.txt", tmp_path / "out1"]):
+        p = abstar(*args)
+        assert p.returncode == 2 and p.stderr.startswith("error[INPUT_NOT_FOUND]: "), (args, p.stderr)
+        assert p.stdout == ""
+    assert not (tmp_path / "out1").exists()

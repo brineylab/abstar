@@ -128,3 +128,30 @@ def test_long_sequences(tmp_path):
     assert abstar.run([seq, seq]).shape[0] == 2
     s = abstar.run(seq, tmp_path / "out")
     assert [p.name for p in s.inputs[0].outputs.values()] == ["records.tsv"]
+
+
+@pytest.mark.parametrize("item", ["sample1", "reads.txt", "ACGT-ACGT"])
+def test_non_nucleotide_string_is_not_found(item, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    assert err_code(abstar.run, item) == "INPUT_NOT_FOUND"
+    assert err_code(abstar.run, item, tmp_path / "out") == "INPUT_NOT_FOUND"
+    assert not (tmp_path / "out").exists()
+
+
+def test_iupac_and_lowercase_strings_are_sequences():
+    assert abstar.run("acgtnRYSWKMBDHV").shape[0] == 1
+
+
+def test_permission_error_is_unreadable(tmp_path):
+    import os
+
+    if os.geteuid() == 0:
+        pytest.skip("permissions do not bind root")
+    locked = tmp_path / "locked"
+    locked.mkdir()
+    locked.chmod(0)
+    try:
+        assert err_code(abstar.run, str(locked / "x.fasta")) == "INPUT_UNREADABLE"
+        assert err_code(abstar.run, locked / "x.fasta") == "INPUT_UNREADABLE"
+    finally:
+        locked.chmod(0o755)
