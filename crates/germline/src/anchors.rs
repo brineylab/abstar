@@ -1,8 +1,12 @@
 use crate::{Allele, Segment};
 
 /// V Cys104 anchor: IMGT positions 310-312 (gapped `309..312`) must be `TGT`/`TGC`;
-/// returns the ungapped offset of that codon's first base.
+/// returns the ungapped offset of that codon's first base. A sequence without any `.`
+/// is not IMGT-gapped, so its offsets are not IMGT positions: never an anchor.
 pub fn find_v_anchor(gapped: &str) -> Option<usize> {
+    if !gapped.contains('.') {
+        return None;
+    }
     let codon = gapped.get(309..312)?.to_ascii_uppercase();
     matches!(codon.as_str(), "TGT" | "TGC")
         .then(|| gapped.as_bytes()[..309].iter().filter(|&&b| b != b'.').count())
@@ -28,13 +32,12 @@ pub(crate) fn assign(a: &mut Allele) -> Option<String> {
     match a.segment {
         Segment::V => {
             a.anchor = find_v_anchor(&a.sequence_gapped);
-            let gapped = a.sequence_gapped.contains('.');
             a.anchor.is_none().then(|| {
-                let mut m = "no Cys104 codon at IMGT positions 310-312".to_string();
-                if !gapped {
-                    m.push_str(" (sequence is not IMGT-gapped)");
+                if a.sequence_gapped.contains('.') {
+                    "no Cys104 codon at IMGT positions 310-312".into()
+                } else {
+                    "V sequence is not IMGT-gapped: no Cys104 anchor assigned".into()
                 }
-                m
             })
         }
         Segment::J => {

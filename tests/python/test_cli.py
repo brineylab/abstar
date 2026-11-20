@@ -175,7 +175,7 @@ def test_build_human_output(tmp_path):
     lines = p.stdout.splitlines()
     assert "restricted: IGH/J" in lines
     assert "passed through: IGH/V, IGH/C" in lines
-    assert "warning: IGHV9-9*01: no Cys104 codon at IMGT positions 310-312" in p.stderr
+    assert "warning: IGHV9-9*01: V sequence is not IMGT-gapped" in p.stderr
     assert "{" not in p.stderr
 
 
@@ -207,7 +207,7 @@ def test_info_shows_manifest(tmp_path):
     assert len(d["alleles_sha256"]) == 64 and d["provenance"] and d["warnings"]
     p = abstar("germline", "info", "donor")
     assert p.returncode == 0
-    for s in (d["built"], d["abstar_version"], d["alleles_sha256"], "provenance", "IGHV9-9*01: no Cys104"):
+    for s in (d["built"], d["abstar_version"], d["alleles_sha256"], "provenance", "IGHV9-9*01: V sequence is not IMGT-gapped"):
         assert s in p.stdout, s
 
 

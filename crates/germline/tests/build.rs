@@ -148,8 +148,7 @@ fn missing_anchors_warn_once_per_allele() {
     let r = build(&recipe, &tmp.path().join("db"), &no_dbs(), &opts()).unwrap();
     assert_eq!(r.warnings.len(), 2, "{:?}", r.warnings);
     let v = r.warnings.iter().find(|w| w.allele == "IGHV1-2*01").unwrap();
-    assert!(v.message.starts_with("no Cys104 codon at IMGT positions 310-312"), "{}", v.message);
-    assert!(v.message.contains("not IMGT-gapped"), "{}", v.message);
+    assert!(v.message.starts_with("V sequence is not IMGT-gapped"), "{}", v.message);
     let j = r.warnings.iter().find(|w| w.allele == "IGHJ1*01").unwrap();
     assert!(j.message.contains("motif"), "{}", j.message);
 }
@@ -351,4 +350,18 @@ fn recipe_name_must_be_one_path_component() {
     // `+` stays legal (the built-in `human+c57bl6`)
     let r = put(tmp.path(), "r.toml", "name = \"human+c57bl6\"\n[[source]]\ndatabase = \"x\"\n");
     assert!(!build(&r, &out, &no_dbs(), &opts()).unwrap_err().to_string().contains("path component"));
+}
+
+#[test]
+fn ungapped_v_gets_no_imgt_position_anchor() {
+    // 312+ nt, ungapped, with TGT at offset 309: positions 310-312 are not IMGT positions here
+    let v = format!("{}TGT{}", "A".repeat(309), "C".repeat(30));
+    assert_eq!(find_v_anchor(&v), None);
+    let tmp = tempfile::tempdir().unwrap();
+    let recipe = one_v(tmp.path(), &format!(">IGHV1-2*01\n{v}\n"));
+    let out = tmp.path().join("db");
+    let r = build(&recipe, &out, &no_dbs(), &opts()).unwrap();
+    assert_eq!(allele(&load(&out).unwrap(), "IGHV1-2*01").anchor, None);
+    assert_eq!(r.warnings.len(), 1, "{:?}", r.warnings);
+    assert!(r.warnings[0].message.starts_with("V sequence is not IMGT-gapped"), "{}", r.warnings[0].message);
 }
