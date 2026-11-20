@@ -18,6 +18,8 @@ Germline databases (0005) are built from OGRDB germline-set JSON, IMGT-style gap
 
 **Disagreement policy.** When OGRDB supplies `j_cdr3_end` and the motif search finds a different position (or none), the OGRDB value is kept and the build warns `motif anchor X disagrees with OGRDB j_cdr3_end Y`. Curated coordinates outrank a heuristic, and the warning makes every disagreement visible. A V or J without an anchor is reported by name with one warning per allele: the specific anchor-search message, which replaces the generic validation warning for that allele.
 
+**IUPAC ambiguity codes.** Germline sequences accept the same alphabet as queries: `ACGTN` plus the IUPAC codes `RYSWKMBDHV`, case-insensitive, plus `.` as the IMGT gap. Anything else (`X`, `-`, `*`, `U`, digits) is rejected. Real OGRDB sets contain ambiguity codes: C57BL/6 `IGHV0-KAOG*00` has an `S` at aligned position 130, and legacy kept it verbatim. Anchor detection stays strict: an ambiguity code never satisfies the V `TGT`/`TGC` check or a `[ACGT]` motif position.
+
 ## Alternatives considered
 
 - Parse the segment from the allele name: fails on constant-region names (`IGHD*01`, `IGHM*01`) and on non-IMGT names.
@@ -31,3 +33,4 @@ Germline databases (0005) are built from OGRDB germline-set JSON, IMGT-style gap
 - One recipe file fully describes a database build, including provenance and checksums of every input.
 - V genes whose gapping is not IMGT-numbered get no anchor and a named warning rather than a silently wrong anchor.
 - OGRDB J anchors are authoritative; every place the motif disagrees is listed in the manifest warnings.
+- Germline sequences may contain IUPAC ambiguity codes. The annotator must treat them as ambiguous bases (neither a match nor a mutation by default), not as literal characters.

@@ -20,7 +20,8 @@ pub fn validate(alleles: &[Allele]) -> Result<Vec<BuildWarning>, GermlineError> 
         if let Some(c) = a
             .sequence_gapped
             .chars()
-            .find(|c| !matches!(c.to_ascii_uppercase(), 'A' | 'C' | 'G' | 'T' | 'N' | '.'))
+            // ACGTN + IUPAC ambiguity codes (same alphabet as queries) + IMGT gap '.'
+            .find(|c| !matches!(c.to_ascii_uppercase(), 'A' | 'C' | 'G' | 'T' | 'N' | 'R' | 'Y' | 'S' | 'W' | 'K' | 'M' | 'B' | 'D' | 'H' | 'V' | '.'))
         {
             return Err(bad(a, format!("invalid sequence character {c:?}")));
         }

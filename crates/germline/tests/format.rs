@@ -132,8 +132,10 @@ fn duplicate_id_rejected() {
 
 #[test]
 fn bad_character_rejected() {
-    let a = allele("X", Locus::IGH, Segment::V, "ACGX", Some(0));
-    assert!(validate(&[a]).is_err());
+    for bad in ["ACGX", "ACG-T", "ACG*", "ACG1", "ACGU"] {
+        let a = allele("X", Locus::IGH, Segment::V, bad, Some(0));
+        assert!(validate(&[a]).is_err(), "{bad}");
+    }
     let ok = allele("Y", Locus::IGH, Segment::V, "acgn.t", Some(0));
     assert!(validate(&[ok]).is_ok());
 }
@@ -233,4 +235,18 @@ fn control_characters_rejected() {
         assert_eq!(write(&d, &dir, false).unwrap_err().code(), "DATABASE_INVALID");
         assert!(!dir.exists());
     }
+}
+
+#[test]
+fn iupac_ambiguity_codes_accepted_and_round_trip() {
+    // real OGRDB sets carry IUPAC codes, e.g. C57BL/6 IGHV0-KAOG*00 has an S
+    let t = tempfile::tempdir().unwrap();
+    let dir = t.path().join("db");
+    let mut d = db();
+    d.alleles.push(allele("V2", Locus::IGH, Segment::V, "ACGTS..sRYWKMBDHVnryswkmbdhv", Some(4)));
+    assert!(validate(&d.alleles).is_ok());
+    write(&d, &dir, false).unwrap();
+    let loaded = load(&dir).unwrap();
+    let v2 = loaded.alleles.iter().find(|a| a.id == "V2").unwrap();
+    assert_eq!(v2.sequence_gapped, "ACGTS..sRYWKMBDHVnryswkmbdhv");
 }

@@ -52,6 +52,19 @@ fn j_anchor_none_without_motif() {
 }
 
 #[test]
+fn anchors_do_not_match_ambiguous_bases() {
+    // [ACGT] stays strict: an IUPAC code never satisfies the motif or the Cys codon
+    let j = "ACTACTTTGACTACTGGGGCCAGGGAACC";
+    assert_eq!(find_j_anchor(j), Some(14));
+    assert_eq!(find_j_anchor(&j.replace("TGGGGCCAGGG", "TGGGGCSAGGG")), None);
+    assert_eq!(find_j_anchor(&j.replace("TGGGGCCAGGG", "TGGGGCCAGGS")), None);
+    let mut v = IGHV4_28_05_GAPPED.to_string();
+    assert_eq!(&v[309..312], "TGT");
+    v.replace_range(311..312, "Y"); // TGY could be either Cys codon, but is not called
+    assert_eq!(find_v_anchor(&v), None);
+}
+
+#[test]
 fn ogrdb_build() {
     let tmp = tempfile::tempdir().unwrap();
     let out = tmp.path().join("db");
