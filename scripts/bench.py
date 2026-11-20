@@ -22,26 +22,32 @@ def main():
     ap.add_argument("--out", help="also write the JSON here")
     a = ap.parse_args()
 
-    data = gzip.open(CORPUS, "rt").read()
-    n_records = data.count(">") * a.replicate
-    first_seq = data.split("\n", 2)[1]
+    raw = gzip.open(CORPUS, "rb").read()
+    n_records = raw.count(b">") * a.replicate
+    first_seq = raw.split(b"\n", 2)[1].decode()
 
     res = {"help_ms": median_ms(["--help"]), "single_seq_ms": median_ms(["run", "--seq", first_seq])}
 
     tmp = tempfile.mkdtemp(prefix="abstar-bench-")
     try:
         fa = Path(tmp) / "in.fasta"
-        fa.write_text(data * a.replicate)
+        with open(fa, "wb") as f:  # stream N copies; no large in-memory string
+            for _ in range(a.replicate):
+                f.write(raw)
+        del raw
         out = Path(tmp) / "out"
-        # Caveat: RUSAGE_CHILDREN ru_maxrss is the max over ALL children so far (incl. the
-        # short runs above, which are smaller), so it reflects the throughput run here.
+        # Run abstar under a tiny wrapper that reports its own RUSAGE_CHILDREN maxrss, so the
+        # figure is abstar's alone and can't inherit this harness's high-water mark.
+        wrap = ("import resource,subprocess,sys;subprocess.run(sys.argv[1:],check=True);"
+                "print(resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss,file=sys.stderr)")
         t = time.perf_counter()
-        subprocess.run([ABSTAR, "run", str(fa), str(out), "--quiet"], check=True)
+        r = subprocess.run([sys.executable, "-c", wrap, ABSTAR, "run", str(fa), str(out), "--quiet"],
+                           check=True, stderr=subprocess.PIPE, text=True)
         dt = time.perf_counter() - t
+        rss = int(r.stderr.strip().splitlines()[-1])
         res["throughput_rps"] = n_records / dt
         res["records"] = n_records
         # ru_maxrss is KiB on Linux, bytes on macOS.
-        rss = resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss
         res["peak_rss_mb"] = rss / (1024 * 1024 if sys.platform == "darwin" else 1024)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
