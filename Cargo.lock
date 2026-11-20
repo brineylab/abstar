@@ -25,10 +25,16 @@ name = "abstar_generate"
 version = "1.0.0-dev.0"
 dependencies = [
  "abstar_germline",
+ "abstar_table",
+ "arrow-array",
+ "arrow-schema",
  "rand",
  "rand_chacha",
  "rand_distr",
+ "rayon",
  "serde",
+ "serde_json",
+ "sha2",
  "tempfile",
  "thiserror 1.0.69",
  "toml 0.8.23",

@@ -34,6 +34,17 @@ impl Spec {
     }
 }
 
+/// The form `FromStr` reads: `fixed:X`, `uniform:LO-HI`, `beta:A,B`.
+impl std::fmt::Display for Spec {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match *self {
+            Spec::Fixed(x) => write!(f, "fixed:{x}"),
+            Spec::Uniform(a, b) => write!(f, "uniform:{a}-{b}"),
+            Spec::Beta(a, b) => write!(f, "beta:{a},{b}"),
+        }
+    }
+}
+
 impl FromStr for Spec {
     type Err = GenerateError;
 

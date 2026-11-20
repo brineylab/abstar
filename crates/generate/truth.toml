@@ -1,0 +1,633 @@
+# Truth table schema for `abstar generate` (decisions 0025, 0026).
+# Rust types, the Arrow schema and the manual field reference are generated from this file.
+airr_version = "2.0"
+
+[[field]]
+name = "sequence_id"
+type = "string"
+nullable = false
+origin = "airr-required"
+coordinates = ""
+description = "Read identifier: \"g\" then the 1-based read number, zero-padded to the width of n (g001 … g500)."
+decision = ""
+
+[[field]]
+name = "sequence"
+type = "string"
+nullable = false
+origin = "airr-required"
+coordinates = ""
+description = "The read: the generated V(D)J plus any constant-region prefix, after mutation, indels and truncation."
+decision = ""
+
+[[field]]
+name = "rev_comp"
+type = "bool"
+nullable = true
+origin = "airr-required"
+coordinates = ""
+description = "Always F: reads are generated in the V(D)J sense orientation."
+decision = ""
+
+[[field]]
+name = "productive"
+type = "bool"
+nullable = true
+origin = "airr-required"
+coordinates = ""
+description = "vj_in_frame, no stop codon, and the read keeps the conserved Cys104 and Trp/Phe118 codons. F when the junction is not in the read."
+decision = ""
+
+[[field]]
+name = "vj_in_frame"
+type = "bool"
+nullable = true
+origin = "airr-optional"
+coordinates = ""
+description = "The junction length is a multiple of 3 and the J anchor is in the V reading frame. F when the junction is not in the read."
+decision = ""
+
+[[field]]
+name = "stop_codon"
+type = "bool"
+nullable = true
+origin = "airr-optional"
+coordinates = ""
+description = "A stop codon in the V-frame translation of the read's V(D)J bases (constant region excluded)."
+decision = ""
+
+[[field]]
+name = "locus"
+type = "string"
+nullable = true
+origin = "airr-optional"
+coordinates = ""
+description = "Locus of the recombination model (IGH, IGK, IGL, TRA, TRB, …)."
+decision = ""
+
+[[field]]
+name = "v_call"
+type = "string"
+nullable = true
+origin = "airr-required"
+coordinates = ""
+description = "The V allele actually used (true generative value), even if truncation removed every V base."
+decision = ""
+
+[[field]]
+name = "d_call"
+type = "string"
+nullable = true
+origin = "airr-required"
+coordinates = ""
+description = "The D allele actually used, even if trimmed to nothing; null for loci without D."
+decision = ""
+
+[[field]]
+name = "j_call"
+type = "string"
+nullable = true
+origin = "airr-required"
+coordinates = ""
+description = "The J allele actually used (true generative value)."
+decision = ""
+
+[[field]]
+name = "c_call"
+type = "string"
+nullable = true
+origin = "airr-optional"
+coordinates = ""
+description = "The constant allele whose prefix was appended; null without a constant region."
+decision = ""
+
+[[field]]
+name = "junction"
+type = "string"
+nullable = true
+origin = "airr-required"
+coordinates = "read: 1-based closed"
+description = "Read bases from the first base of the Cys104 codon through the last base of the Trp/Phe118 codon of the true alleles. Null when either codon is not wholly in the read."
+decision = ""
+
+[[field]]
+name = "junction_aa"
+type = "string"
+nullable = true
+origin = "airr-required"
+coordinates = ""
+description = "Translation of junction from its first base; a trailing partial codon is dropped."
+decision = ""
+
+[[field]]
+name = "junction_length"
+type = "int64"
+nullable = true
+origin = "airr-optional"
+coordinates = ""
+description = "Length of junction in nucleotides."
+decision = ""
+
+[[field]]
+name = "v_sequence_start"
+type = "int64"
+nullable = true
+origin = "airr-optional"
+coordinates = "read: 1-based closed"
+description = "Read position of the first V-derived base; null when no V base is in the read."
+decision = ""
+
+[[field]]
+name = "v_sequence_end"
+type = "int64"
+nullable = true
+origin = "airr-optional"
+coordinates = "read: 1-based closed"
+description = "Read position of the last V-derived base; null when no V base is in the read."
+decision = ""
+
+[[field]]
+name = "d_sequence_start"
+type = "int64"
+nullable = true
+origin = "airr-optional"
+coordinates = "read: 1-based closed"
+description = "Read position of the first D-derived base; null when no D base is in the read."
+decision = ""
+
+[[field]]
+name = "d_sequence_end"
+type = "int64"
+nullable = true
+origin = "airr-optional"
+coordinates = "read: 1-based closed"
+description = "Read position of the last D-derived base; null when no D base is in the read."
+decision = ""
+
+[[field]]
+name = "j_sequence_start"
+type = "int64"
+nullable = true
+origin = "airr-optional"
+coordinates = "read: 1-based closed"
+description = "Read position of the first J-derived base; null when no J base is in the read."
+decision = ""
+
+[[field]]
+name = "j_sequence_end"
+type = "int64"
+nullable = true
+origin = "airr-optional"
+coordinates = "read: 1-based closed"
+description = "Read position of the last J-derived base; null when no J base is in the read."
+decision = ""
+
+[[field]]
+name = "c_sequence_start"
+type = "int64"
+nullable = true
+origin = "airr-optional"
+coordinates = "read: 1-based closed"
+description = "Read position of the first constant region-derived base; null when no constant region base is in the read."
+decision = ""
+
+[[field]]
+name = "c_sequence_end"
+type = "int64"
+nullable = true
+origin = "airr-optional"
+coordinates = "read: 1-based closed"
+description = "Read position of the last constant region-derived base; null when no constant region base is in the read."
+decision = ""
+
+[[field]]
+name = "v_germline_start"
+type = "int64"
+nullable = true
+origin = "airr-optional"
+coordinates = "germline: 1-based closed, ungapped allele"
+description = "Position in the ungapped true V allele of the read's first V-derived base."
+decision = ""
+
+[[field]]
+name = "v_germline_end"
+type = "int64"
+nullable = true
+origin = "airr-optional"
+coordinates = "germline: 1-based closed, ungapped allele"
+description = "Position in the ungapped true V allele of the read's last V-derived base."
+decision = ""
+
+[[field]]
+name = "d_germline_start"
+type = "int64"
+nullable = true
+origin = "airr-optional"
+coordinates = "germline: 1-based closed, ungapped allele"
+description = "Position of the read's first D-derived base in the ungapped true D allele, or in its reverse complement when d_inverted."
+decision = ""
+
+[[field]]
+name = "d_germline_end"
+type = "int64"
+nullable = true
+origin = "airr-optional"
+coordinates = "germline: 1-based closed, ungapped allele"
+description = "Position of the read's last D-derived base in the ungapped true D allele, or in its reverse complement when d_inverted."
+decision = ""
+
+[[field]]
+name = "j_germline_start"
+type = "int64"
+nullable = true
+origin = "airr-optional"
+coordinates = "germline: 1-based closed, ungapped allele"
+description = "Position in the ungapped true J allele of the read's first J-derived base."
+decision = ""
+
+[[field]]
+name = "j_germline_end"
+type = "int64"
+nullable = true
+origin = "airr-optional"
+coordinates = "germline: 1-based closed, ungapped allele"
+description = "Position in the ungapped true J allele of the read's last J-derived base."
+decision = ""
+
+[[field]]
+name = "np1"
+type = "string"
+nullable = true
+origin = "airr-optional"
+coordinates = ""
+description = "Read bases strictly between the last V-derived base and the first D-derived base (or the first J-derived base when the read has no D base): N and P nucleotides as they are in the read, after mutation. Null when either flanking segment is not in the read."
+decision = ""
+
+[[field]]
+name = "np1_length"
+type = "int64"
+nullable = true
+origin = "airr-optional"
+coordinates = ""
+description = "Length of np1."
+decision = ""
+
+[[field]]
+name = "np2"
+type = "string"
+nullable = true
+origin = "airr-optional"
+coordinates = ""
+description = "Read bases strictly between the last D-derived base and the first J-derived base, after mutation. Null when the read has no D base or no J base."
+decision = ""
+
+[[field]]
+name = "np2_length"
+type = "int64"
+nullable = true
+origin = "airr-optional"
+coordinates = ""
+description = "Length of np2."
+decision = ""
+
+[[field]]
+name = "v_identity"
+type = "float64"
+nullable = true
+origin = "airr-optional"
+coordinates = ""
+description = "Fraction of the read's V-derived bases that match the true V allele (1 − v_mutation_frequency); inserted and deleted bases are not counted. Null when no V base is in the read."
+decision = ""
+
+[[field]]
+name = "v_gene"
+type = "string"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Gene of the true V allele (v_call without the allele)."
+decision = "0008"
+
+[[field]]
+name = "d_gene"
+type = "string"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Gene of the true D allele (d_call without the allele)."
+decision = "0008"
+
+[[field]]
+name = "j_gene"
+type = "string"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Gene of the true J allele (j_call without the allele)."
+decision = "0008"
+
+[[field]]
+name = "c_gene"
+type = "string"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Gene of the true constant region allele (c_call without the allele)."
+decision = "0008"
+
+[[field]]
+name = "v_call_valid"
+type = "list<string>"
+nullable = false
+origin = "abstar"
+coordinates = ""
+description = "Every V allele tied for the fewest mismatches over the read's V-derived bases, sorted; empty when the read has none."
+decision = "0025"
+
+[[field]]
+name = "d_call_valid"
+type = "list<string>"
+nullable = false
+origin = "abstar"
+coordinates = ""
+description = "Every D allele tied for the fewest mismatches over the read's D-derived bases, sorted; empty when the read has none."
+decision = "0025"
+
+[[field]]
+name = "j_call_valid"
+type = "list<string>"
+nullable = false
+origin = "abstar"
+coordinates = ""
+description = "Every J allele tied for the fewest mismatches over the read's J-derived bases, sorted; empty when the read has none."
+decision = "0025"
+
+[[field]]
+name = "c_call_valid"
+type = "list<string>"
+nullable = false
+origin = "abstar"
+coordinates = ""
+description = "Every constant allele tied for the fewest mismatches over the read's constant-derived bases, sorted; empty when the read has none."
+decision = "0025"
+
+[[field]]
+name = "v_gene_valid"
+type = "list<string>"
+nullable = false
+origin = "abstar"
+coordinates = ""
+description = "Genes of the alleles in v_call_valid, sorted and deduplicated."
+decision = "0025"
+
+[[field]]
+name = "d_gene_valid"
+type = "list<string>"
+nullable = false
+origin = "abstar"
+coordinates = ""
+description = "Genes of the alleles in d_call_valid, sorted and deduplicated."
+decision = "0025"
+
+[[field]]
+name = "j_gene_valid"
+type = "list<string>"
+nullable = false
+origin = "abstar"
+coordinates = ""
+description = "Genes of the alleles in j_call_valid, sorted and deduplicated."
+decision = "0025"
+
+[[field]]
+name = "d_call_null_valid"
+type = "bool"
+nullable = false
+origin = "abstar"
+coordinates = ""
+description = "A null D call is also correct: the read's D-derived run is shorter than 5 nt (always T for loci without D)."
+decision = "0025"
+
+[[field]]
+name = "v_sequence_end_valid"
+type = "list<int64>"
+nullable = false
+origin = "abstar"
+coordinates = "read: 1-based closed"
+description = "Every v_sequence_end in a configuration tied for the best boundary score (matches minus mismatches), sorted."
+decision = "0025"
+
+[[field]]
+name = "d_sequence_start_valid"
+type = "list<int64>"
+nullable = false
+origin = "abstar"
+coordinates = "read: 1-based closed"
+description = "Every d_sequence_start in a configuration tied for the best boundary score, sorted."
+decision = "0025"
+
+[[field]]
+name = "d_sequence_end_valid"
+type = "list<int64>"
+nullable = false
+origin = "abstar"
+coordinates = "read: 1-based closed"
+description = "Every d_sequence_end in a configuration tied for the best boundary score, sorted."
+decision = "0025"
+
+[[field]]
+name = "j_sequence_start_valid"
+type = "list<int64>"
+nullable = false
+origin = "abstar"
+coordinates = "read: 1-based closed"
+description = "Every j_sequence_start in a configuration tied for the best boundary score, sorted."
+decision = "0025"
+
+[[field]]
+name = "v_trim_3"
+type = "int64"
+nullable = false
+origin = "abstar"
+coordinates = ""
+description = "Bases trimmed from the 3' end of the V allele; negative = that many P-nucleotides added."
+decision = "0026"
+
+[[field]]
+name = "d_trim_5"
+type = "int64"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Bases trimmed from the 5' end of the D (as used: reverse-complemented when d_inverted); negative = P-nucleotides. Null without D."
+decision = "0026"
+
+[[field]]
+name = "d_trim_3"
+type = "int64"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Bases trimmed from the 3' end of the D (as used); negative = P-nucleotides. Null without D."
+decision = "0026"
+
+[[field]]
+name = "j_trim_5"
+type = "int64"
+nullable = false
+origin = "abstar"
+coordinates = ""
+description = "Bases trimmed from the 5' end of the J allele; negative = P-nucleotides."
+decision = "0026"
+
+[[field]]
+name = "d_inverted"
+type = "bool"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "The D was used as its reverse complement. Null without D."
+decision = "0026"
+
+[[field]]
+name = "mutations"
+type = "list<string>"
+nullable = false
+origin = "abstar"
+coordinates = "read: 1-based closed"
+description = "Net substitutions in the read, sorted by position, as \"POS:FROM>TO\" (POS 1-based in the read, FROM the unmutated base). A base hit twice is listed once; a base mutated back to its original is not listed."
+decision = "0026"
+
+[[field]]
+name = "indels"
+type = "list<string>"
+nullable = false
+origin = "abstar"
+coordinates = "read: 1-based closed"
+description = "Indels inside the read, as \"ins|del:POS:LEN:BASES:MIN-MAX\". POS (1-based in the read) is the first inserted base, or the first base after a deletion; BASES are the inserted or deleted bases; MIN-MAX is the range of equivalent POS values (VCF-style normalization), clipped to the read. An indel without a read base on both sides is not listed."
+decision = "0026"
+
+[[field]]
+name = "truncate_5p"
+type = "int64"
+nullable = false
+origin = "abstar"
+coordinates = ""
+description = "Bases removed from the 5' end of the finished read."
+decision = "0026"
+
+[[field]]
+name = "truncate_3p"
+type = "int64"
+nullable = false
+origin = "abstar"
+coordinates = ""
+description = "Bases removed from the 3' end of the finished read."
+decision = "0026"
+
+[[field]]
+name = "v_mutation_frequency"
+type = "float64"
+nullable = false
+origin = "abstar"
+coordinates = ""
+description = "Fraction of the read's V-derived bases that differ from the true V allele (0 when the read has no V base)."
+decision = "0026"
+
+[[field]]
+name = "high_mutation"
+type = "bool"
+nullable = false
+origin = "abstar"
+coordinates = ""
+description = "v_mutation_frequency ≥ 0.20."
+decision = "0025"
+
+[[field]]
+name = "long_cdr3"
+type = "bool"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "CDR3 length (junction_aa length − 2) ≥ 24 aa for IGH, ≥ 16 aa for other loci. Null when there is no junction."
+decision = "0025"
+
+[[field]]
+name = "has_indel"
+type = "bool"
+nullable = false
+origin = "abstar"
+coordinates = ""
+description = "indels is not empty."
+decision = "0025"
+
+[[field]]
+name = "truncated_5p"
+type = "bool"
+nullable = false
+origin = "abstar"
+coordinates = ""
+description = "truncate_5p > 0."
+decision = "0025"
+
+[[field]]
+name = "truncated_3p"
+type = "bool"
+nullable = false
+origin = "abstar"
+coordinates = ""
+description = "truncate_3p > 0."
+decision = "0025"
+
+[[field]]
+name = "unrecoverable_v"
+type = "bool"
+nullable = false
+origin = "abstar"
+coordinates = ""
+description = "The true V allele is not in its non-empty v_call_valid: mutation made another allele strictly closer."
+decision = "0025"
+
+[[field]]
+name = "unrecoverable_d"
+type = "bool"
+nullable = false
+origin = "abstar"
+coordinates = ""
+description = "The true D allele is not in its non-empty d_call_valid: mutation made another allele strictly closer."
+decision = "0025"
+
+[[field]]
+name = "unrecoverable_j"
+type = "bool"
+nullable = false
+origin = "abstar"
+coordinates = ""
+description = "The true J allele is not in its non-empty j_call_valid: mutation made another allele strictly closer."
+decision = "0025"
+
+[[field]]
+name = "ambiguous_v"
+type = "bool"
+nullable = false
+origin = "abstar"
+coordinates = ""
+description = "v_call_valid has more than one allele."
+decision = "0025"
+
+[[field]]
+name = "ambiguous_d"
+type = "bool"
+nullable = false
+origin = "abstar"
+coordinates = ""
+description = "More than one D answer is valid: the alleles in d_call_valid, plus null when d_call_null_valid."
+decision = "0025"
+
+[[field]]
+name = "ambiguous_j"
+type = "bool"
+nullable = false
+origin = "abstar"
+coordinates = ""
+description = "j_call_valid has more than one allele."
+decision = "0025"
