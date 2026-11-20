@@ -8,6 +8,8 @@ Accepted (2026-11-20)
 
 `abstar generate` writes tables in the same AIRR TSV and Parquet encodings as `abstar run`, and builds its record types from a `fields.toml` in the same way. The schema generator and writers lived in `abstar_annotate`. 0014 requires the generator to be independent of the annotator, so it cannot depend on that crate.
 
+This record amends 0014: the generator may depend on `abstar_germline` and `abstar_table` (and nothing else from abstar), not on `abstar_germline` alone.
+
 ## Decision
 
 A new crate, `abstar_table`, depends on no other abstar crate. It holds the `fields.toml` code generator (`codegen`, used from `build.rs` as a build-dependency) and the TSV and Parquet writers (`writers`), which take the Arrow schema as an argument instead of reading a fixed one. Cargo features `codegen` and `writers` keep Arrow and Parquet out of the build-script dependency graph. `abstar_annotate::writers` stays as thin wrappers bound to its own schema, so `abstar run` output is unchanged. `list<int64>` is added as a field type (TSV: integers joined by `,`). A Python test enforces that `abstar_table` has no abstar dependencies and that neither it nor `abstar_generate` depends on `abstar_annotate`.

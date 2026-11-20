@@ -61,8 +61,9 @@ pub fn generate(toml_path: &Path, out_path: &Path, record_type: &str, const_name
         }
         .replace("NAME", name);
         let ap = if ap == "LISTAPPEND" {
+            let deref = if ty == "list<int64>" { "*" } else { "" };
             format!(
-                "match &r.{name} {{ Some(v) => {{ for x in v {{ b.values().append_value(x); }} b.append(true) }} None => b.append(false) }}"
+                "match &r.{name} {{ Some(v) => {{ for x in v {{ b.values().append_value({deref}x); }} b.append(true) }} None => b.append(false) }}"
             )
         } else {
             format!("b.{ap}")

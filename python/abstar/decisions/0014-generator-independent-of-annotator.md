@@ -20,3 +20,5 @@ A generator that reuses annotation logic makes shared bugs score as correct. Acc
 
 - Shared bugs cannot score as correct through shared code.
 - The alignment-dependent build code needs its own home outside `germline`.
+
+Amended by 0022: the generator may also depend on `abstar_table`.
