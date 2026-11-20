@@ -151,18 +151,32 @@ alleles lack anchors (see below).
 
 ## Somatic hypermutation
 
-- **Targeting and substitution:** the S5F model (Yaari et al. 2013) gives 5-mer
-  mutability and substitution probabilities. It comes in human heavy and
-  light-chain variants (HH_S5F, HKL_S5F) and a mouse light-chain variant.
-  Tables are taken from the published, openly licensed supplementary data,
-  not from GPL/AGPL software packages. The builder verifies each table's
-  license and records it in a decision record.
+- **Targeting and substitution** *(revised 2026-11-20: no openly licensed S5F
+  table exists. The Yale tables are CC BY-NC-SA 3.0, the paper's CC BY
+  supplement has figures only, and SHazaM is AGPL-3. Decided with the user:
+  option A)*:
+  - **Default: abstar's own 5-mer motif model ("motif").** Mutability comes
+    from published motif rules, with weights chosen by us and documented as a
+    heuristic, not fit to data:
+    - WRCY/RGYW and WRC/GYW hotspots;
+    - WA/TW hotspots;
+    - SYC/GRS coldspots.
+
+    Substitution follows a simple transition-biased table. It ships in the
+    package with a clean license. Grading annotators needs hotspot bias, not
+    exact S5F rates.
+  - **User-supplied S5F:** `--shm-table DIR` points at a directory holding the
+    S5F `Mutability.csv` and `Substitution.csv` in the format the Kleinstein
+    lab distributes. Users download them under their own license. Nothing
+    S5F-derived ships with abstar.
+  - **Later:** fit our own S5F-style model on data we may redistribute, with
+    the repertoire work (board card).
 - **Rate:** each sequence draws a target V mutation frequency from a
   user-chosen distribution (fixed, uniform range, or beta).
   - **Definition.** The target is the **realized** divergence of the final
     read's V-derived bases from the true V allele, so `high_mutation` and the
     `bnab` ranges measure the same quantity.
-  - **Placement.** Mutations are placed across all of V(D)J by S5F, one at a
+  - **Placement.** Mutations are placed across all of V(D)J by the context model, one at a
     time, updating 5-mer contexts as they go. Repeat hits and back-mutations
     are allowed. Placement continues until the realized V divergence reaches
     the target.
@@ -396,7 +410,7 @@ Required before the generator grades anything:
 - Fewest-mismatches truth sets plus true values; the unrecoverable label; boundary scoring (matches minus mismatches, joint ties, stored as lists); the coverage rule; anchor requirements for generated vs candidate alleles; indel placement ranges.
 - Model file format and name mapping, including the renormalization threshold.
 - Default model source C; IGoR import only; no bundled GPL files.
-- S5F source and licensing.
+- The mutation model (own motif default; user-supplied S5F; why S5F isn't bundled).
 - The no-D threshold.
 - The truth schema's `_valid` column convention.
 - The shared-writers crate arrangement.

@@ -144,7 +144,7 @@ pub struct Model {
     pub insertions_long_tail: BTreeMap<String, Dist>,                   // same keys; mixed in with weight from GenerateParams
     pub n_markov: BTreeMap<String, [f64; 4]>,                           // keys "start","A","C","G","T" → P(A,C,G,T)
     pub d_inversion: f64,
-    pub shm_model: String,                                              // "HH_S5F" | "HKL_S5F" | "none"
+    pub shm_model: String,                                              // "motif" | "none" (revised in Task 4)
 }
 pub fn load_model(path: &Path) -> Result<Model, GenerateError>          // missing file ⇒ MODEL_NOT_FOUND; parse/validation ⇒ MODEL_INVALID naming the key
 ```
@@ -205,42 +205,57 @@ pub fn bind(model: Model, db: &Database) -> Result<Bound, GenerateError>
 
 ---
 
-### Task 4: Somatic hypermutation (S5F)
+### Task 4: Somatic hypermutation (motif default, user-supplied S5F)
+
+Revised after the first attempt was blocked: no openly licensed S5F table exists. The user chose option A: abstar ships its own motif model, and users may supply S5F files they download themselves.
 
 **Files:**
-- Create:
-  - `crates/generate/src/shm.rs`
-  - `crates/generate/data/s5f/{HH_S5F_mutability.tsv,HH_S5F_substitution.tsv}` and, if openly licensed, `HKL_S5F_*`
-  - `crates/generate/data/s5f/SOURCES.md`
-  - `crates/generate/tests/shm.rs`
-  - `python/abstar/decisions/0024-s5f-mutation-model.md`
+- Create: `crates/generate/src/shm.rs`, `crates/generate/tests/shm.rs`, `python/abstar/decisions/0024-mutation-model.md`
+- Modify: `crates/generate/src/model.rs` (`shm_model` values become `"motif" | "none"`) and its tests/fixtures
 
 **Interfaces:**
 - Produces:
 
 ```rust
-pub struct S5f { /* 5-mer (ACGT only) → mutability: f64; 5-mer → [f64; 4] substitution probs (self = 0) */ }
-pub fn s5f(name: &str) -> Result<&'static S5f, GenerateError>          // "HH_S5F" | "HKL_S5F"; tables embedded via include_str!
+pub struct ContextModel { /* 5-mer (ACGT only) → mutability: f64; 5-mer → [f64; 4] substitution probs (self = 0) */ }
+pub fn motif_model() -> &'static ContextModel                          // abstar's own default, built in code (OnceLock)
+pub fn load_s5f_dir(dir: &Path) -> Result<ContextModel, GenerateError> // DIR/Mutability.csv + DIR/Substitution.csv (Kleinstein-lab format); missing/bad ⇒ INVALID_ARGUMENT naming the file
 pub struct Mutation { pub pos: usize, pub from: u8, pub to: u8 }       // 0-based read position at time of mutation
-pub fn mutate(seq: &mut Vec<u8>, mutable: &[bool], v_positions: &[usize], target_v_freq: f64, model: &S5f, rng: &mut impl Rng) -> Vec<Mutation>
+pub fn mutate(seq: &mut Vec<u8>, mutable: &[bool], v_positions: &[usize], target_v_freq: f64, model: &ContextModel, rng: &mut impl Rng) -> Vec<Mutation>
 ```
+
+**Motif model (our own heuristic, in code):**
+- **Mutability:** a base weight of 1.0, multiplied by:
+  - WRCY / RGYW (centre C / G): ×6;
+  - WRC / GYW otherwise: ×4;
+  - WA / TW (centre A / T): ×2.5;
+  - SYC / GRS (centre C / G): ×0.3.
+
+  When several motifs match, the strongest applies.
+- **Substitution:**
+  - from C or G: transition 0.6, each transversion 0.2;
+  - from A or T: transition 0.5, each transversion 0.25.
+- Record 0024 states these are abstar's heuristic weights, not fit to data.
 
 **Rules:**
 - **Picking a position.** Pick among `mutable` positions with probability ∝ the mutability of the 5-mer centred on that position. Pad the ends with N, and treat any 5-mer containing N or an IUPAC code as the mean mutability. Then pick the substitution from the substitution table.
 - **Stopping.** Repeat until the realized V divergence (positions in `v_positions` differing from their original base) ≥ `target_v_freq × v_positions.len()` (rounded). Contexts update after each hit, and repeat hits and back-mutations are allowed.
 - **Safety cap.** Stop with a warning after 10 × target hits.
-- **Sources.** Obtain the tables from the openly licensed supplementary data of Yaari et al. 2013 (Front. Immunol.). For the light-chain table, use the published source only if its license allows redistribution. Otherwise use HH_S5F for light chains, and state that in record 0024 and `SOURCES.md`. Never copy from GPL/AGPL software packages.
+- **S5F CSV format.** Format as distributed (`Mutability.csv`: 5-mer and mutability columns; `Substitution.csv`: 5-mer plus A/C/G/T columns). Read the column names from the header; don't assume positions. Reject an incomplete table (fewer than 1024 ACGT 5-mers).
+- **Licensing.** Never commit S5F-derived numbers. Test fixtures are synthetic CSVs generated in the test.
 
 - [ ] **Step 1: Write the failing tests**:
-  - `tables_complete`: all 1024 5-mers have a mutability, and substitution rows sum to 1.
+  - `motif_model_complete`: all 1024 5-mers have a mutability, and substitution rows sum to 1.
+  - `motif_weights`: `AGCTA` (WRCY centre) gives 6.0, `GTCAA` (SYC centre C) gives 0.3, `ACATA` gives 1.0.
   - `realized_v_divergence_hits_target`: for targets {0.0, 0.05, 0.20, 0.35, 0.50} on a 300 nt V, the realized fraction ≥ target and < target + 2/300.
   - `hotspots_mutate_more`: over 2,000 runs at target 0.05 on a fixed sequence, the mean hits per WRC hotspot centre exceed the mean at SYC coldspot centres by at least 2×.
   - `non_mutable_positions_untouched`.
   - `deterministic_for_seed`.
+  - `s5f_dir_round_trip`: a synthetic Mutability/Substitution CSV pair written to a temp dir loads, and values match. A missing file or an incomplete table gives `INVALID_ARGUMENT`.
 - [ ] **Step 2: Run and confirm failure.**
-- [ ] **Step 3: Implement** `shm.rs`, with the tables and `SOURCES.md` (URL, license, retrieval date and sha256 per file).
+- [ ] **Step 3: Implement** `shm.rs` and the `shm_model` value change in `model.rs`.
 - [ ] **Step 4: Run and confirm the tests pass.**
-- [ ] **Step 5: Add record 0024 and commit** with `feat(generate): S5F somatic hypermutation`.
+- [ ] **Step 5: Add record 0024** (why S5F isn't bundled, with the licenses found; the motif heuristic; the `--shm-table` route; the fit-our-own plan). Commit with `feat(generate): context-dependent somatic hypermutation`.
 
 ---
 
@@ -258,7 +273,7 @@ pub enum Spec { Fixed(f64), Uniform(f64, f64), Beta(f64, f64) }        // FromSt
 pub struct GenerateParams {
     pub n: usize, pub seed: u64, pub mutation: Spec, pub long_cdr3_weight: f64, pub indel_rate: f64, pub frameshift_indels: bool,
     pub indel_duplication: bool, pub truncate_5p: Spec, pub truncate_3p: Spec /* nt */, pub constant_len: Option<usize>,
-    pub isotype_weights: BTreeMap<String, f64>, pub productive_only: bool, pub shm_model: Option<String>, pub threads: Option<usize>, pub batch_size: usize /* 4096 */,
+    pub isotype_weights: BTreeMap<String, f64>, pub productive_only: bool, pub shm_model: Option<String>, pub shm_table: Option<PathBuf> /* S5F dir; overrides motif where the model mutates */, pub threads: Option<usize>, pub batch_size: usize /* 4096 */,
 }
 pub fn preset(name: &str) -> Result<GenerateParams, GenerateError>    // "naive" | "memory" | "bnab" | "tcr"; unknown ⇒ INVALID_ARGUMENT listing names
 pub enum Origin { V(usize /* gapped index in true allele */), D(usize), J(usize), N1, N2, P, C(usize), Inserted }
@@ -275,7 +290,7 @@ pub fn replay(s: &Simulated) -> Vec<u8>                                // rebuil
 ```
 
 **Rules** (spec: *The recombination model*, *Somatic hypermutation*, *Indels*, *Truncation and constant region*, *Productivity*, *Presets*):
-- **Order:** sample alleles → trim/P → N (Markov) → assemble (D reverse-complemented if inverted) → mutate (S5F over V(D)J, never C) → indels → append C prefix → truncate.
+- **Order:** sample alleles → trim/P → N (Markov) → assemble (D reverse-complemented if inverted) → mutate (context model over V(D)J, never C) → indels → append C prefix → truncate.
 - **Indels:**
   - Allowed only in V or J, at least 3 nt away from the Cys104 and Trp/Phe118 codons.
   - Lengths 1–12 codons, in multiples of 3 unless `frameshift_indels`.
@@ -450,7 +465,7 @@ pub fn generate_in_memory(bound: &Bound, params: &GenerateParams) -> Result<Vec<
   - gene usage uniform over functional (F) genes;
   - trims from a truncated normal with a published mean/SD;
   - N length geometric with a published mean.
-- **SHM model:** `shm_model` = `HH_S5F` for IGH, the Task 4 light-chain choice for IGK/IGL, and `none` for TRA/TRB.
+- **SHM model:** `shm_model` = `motif` for IGH/IGK/IGL, and `none` for TRA/TRB.
 - **Long tail.** Give `insertions_long_tail` for IGH `vd`/`dj` enough mass at long lengths that Task 11 can tune `bnab` to the spec's CDRH3 targets.
 
 - [ ] **Step 1: Write the failing test.** `each_builtin_model_binds`: for each of the five models, `load_model` + `bind` against the built-in `human` database succeed, warnings are listed, and coverage is ≥ 0.90 for each segment.
@@ -524,7 +539,7 @@ def resolve_model(name_or_path, species: str, locus: str) -> tuple[Path, str]   
 def list_models() -> list[ModelInfo]; def model_info(name_or_path) -> ModelInfo; def import_igor(igor_dir, *, name, species, germline_db="human") -> dict
 ```
 
-- **`**options` keys:** `mutation`, `long_cdr3_weight`, `indels`, `frameshift_indels`, `indel_duplication`, `truncate_5p`, `truncate_3p`, `constant` (int nt or None), `isotype_weights`, `productive_only`, `shm_model` (overrides the model's, e.g. to mutate TCRs for testing). An unknown key raises `INVALID_ARGUMENT`. A user model whose name equals a built-in model name raises `BUILTIN_NAME_CONFLICT` (record 0010 applies to models).
+- **`**options` keys:** `mutation`, `long_cdr3_weight`, `indels`, `frameshift_indels`, `indel_duplication`, `truncate_5p`, `truncate_3p`, `constant` (int nt or None), `isotype_weights`, `productive_only`, `shm_table` (directory with S5F CSVs; CLI `--shm-table DIR`), `shm_model` (overrides the model's, e.g. to mutate TCRs for testing). An unknown key raises `INVALID_ARGUMENT`. A user model whose name equals a built-in model name raises `BUILTIN_NAME_CONFLICT` (record 0010 applies to models).
 - **Presets** are applied in Rust, and explicit options override them.
 
 **CLI** (spec: *CLI and Python API*):
