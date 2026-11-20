@@ -18,9 +18,10 @@ Evaluation: a call is correct if `v_call` is in the generator's set of equally v
 
 ## Alternatives considered
 
-- **Comma-separated ties in the call field**: rejected; the field would no longer be searchable, countable or sortable.
-- **A score list**: unnecessary, since tied alleles share the top score.
-- **An ambiguity boolean**: not added; add one only if TSV users ask.
+- **AIRR's comma-separated ties in `v_call`** (e.g. `IGHV1-2*02,IGHV1-2*04`): rejected by the user because it breaks dataframe-level queries, sorts, filters and counts.
+- **Separate list columns `v_calls` / `v_scores` / `v_species` with a `v_is_ambiguous` flag** (the user's own first idea): rejected as hacky, and it still leaves "which call is primary?" open. The name `v_calls` is also one letter from `v_call`.
+- **A score list or an ambiguity boolean**: unnecessary, since tied alleles share the top score and ambiguity is `len(v_call_ties) > 1`. Add a boolean only if TSV users ask.
+- **Chosen:** one primary `v_call` (a single searchable, countable value) plus `v_call_ties` and `v_species_ties` lists. The primary is chosen by score, then functionality F > ORF > P, then population usage, then natural sort of names.
 
 ## Consequences
 

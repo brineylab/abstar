@@ -14,10 +14,12 @@ Inside a mixed-species database, allele IDs are made unique with a short species
 
 ## Alternatives considered
 
-- **Showing the prefix in output**: would break compatibility with AIRR tools, so the prefix stays internal.
-- **A single `species` column per record**: cannot represent humanized-mouse rearrangements that mix species.
+Single-species databases always keep plain names. For mixed-species databases:
 
-The design doc does not list the individual prefix options (A-D) it weighed, so only the rejected directions above are recorded here.
+- **A. Suffix every allele** (the legacy behavior), e.g. `IGHV1-2*01__homo_sapiens`. Consistent, but every call carries the suffix, which tools like Change-O do not expect.
+- **B. Suffix only colliding names.** Shorter, but one database mixes plain and suffixed names, and adding a species later can rename existing alleles.
+- **C. Prefix every allele with a short species tag**, e.g. `hs|IGHV1-2*01`. Like A but shorter and easier to strip, still non-standard in `v_call`.
+- **D (chosen, proposed by the user).** Use C's prefix internally (the allele `id` in the germline database, so names stay unique), but output only the plain gene/allele name in `v_call` and the other call fields, plus per-segment `{s}_species` columns. `v_call` stays standard and compatible with other AIRR tools, while users can filter on gene and species together.
 
 ## Consequences
 
