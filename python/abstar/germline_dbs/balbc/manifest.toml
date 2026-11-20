@@ -1,0 +1,34 @@
+format_version = 1
+name = "balbc"
+description = "BALB/c mouse (Mus musculus) IG germline genes. IGH V, D and J: OGRDB Mus musculus BALB/c IGH rev 3 (2022-06-02). IGKV: OGRDB Mus musculus BALB/c/ByJ IGKV rev 1 (2022-05-03). IGLV: OGRDB Mus musculus BALB/c/ByJ IGLV rev 2 (2024-04-20). IGKJ and IGLJ: OGRDB Mus musculus IGKJ (all strains) and IGLJ (all strains) rev 1 (2022-05-31). IGH, IGK and IGL constant regions: IMGT GENE-DB Mus musculus (downloaded 2024-08-19)."
+abstar_version = "1.0.0-dev.0"
+built = "2026-11-20"
+alleles_sha256 = "7f7fe24fe6c50c94d219b3c2b513b74590d85c1baf0ad489dc606bd1d92946f1"
+species = ["mouse"]
+loci = ["IGH", "IGK", "IGL"]
+
+[[provenance]]
+species = "mouse"
+files = ["Mus_musculus_BALB_c IGH_rev_3.json", "Mus_musculus_BALB_c_ByJ IGKV_rev_1.json", "Mus_musculus_BALB_c_ByJ IGLV_rev_2.json", "Mus_musculus_IGKJ (all strains)_rev_1.json", "Mus_musculus_IGLJ (all strains)_rev_1.json", "gapped_constants.fasta"]
+sha256 = ["37db03f0995a176de986226b95b39aa2f313dfd554c91c0af41538f643cb8af1", "084e2a3e1edc1184098a5635b120bd6c204bc3f694027b49a29a7d518a08eed9", "d983d8dac9f7194bebfd0fd1f44eac8deeb68ed82332f0c57f424d3d12e512a6", "c0731a5eabc8c8c2b746391ad2afd59e2f35b135bb989f3b964c5c5f9690fffc", "9a781e7bc3550aa5e34083486485e581c95b785ecf3001d7ad42da912f498ea9", "eab39e6961242117398d14381bb42d8c3d41f75ac7c07ea3e440a141de777d66"]
+description = "IG V/D/J: OGRDB Mus musculus; IG constant regions: IMGT GENE-DB Mus musculus, downloaded 2024-08-19; OGRDB BALB/c IGH release 3 (2022-06-02); OGRDB BALB/c/ByJ IGKV release 1 (2022-05-03); OGRDB BALB/c/ByJ IGLV release 2 (2024-04-20); OGRDB IGKJ (all strains) release 1 (2022-05-31); OGRDB IGLJ (all strains) release 1 (2022-05-31)"
+
+[[warnings]]
+allele = "IGHV0-NUDM*00"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV0-UDF7*00"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKJ0-5NUZ*00"
+message = "motif anchor none disagrees with OGRDB j_cdr3_end 8"
+
+[[warnings]]
+allele = "IGKJ0-IIHF*00"
+message = "motif anchor none disagrees with OGRDB j_cdr3_end 8"
+
+[[warnings]]
+allele = "IGLJ0-UWMQ*00"
+message = "motif anchor none disagrees with OGRDB j_cdr3_end 8"

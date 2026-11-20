@@ -40,7 +40,7 @@ def test_build_to_user_home(tmp_path, abstar_home):
     assert info.counts == report.counts
     assert info.species == ["human"]
     assert info.loci == ["IGH"]
-    assert [d.name for d in germline.list()] == ["mydb"]
+    assert [(d.name, d.kind) for d in germline.list() if d.kind == "user"] == [("mydb", "user")]
 
 
 def test_builtin_name_conflict(tmp_path, abstar_home, builtin_dir):

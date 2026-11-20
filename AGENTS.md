@@ -13,6 +13,8 @@ Python package.
   - `maturin develop --release --extras test`
   - `cargo test --workspace`
   - `python -m pytest -q`
+  - Rebuild built-in germline databases from `germline-sources/recipes/`:
+    `python scripts/build_builtin_germlines.py [NAME ...]` (decision 0019)
 - Spec: `docs/superpowers/specs/2026-11-20-abstar-foundation-design.md`.
   Plan: `docs/superpowers/plans/2026-11-20-abstar-foundation.md`.
   Design decisions are recorded in `python/abstar/decisions/`.

@@ -1,0 +1,28 @@
+name = "human+c57bl6"
+description = "Human (Homo sapiens) and C57BL/6 mouse (Mus musculus) IG germline genes. Human IGH, IGK and IGL V, D and J: OGRDB Homo sapiens germline sets IGH_VDJ_extended rev 9, IGKappa_VJ_extended rev 4 and IGLambda_VJ_extended rev 3 (released 2024-10-12); human constant regions: IMGT GENE-DB. Mouse IGH V, D and J: OGRDB Mus musculus C57BL/6 IGH rev 3 (2022-06-02); IGKV and IGLV: OGRDB Mus musculus C57BL/6J IGKV rev 1 and IGLV rev 1 (2022-05-03); IGKJ and IGLJ: OGRDB Mus musculus IGKJ (all strains) and IGLJ (all strains) rev 1 (2022-05-31); mouse constant regions: IMGT GENE-DB Mus musculus (downloaded 2024-08-19)."
+
+[prefixes]
+human = "hs"
+mouse = "mm"
+
+[[source]]
+species = "human"
+description = "IG V/D/J: OGRDB Homo sapiens; IG constant regions: IMGT GENE-DB"
+ogrdb_json = [
+    "../human/Homo_sapiens_IGH_VDJ_rev_9_ex.json",
+    "../human/Homo_sapiens_IGKappa_VJ_rev_4_ex.json",
+    "../human/Homo_sapiens_IGLambda_VJ_rev_3_ex.json",
+]
+c_fasta = ["../human/imgt_ig_c.fasta"]
+
+[[source]]
+species = "mouse"
+description = "IG V/D/J: OGRDB Mus musculus (C57BL/6); IG constant regions: IMGT GENE-DB Mus musculus, downloaded 2024-08-19"
+ogrdb_json = [
+    "../c57bl6/Mus_musculus_C57BL_6 IGH_rev_3.json",
+    "../c57bl6/Mus_musculus_C57BL_6J IGKV_rev_1.json",
+    "../c57bl6/Mus_musculus_C57BL_6J IGLV_rev_1.json",
+    "../c57bl6/Mus_musculus_IGKJ (all strains)_rev_1.json",
+    "../c57bl6/Mus_musculus_IGLJ (all strains)_rev_1.json",
+]
+c_fasta = ["../c57bl6/gapped_constants.fasta"]

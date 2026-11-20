@@ -1,0 +1,4274 @@
+format_version = 1
+name = "macaque"
+description = "Rhesus macaque (Macaca mulatta) IG germline genes. IGH V, D and J: KIMDB 1.1 (downloaded 2024-08-19). IGK and IGL V and J: IMGT GENE-DB (downloaded 2024-08-19). IGH, IGK and IGL constant regions: IMGT GENE-DB (downloaded 2024-08-19). The V gapping does not follow IMGT numbering for most alleles, so most V alleles have no anchor."
+abstar_version = "1.0.0-dev.0"
+built = "2026-11-20"
+alleles_sha256 = "6687c617c7c83e2d213a2c2363551d081b2ce2d6d74f7463d3af0c30c027682f"
+species = ["macaque"]
+loci = ["IGH", "IGK", "IGL"]
+
+[[provenance]]
+species = "macaque"
+files = ["v.fasta", "d.fasta", "j.fasta", "c.fasta"]
+sha256 = ["95aa8ffda1de898c9c00048e64411ab664def12a45efca47052f2e3540f40ad6", "ae7e19fd04431a020736d4e31336777ea10a28944145809c93bf33402a9ccf2c", "e5d7921f4ca3427cff15be6d3357498a3470c5b3f72a96a9d6e70b1b478a0c95", "648fbdeb3b4ff9711c4ff3133812d422a4ee0d5ec689c5f757b143516c82499c"]
+description = "IGH V/D/J: KIMDB 1.1; IGK/IGL V/J and all constant regions: IMGT GENE-DB; all downloaded 2024-08-19"
+
+[[warnings]]
+allele = "IGHV1-105*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV1-105*01_S0606"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV1-124*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV1-124*01_S1765"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV1-124*01_S6748"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV1-124*01_S7834"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV1-138*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV1-138*01_S2054"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV1-138*01_S2593"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV1-138*01_S3445"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV1-138*01_S4144"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV1-138*01_S6073"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV1-138*01_S8042"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV1-138*01_S8712"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV1-138*01_S8841"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV1-138*01_S8860"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV1-138*01_S9115"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV1-138*01_S9603"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV1-138*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV1-170*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV1-170*01_S3055"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV1-193*01_S6037"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV1-58*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV1-60*01_S1918"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV1-60*01_S7602"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV1-60*01_S7772"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV1-84*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV1-84*01_S0025"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV1-84*01_S0240"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV1-84*01_S0302"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV1-84*01_S2805"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV1-84*01_S4663"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV1-84*01_S5228"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV1-84*01_S5842"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV1-84*01_S8557"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV1-84*01_S9171"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV1-84*01_S9366"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV1-NL_1*01_S2052"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV1-NL_1*01_S6622"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV1-NL_1*01_S8523"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV1-NL_2*01_S0023"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV1-NL_2*01_S2228"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV1-NL_2*01_S3477"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV1-NL_2*01_S3568"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV1-NL_2*01_S5797"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV1-NL_2*01_S5959"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV1-NL_2*01_S7386"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV1-NL_2*01_S9896"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV2-118*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV2-118*01_S2768"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV2-118*01_S3831"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV2-118*01_S4527"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV2-118*01_S4531"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV2-118*01_S4632"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV2-118*01_S6364"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV2-118*01_S8501"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV2-118*01_S8953"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV2-173*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV2-173*01_S2781"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV2-173*01_S9930"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV2-69*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV2-69*01_S2332"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV2-69*01_S2408"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV2-69*01_S2931"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV2-69*01_S4797"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV2-69*01_S5121"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV2-69*01_S6153"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV2-69*01_S8510"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV2-69*01_S8735"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV2-69*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV2-69*02_S0779"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV2-69*02_S8202"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV2-7*02_S1732"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV2-7*02_S3534"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV2-7*02_S4078"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV2-7*02_S4285"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV2-NL_1*01_S2133"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV2-NL_1*01_S2488"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV2-NL_1*01_S3296"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV2-NL_1*01_S4514"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV2-NL_1*01_S5211"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV2-NL_1*01_S5431"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV2-NL_1*01_S5779"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV2-NL_1*01_S7874"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV2-NL_1*01_S9725"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV2-NL_2*01_S2193"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV2-NL_2*01_S8873"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-100*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-100*01_S2822"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-100*01_S4205"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-100*01_S4375"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-100*02_S9884"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-103*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-103*01_S2756"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-119*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-119*01_S9769"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-119*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-120*01_S4231"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-122*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-122*01_S2709"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-122*01_S2730"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-122*01_S5299"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-122*01_S6138"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-122*01_S8125"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-122*01_S8388"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-127*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-127*01_S1834"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-127*01_S2849"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-127*01_S3041"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-127*01_S3553"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-127*01_S5171"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-127*01_S5510"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-127*01_S6769"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-127*01_S7059"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-127*01_S8923"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-127*01_S9779"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-128*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-128*01_S1128"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-128*01_S3120"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-128*01_S5770"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-128*01_S6966"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-128*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-128*02_S0204"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-128*02_S1375"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-128*02_S1569"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-128*02_S1570"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-128*02_S2156"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-128*02_S2995"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-128*02_S3121"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-128*02_S5001"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-128*02_S6042"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-128*02_S6299"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-141*01_S2525"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-141*01_S3493"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-141*01_S4264"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-141*01_S5017"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-141*01_S5053"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-141*01_S6168"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-141*01_S8690"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-141*02_S1149"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-141*02_S2868"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-141*02_S4530"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-141*02_S6589"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-143*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-143*01_S1151"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-152*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-152*01_S1133"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-152*01_S1340"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-152*01_S5891"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-152*01_S7388"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-172*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-172*01_S0072"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-172*01_S0577"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-172*01_S0645"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-172*01_S1597"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-172*01_S2175"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-172*01_S8488"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-172*01_S8824"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-175*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-175*01_S1248"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-175*01_S1614"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-177*01_S1591"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-177*01_S4102"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-177*01_S5369"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-177*01_S6408"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-177*01_S8387"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-177*01_S8409"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-177*01_S8970"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-187*01_S1090"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-187*01_S1133"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-187*01_S1387"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-187*01_S2144"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-187*01_S3395"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-187*01_S4220"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-187*01_S4259"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-187*01_S6840"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-187*01_S8951"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-187*01_S8972"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-187*01_S9930"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-187*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-187*02_S6102"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-187*02_S8458"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-28*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-28*01_S0096"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-28*01_S3792"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-28*01_S5419"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-28*01_S5703"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-28*01_S7540"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-28*01_S8684"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-34*01_S1309"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-34*01_S1458"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-34*01_S2915"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-36*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-36*01_S5206"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-36*01_S6650"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-36*01_S7141"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-36*01_S9128"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-37*01_S4420"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-37*01_S6325"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-37*01_S6630"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-37*01_S9699"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-5*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-5*01_S0388"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-5*01_S0969"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-5*01_S2703"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-5*01_S4091"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-5*01_S6059"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-50*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-50*01_S1524"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-50*01_S1879"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-50*01_S3548"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-50*01_S4628"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-50*01_S5299"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-50*01_S6687"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-50*01_S7243"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-50*01_S9079"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-50*02_S9583"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-52*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-52*01_S3960"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-52*01_S8160"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-52*02_S2646"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-52*02_S4550"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-52*02_S5117"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-53*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-53*01_S0543"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-53*01_S1252"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-53*01_S1558"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-53*01_S2000"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-53*01_S2253"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-53*01_S2949"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-53*01_S3027"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-53*01_S3451"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-53*01_S3647"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-53*01_S4071"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-53*01_S4256"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-53*01_S4423"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-53*01_S5688"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-53*01_S7463"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-53*01_S8116"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-53*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-53*02_S0150"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-73*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-73*01_S3636"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-73*01_S6942"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-73*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-73*02_S0085"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-73*02_S3937"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-73*02_S4412"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-73*02_S5005"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-73*02_S7884"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-73*02_S7955"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-73*02_S8830"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-76*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-76*01_S0794"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-76*01_S4285"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-76*01_S5420"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-76*01_S6599"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-76*02_S2075"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-76*02_S4190"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-83*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-83*01_S5932"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-83*01_S9109"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-83*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-83*02_S2462"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-83*02_S9518"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-87*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-87*01_S6311"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-88*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-88*01_S1523"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-88*01_S4297"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-88*01_S6384"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-88*01_S6871"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-88*01_S9155"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-88*01_S9315"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-88*01_S9470"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-88*02_S1355"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-88*02_S3953"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-88*02_S5187"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-88*02_S5672"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-88*02_S7485"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-88*02_S7590"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-88*02_S7929"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-88*02_S9033"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-88*02_S9774"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-9*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-9*01_S0778"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-9*01_S4754"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-9*01_S5797"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-9*01_S7896"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-9*01_S8326"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-9*01_S8777"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-9*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-94*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-94*01_S3427"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-94*01_S4458"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-94*01_S5120"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-94*01_S7982"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_1*01_S1080"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_1*01_S2031"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_1*01_S2788"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_1*01_S3947"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_1*01_S4331"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_1*01_S4549"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_1*01_S5238"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_1*01_S9422"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_1*01_S9854"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_10*02_S1970"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_10*02_S2212"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_11*01_S2687"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_11*01_S3736"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_11*01_S4619"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-144*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_11*01_S5714"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_11*01_S6390"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_11*01_S8390"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_11*01_S8458"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_11*01_S8670"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_11*01_S9627"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_11*02_S2668"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_12*02_S1760"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_12*02_S2468"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_12*02_S5864"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_12*02_S6994"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_13*01_S2791"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_13*01_S3277"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_13*01_S3940"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_13*01_S5549"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_13*01_S5767"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_14*01_S0218"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_14*01_S0721"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_14*01_S1113"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_14*01_S1995"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_14*01_S4949"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_14*01_S6089"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_14*01_S6338"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_14*01_S7643"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_14*01_S7988"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_14*01_S8830"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_14*01_S9303"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_14*01_S9823"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_15*01_S0604"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_15*01_S2828"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_15*01_S3018"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_15*01_S4749"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_15*01_S5125"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_15*01_S7302"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_16*01_S5133"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_16*01_S8234"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_17*01_S0507"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_17*01_S1160"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_17*01_S3909"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_17*01_S4250"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_17*01_S4257"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_17*01_S4736"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_17*01_S5770"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_17*01_S6544"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_17*01_S8244"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_17*01_S9589"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_18*01_S0984"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_18*01_S3867"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_18*01_S5825"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_18*01_S6383"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_18*01_S7053"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_19*01_S2472"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_19*01_S4000"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_19*01_S5168"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_19*01_S5460"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_19*01_S6635"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_19*01_S6894"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_19*01_S7515"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_19*01_S9323"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_2*01_S1693"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_2*01_S3900"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_2*01_S5884"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_2*01_S6117"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_4*01_S0257"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_4*01_S2727"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_4*01_S6405"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_4*01_S9067"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_4*01_S9392"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_4*01_S9635"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_5*01_S8361"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_6*02_S7808"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_7*01_S0199"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_8*01_S7860"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_8*01_S9578"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_8*01_S7474"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_9*01_S6098"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-117*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-117*01_S0201"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-117*01_S0312"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-117*01_S0333"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-117*01_S0992"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-117*01_S1924"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-117*01_S2204"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-117*01_S2932"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-117*01_S3225"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-117*01_S3417"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-117*01_S3779"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-117*01_S4879"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-117*01_S4901"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-117*01_S5807"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-117*01_S5847"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-117*01_S6342"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-117*01_S6852"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-117*01_S8404"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-144*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-144*01_S2055"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-144*01_S2372"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-144*01_S2658"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-144*01_S3008"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-144*01_S3064"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-144*01_S3113"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-144*01_S3676"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-144*01_S4873"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-144*01_S5374"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-144*01_S7342"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-144*01_S8596"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-144*01_S9923"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-149*01_S0794"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-149*01_S1166"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-149*01_S1430"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-149*01_S1992"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-149*01_S2001"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-149*01_S3418"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-149*01_S3573"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-149*01_S4098"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-149*01_S5300"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-149*01_S5636"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-149*01_S5861"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-149*01_S6502"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-149*01_S7944"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-149*01_S8005"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-149*01_S8526"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-149*01_S9484"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-149*01_S9613"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-149*02_S6878"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-149*02_S8521"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-150*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-150*01_S0749"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-150*01_S1822"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-150*01_S1985"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-150*01_S2067"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-150*01_S5542"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-150*01_S6885"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-150*01_S8038"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-150*01_S8107"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-150*01_S9374"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-150*01_S9891"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-174*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-174*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-174*02_S3984"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-174*02_S5400"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-67*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-67*01_S0439"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-67*01_S4509"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-67*01_S6131"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-67*01_S8827"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-67*01_S8901"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-67*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-67*02_S6848"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-67*02_S7550"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-67*02_S8103"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-67*02_S8671"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-67*02_S8878"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-72*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-72*01_S1622"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-72*01_S2051"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-72*01_S8261"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-79*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-79*01_S1478"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-79*02_S9501"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-93*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-93*01_S0054"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-93*01_S0171"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-93*01_S0998"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-93*01_S1164"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-93*01_S5203"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-93*01_S6528"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-93*01_S8059"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_1*01_S0419"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_1*01_S0477"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_1*01_S0689"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_1*01_S0860"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_1*01_S1134"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_1*01_S1456"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_1*01_S1593"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_1*01_S1908"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_1*01_S2370"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_1*01_S2710"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_1*01_S4155"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_1*01_S4750"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_1*01_S5296"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_1*01_S5424"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_1*01_S5917"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_1*01_S7240"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_1*01_S7297"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_1*01_S8446"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_1*01_S8621"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_1*01_S8720"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_1*01_S9290"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_1*01_S9508"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_1*02_S1702"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_1*02_S1777"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_1*02_S1821"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_1*02_S2070"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_1*02_S2275"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_1*02_S2524"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_1*02_S3654"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_1*02_S4188"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_1*02_S4582"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_1*02_S5113"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_1*02_S5220"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_1*02_S8056"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_1*02_S8887"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_1*02_S8977"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_10*01_S0458"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_10*01_S6744"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_10*01_S7684"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_10*02_S9348"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_11*01_S0325"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_11*01_S4651"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_11*01_S5570"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_11*01_S9942"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_12*01_S5174"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_12*01_S8068"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_13*01_S9624"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_13*01_S9744"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_15*01_S5717"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_15*01_S7687"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_16*01_S2138"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_16*01_S2324"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_16*01_S3062"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_16*01_S3640"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_17*01_S0904"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_17*01_S0936"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_17*01_S2080"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_17*01_S2142"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_17*01_S2333"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_17*01_S2469"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_17*01_S2814"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_17*01_S3082"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_17*01_S4004"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_17*01_S4099"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_17*01_S4839"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_17*01_S4954"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_17*01_S5431"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_17*01_S6727"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_17*01_S7355"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_19*01_S1944"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_19*01_S2661"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_19*01_S3005"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_20*01_S0030"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_20*01_S2908"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_20*01_S3862"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_20*01_S3868"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_20*01_S4754"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_20*01_S5229"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_20*01_S6186"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_20*01_S6889"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_20*01_S7244"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_21*01_S0138"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_21*01_S0142"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_21*01_S1118"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_21*01_S3257"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_21*01_S4478"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_21*01_S6308"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_21*01_S6468"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_21*01_S6650"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_21*01_S7469"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_21*01_S9849"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_22*01_S2393"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_22*01_S2980"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_22*01_S5234"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_22*01_S6977"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_22*01_S9255"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_23*01_S1296"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_23*01_S4212"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_23*01_S6914"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_23*01_S7000"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_23*01_S7678"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_24*01_S0809"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_24*01_S1628"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_24*01_S2784"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_24*01_S5697"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_24*01_S7468"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_24*01_S7595"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_24*01_S8809"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_24*01_S9400"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_25*01_S0581"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_25*01_S2780"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_25*01_S6200"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_25*01_S6383"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_25*01_S6604"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_25*01_S6960"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_25*01_S8389"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_25*01_S8575"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_25*01_S9478"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_25*01_S9955"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_26*01_S2261"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_27*01_S0673"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_27*01_S1458"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_27*01_S2822"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_27*01_S2979"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_27*01_S3510"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_27*01_S4348"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_27*01_S5151"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_27*01_S5706"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_27*01_S6960"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_27*01_S7431"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_27*01_S7643"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_27*01_S7871"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_27*01_S9001"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_27*01_S9596"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_28*01_S1050"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_28*01_S2610"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_28*01_S8057"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_29*01_S1425"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_29*01_S3018"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_29*01_S3761"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_29*01_S5315"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_29*01_S9610"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_29*01_S9965"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_3*01_S1577"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_3*01_S7576"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_3*01_S7864"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_30*01_S4251"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_31*01_S1675"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_31*01_S7693"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_32*01_S3033"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_33*01_S1148"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_33*01_S2532"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_33*01_S3086"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_33*01_S4143"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_33*01_S4377"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_33*01_S4467"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_33*01_S5330"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_33*01_S5535"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_33*01_S6730"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_33*01_S8127"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_33*01_S9428"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_34*01_S4637"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_34*01_S4749"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_36*01_S0211"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_36*01_S0538"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_36*01_S0848"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_36*01_S0936"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_36*01_S3269"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_36*01_S3780"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_36*01_S5000"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_36*01_S5319"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_36*01_S5847"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_36*01_S6474"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_36*01_S6687"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_36*01_S6973"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_36*01_S7873"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_36*01_S8200"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_36*01_S9506"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_36*01_S9644"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_38*01_S0981"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_38*01_S2187"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_38*01_S5467"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_38*01_S6639"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_38*01_S6935"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_38*01_S6954"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_38*01_S8437"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_38*01_S9244"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_38*01_S9472"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_4*01_S5211"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_4*01_S8866"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_40*01_S0696"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_40*01_S0979"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_40*01_S5093"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_40*01_S6921"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_40*01_S9974"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_42*01_S3076"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_42*01_S3572"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_42*01_S3666"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_42*01_S6064"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_43*01_S4510"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_5*01_S0876"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_5*01_S1492"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_5*01_S2528"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_5*01_S2634"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_5*01_S4603"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_5*01_S5158"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_5*01_S5442"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_5*01_S6060"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_5*01_S6281"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_5*01_S7147"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_5*01_S8078"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_5*01_S8645"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_5*01_S8781"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_5*01_S8913"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_6*01_S0677"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_6*01_S1133"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_6*01_S4760"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_6*01_S5805"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_7*02_S0143"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_8*02_S1304"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_9*01_S1435"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_9*01_S2406"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_9*01_S3502"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_9*01_S4567"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_9*01_S4804"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_9*01_S4906"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_9*01_S4990"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_9*01_S6142"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_9*01_S6766"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_9*01_S9889"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV5-15*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV5-15*01_S0203"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV5-15*01_S0308"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV5-15*01_S2502"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV5-15*01_S2952"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV5-15*01_S3383"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV5-15*01_S4790"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV5-15*01_S5299"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV5-15*01_S6979"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV5-15*01_S8661"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV5-15*01_S8725"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV5-15*01_S9061"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV5-157*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV5-157*01_S0308"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV5-157*01_S3631"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV5-157*01_S5960"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV5-157*01_S6479"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV5-157*01_S8185"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV5-157*01_S8626"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV5-157*02_S3096"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV5-157*02_S3440"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV5-157*02_S5108"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV5-157*02_S7648"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV5-157*02_S8705"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV6-1*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV6-1*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV6-1*02_S1768"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV7-135*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV7-135*01_S4281"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV7-135*01_S9086"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV7-135*02_S1424"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV7-86*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV7-86*01_S0200"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV7-86*01_S0351"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV7-86*01_S0772"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV7-86*01_S2268"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV7-86*01_S3594"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV7-86*01_S3619"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV7-86*01_S4789"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV7-86*01_S6180"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV7-86*01_S6208"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV7-86*01_S7736"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV7-86*01_S8420"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV7-86*01_S9209"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV7-86*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_36*01_S0326"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_27*01_S7628"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_12*01_S2985"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-174*02_S2437"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-149*01_S2329"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_18*01_S1419"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_14*01_S0414"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-NL_1*01_S7175"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-5*01_S6435"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-36*01_S4906"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV3-143*01_S8819"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV2-NL_1*01_S0252"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV1-NL_1*01_S2608"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-150*01_S2344"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_27*01_S3198"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_27*01_S5720"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_27*01_S5829"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_27*01_S7150"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGHV4-NL_5*01_S5308"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV1-6*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV1-16*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV1-18*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV1-19*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV1-21*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV1-22*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV1-25*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV1-25*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV1-25-1*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV1-27*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV1-28*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV1-28*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV1-28*03"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV1-29*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV1-29*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV1-32*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV1-32*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV1-32*03"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV1-32*04"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV1-32*05"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV1-33*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV1-33*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV1-36*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV1-36*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV1-36*03"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV1-37*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV1-37*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV1-38*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV1-38*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV1-41*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV1-41*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV1-43*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV1-43*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV1-43*03"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV1-44*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV1-44*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV1-44*03"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV1-46*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV1-52*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV1-59*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV1-59*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV1-66*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV1-69*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV1-69*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV1-74*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV1-80*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV1-84*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV1-94*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV1-101*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV1S3*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV1S4*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV1S5*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV1S6*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV1S8*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV1S9*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV1S11*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV1S12*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV1S13*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV1S14*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV1S15*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV1S16*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV1S17*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV1S19*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV1S21*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV1S25*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV2-2*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV2-2*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV2-7*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV2-7*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV2-23*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV2-26*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV2-26*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV2-30*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV2-30*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV2-48*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV2-48*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV2-49*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV2-49*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV2-58*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV2-58*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV2-58*03"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV2-60*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV2-60*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV2-61*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV2-61*03"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV2-62*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV2-64*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV2-64*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV2-65*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV2-68*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV2-70*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV2-72*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV2-72*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV2-72*03"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV2-73*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV2-75*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV2-76*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV2-78*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV2-81*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV2-82*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV2-82*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV2-82*03"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV2-83*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV2-86*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV2-86*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV2-87*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV2-90*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV2-91*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV2-99*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV2-103*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV2-104*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV2-104*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV2S2*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV2S3*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV2S8*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV2S9*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV2S15*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV2S16*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV2S20*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV3-10*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV3-10*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV3-12*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV3-12*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV3-17*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV3-17*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV3-17*03"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV3-24*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV3-24*03"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV3-24*04"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV3-26-1*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV3-31*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV3-31*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV3-35*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV3-35*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV3-35*03"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV3-40*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV3-40*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV3-40*03"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV3-42*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV3-42*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV3-42*03"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV3-53*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV3-53*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV3-88*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV3S5*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV3S9*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV3S11*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV4-1*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV4-1*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV4-8*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV4-8*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV4S1*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV5-5*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV5-11*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV5-11*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV6-47*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV6-47*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV6-55*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV6-67*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV7-13*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV7-13*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV1-60*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV1-64*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV1-64*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV1-65*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV1-66*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV1-67*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV1-67*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV1-72*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV1-72*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV1-77*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV1-77*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV1-81*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV1-85*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV1-86*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV1-86*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV1-100*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV1-100*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV1-122*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV1-122*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV1-122*03"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV1-122*04"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV1S1*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV1S2*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV1S4*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV1S6*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV2-11*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV2-11*03"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV2-13*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV2-13*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV2-13*03"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV2-19*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV2-19*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV2-19*03"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV2-23*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV2-23*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV2-23*03"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV2-26*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV2-26*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV2-32*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV2-32*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV2-38*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV2-46*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV2S4*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV2S7*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV2S8*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV2S9*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV3-2*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV3-14*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV3-16*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV3-16*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV3-18*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV3-18*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV3-18*03"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV3-22*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV3-25*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV3-25*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV3-27*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV3-27*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV3-29*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV3-30*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV3-33*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV3-33*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV3-33*03"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV3-33*04"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV3-33*05"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV3-33*06"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV3-33*07"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV3-33*08"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV3-34*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV3-35*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV3-36*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV3-36*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV3-39*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV3-40*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV3-43*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV3-44*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV3-48*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV3S3*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV3S7*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV3S9*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV3S10*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV3S11*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV3S12*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV3S13*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV3S14*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV3S15*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV3S16*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV4-9*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV4-17*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV4-17*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV4-97*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV4-97*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV4-97*03"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV4S1*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV5-57*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV5-57*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV5-62*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV5-62*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV5-69*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV5-74*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV5-74*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV5-83*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV5-83*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV5-87*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV5-87*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV5-93*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV5-95*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV5-99*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV5-103*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV6-92*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV6-110*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV6-110*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV6-110*03"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV6-112*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV6-112*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV7-55*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV7-56*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV7-59*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV7-71*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV7-76*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV7-76*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV7-80*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV7-88*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV8-125*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV8-125*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV9-84*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV10-114*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV11-117*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLJ4*01"
+message = "no J Trp/Phe118 motif (TGG|TTT|TTC)GGNNNNGGN"
+
+[[warnings]]
+allele = "IGLJ7*02"
+message = "no J Trp/Phe118 motif (TGG|TTT|TTC)GGNNNNGGN"
