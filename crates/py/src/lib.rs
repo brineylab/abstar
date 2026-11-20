@@ -136,6 +136,7 @@ fn summary_dict<'py>(py: Python<'py>, s: &RunSummary) -> PyResult<Bound<'py, PyD
 fn run_to_files<'py>(
     py: Python<'py>,
     inputs: Vec<String>,
+    records: Vec<(String, String)>,
     output_dir: PathBuf,
     db_path: String,
     formats: Vec<String>,
@@ -143,7 +144,10 @@ fn run_to_files<'py>(
     strict: bool,
     loci: Option<Vec<String>>,
 ) -> PyResult<Bound<'py, PyDict>> {
-    let ins = self::inputs(inputs);
+    let mut ins = self::inputs(inputs);
+    if !records.is_empty() {
+        ins.push(Input::Records(records));
+    }
     let opts = options(threads, strict, loci)?;
     let formats =
         formats.iter().map(|f| f.parse::<Format>()).collect::<Result<Vec<_>, _>>().map_err(|e| err("INVALID_ARGUMENT", e))?;

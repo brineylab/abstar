@@ -117,9 +117,7 @@ def run(
             import polars as pl
 
             return pl.DataFrame(_core.run_in_memory(inputs, records, db_path, threads, strict, loci))
-        if records:
-            raise AbstarError("INVALID_ARGUMENT", "sequences and records need no files; omit output_dir to get a DataFrame")
-        d = _core.run_to_files(inputs, str(output_dir), db_path, fmts, threads, strict, loci)
+        d = _core.run_to_files(inputs, records, str(output_dir), db_path, fmts, threads, strict, loci)
     except _core.CoreError as e:
         raise from_core(e) from None
     return RunSummary(

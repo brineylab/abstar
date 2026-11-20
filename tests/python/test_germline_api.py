@@ -133,14 +133,14 @@ def test_run_to_files_and_stdout(tmp_path, capfd):
     db = str(germline.resolve("mydb")[0])
     fasta = tmp_path / "reads.fasta"
     fasta.write_text(">r1\nACGT\n>r2\nGGGG\n")
-    out = _core.run_to_files([str(fasta)], str(tmp_path / "out"), db, ["airr"], None, False, ["IGH"])
+    out = _core.run_to_files([str(fasta)], [], str(tmp_path / "out"), db, ["airr"], None, False, ["IGH"])
     assert sum(out["counts"].values()) == 2
     assert Path(out["inputs"][0]["outputs"]["airr"]).is_file()
     counts = _core.run_to_stdout([str(fasta)], db, None, False, None)
     assert sum(counts.values()) == 2
     assert capfd.readouterr().out.splitlines()[0].startswith("sequence_id\t")
     with pytest.raises(_core.CoreError) as e:
-        _core.run_to_files([str(tmp_path / "nope.fa")], str(tmp_path / "o2"), db, ["airr"], None, False, None)
+        _core.run_to_files([str(tmp_path / "nope.fa")], [], str(tmp_path / "o2"), db, ["airr"], None, False, None)
     assert e.value.args[0] == "INPUT_NOT_FOUND"
 
 

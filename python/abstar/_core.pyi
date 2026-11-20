@@ -7,6 +7,7 @@ def germline_build(recipe: str, output_dir: str, overwrite: bool, database_paths
 def germline_summary(path: str) -> dict: ...
 def run_to_files(
     inputs: list[str],
+    records: list[tuple[str, str]],
     output_dir: str,
     db_path: str,
     formats: list[str],

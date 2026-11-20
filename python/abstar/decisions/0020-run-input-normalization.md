@@ -16,7 +16,7 @@ Accepted (2026-11-20)
 
 **Default IDs.** A bare string is one sequence with ID `"1"`. An iterable of sequence strings gets IDs `"1"` to `"N"` by position. An iterable of `(id, sequence)` string pairs keeps its IDs. IDs are always strings.
 
-**Mixing** paths with sequences or records raises `INVALID_ARGUMENT`. Sequences and records need no files, so combining them with `output_dir` also raises `INVALID_ARGUMENT`.
+**Mixing** paths with sequences or records raises `INVALID_ARGUMENT`. Sequences and records may also be written to files: they form one in-memory input with output stem `records` (`records.tsv`, `records.parquet`) and a null `source_file` (0018).
 
 **Iterables** are consumed exactly once (generators work). `formats` must be a non-empty subset of `airr`, `parquet`; `threads` is None or an integer of at least 1; both are checked in Python before the core is called. Without `output_dir`, `formats` is ignored.
 
@@ -30,4 +30,4 @@ Accepted (2026-11-20)
 
 - Typos in paths fail fast with a clear code.
 - A sequence string that happens to be an existing file name is read as a file; a bare nucleotide string cannot realistically collide.
-- Writing in-memory sequences to files is not supported in this version.
+- `abstar run --seq ACGT OUT_DIR` works through the same path as file inputs.

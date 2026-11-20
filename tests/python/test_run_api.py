@@ -111,3 +111,11 @@ def test_bad_arguments(kw):
 def test_sequences_list_ids():
     df = abstar.run(["ACGT", "CAGGTGCAG"])
     assert df["sequence_id"].to_list() == ["1", "2"]
+
+
+def test_sequences_to_files(tmp_path):
+    out = tmp_path / "out"
+    s = abstar.run(["ACGT", "GGGG"], out, formats=["airr", "parquet"])
+    assert len(s.inputs) == 1
+    assert sorted(p.name for p in s.inputs[0].outputs.values()) == ["records.parquet", "records.tsv"]
+    assert sum(s.counts.values()) == 2
