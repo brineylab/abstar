@@ -260,3 +260,64 @@ fn failed_rerun_removes_run_json_and_keeps_unopened_outputs() {
     assert!(!out.join("run.json").exists(), "a failed run must not look finished");
     assert_eq!(std::fs::read(out.join("b.tsv")).unwrap(), good, "unopenable input truncated its output");
 }
+
+#[test]
+fn non_utf8_records_are_invalid_encoding() {
+    let d = tempfile::tempdir().unwrap();
+    let p = d.path().join("latin1.fasta");
+    // Latin-1 é (0xE9) and è (0xE8): distinct IDs that decode lossily to the same string
+    std::fs::write(&p, b">caf\xe9 x\nACGT\n>caf\xe8\nACGT\n>ok\nAC\xffGT\n>fine\nACGT\n").unwrap();
+    let r = rows(&[Input::File(p)]);
+    let got: Vec<(&str, &str, &str, Option<&str>)> =
+        r.iter().map(|x| (x.0.as_str(), x.1.as_str(), x.2.as_str(), x.3.as_deref())).collect();
+    assert_eq!(
+        got,
+        [
+            ("caf\u{FFFD}", "ACGT", "invalid_input", Some("invalid_encoding")),
+            ("caf\u{FFFD}", "ACGT", "invalid_input", Some("invalid_encoding")),
+            ("ok", "AC\u{FFFD}GT", "invalid_input", Some("invalid_encoding")),
+            ("fine", "ACGT", "unassigned", Some("engine_not_implemented")),
+        ]
+    );
+}
+
+#[test]
+fn common_fasta_variants() {
+    let d = tempfile::tempdir().unwrap();
+    let want = vec![("a".to_string(), "ACGTacgt".to_string()), ("b".to_string(), "GGCC".to_string())];
+    let variants: [&[u8]; 5] = [
+        b"\n>a\nACGT\nacgt\n>b\nGGCC\n",
+        b"\r\n\r\n>a\r\nACGT\r\nacgt\r\n>b\r\nGGCC\r\n",
+        b"\xef\xbb\xbf>a\nACGT\nacgt\n>b\nGGCC\n",
+        b"\xef\xbb\xbf \t\n\n>a\nAC GT \t\nacgt\t\n>b\nGG CC  \n",
+        b">a\nACGT  \nacgt\n>b\n\tGGCC\n",
+    ];
+    for (i, v) in variants.iter().enumerate() {
+        for gz in [false, true] {
+            let p = d.path().join(format!("v{i}{}.fasta", if gz { ".gz" } else { "" }));
+            if gz {
+                let mut e = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
+                e.write_all(v).unwrap();
+                std::fs::write(&p, e.finish().unwrap()).unwrap();
+            } else {
+                std::fs::write(&p, v).unwrap();
+            }
+            let r = rows(&[Input::File(p)]);
+            let got: Vec<(String, String)> = r.iter().map(|x| (x.0.clone(), x.1.clone())).collect();
+            assert_eq!(got, want, "variant {i} gz={gz}");
+            assert!(r.iter().all(|x| x.2 == "unassigned"), "variant {i}: {r:?}");
+        }
+    }
+}
+
+#[test]
+fn unsupported_compression_is_unreadable() {
+    let d = tempfile::tempdir().unwrap();
+    for ext in ["bz2", "xz", "zst"] {
+        let p = d.path().join(format!("x.fasta.{ext}"));
+        std::fs::write(&p, b"\x00\x01binary").unwrap();
+        let e = run_in_memory(&[Input::File(p)], &db(), &opts()).unwrap_err();
+        assert_eq!(e.code(), "INPUT_UNREADABLE");
+        assert!(e.to_string().contains("compression not supported: use gzip"), "{e}");
+    }
+}

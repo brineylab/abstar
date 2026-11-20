@@ -1,4 +1,5 @@
 //! FASTA/FASTQ reading (gzip detected by magic bytes) and output-stem naming.
+//! Leading BOM and blank lines are skipped; spaces and tabs are stripped from sequences.
 use crate::error::RunError;
 use flate2::bufread::MultiGzDecoder;
 use needletail::errors::ParseErrorKind;
@@ -40,6 +41,33 @@ impl Input {
     }
 }
 
+/// `(sequence_id, sequence, valid_utf8)`: a record whose ID or sequence bytes are not
+/// UTF-8 carries lossily decoded strings and `false` (it becomes `invalid_encoding`).
+pub(crate) type RawRecord = (String, String, bool);
+
+fn decode(b: Vec<u8>) -> (String, bool) {
+    match String::from_utf8(b) {
+        Ok(s) => (s, true),
+        Err(e) => (String::from_utf8_lossy(e.as_bytes()).into_owned(), false),
+    }
+}
+
+/// Consumes a leading UTF-8 BOM and leading whitespace (blank lines, CRLF or not).
+fn skip_preamble(r: &mut impl BufRead) -> std::io::Result<()> {
+    let mut first = true;
+    loop {
+        let buf = r.fill_buf()?;
+        let bom = if first && buf.starts_with(b"\xef\xbb\xbf") { 3 } else { 0 };
+        first = false;
+        let n = bom + buf[bom..].iter().take_while(|b| b.is_ascii_whitespace()).count();
+        let done = n < buf.len() || buf.is_empty();
+        r.consume(n);
+        if done {
+            return Ok(());
+        }
+    }
+}
+
 pub(crate) enum Source {
     Fastx { reader: Option<Box<dyn FastxReader>>, label: String, n: u64 },
     Mem(std::vec::IntoIter<(String, String)>),
@@ -60,9 +88,14 @@ impl Source {
             })?),
         };
         let unreadable = |e: &dyn std::fmt::Display| RunError::InputUnreadable(format!("{label}: {e}"));
+        if [".bz2", ".xz", ".zst"].iter().any(|x| label.to_ascii_lowercase().ends_with(x)) {
+            return Err(unreadable(&"compression not supported: use gzip"));
+        }
         let mut br = BufReader::new(raw);
         let gz = br.fill_buf().map_err(|e| unreadable(&e))?.starts_with(&[0x1f, 0x8b]);
-        let rd: Box<dyn Read + Send> = if gz { Box::new(MultiGzDecoder::new(br)) } else { Box::new(br) };
+        let mut rd: Box<dyn BufRead + Send> =
+            if gz { Box::new(BufReader::new(MultiGzDecoder::new(br))) } else { Box::new(br) };
+        skip_preamble(&mut rd).map_err(|e| unreadable(&e))?;
         let reader = match needletail::parse_fastx_reader(rd) {
             Ok(r) => Some(r),
             Err(e) if e.kind == ParseErrorKind::EmptyFile => None,
@@ -72,9 +105,9 @@ impl Source {
     }
 
     /// Up to `max` records; empty means end of input.
-    pub fn next_batch(&mut self, max: usize) -> Result<Vec<(String, String)>, RunError> {
+    pub fn next_batch(&mut self, max: usize) -> Result<Vec<RawRecord>, RunError> {
         match self {
-            Source::Mem(it) => Ok(it.take(max).collect()),
+            Source::Mem(it) => Ok(it.take(max).map(|(id, seq)| (id, seq, true)).collect()),
             Source::Fastx { reader: None, .. } => Ok(vec![]),
             Source::Fastx { reader: Some(r), label, n } => {
                 let mut out = Vec::with_capacity(max.min(65536));
@@ -84,10 +117,10 @@ impl Source {
                     let rec = rec.map_err(|e| RunError::InputUnreadable(format!("{label}: record {n}: {e}")))?;
                     let h = rec.id();
                     let h = &h[..h.iter().position(u8::is_ascii_whitespace).unwrap_or(h.len())];
-                    out.push((
-                        String::from_utf8_lossy(h).into_owned(),
-                        String::from_utf8_lossy(&rec.seq()).into_owned(),
-                    ));
+                    let mut seq = rec.seq().into_owned();
+                    seq.retain(|b| *b != b' ' && *b != b'\t'); // whitespace is not sequence content
+                    let ((id, ok_id), (seq, ok_seq)) = (decode(h.to_vec()), decode(seq));
+                    out.push((id, seq, ok_id && ok_seq));
                 }
                 Ok(out)
             }

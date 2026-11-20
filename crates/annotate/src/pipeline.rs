@@ -161,8 +161,24 @@ fn run_input(
         if batch.is_empty() {
             return Ok(());
         }
-        let mut recs: Vec<Record> =
-            pool.install(|| batch.par_iter().map(|(id, seq)| annotate_guarded(ann, id, seq, db)).collect());
+        let mut recs: Vec<Record> = pool.install(|| {
+            batch
+                .par_iter()
+                .map(|(id, seq, utf8)| {
+                    if *utf8 {
+                        annotate_guarded(ann, id, seq, db)
+                    } else {
+                        Record {
+                            sequence_id: id.clone(),
+                            sequence: seq.clone(),
+                            annotation_status: "invalid_input".into(),
+                            failure_reason: Some("invalid_encoding".into()),
+                            ..Default::default()
+                        }
+                    }
+                })
+                .collect()
+        });
         for r in &mut recs {
             r.source_file = source_file.clone();
             tsv_safe(&mut r.sequence_id);

@@ -155,3 +155,20 @@ def test_permission_error_is_unreadable(tmp_path):
         assert err_code(abstar.run, locked / "x.fasta") == "INPUT_UNREADABLE"
     finally:
         locked.chmod(0o755)
+
+
+def test_directory_reports_unsupported_compression(indir):
+    (indir / "z.fastq.xz").write_bytes(b"\xfd7zXZ\x00")
+    with pytest.raises(AbstarError) as e:
+        abstar.run(indir)
+    assert e.value.code == "INPUT_UNREADABLE" and "use gzip" in e.value.message
+    assert "z.fastq.xz" in e.value.message
+
+
+def test_latin1_header_is_invalid_encoding(tmp_path):
+    fa = tmp_path / "l1.fasta"
+    fa.write_bytes(b">caf\xe9\nACGT\n>ok\nACGT\n")
+    df = abstar.run(fa)
+    assert df["sequence_id"].to_list() == ["caf�", "ok"]
+    assert df["failure_reason"].to_list() == ["invalid_encoding", "engine_not_implemented"]
+    assert df["annotation_status"].to_list() == ["invalid_input", "unassigned"]

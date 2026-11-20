@@ -36,9 +36,11 @@ class RunSummary:
 
 
 def _is_seq_file(name: str) -> bool:
+    """A FASTA/FASTQ name, optionally compressed. Only gzip is readable; the others are
+    included so the core reports them (INPUT_UNREADABLE) instead of being skipped."""
     name = name.lower()
-    if name.endswith(".gz"):
-        name = name[:-3]
+    for z in (".gz", ".bz2", ".xz", ".zst"):
+        name = name.removesuffix(z)
     return name.endswith(_EXTS)
 
 
