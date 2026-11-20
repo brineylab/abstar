@@ -24,7 +24,7 @@ fn bound(name: &str, alleles: Vec<Allele>, d_inversion: f64, short_d: bool) -> B
 
 fn cands(alleles: &[Allele], d_inversion: bool) -> Candidates {
     let of = |s: Segment| alleles.iter().filter(|a| a.segment == s).cloned().collect();
-    Candidates { v: of(Segment::V), d: of(Segment::D), j: of(Segment::J), c: of(Segment::C), d_inversion }
+    Candidates::new(of(Segment::V), of(Segment::D), of(Segment::J), of(Segment::C), d_inversion)
 }
 
 fn get(alleles: &[Allele], name: &str) -> Allele {
@@ -134,12 +134,72 @@ mod oracle {
 
     /// Every (name, sequence, shift, mismatches) whose mismatches are that allele's best,
     /// for alleles in `set`.
-    fn tied(all: Vec<(String, Vec<u8>, i64, usize)>, set: &[String]) -> Vec<(Vec<u8>, i64)> {
+    fn tied(all: Vec<(String, Vec<u8>, i64, usize)>, set: &[String]) -> Vec<(String, Vec<u8>, i64)> {
         all.iter()
             .filter(|x| set.contains(&x.0))
             .filter(|x| x.3 == all.iter().filter(|y| y.0 == x.0).map(|y| y.3).min().unwrap())
-            .map(|x| (x.1.clone(), x.2))
+            .map(|x| (x.0.clone(), x.1.clone(), x.2))
             .collect()
+    }
+
+    /// Items grouped by allele name.
+    fn by_name<T>(items: Vec<(String, T)>) -> Vec<Vec<T>> {
+        let mut m: std::collections::BTreeMap<String, Vec<T>> = Default::default();
+        for (n, t) in items {
+            m.entry(n).or_default().push(t);
+        }
+        m.into_values().collect()
+    }
+
+    /// Every ordered (ve, ds, de, js) of one placement of each segment tying its best.
+    /// A branch is skipped only if what it has plus each remaining segment's
+    /// unconstrained best is below the best total found.
+    fn search(vo: &[(usize, i32)], d: Option<&[(usize, usize, i32)]>, jo: &[(usize, i32)]) -> (i32, Vec<[usize; 4]>) {
+        let (mut best, mut ties) = (i32::MIN, Vec::<[usize; 4]>::new());
+        let mut consider = |t: i32, x: [usize; 4], best: &mut i32| {
+            if t > *best {
+                *best = t;
+                ties.clear();
+            }
+            if t == *best {
+                ties.push(x);
+            }
+        };
+        let maxj = jo.iter().map(|x| x.1).max().unwrap_or(i32::MIN / 4);
+        let maxd = d.map_or(0, |d| d.iter().map(|x| x.2).max().unwrap_or(i32::MIN / 4));
+        for &(ve, a) in vo.iter().rev() {
+            if a + maxd + maxj < best {
+                continue;
+            }
+            match d {
+                Some(pairs) => {
+                    for &(st, en, dd) in pairs {
+                        if st < ve || a + dd + maxj < best {
+                            continue;
+                        }
+                        for &(jst, b) in jo {
+                            if jst >= en {
+                                consider(a + dd + b, [ve, st, en, jst], &mut best);
+                            }
+                        }
+                    }
+                }
+                None => {
+                    for &(jst, b) in jo {
+                        if jst >= ve {
+                            consider(a + b, [ve, 0, 0, jst], &mut best);
+                        }
+                    }
+                }
+            }
+        }
+        (best, ties)
+    }
+
+    /// The configurations tying the best over all of a combination's placement pairs.
+    fn combo_ties(found: Vec<(i32, Vec<[usize; 4]>)>) -> Vec<[usize; 4]> {
+        let Some(m) = found.iter().filter(|x| !x.1.is_empty()).map(|x| x.0).max() else { return vec![] };
+        found.into_iter().filter(|x| x.0 == m).flat_map(|x| x.1).collect()
     }
 
     pub fn truth(s: &Simulated, c: &Candidates) -> Truth {
@@ -244,23 +304,24 @@ mod oracle {
                     .collect()
             })
             .collect();
-        let d_prof: Vec<Vec<Option<i32>>> = d_places
+        let d_prof: Vec<(String, Vec<Option<i32>>)> = d_places
             .iter()
-            .map(|(o, shift)| {
-                (0..l)
+            .map(|(n, o, shift)| {
+                let p = (0..l)
                     .map(|i| {
                         let k = shift + i as i64 - ds[0] as i64;
                         (k >= 0 && (k as usize) < o.len()).then(|| pm(read[i], o.get(k as usize)))
                     })
-                    .collect()
+                    .collect();
+                (n.clone(), p)
             })
             .collect();
-        let j_prof: Vec<Vec<Option<i32>>> = j_places
+        let j_prof: Vec<(String, Vec<Option<i32>>)> = j_places
             .iter()
-            .map(|(q, sh)| {
+            .map(|(n, q, sh)| {
                 let (pf, uf) = js[0];
                 let jend = js.last().unwrap().0 + 1;
-                (0..l)
+                let p = (0..l)
                     .map(|i| {
                         if i >= jend {
                             None
@@ -277,7 +338,8 @@ mod oracle {
                             (k >= 0 && (k as usize) < q.len()).then(|| pm(read[i], q.get(k as usize)))
                         }
                     })
-                    .collect()
+                    .collect();
+                (n.clone(), p)
             })
             .collect();
 
@@ -298,12 +360,13 @@ mod oracle {
                 })
                 .collect()
         };
-        let j_opts: Vec<Vec<(usize, i32)>> = if js.is_empty() {
-            vec![vec![(l, 0)]]
+        // J and D options grouped by allele
+        let j_opts: Vec<Vec<Vec<(usize, i32)>>> = if js.is_empty() {
+            vec![vec![vec![(l, 0)]]]
         } else {
-            j_prof
+            by_name(j_prof)
                 .iter()
-                .map(|p| {
+                .map(|g| g.iter().map(|p| {
                     let jend = js.last().unwrap().0 + 1;
                     let (mut out, mut sum) = (vec![], 0);
                     for st in (0..jend).rev() {
@@ -312,15 +375,12 @@ mod oracle {
                         out.push((st, sum));
                     }
                     out
-                })
+                }).collect())
                 .collect()
         };
-        let d_opts: Vec<Option<Vec<(usize, usize, i32)>>> = if ds.is_empty() {
-            vec![None]
-        } else {
-            d_prof
+        let d_opts: Vec<Vec<Vec<(usize, usize, i32)>>> = by_name(d_prof)
                 .iter()
-                .map(|p| {
+                .map(|g| g.iter().map(|p| {
                     let mut out = vec![];
                     for a in 0..l {
                         for b in a + 1..=l {
@@ -329,67 +389,37 @@ mod oracle {
                             }
                         }
                     }
-                    Some(out)
-                })
-                .collect()
-        };
+                    out
+                }).collect())
+                .collect();
 
-        let (mut best, mut ties) = (i32::MIN, Vec::<[usize; 4]>::new());
-        let mut consider = |t: i32, x: [usize; 4], best: &mut i32| {
-            if t > *best {
-                *best = t;
-                ties.clear();
-            }
-            if t == *best {
-                ties.push(x);
-            }
-        };
+        // each combination of valid alleles keeps its own best; no-D combinations run when
+        // the D run is short and contribute V ends and J starts only
+        let (mut ties, mut no_d_ties) = (vec![], vec![]);
         for vo in &v_opts {
-            for d in &d_opts {
-                for jo in &j_opts {
-                    let maxj = jo.iter().map(|x| x.1).max().unwrap();
-                    let maxd = d.as_ref().map_or(0, |d| d.iter().map(|x| x.2).max().unwrap());
-                    for &(ve, a) in vo.iter().rev() {
-                        if a + maxd + maxj < best {
-                            continue;
-                        }
-                        match d {
-                            Some(pairs) => {
-                                for &(st, en, dd) in pairs {
-                                    if st < ve || a + dd + maxj < best {
-                                        continue;
-                                    }
-                                    for &(jst, b) in jo {
-                                        if jst >= en {
-                                            consider(a + dd + b, [ve, st, en, jst], &mut best);
-                                        }
-                                    }
-                                }
-                            }
-                            None => {
-                                for &(jst, b) in jo {
-                                    if jst >= ve {
-                                        consider(a + b, [ve, 0, 0, jst], &mut best);
-                                    }
-                                }
-                            }
-                        }
-                    }
+            for jg in &j_opts {
+                if ds.len() < 5 {
+                    no_d_ties.extend(combo_ties(jg.iter().map(|jo| search(vo, None, jo)).collect()));
+                }
+                for dg in &d_opts {
+                    let found = jg.iter().flat_map(|jo| dg.iter().map(move |d| search(vo, Some(d), jo))).collect();
+                    ties.extend(combo_ties(found));
                 }
             }
         }
-        let list = |f: &dyn Fn(&[usize; 4]) -> i64, on: bool| {
-            let mut v: Vec<i64> = if on { ties.iter().map(f).collect() } else { vec![] };
+        let with_ends: Vec<[usize; 4]> = ties.iter().chain(&no_d_ties).copied().collect();
+        let list = |t: &[[usize; 4]], f: &dyn Fn(&[usize; 4]) -> i64, on: bool| {
+            let mut v: Vec<i64> = if on { t.iter().map(f).collect() } else { vec![] };
             v.sort();
             v.dedup();
             v
         };
         let unrec = |set: &[String], a: Option<&Allele>| a.is_some_and(|a| !set.is_empty() && !set.contains(&a.name));
         Truth {
-            v_end_valid: list(&|x| x[0] as i64, !vs.is_empty()),
-            d_start_valid: list(&|x| x[1] as i64 + 1, !ds.is_empty()),
-            d_end_valid: list(&|x| x[2] as i64, !ds.is_empty()),
-            j_start_valid: list(&|x| x[3] as i64 + 1, !js.is_empty()),
+            v_end_valid: list(&with_ends, &|x| x[0] as i64, !vs.is_empty()),
+            d_start_valid: list(&ties, &|x| x[1] as i64 + 1, !ds.is_empty()),
+            d_end_valid: list(&ties, &|x| x[2] as i64, !ds.is_empty()),
+            j_start_valid: list(&with_ends, &|x| x[3] as i64 + 1, !js.is_empty()),
             unrecoverable_v: unrec(&v_valid, Some(&s.v)),
             unrecoverable_d: unrec(&d_valid, s.d.as_ref()),
             unrecoverable_j: unrec(&j_valid, Some(&s.j)),
@@ -563,4 +593,91 @@ fn truncated_read_coverage() {
     let got = truth(&tr, &c).v_valid;
     assert_eq!(got, want);
     assert_eq!(got, names(&["IGHV1-1*01", "IGHV1-1*04"]));
+}
+
+/// A V sibling missing the last 3 bases can't take an N base that matches the true V's
+/// next germline base, so its own best V end (the true end) is valid too (ruling G7).
+#[test]
+fn short_v_sibling_keeps_its_own_best_end() {
+    let al = tricky_igh_alleles();
+    let (v, d, j) = (get(&al, "IGHV1-2*01"), get(&al, "IGHD2-1*01"), get(&al, "IGHJ2*01"));
+    let (vs, ds) = (bytes(&v), bytes(&d));
+    let l = vs.len();
+    let s = hand(&v, l - 3, &[vs[l - 3], other(&[vs[l - 2], ds[1]])], Some((&d, 2..20)), b"TC", &j, 0);
+    let c = cands(&al, false);
+    let tr = truth(&s, &c);
+    assert_eq!(tr.v_valid, names(&["IGHV1-2*01", "IGHV1-2*02"]));
+    assert_eq!(tr.v_end_valid, vec![l as i64 - 3, l as i64 - 2]);
+    assert_eq!(tr, oracle::truth(&s, &c));
+}
+
+/// The J analogue: a sibling missing the first 3 bases can't take an N base matching the
+/// true J's previous germline base (ruling G7).
+#[test]
+fn short_j_sibling_keeps_its_own_best_start() {
+    let al = tricky_igh_alleles();
+    let (v, d, j) = (get(&al, "IGHV1-1*01"), get(&al, "IGHD2-1*01"), get(&al, "IGHJ1*01"));
+    let (ds, jq) = (bytes(&d), bytes(&j));
+    let n2 = [other(&[jq[1], ds[20]]), jq[2]];
+    let s = hand(&v, bytes(&v).len() - 2, b"CC", Some((&d, 2..20)), &n2, &j, 3);
+    let c = cands(&al, false);
+    let tr = truth(&s, &c);
+    let pf = s.origin.iter().position(|o| matches!(o, Origin::J(_))).unwrap() as i64;
+    assert_eq!(tr.j_valid, names(&["IGHJ1*01", "IGHJ1*02", "IGHJ1*03"]));
+    assert_eq!(tr.j_start_valid, vec![pf, pf + 1]);
+    assert_eq!(tr, oracle::truth(&s, &c));
+}
+
+/// With a D run under 5 nt, the V ends and J starts of the best no-D configurations are
+/// valid too (ruling G8): here only no-D lets V keep all three D bases.
+#[test]
+fn short_d_adds_no_d_boundaries() {
+    let al = tricky_igh_alleles();
+    let (v, j) = (get(&al, "IGHV1-1*01"), get(&al, "IGHJ2*01"));
+    let vs = bytes(&v);
+    let l = vs.len();
+    // a D ending in V's last 3 bases (so it cannot extend 3'), led by a base they lack
+    let tail = &vs[l - 3..];
+    let b = other(tail) as char;
+    let core = String::from_utf8(tail.to_vec()).unwrap();
+    let d = Allele {
+        sequence_gapped: format!("{b}{b}{b}{b}{core}"),
+        ..allele("IGHD9-9*01", abstar_germline::Locus::IGH, Segment::D, "human", false)
+    };
+    let n2 = [other(&[b as u8]), other(&[b as u8])];
+    let s = hand(&v, l - 3, b"", Some((&d, 4..7)), &n2, &j, 0);
+    let c = cands(&[v.clone(), d.clone(), j.clone()], false);
+    let tr = truth(&s, &c);
+    assert!(tr.d_null_valid);
+    let l = l as i64;
+    // with D: V ends by l − 1 (D needs a base); without D: V takes all three
+    assert_eq!(tr.v_end_valid, vec![l - 3, l - 2, l - 1, l]);
+    assert_eq!(tr, oracle::truth(&s, &c));
+}
+
+#[test]
+#[ignore = "timing: cargo test --release -p abstar_generate --test truth -- --ignored --nocapture"]
+fn truth_speed_human_igh() {
+    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../python/abstar/germline_dbs/human");
+    let al: Vec<Allele> = abstar_germline::load(&dir)
+        .unwrap()
+        .alleles
+        .into_iter()
+        .filter(|a| a.species == "human" && a.locus == abstar_germline::Locus::IGH)
+        .collect();
+    let c = cands(&al, true);
+    let (v, d, j) = (get(&al, "IGHV3-23*01"), get(&al, "IGHD3-10*01"), get(&al, "IGHJ4*02"));
+    let vl = bytes(&v).len() - 2;
+    for (name, r) in [("typical (15 nt D)", 3..18), ("3 nt D", 10..13), ("1 nt D", 12..13)] {
+        let mut s = hand(&v, vl, b"GGT", Some((&d, r)), b"CCA", &j, 4);
+        for i in (7..vl).step_by(20) {
+            s.read[i] = other(&[s.read[i]]); // 5% V mutation
+        }
+        let n = 2000;
+        let t0 = std::time::Instant::now();
+        for _ in 0..n {
+            std::hint::black_box(truth(std::hint::black_box(&s), &c));
+        }
+        eprintln!("{name}: {:.1} µs/read", t0.elapsed().as_secs_f64() * 1e6 / n as f64);
+    }
 }

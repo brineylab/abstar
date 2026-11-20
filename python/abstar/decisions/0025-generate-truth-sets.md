@@ -28,7 +28,7 @@ The generator records the origin of every read base (`Origin`: a gapped V index,
 
 **Unrecoverable.** `unrecoverable_v`, `unrecoverable_d` and `unrecoverable_j` are set when the true allele is not in its non-empty set: mutation made another allele strictly closer. No annotator can get these right, and they count toward the reported error floor.
 
-**No D.** `d_null_valid` is true when the read's D-derived run is shorter than **5 nt**, and always true for VJ loci. The D set is still computed for short runs, so a D call from the set and a null call are both valid.
+**No D.** `d_null_valid` is true when the read's D-derived run is shorter than **5 nt**, and always true for VJ loci. The D set is still computed for short runs, so a D call from the set and a null call are both valid. For a short run, the V ends and J starts of the best no-D configurations are also added to the boundary lists (see below), so an annotator that legitimately omits D is graded fairly.
 
 **Boundaries.** `v_sequence_end`, `d_sequence_start`, `d_sequence_end` and `j_sequence_start` are found by a joint maximum of a separable score.
 - **Score.** In a configuration, each read base given to V, D or J scores +1 if it matches that segment's placed germline and −1 if it does not. Uncovered bases score −1. Bases left to N/P score 0, and inserted bases inside V or J score 0.
@@ -39,7 +39,11 @@ The generator records the origin of every read base (`Origin`: a gapped V index,
 
   The spec says V and J are placed by the true mapping. For J, a sibling of a different length, such as one missing 5' bases, needs its own shift to line up. Using its best shift places the allele exactly as it was compared for the set.
 - **Configurations.** V covers the read from its start to the V end. J covers the J start through the last J-derived base. Cuts are ordered: V end ≤ D start < D end ≤ J start. Each segment present in the read gets at least one base. Without a D (VJ loci, or a D run of length 0), the D terms are dropped.
-- **Ties stored as lists.** The maximum is taken over every combination of V, D and J placements, using a DP over prefix and suffix maxima. Each boundary stores every value it takes in any configuration that ties the global maximum, as a sorted list. It is a list, not a range, because tied cuts need not be contiguous. Values are 1-based positions in the final read, per AIRR. Each boundary is graded on its own.
+- **Ties per allele combination.** Ties are computed separately for every combination of valid alleles: v ∈ `v_valid`, d ∈ `d_valid`, j ∈ `j_valid`. Each combination keeps the configurations tying its own best score over its placements (D and J shifts and orientations). No D is one more combination per (v, j) when the D run is under 5 nt, contributing V ends and J starts only. This follows the spec ("ties are computed for every allele in that segment's valid set, and their union is taken"; rulings G7 and G8, 2026-11-20).
+  - For example, a V sibling missing the true V's last 3 bases cannot claim an N base that matches the true V's next germline base. So its own best end, the true end, is valid alongside the true allele's extended end.
+  - A single global maximum across combinations would drop it, and would grade an annotator that called the short sibling, a valid V call, wrong on its V end.
+- **Ties stored as lists.** Each boundary stores every value it takes in any configuration kept above, as a sorted list. It is a list, not a range, because tied cuts need not be contiguous. Values are 1-based positions in the final read, per AIRR. Each boundary is graded on its own.
+- **Computation.** For each combination, a DP over prefix maxima of the V score and suffix maxima of the J score is run, with one linear pass per D placement. Tied configurations are recovered only for the placements that reach the combination's best.
 - **How these cases come out under this score:**
   - An N base that matches V's next germline base moves the V end onto it: +1 beats 0. The true end stays valid only if the neighbouring segment can claim that base equally well. For example, it may also match J's 5' extension.
   - A mutated base at a segment edge is given to N. Its end moves inward by one: 0 beats −1.
@@ -63,11 +67,18 @@ The generator records the origin of every read base (`Origin`: a gapped V index,
 - **Always compare D reverse complements:** with short D runs, chance reverse-complement matches would mark forward-only annotators wrong on models that never invert D.
 - **Place J siblings by the true J index:** misplaces siblings of different lengths, and disagrees with the shift used to admit them to the set.
 - **Store boundary sets as `[min, max]`:** tied cuts need not be contiguous.
+- **One global maximum across all allele combinations:** drops the best cuts of valid alleles that score lower overall, such as shorter siblings (rejected in ruling G7).
+- **Boundaries for a short D only with the D placed:** grades an annotator that legitimately calls no D against cuts that assume a D (rejected in ruling G8).
 
 ## Consequences
 
 - Grading is per field: an answer is correct if it is in its `_valid` set or list.
 - The unrecoverable rows give the error floor that a perfect annotator still hits.
-- With `d_null_valid`, a null D call is graded correct. The V-end and J-start lists are still computed with the D placed (when the run has ≥ 1 nt), so a null-D annotator is graded on V and J against those lists.
+- With `d_null_valid`, a null D call is graded correct, and the V-end and J-start lists include the cuts of the best no-D configurations as well as those with the D placed.
 - Changing the 5 nt threshold, the score, or any comparison rule changes truth for the same seed, so it needs a superseding record.
-- The cost per read is linear in the number of candidate bases (V: candidates × V length; D and J: candidates × shifts × run). A database with many V alleles dominates the cost.
+- **Cost profile.** Candidate sequences are cached once per run (`Candidates::new`).
+  - Per read, the V set compares the read's V bases (placed at their IMGT positions) with every V candidate in one vectorized pass.
+  - D and J sets count matches at all shifts at once: candidates × run length × allele length.
+  - Boundaries cost (V alleles in the set) × (J placements) × (D placements) × D length. Short D runs (1–3 nt) tie at many shifts across many D alleles in both orientations, so they are the expensive case.
+  - Measured on the human IGH candidate set (198 V, 31 D, 7 J, 88 C, inversion on), single-threaded, release build: about 40 µs for a typical read (15 nt D), 45 µs with a 3 nt D, and 80 µs with a 1 nt D. The test is `truth_speed_human_igh`, ignored by default.
+  - The V comparison is the largest fixed cost, so it grows linearly with the number of V alleles in the database.

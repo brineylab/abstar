@@ -2,11 +2,14 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use abstar_germline::{Allele, Database, Segment};
 
+use crate::truth::Seqs;
 use crate::{GenerateError, Model};
 
 /// Minimum retained model probability mass for each of V, D and J.
 const MIN_COVERAGE: f64 = 0.90;
 
+/// Every allele of the locus and species. Build with [`Candidates::new`], which caches the
+/// sequences truth sets compare against; changing the fields afterwards leaves that cache stale.
 #[derive(Debug, Clone)]
 pub struct Candidates {
     pub v: Vec<Allele>,
@@ -15,6 +18,14 @@ pub struct Candidates {
     pub c: Vec<Allele>,
     /// Compare D reverse complements too (the model's `d_inversion` > 0).
     pub d_inversion: bool,
+    pub(crate) seqs: Seqs,
+}
+
+impl Candidates {
+    pub fn new(v: Vec<Allele>, d: Vec<Allele>, j: Vec<Allele>, c: Vec<Allele>, d_inversion: bool) -> Self {
+        let seqs = Seqs::new(&v, &d, &j, &c);
+        Self { v, d, j, c, d_inversion, seqs }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -93,13 +104,8 @@ pub fn bind(model: Model, db: &Database) -> Result<Bound, GenerateError> {
     let alleles: Vec<&Allele> =
         db.alleles.iter().filter(|a| a.species == model.species && a.locus == model.locus).collect();
     let of = |s: Segment| alleles.iter().filter(|a| a.segment == s).map(|a| (*a).clone()).collect::<Vec<_>>();
-    let candidates = Candidates {
-        v: of(Segment::V),
-        d: of(Segment::D),
-        j: of(Segment::J),
-        c: of(Segment::C),
-        d_inversion: model.d_inversion > 0.0,
-    };
+    let candidates =
+        Candidates::new(of(Segment::V), of(Segment::D), of(Segment::J), of(Segment::C), model.d_inversion > 0.0);
     let ungapped: Vec<&Allele> = candidates.v.iter().filter(|a| !a.sequence_gapped.contains('.')).collect();
     if !ungapped.is_empty() {
         let ex: Vec<&str> = ungapped.iter().take(3).map(|a| a.id.as_str()).collect();
