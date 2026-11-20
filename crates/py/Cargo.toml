@@ -1,0 +1,13 @@
+[package]
+name = "abstar_py"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "_core"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+abstar_annotate = { path = "../annotate" }
+pyo3 = { version = "0.23", features = ["extension-module", "abi3-py311"] }

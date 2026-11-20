@@ -1,0 +1,1 @@
+//! Germline database types.
