@@ -250,3 +250,16 @@ fn iupac_ambiguity_codes_accepted_and_round_trip() {
     let v2 = loaded.alleles.iter().find(|a| a.id == "V2").unwrap();
     assert_eq!(v2.sequence_gapped, "ACGTS..sRYWKMBDHVnryswkmbdhv");
 }
+
+#[test]
+fn overwrite_refuses_a_directory_that_is_not_a_database() {
+    let t = tempfile::tempdir().unwrap();
+    let dir = t.path().join("victim");
+    fs::create_dir(&dir).unwrap();
+    fs::write(dir.join("thesis.docx"), "precious").unwrap();
+    let e = write(&db(), &dir, true).unwrap_err();
+    assert_eq!(e.code(), "DATABASE_EXISTS");
+    assert!(e.to_string().contains("not a germline database"), "{e}");
+    assert_eq!(fs::read_to_string(dir.join("thesis.docx")).unwrap(), "precious");
+    assert_eq!(fs::read_dir(t.path()).unwrap().count(), 1);
+}

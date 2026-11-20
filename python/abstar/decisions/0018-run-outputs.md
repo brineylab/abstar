@@ -16,7 +16,7 @@ A run turns FASTA/FASTQ inputs into TSV and/or Parquet files plus a record of ho
 
 **Overwrite.** Existing outputs with the same names are overwritten without prompting; reruns are the normal workflow. Other files in the directory are left alone.
 
-**run.json.** Written last to `<output_dir>/run.json`, so its presence marks a finished run. Keys: `abstar_version`, `airr_version`, `started` and `finished` (RFC 3339 UTC), `parameters` (`germline_db`, `db_path`, `formats`, `threads`, `strict`, `loci`), `database` (`name`, `alleles_sha256`), `inputs` (`source`, `outputs`, `counts` per input) and the total `counts` (`annotated`, `unassigned`, `invalid_input`, `error`). `source` is the path as given, `-` for stdin, `records` for in-memory input. `source_file` in each row carries the same value, and is null for in-memory records.
+**run.json.** Written last to `<output_dir>/run.json`, so its presence marks a finished run. A run deletes any existing `run.json` before it creates or truncates an output file, so a failed re-run leaves no `run.json` and cannot look finished. Each input is opened before its output files are created, so an input that cannot be opened or parsed fails without truncating that input's previous outputs. Keys: `abstar_version`, `airr_version`, `started` and `finished` (RFC 3339 UTC), `parameters` (`germline_db`, `db_path`, `formats`, `threads`, `strict`, `loci`), `database` (`name`, `alleles_sha256`), `inputs` (`source`, `outputs`, `counts` per input) and the total `counts` (`annotated`, `unassigned`, `invalid_input`, `error`). `source` is the path as given, `-` for stdin, `records` for in-memory input. `source_file` in each row carries the same value, and is null for in-memory records.
 
 **Panics become error rows.** Each record is annotated under `catch_unwind`. A panic yields a row with status `error` and `failure_reason` of `internal_error: <message>`; the run continues. Under `strict`, the first such row aborts the run with `STRICT_RECORD_FAILURE`. The default panic message is suppressed only while a record is annotated, so the failure appears once, in the row.
 
@@ -35,4 +35,5 @@ A run turns FASTA/FASTQ inputs into TSV and/or Parquet files plus a record of ho
 
 - Output names are predictable from input names, and conflicts surface before work is done.
 - `run.json` is enough to see which database and parameters produced a directory.
+- A directory without `run.json` holds an unfinished or failed run; outputs from an input that failed mid-stream are partial.
 - A custom panic hook is installed once per process; it forwards all other panics to the previous hook.

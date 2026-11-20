@@ -242,3 +242,21 @@ fn tsv_hostile_characters_do_not_panic() {
     let t = String::from_utf8(tsv(&inputs, &opts())).unwrap();
     assert_eq!(t.lines().count(), 2);
 }
+
+#[test]
+fn failed_rerun_removes_run_json_and_keeps_unopened_outputs() {
+    let d = tempfile::tempdir().unwrap();
+    let (a, b) = (d.path().join("a.fasta"), d.path().join("b.fasta"));
+    std::fs::copy(data("messy.fasta"), &a).unwrap();
+    std::fs::copy(data("messy.fasta"), &b).unwrap();
+    let out = d.path().join("out");
+    let inputs = [Input::File(a), Input::File(b.clone())];
+    run_to_files(&inputs, &out, &db(), &[Format::Airr], &opts(), &meta()).unwrap();
+    let good = std::fs::read(out.join("b.tsv")).unwrap();
+    assert!(out.join("run.json").exists());
+    std::fs::write(&b, "not a fasta\n").unwrap();
+    let e = run_to_files(&inputs, &out, &db(), &[Format::Airr], &opts(), &meta()).unwrap_err();
+    assert_eq!(e.code(), "INPUT_UNREADABLE");
+    assert!(!out.join("run.json").exists(), "a failed run must not look finished");
+    assert_eq!(std::fs::read(out.join("b.tsv")).unwrap(), good, "unopenable input truncated its output");
+}

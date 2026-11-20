@@ -139,9 +139,11 @@ fn tsv_safe(s: &mut String) {
     }
 }
 
-/// Runs one input; `counts` is updated as batches complete so callers keep partial counts on error.
+/// Runs one opened input; `counts` is updated as batches complete so callers keep partial counts on error.
+#[allow(clippy::too_many_arguments)]
 fn run_input(
     input: &Input,
+    mut src: Source,
     db: &Database,
     opts: &RunOptions,
     pool: &rayon::ThreadPool,
@@ -149,7 +151,6 @@ fn run_input(
     counts: &mut StatusCounts,
     sink: Sink,
 ) -> Result<(), RunError> {
-    let mut src = Source::open(input)?;
     let source_file = match input {
         Input::Records(_) => None,
         i => Some(i.source()),
@@ -252,10 +253,17 @@ fn run_to_files_with(
     }
     let pool = pool(opts)?;
     std::fs::create_dir_all(output_dir).map_err(|e| io_err(&output_dir.display().to_string(), e))?;
+    // A stale run.json would mark a failed re-run as finished; it is rewritten last.
+    let run_json = output_dir.join("run.json");
+    match std::fs::remove_file(&run_json) {
+        Err(e) if e.kind() != ErrorKind::NotFound => return Err(io_err(&run_json.display().to_string(), e)),
+        _ => {}
+    }
     let started = now_rfc3339();
     let mut total = StatusCounts::default();
     let mut summaries = vec![];
     for (input, stem) in inputs.iter().zip(&stems) {
+        let src = Source::open(input)?; // before truncating this input's previous outputs
         let mut outputs = BTreeMap::new();
         let (mut tsv, mut pq) = (None, None);
         for f in &formats {
@@ -272,7 +280,7 @@ fn run_to_files_with(
             outputs.insert(fmt_name(*f).to_string(), path);
         }
         let mut counts = StatusCounts::default();
-        run_input(input, db, opts, &pool, ann, &mut counts, &mut |b| {
+        run_input(input, src, db, opts, &pool, ann, &mut counts, &mut |b| {
             if let Some((w, what)) = tsv.as_mut() {
                 w.write(b).map_err(|e| io_err(what, e))?;
             }
@@ -290,7 +298,6 @@ fn run_to_files_with(
         total.add(&counts);
         summaries.push(InputSummary { source: input.source(), outputs, counts });
     }
-    let run_json = output_dir.join("run.json");
     let doc = serde_json::json!({
         "abstar_version": meta.abstar_version,
         "airr_version": arrow_schema().metadata().get("airr_version"),
@@ -334,7 +341,7 @@ pub fn run_to_writer<W: Write>(
     let mut closed = false;
     for input in inputs {
         let mut c = StatusCounts::default();
-        let r = run_input(input, db, opts, &pool, &annotate_stub, &mut c, &mut |b| match w.write(b) {
+        let r = run_input(input, Source::open(input)?, db, opts, &pool, &annotate_stub, &mut c, &mut |b| match w.write(b) {
             Err(e) if pipe(&e) => {
                 closed = true;
                 Err(RunError::Io("broken pipe".into()))
@@ -369,7 +376,7 @@ pub fn run_in_memory_with(
     let pool = pool(opts)?;
     let mut out = vec![];
     for input in inputs {
-        run_input(input, db, opts, &pool, ann, &mut StatusCounts::default(), &mut |b| {
+        run_input(input, Source::open(input)?, db, opts, &pool, ann, &mut StatusCounts::default(), &mut |b| {
             out.push(b.clone());
             Ok(())
         })?;

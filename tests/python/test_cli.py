@@ -137,3 +137,12 @@ def test_api_run_dash_reads_stdin():
                        input=FA, capture_output=True, text=True)
     assert p.returncode == 0, p.stderr
     assert p.stdout.strip() == "3"
+
+
+def test_build_overwrite_refuses_non_database_dir(tmp_path):
+    victim = tmp_path / "victim"
+    victim.mkdir()
+    (victim / "thesis.docx").write_text("precious")
+    p = abstar("germline", "build", recipe(tmp_path, "mydb"), "--output", victim, "--overwrite")
+    assert p.returncode == 2 and "error[DATABASE_EXISTS]" in p.stderr and "not a germline database" in p.stderr
+    assert (victim / "thesis.docx").read_text() == "precious"

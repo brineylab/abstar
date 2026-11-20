@@ -109,8 +109,14 @@ fn sibling(dir: &Path, suffix: &str) -> PathBuf {
 }
 
 pub fn write(db: &Database, dir: &Path, overwrite: bool) -> Result<(), GermlineError> {
-    if dir.exists() && !overwrite {
-        return Err(GermlineError::Exists(dir.into()));
+    if dir.exists() {
+        if !overwrite {
+            return Err(GermlineError::Exists(dir.into()));
+        }
+        // overwrite replaces a database, never an arbitrary directory
+        if !dir.join("manifest.toml").is_file() {
+            return Err(GermlineError::NotADatabase(dir.into()));
+        }
     }
     validate(&db.alleles)?; // never write a file load would reject
     let staging = sibling(dir, "staging");
