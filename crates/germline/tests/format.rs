@@ -182,3 +182,55 @@ fn failed_write_leaves_nothing() {
     assert_eq!(e.code(), "IO_ERROR");
     assert_eq!(fs::read_dir(&parent).unwrap().count(), 0);
 }
+
+fn retarget_hash(dir: &std::path::Path, new_tsv: &str) {
+    let mp = dir.join("manifest.toml");
+    let old = load_hash(&mp);
+    let new: String = sha2::Sha256::digest(new_tsv.as_bytes()).iter().map(|b| format!("{b:02x}")).collect();
+    fs::write(dir.join("alleles.tsv"), new_tsv).unwrap();
+    fs::write(&mp, fs::read_to_string(&mp).unwrap().replace(&old, &new)).unwrap();
+}
+
+#[test]
+fn anchor_out_of_range_on_load_has_row() {
+    let t = tempfile::tempdir().unwrap();
+    let dir = t.path().join("db");
+    write(&db(), &dir, false).unwrap();
+    let s = fs::read_to_string(dir.join("alleles.tsv")).unwrap();
+    let mut lines: Vec<String> = s.lines().map(String::from).collect();
+    // row 3 is J1 (anchor 2); set to 99
+    let mut c: Vec<&str> = lines[3].split('\t').collect();
+    c[8] = "99";
+    lines[3] = c.join("\t");
+    retarget_hash(&dir, &(lines.join("\n") + "\n"));
+    let e = load(&dir).unwrap_err();
+    assert_eq!(e.code(), "DATABASE_INVALID");
+    assert!(e.to_string().contains("row 3"), "{e}");
+}
+
+#[test]
+fn missing_files_are_invalid() {
+    for name in ["manifest.toml", "alleles.tsv"] {
+        let t = tempfile::tempdir().unwrap();
+        let dir = t.path().join("db");
+        write(&db(), &dir, false).unwrap();
+        fs::remove_file(dir.join(name)).unwrap();
+        let e = load(&dir).unwrap_err();
+        assert_eq!(e.code(), "DATABASE_INVALID");
+        assert!(e.to_string().contains(name), "{e}");
+    }
+}
+
+#[test]
+fn control_characters_rejected() {
+    let t = tempfile::tempdir().unwrap();
+    let dir = t.path().join("db");
+    for c in ["\t", "\n", "\r"] {
+        let mut d = db();
+        d.alleles[0].source = format!("x{c}y");
+        let e = validate(&d.alleles).unwrap_err();
+        assert!(e.to_string().contains("source") && e.to_string().contains("C1"), "{e}");
+        assert_eq!(write(&d, &dir, false).unwrap_err().code(), "DATABASE_INVALID");
+        assert!(!dir.exists());
+    }
+}

@@ -9,6 +9,14 @@ pub fn validate(alleles: &[Allele]) -> Result<Vec<BuildWarning>, GermlineError> 
         if !seen.insert(a.id.as_str()) {
             return Err(bad(a, "duplicate id".into()));
         }
+        for (field, v) in [
+            ("id", &a.id), ("name", &a.name), ("gene", &a.gene), ("species", &a.species),
+            ("sequence_gapped", &a.sequence_gapped), ("source", &a.source),
+        ] {
+            if v.contains(['\t', '\n', '\r']) {
+                return Err(bad(a, format!("{field} contains a tab or newline")));
+            }
+        }
         if let Some(c) = a
             .sequence_gapped
             .chars()

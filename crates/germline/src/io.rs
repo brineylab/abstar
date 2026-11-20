@@ -48,7 +48,7 @@ fn parse(text: &str) -> Result<Vec<Allele>, GermlineError> {
         fn some(s: &str) -> Option<&str> {
             (!s.is_empty()).then_some(s)
         }
-        out.push(Allele {
+        let a = Allele {
             id: c[0].into(),
             name: c[1].into(),
             gene: c[2].into(),
@@ -64,7 +64,14 @@ fn parse(text: &str) -> Result<Vec<Allele>, GermlineError> {
             usage: some(c[10])
                 .map(|s| s.parse().map_err(|_| err(format!("bad usage {s:?}"))))
                 .transpose()?,
-        });
+        };
+        if let Some(p) = a.anchor {
+            let len = a.sequence().len();
+            if p >= len {
+                return Err(err(format!("anchor {p} out of range for length {len}")));
+            }
+        }
+        out.push(a);
     }
     Ok(out)
 }
@@ -73,9 +80,18 @@ pub fn load(dir: &Path) -> Result<Database, GermlineError> {
     if !dir.is_dir() {
         return Err(GermlineError::NotFound(dir.into()));
     }
-    let manifest: Manifest = toml::from_str(&fs::read_to_string(dir.join("manifest.toml"))?)
+    let read = |name: &str| {
+        fs::read(dir.join(name)).map_err(|e| match e.kind() {
+            std::io::ErrorKind::NotFound => {
+                GermlineError::Invalid(format!("missing {name} in {}", dir.display()))
+            }
+            _ => e.into(),
+        })
+    };
+    let manifest_text = read("manifest.toml")?;
+    let manifest: Manifest = toml::from_str(&String::from_utf8_lossy(&manifest_text))
         .map_err(|e| GermlineError::Invalid(format!("manifest.toml: {e}")))?;
-    let bytes = fs::read(dir.join("alleles.tsv"))?;
+    let bytes = read("alleles.tsv")?;
     if hex_sha256(&bytes) != manifest.alleles_sha256 {
         return Err(GermlineError::Invalid("alleles.tsv: sha256 does not match manifest".into()));
     }
@@ -96,6 +112,7 @@ pub fn write(db: &Database, dir: &Path, overwrite: bool) -> Result<(), GermlineE
     if dir.exists() && !overwrite {
         return Err(GermlineError::Exists(dir.into()));
     }
+    validate(&db.alleles)?; // never write a file load would reject
     let staging = sibling(dir, "staging");
     let res = stage_and_swap(db, dir, &staging);
     if res.is_err() {
