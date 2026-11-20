@@ -66,3 +66,9 @@ fn allele_usage_validated() {
 fn format_version_must_be_1() {
     invalid_naming("bad_version.model.toml", "format_version");
 }
+
+#[test]
+fn shm_model_is_motif_or_none() {
+    assert_eq!(load_model(&data("tiny_igh.model.toml")).unwrap().shm_model, "motif");
+    invalid_naming("bad_shm_model.model.toml", "shm_model");
+}

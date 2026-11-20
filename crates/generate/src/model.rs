@@ -119,7 +119,7 @@ fn validate(m: &Model) -> Result<(), GenerateError> {
     if !(0.0..=1.0).contains(&m.d_inversion) {
         return bad(format!("d_inversion: {} outside [0, 1]", m.d_inversion));
     }
-    if !matches!(m.shm_model.as_str(), "HH_S5F" | "HKL_S5F" | "none") {
+    if !matches!(m.shm_model.as_str(), "motif" | "none") {
         return bad(format!("shm_model: unknown value '{}'", m.shm_model));
     }
     check_sum("v_usage", m.v_usage.values().copied())?;

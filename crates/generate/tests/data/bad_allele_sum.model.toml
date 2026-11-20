@@ -4,7 +4,7 @@ species = "human"
 locus = "IGH"
 description = "Tiny IGH model for tests; not biologically meaningful."
 d_inversion = 0.0
-shm_model = "HH_S5F"
+shm_model = "motif"
 
 [[source]]
 citation = "Synthetic test fixture"
