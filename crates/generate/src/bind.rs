@@ -92,10 +92,15 @@ pub fn bind(model: Model, db: &Database) -> Result<Bound, GenerateError> {
         db.alleles.iter().filter(|a| a.species == model.species && a.locus == model.locus).collect();
     let of = |s: Segment| alleles.iter().filter(|a| a.segment == s).map(|a| (*a).clone()).collect::<Vec<_>>();
     let candidates = Candidates { v: of(Segment::V), d: of(Segment::D), j: of(Segment::J), c: of(Segment::C) };
-    if let Some(a) = candidates.v.iter().find(|a| !a.sequence_gapped.contains('.')) {
+    let ungapped: Vec<&Allele> = candidates.v.iter().filter(|a| !a.sequence_gapped.contains('.')).collect();
+    if !ungapped.is_empty() {
+        let ex: Vec<&str> = ungapped.iter().take(3).map(|a| a.id.as_str()).collect();
         return Err(GenerateError::ModelInvalid(format!(
-            "V allele {} has no IMGT gaps in its gapped sequence; the germline database is not usable for generation",
-            a.id
+            "{} of {} V alleles lack IMGT gaps in their gapped sequence (e.g. {}); the germline database \
+             needs IMGT-gapped V sequences to compute truth sets (macaque: see #137)",
+            ungapped.len(),
+            candidates.v.len(),
+            ex.join(", ")
         )));
     }
 
@@ -121,9 +126,9 @@ pub fn bind(model: Model, db: &Database) -> Result<Bound, GenerateError> {
                 continue;
             }
             let (d, kept, dr) = ctx.table(row, Segment::D);
-            if d.is_empty() {
+            if d.is_empty() || kept <= 0.0 {
                 return Err(GenerateError::ModelInvalid(format!(
-                    "d_given_j.{jg}: none of its D genes ({}) have alleles in the germline database",
+                    "d_given_j.{jg}: none of its D genes ({}) have alleles with nonzero probability in the germline database",
                     row.keys().cloned().collect::<Vec<_>>().join(", ")
                 )));
             }

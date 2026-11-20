@@ -82,9 +82,12 @@ fn species_filter_in_mixed_db() {
 fn ungapped_v_candidates_rejected() {
     let mut a = tiny_igh_alleles();
     a[2].sequence_gapped = a[2].sequence();
+    a[3].sequence_gapped = a[3].sequence();
     let e = bind(tiny(), &db(a)).unwrap_err();
     assert_eq!(e.code(), "MODEL_INVALID");
-    assert!(e.to_string().contains("IGHV1-2*01"), "{e}");
+    let s = e.to_string();
+    assert!(s.contains("2 of 4 V alleles"), "{e}");
+    assert!(s.contains("IGHV1-2*01") && s.contains("IGHV2-1*01") && s.contains("#137"), "{e}");
 }
 
 #[test]
@@ -97,4 +100,19 @@ fn d_rows_renormalized_per_j() {
     assert!(bind(tiny(), &db(a)).is_err());
     let b = bind(m, &tiny_igh_db()).unwrap();
     assert_eq!(b.d_given_j["IGHJ1"].len(), 2);
+    assert!(b.warnings.iter().any(|w| w.contains("IGHD9")), "{:?}", b.warnings);
+    assert!((p(&b.d_given_j["IGHJ1"], "IGHD1-1*01") - 0.7).abs() < 1e-9);
+    assert!((p(&b.d_given_j["IGHJ1"], "IGHD2-1*01") - 0.3).abs() < 1e-9);
+}
+
+#[test]
+fn zero_mass_d_row_rejected() {
+    let mut m = tiny();
+    m.d_given_j.insert("IGHJ1".into(), [("IGHD9".into(), 1.0)].into());
+    m.d_given_j.insert("IGHJ2".into(), [("IGHD1-1".into(), 0.0), ("IGHD2-1".into(), 0.0)].into());
+    let e = bind(m.clone(), &tiny_igh_db()).unwrap_err();
+    assert!(e.to_string().contains("IGHJ1"), "{e}");
+    m.d_given_j.insert("IGHJ1".into(), [("IGHD1-1".into(), 1.0)].into());
+    let e = bind(m, &tiny_igh_db()).unwrap_err();
+    assert!(e.to_string().contains("IGHJ2"), "{e}");
 }

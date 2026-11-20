@@ -16,6 +16,8 @@ Allele probability is the gene probability times the model's `allele_usage` spli
 
 Binding fails with `MODEL_INVALID`, listing the dropped genes, if less than 0.90 of the model's V, D or J mass (D weighted by J usage) is retained. Every allele of the locus and species, anchored or not, is a candidate for later equal-answer comparison; V candidates must have a gapped sequence containing `.`, otherwise binding fails (this rejects databases without IMGT gaps, such as macaque).
 
+Known limits: V alleles are compared at their IMGT-gapped positions, so a V allele whose gapping is shifted (e.g. human IGLV3-2*03, issue #138) is compared at the wrong positions and may be under-counted in truth sets. Macaque is rejected until its V genes are regapped (#137).
+
 ## Alternatives considered
 
 - Fail on any missing gene: makes models unusable with slightly different database releases.
