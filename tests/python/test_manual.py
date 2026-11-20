@@ -80,3 +80,35 @@ def test_cli_manual_stdout():
     r = runner.invoke(cli.app, ["manual"])
     assert r.exit_code == 0
     assert r.stdout.startswith("# abstar")
+
+
+# Every option of the 0.x CLI (legacy/abstar/scripts/abstar.py), listed here rather than read
+# from legacy/, which nothing may depend on.
+LEGACY_OPTIONS = [
+    # abstar run
+    "INPUT_PATH", "PROJECT_PATH", "--germline_database", "--receptor", "-o", "--output_format",
+    "--umi_pattern", "--umi_length", "-m", "--merge", "--merge_kwargs", "--interleaved_fastq",
+    "-c", "--chunksize", "--mmseqs_chunksize", "--mmseqs_threads", "--n_processes",
+    "--copy-inputs", "--no-copy-inputs", "--verbose", "--quiet", "--strict", "--debug",
+    "--started_from_cli",
+    # abstar build_germline_database
+    "NAME", "-f", "--fasta", "-j", "--json", "--constant", "--manifest",
+    "-r", "-l", "--location", "--reference", "--include_species_in_name", "--exclude_species_from_name",
+]
+LEGACY_API = [
+    "project_path", "germline_database", "receptor", "output_format", "umi_pattern", "umi_length",
+    "merge", "merge_kwargs", "interleaved_fastq", "chunksize", "mmseqs_chunksize", "mmseqs_threads",
+    "n_processes", "copy_inputs_to_project", "verbose", "concise_logging", "as_dataframe",
+    "started_from_cli", "debug", "strict",
+]
+
+
+def test_examples_and_migration_topics():
+    assert render("examples").strip() and render("migration").strip()
+    assert "abstar run" in render("examples") and "abstar.run(" in render("examples")
+    text = render("migration")
+    assert "`abstar build_germline_database`" in text
+    for o in LEGACY_OPTIONS + LEGACY_API:
+        assert f"`{o}`" in text, o
+    whole = render()
+    assert "# examples\n" in whole and "# migration\n" in whole

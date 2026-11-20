@@ -11,11 +11,13 @@ TOPICS: dict[str, str] = {
     "run": "The run command",
     "germline": "The germline commands",
     "manual": "The manual command",
+    "examples": "Common commands and Python API calls",
     "fields": "Output fields (fields NAME adds the decision record)",
     "conventions": "Coordinates, TSV encoding, record statuses, sequence IDs",
     "ambiguity": "The primary call and ties",
     "errors": "Error codes and exit codes",
     "decisions": "Decision records (decisions ID prints one)",
+    "migration": "Old (0.x) options and what replaces them",
 }
 _DECISIONS = Path(__file__).parent.parent / "decisions"
 _TOPIC_DIR = Path(__file__).parent / "topics"

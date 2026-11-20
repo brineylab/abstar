@@ -181,7 +181,7 @@ def manual(
     topic: Annotated[Optional[str], typer.Argument(help="Topic name; omit for the whole manual.")] = None,
     subtopic: Annotated[Optional[str], typer.Argument(help="Field name (fields) or decision ID (decisions).")] = None,
 ) -> None:
-    """Print the manual as Markdown: abstar manual [TOPIC] [SUBTOPIC]. Topics: commands, run, germline, manual, fields, conventions, ambiguity, errors, decisions."""
+    """Print the manual as Markdown: abstar manual [TOPIC] [SUBTOPIC]. Topics: commands, run, germline, manual, examples, fields, conventions, ambiguity, errors, decisions, migration."""
     from . import manual as _manual
 
     print(_manual.render(topic, subtopic))
