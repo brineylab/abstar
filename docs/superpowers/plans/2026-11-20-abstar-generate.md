@@ -358,7 +358,7 @@ pub fn truth(s: &Simulated, c: &Candidates) -> Truth
   - Score: +1 per matching germline-attributed base, −1 per mismatch, 0 for N/P.
   - For each allele in the segment's valid set, cut points range over positions where that allele's germline continuation is defined (V and J positioned by the true mapping, D by each tied best offset).
   - Maximize over ordered, non-overlapping (V end, D start, D end, J start) with DP over the separable score.
-  - Collect every configuration tying the global maximum, and take each boundary's value set across all of them. Without D, skip the D terms.
+  - For each combination of valid alleles (V, D or no D, J), collect the configurations tying that combination's own maximum; take each boundary's value set as the union across combinations (ruling G7). When `d_null_valid`, also union the V-end and J-start values of the best no-D configurations (G8). Without D, skip the D terms.
 
 - [ ] **Step 1: Write the failing tests:**
   - `oracle_agreement`: over 3,000 seeds on the tiny database (which has near-identical alleles by design) at mutation uniform 0–0.3 with indels, every `Truth` field equals the brute-force oracle. The oracle enumerates every candidate × offset × every boundary 4-tuple directly.
