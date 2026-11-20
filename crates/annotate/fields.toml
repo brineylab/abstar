@@ -1,0 +1,307 @@
+airr_version = "2.0"
+
+[[field]]
+name = "sequence_id"
+type = "string"
+nullable = false
+origin = "airr-required"
+coordinates = ""
+description = "Unique query sequence identifier for the Rearrangement."
+decision = ""
+
+[[field]]
+name = "sequence"
+type = "string"
+nullable = false
+origin = "airr-required"
+coordinates = ""
+description = "The query nucleotide sequence."
+decision = ""
+
+[[field]]
+name = "rev_comp"
+type = "bool"
+nullable = true
+origin = "airr-required"
+coordinates = ""
+description = "True if the alignment is on the opposite strand (reverse complemented) with respect to the query sequence."
+decision = ""
+
+[[field]]
+name = "productive"
+type = "bool"
+nullable = true
+origin = "airr-required"
+coordinates = ""
+description = "True if the V(D)J sequence is predicted to be productive."
+decision = ""
+
+[[field]]
+name = "v_call"
+type = "string"
+nullable = true
+origin = "airr-required"
+coordinates = ""
+description = "V gene with allele."
+decision = ""
+
+[[field]]
+name = "d_call"
+type = "string"
+nullable = true
+origin = "airr-required"
+coordinates = ""
+description = "First or only D gene with allele."
+decision = ""
+
+[[field]]
+name = "j_call"
+type = "string"
+nullable = true
+origin = "airr-required"
+coordinates = ""
+description = "J gene with allele."
+decision = ""
+
+[[field]]
+name = "sequence_alignment"
+type = "string"
+nullable = true
+origin = "airr-required"
+coordinates = ""
+description = "Aligned portion of query sequence, including any indel corrections or numbering spacers, such as IMGT-gaps."
+decision = ""
+
+[[field]]
+name = "germline_alignment"
+type = "string"
+nullable = true
+origin = "airr-required"
+coordinates = ""
+description = "Assembled, aligned, full-length inferred germline sequence spanning the same region as the sequence_alignment field (typically the V(D)J region) and including the same set of corrections and spacers (if any)."
+decision = ""
+
+[[field]]
+name = "junction"
+type = "string"
+nullable = true
+origin = "airr-required"
+coordinates = ""
+description = "Junction region nucleotide sequence, where the junction is defined as the CDR3 plus the two flanking conserved codons."
+decision = ""
+
+[[field]]
+name = "junction_aa"
+type = "string"
+nullable = true
+origin = "airr-required"
+coordinates = ""
+description = "Amino acid translation of the junction."
+decision = ""
+
+[[field]]
+name = "v_cigar"
+type = "string"
+nullable = true
+origin = "airr-required"
+coordinates = ""
+description = "CIGAR string for the V gene alignment."
+decision = ""
+
+[[field]]
+name = "d_cigar"
+type = "string"
+nullable = true
+origin = "airr-required"
+coordinates = ""
+description = "CIGAR string for the first or only D gene alignment."
+decision = ""
+
+[[field]]
+name = "j_cigar"
+type = "string"
+nullable = true
+origin = "airr-required"
+coordinates = ""
+description = "CIGAR string for the J gene alignment."
+decision = ""
+
+[[field]]
+name = "c_call"
+type = "string"
+nullable = true
+origin = "airr-optional"
+coordinates = ""
+description = "Constant region gene with allele."
+decision = ""
+
+[[field]]
+name = "v_gene"
+type = "string"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Gene name of the V call, without the allele."
+decision = "0008"
+
+[[field]]
+name = "v_species"
+type = "string"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Species of the germline sequence chosen for the V call."
+decision = "0007"
+
+[[field]]
+name = "v_call_ties"
+type = "list<string>"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Every V allele tied for the top score, including the primary call."
+decision = "0008"
+
+[[field]]
+name = "v_species_ties"
+type = "list<string>"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Species of each allele in v_call_ties, aligned entry by entry."
+decision = "0008"
+
+[[field]]
+name = "d_gene"
+type = "string"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Gene name of the D call, without the allele."
+decision = "0008"
+
+[[field]]
+name = "d_species"
+type = "string"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Species of the germline sequence chosen for the D call."
+decision = "0007"
+
+[[field]]
+name = "d_call_ties"
+type = "list<string>"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Every D allele tied for the top score, including the primary call."
+decision = "0008"
+
+[[field]]
+name = "d_species_ties"
+type = "list<string>"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Species of each allele in d_call_ties, aligned entry by entry."
+decision = "0008"
+
+[[field]]
+name = "j_gene"
+type = "string"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Gene name of the J call, without the allele."
+decision = "0008"
+
+[[field]]
+name = "j_species"
+type = "string"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Species of the germline sequence chosen for the J call."
+decision = "0007"
+
+[[field]]
+name = "j_call_ties"
+type = "list<string>"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Every J allele tied for the top score, including the primary call."
+decision = "0008"
+
+[[field]]
+name = "j_species_ties"
+type = "list<string>"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Species of each allele in j_call_ties, aligned entry by entry."
+decision = "0008"
+
+[[field]]
+name = "c_gene"
+type = "string"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Gene name of the constant region call, without the allele."
+decision = "0008"
+
+[[field]]
+name = "c_species"
+type = "string"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Species of the germline sequence chosen for the constant region call."
+decision = "0007"
+
+[[field]]
+name = "c_call_ties"
+type = "list<string>"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Every constant region allele tied for the top score, including the primary call."
+decision = "0008"
+
+[[field]]
+name = "c_species_ties"
+type = "list<string>"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Species of each allele in c_call_ties, aligned entry by entry."
+decision = "0008"
+
+[[field]]
+name = "annotation_status"
+type = "string"
+nullable = false
+origin = "abstar"
+coordinates = ""
+description = "Whether the record was annotated or failed, as a status code."
+decision = "0004"
+
+[[field]]
+name = "failure_reason"
+type = "string"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Why annotation failed, when it did; empty otherwise."
+decision = "0004"
+
+[[field]]
+name = "source_file"
+type = "string"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Input file the record came from."
+decision = "0013"

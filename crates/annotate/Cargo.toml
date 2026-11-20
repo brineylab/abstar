@@ -6,3 +6,9 @@ license.workspace = true
 
 [dependencies]
 abstar_germline = { path = "../germline" }
+arrow-array = "60.1.0"
+arrow-schema = "60.1.0"
+parquet = { version = "60.1.0", features = ["arrow", "zstd"] }
+
+[build-dependencies]
+toml = "1.2.1"
