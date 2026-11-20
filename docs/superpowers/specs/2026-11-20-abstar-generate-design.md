@@ -137,7 +137,7 @@ are not fit to any dataset by us. Correlations between steps beyond P(D | J)
 are not modelled. This is accepted, because grading accuracy needs coverage
 more than joint realism.
 
-**IGoR import.** `abstar generate model import-igor <igor_model_dir> --name
+**IGoR import.** `abstar model import-igor <igor_model_dir> --name
 <name> --germline-db <db>` converts an IGoR model's marginals into our format.
 Joint distributions are kept where our format can represent them and
 marginalized where it can't, with a report of what was dropped. Users run it
@@ -358,7 +358,7 @@ abstar generate [OUTPUT_DIR] --n INT --locus TEXT [--germline-db/-g TEXT=human]
                 [--mutation SPEC] [--indels FLOAT] [--truncate SPEC]
                 [--constant] [--productive-only] [--format airr|parquet]...
                 [--threads INT] [--json] [--quiet/-q]
-abstar generate model list|info|import-igor
+abstar model list|info|import-igor        # top-level, like `abstar germline` (an optional OUTPUT_DIR on a group would swallow a subcommand name)
 ```
 
 ```python

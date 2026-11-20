@@ -529,8 +529,8 @@ def list_models() -> list[ModelInfo]; def model_info(name_or_path) -> ModelInfo;
 
 **CLI** (spec: *CLI and Python API*):
 - `abstar generate [OUTPUT_DIR]` with `--n`, `--locus`, `-g/--germline-db`, `--model`, `--preset`, `--seed`, `--mutation`, `--long-cdr3`, `--indels`, `--frameshift-indels`, `--truncate-5p`, `--truncate-3p`, `--constant INT`, `--productive-only`, `--name`, `--format` (repeatable), `--threads`, `--json`, `-q`.
-- `abstar generate model list|info NAME|import-igor DIR --name N --species S [-g DB]`.
-- Turning `abstar generate` into a group (default command plus `model` subgroup) must keep `abstar generate --n 10 --locus IGH` working.
+- `abstar model list|info NAME|import-igor DIR --name N --species S [-g DB]` (a top-level group like `abstar germline`).
+- `abstar generate` is a plain command (not a group), so the positional OUTPUT_DIR never collides with a subcommand name.
 - With no OUTPUT_DIR, FASTA goes to stdout and the summary to stderr, with the same flush and closed-pipe handling as `run` (`cli.main`).
 
 **Manual:**
@@ -551,7 +551,7 @@ def list_models() -> list[ModelInfo]; def model_info(name_or_path) -> ModelInfo;
     - `abstar generate --n 3 --locus IGH --seed 1` prints a 6-line FASTA to stdout.
     - The closed-pipe test from Review Focus 5.
     - Re-running into an OUTPUT_DIR overwrites the files.
-    - `abstar generate model list --json` includes `human-igh`.
+    - `abstar model list --json` includes `human-igh`.
     - `abstar manual truth-fields` lists every `truth.toml` name.
     - `ERROR_CODES` includes both new codes.
 - [ ] **Step 2: Run and confirm failure.**
