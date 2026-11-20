@@ -47,8 +47,15 @@ For each record, in [`src/main.rs`](../../../spikes/vsearch/src/main.rs):
 3. **Traceback for the winner.** One more alignment with traceback produces the
    CIGAR, because a real engine needs V coordinates. This cost is in the timing.
 
-Records are spread across threads with rayon; each thread reuses its own
-alignment buffers.
+Records are spread across threads with rayon `map_init`. Rayon calls the
+scratch constructor once per work split, not once per thread, and the split
+happens inside the timer. Each scratch allocates two 512 × 2048 alignment
+blocks (score and traceback), two padded read buffers and a CIGAR, so these
+allocations are repeated more often than a real engine would repeat them. The
+bias is conservative: the spike understates throughput, possibly more at high
+thread counts, where rayon splits work more finely. It may account for part
+of the gap from linear scaling. The benchmarks were not re-run after this was
+found.
 
 The V database is `abstar/germline_dbs/bcr/human/ungapped/v.fasta`. It holds
 342 human V alleles: 198 IGHV, 64 IGKV and 80 IGLV (the plan calls them
@@ -116,7 +123,10 @@ checked byte-identical to the FASTA at that ordinal; ordinal 11457 is the
 corpus's expected annotation failure and has no baseline row. Allele suffixes
 (`*NN`) are stripped. A record agrees if the spike's tie list and the legacy
 comma-separated call share any gene, so ties on either side count as
-agreement.
+agreement. A record with no spike call (no shared k-mer) counts as
+disagreement; there were none in this corpus. The spike's tie list covers only
+alleles among the top N = 3 candidates on the winning strand. It therefore
+under-counts ties, which makes this agreement figure conservative.
 
 | | Records | Agreement |
 |---|---|---|

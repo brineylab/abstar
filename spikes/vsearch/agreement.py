@@ -2,7 +2,8 @@
 
 usage: python agreement.py <preds.tsv> <baseline.parquet>
 Allele suffixes are stripped; a record agrees if the spike's tied best genes and
-the legacy (comma-separated, possibly tied) genes share any gene.
+the legacy (comma-separated, possibly tied) genes share any gene. A record with
+no spike call (no shared k-mer) counts as disagreement.
 """
 import sys
 
@@ -19,6 +20,8 @@ d = (
     .with_columns(legacy=genes("v_call"), spike=genes("best_genes"))
     .with_columns(agree=pl.col("legacy").list.set_intersection("spike").list.len() > 0)
 )
+print(f"records with no spike call (counted as disagreement): {d['agree'].null_count()}")
+d = d.with_columns(pl.col("agree").fill_null(False))
 print(f"records compared: {d.height} (baseline rows {b.height}, null v_call {b['v_call'].null_count()})")
 print(f"agreement: {d['agree'].mean():.4%}")
 print(d.group_by("locus").agg(n=pl.len(), agreement=pl.col("agree").mean()).sort("locus"))
