@@ -267,6 +267,12 @@ fn run_to_files_with(
             }
         }
     }
+    if output_dir.exists() && !output_dir.is_dir() {
+        return Err(RunError::InvalidArgument(format!(
+            "output directory {} exists and is not a directory",
+            output_dir.display()
+        )));
+    }
     let pool = pool(opts)?;
     std::fs::create_dir_all(output_dir).map_err(|e| io_err(&output_dir.display().to_string(), e))?;
     // A stale run.json would mark a failed re-run as finished; it is rewritten last.

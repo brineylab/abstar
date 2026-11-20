@@ -321,3 +321,13 @@ fn unsupported_compression_is_unreadable() {
         assert!(e.to_string().contains("compression not supported: use gzip"), "{e}");
     }
 }
+
+#[test]
+fn output_dir_that_is_a_file_is_invalid_argument() {
+    let d = tempfile::tempdir().unwrap();
+    let f = d.path().join("file");
+    std::fs::write(&f, "x").unwrap();
+    let e = run_to_files(&recs(), &f, &db(), &[Format::Airr], &opts(), &meta()).unwrap_err();
+    assert_eq!(e.code(), "INVALID_ARGUMENT");
+    assert_eq!(std::fs::read_to_string(&f).unwrap(), "x");
+}

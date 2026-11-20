@@ -6,6 +6,10 @@ use std::str::FromStr;
 
 macro_rules! str_enum {
     ($t:ident { $($v:ident = $s:literal),+ }) => {
+        impl $t {
+            /// Every valid string form.
+            pub const NAMES: &'static [&'static str] = &[$($s),+];
+        }
         impl fmt::Display for $t {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
                 f.write_str(match self { $(Self::$v => $s),+ })

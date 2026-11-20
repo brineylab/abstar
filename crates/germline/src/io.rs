@@ -76,15 +76,24 @@ fn parse(text: &str) -> Result<Vec<Allele>, GermlineError> {
     Ok(out)
 }
 
+/// Loads and validates a database; every error message names `dir`.
 pub fn load(dir: &Path) -> Result<Database, GermlineError> {
     if !dir.is_dir() {
         return Err(GermlineError::NotFound(dir.into()));
     }
+    load_dir(dir).map_err(|e| match e {
+        GermlineError::Invalid(m) => GermlineError::Invalid(format!("{}: {m}", dir.display())),
+        GermlineError::Io(e) => {
+            GermlineError::Io(std::io::Error::new(e.kind(), format!("{}: {e}", dir.display())))
+        }
+        e => e,
+    })
+}
+
+fn load_dir(dir: &Path) -> Result<Database, GermlineError> {
     let read = |name: &str| {
         fs::read(dir.join(name)).map_err(|e| match e.kind() {
-            std::io::ErrorKind::NotFound => {
-                GermlineError::Invalid(format!("missing {name} in {}", dir.display()))
-            }
+            std::io::ErrorKind::NotFound => GermlineError::Invalid(format!("missing {name}")),
             _ => e.into(),
         })
     };

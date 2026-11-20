@@ -3,14 +3,17 @@ from __future__ import annotations
 
 import builtins
 import os
+import re
 import tomllib
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
 
 from .errors import AbstarError, from_core
 
 _BUILTIN_DIR = Path(__file__).parent / "germline_dbs"
+# Leftovers of an interrupted build (crates/germline io.rs `sibling`); never databases.
+_LEFTOVER = re.compile(r"\.(staging|old)-\d+$")
 
 Kind = Literal["builtin", "user", "path"]
 
@@ -25,6 +28,13 @@ class DatabaseInfo:
     n_alleles: int
     counts: dict[str, int]
     description: str
+    built: str = ""
+    abstar_version: str = ""
+    alleles_sha256: str = ""
+    prefixes: dict[str, str] = field(default_factory=dict)
+    provenance: builtins.list[dict] = field(default_factory=builtins.list)
+    warnings: builtins.list[dict] = field(default_factory=builtins.list)
+    error: str | None = None  # set by list() for a database that failed to load
 
 
 @dataclass(frozen=True)
@@ -52,7 +62,7 @@ def abstar_home() -> Path:
 def _names(d: Path) -> builtins.list[str]:
     if not d.is_dir():
         return []
-    return sorted(p.name for p in d.iterdir() if (p / "manifest.toml").is_file())
+    return sorted(p.name for p in d.iterdir() if (p / "manifest.toml").is_file() and not _LEFTOVER.search(p.name))
 
 
 def _user_dir() -> Path:
@@ -123,7 +133,21 @@ def _info(path: Path, kind: Kind) -> DatabaseInfo:
         n_alleles=s["n_alleles"],
         counts=s["counts"],
         description=s["description"],
+        built=s["built"],
+        abstar_version=s["abstar_version"],
+        alleles_sha256=s["alleles_sha256"],
+        prefixes=s.get("prefixes", {}),
+        provenance=s["provenance"],
+        warnings=s["warnings"],
     )
+
+
+def _listed(path: Path, kind: Kind) -> DatabaseInfo:
+    """`_info`, but a database that fails to load is listed with its error instead of raising."""
+    try:
+        return _info(path, kind)
+    except AbstarError as e:
+        return DatabaseInfo(path.name, kind, path, [], [], 0, {}, "", error=str(e))
 
 
 def info(name_or_path: str | Path) -> DatabaseInfo:
@@ -131,7 +155,8 @@ def info(name_or_path: str | Path) -> DatabaseInfo:
 
 
 def list() -> builtins.list[DatabaseInfo]:
-    """Built-in databases, then user databases; each sorted by name."""
-    return [_info(_BUILTIN_DIR / n, "builtin") for n in builtin_names()] + [
-        _info(_user_dir() / n, "user") for n in _names(_user_dir())
+    """Built-in databases, then user databases; each sorted by name. A database that
+    fails to load is still listed, with `n_alleles` 0 and the reason in `error`."""
+    return [_listed(_BUILTIN_DIR / n, "builtin") for n in builtin_names()] + [
+        _listed(_user_dir() / n, "user") for n in _names(_user_dir())
     ]

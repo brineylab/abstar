@@ -263,3 +263,14 @@ fn overwrite_refuses_a_directory_that_is_not_a_database() {
     assert_eq!(fs::read_to_string(dir.join("thesis.docx")).unwrap(), "precious");
     assert_eq!(fs::read_dir(t.path()).unwrap().count(), 1);
 }
+
+#[test]
+fn load_errors_name_the_directory() {
+    let t = tempfile::tempdir().unwrap();
+    let dir = t.path().join("db");
+    write(&db(), &dir, false).unwrap();
+    fs::write(dir.join("manifest.toml"), "not = [toml").unwrap();
+    let e = load(&dir).unwrap_err();
+    assert_eq!(e.code(), "DATABASE_INVALID");
+    assert!(e.to_string().contains(&dir.display().to_string()), "{e}");
+}

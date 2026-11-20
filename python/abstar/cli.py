@@ -128,8 +128,11 @@ def germline_build(
         print(_json(r))
         return
     print(f"built {r.name}: {r.n_alleles} alleles -> {r.path}")
+    if r.restricted or r.passed_through:  # a keep-list was applied
+        print(f"restricted: {', '.join(r.restricted) or '-'}")
+        print(f"passed through: {', '.join(r.passed_through) or '-'}")
     for w in r.warnings:
-        _err(f"warning: {w}")
+        _err(f"warning: {w['allele']}: {w['message']}")
 
 
 @germline_app.command("list")
@@ -141,7 +144,7 @@ def germline_list(json_out: Annotated[bool, typer.Option("--json", help="Machine
     if json_out:
         print(json.dumps([asdict(d) for d in dbs], default=str))
     for d in [] if json_out else dbs:
-        print(f"{d.name}\t{d.kind}\t{d.n_alleles}\t{d.path}")
+        print(f"{d.name}\t{d.kind}\t{d.n_alleles}\t{d.path}" + (f"\tinvalid: {' '.join(d.error.split())}" if d.error else ""))
 
 
 @germline_app.command("info")
@@ -157,8 +160,20 @@ def germline_info(
         print(_json(d))
         return
     print(f"{d.name} ({d.kind}): {d.path}\n{d.description}\nspecies: {', '.join(d.species)}\nloci: {', '.join(d.loci)}")
+    print(f"built: {d.built} (abstar {d.abstar_version})\nalleles_sha256: {d.alleles_sha256}")
+    if d.prefixes:
+        print("prefixes: " + ", ".join(f"{s}={p}" for s, p in d.prefixes.items()))
+    print("counts:")
     for k, v in d.counts.items():
         print(f"  {k}\t{v}")
+    print("provenance:")
+    for p in d.provenance:
+        print(f"  {p['species']}: {p['description']}")
+        for f, h in zip(p["files"], p["sha256"]):
+            print(f"    {f}  sha256 {h}")
+    print(f"warnings: {len(d.warnings)}")
+    for w in d.warnings:
+        print(f"  {w['allele']}: {w['message']}")
 
 
 @app.command()
@@ -174,10 +189,23 @@ def manual(
 
 def main() -> None:
     try:
-        app()
-    except AbstarError as e:
-        if "--json" in sys.argv[1:]:
-            _err(json.dumps({"error": {"code": e.code, "message": e.message}}))
-        else:
-            _err(f"error[{e.code}]: {e.message}")
-        sys.exit(e.exit_code)
+        try:
+            app()
+        except AbstarError as e:
+            if "--json" in sys.argv[1:]:
+                _err(json.dumps({"error": {"code": e.code, "message": e.message}}))
+            else:
+                _err(f"error[{e.code}]: {e.message}")
+            sys.exit(e.exit_code)
+        except SystemExit:
+            # Typer turns EPIPE inside a command into exit 1 after wrapping stdout in
+            # (its vendored) click's PacifyFlushWrapper; matched by name, not imported.
+            if type(sys.stdout).__name__ == "PacifyFlushWrapper":
+                raise BrokenPipeError from None
+            raise
+        finally:
+            sys.stdout.flush()  # surface a closed pipe here, not at interpreter shutdown
+    except BrokenPipeError:
+        # The reader went away (`| head`): that ends the output, it is not an error.
+        os.dup2(os.open(os.devnull, os.O_WRONLY), sys.stdout.fileno())
+        sys.exit(0)

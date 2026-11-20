@@ -18,10 +18,14 @@ The `gene` column is filled at build time from IMGT-style names when they parse,
 
 Builds validate unique IDs, consistent gapped/ungapped sequences, locus and segment presence, and detectable anchors (every allele whose anchor cannot be found is reported by name). Builds are staged and appear atomically. Search indexes are built from the text at load time.
 
+**Commands.** A build is staged in a sibling `<dir>.staging-<pid>` and swapped in. `overwrite` replaces only an existing database (a directory holding `manifest.toml`); any other existing path is refused with `DATABASE_EXISTS` and left untouched. `list` shows built-in, then user databases. A database that fails to load is still listed, with `n_alleles` 0 and its error in `error` (load errors name the database directory), so one corrupt database cannot break the listing. Leftover `*.staging-*` and `*.old-*` directories from an interrupted build are never listed or resolved. `info` shows the whole manifest (built date, abstar version, `alleles_sha256`, prefixes, provenance, warnings) plus counts by locus/segment/species; `--json` carries the same fields. A human-readable `build` prints, when a keep-list was applied, the `restricted:` and `passed through:` locus/segment lists, and each warning as `warning: <allele>: <message>`.
+
 ## Alternatives considered
 
 - A compiled or cached binary format: not added; add only if load time is measured to matter.
 - One database per receptor: rejected, for the reasons above.
+- Fail `list` on the first unreadable database: one corrupt donor database would hide all the others.
+- Let `overwrite` replace any existing path: a mistyped `--output` could delete an unrelated directory.
 
 ## Consequences
 

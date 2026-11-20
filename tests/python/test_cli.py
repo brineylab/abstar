@@ -154,3 +154,93 @@ def test_positional_is_always_a_path(tmp_path):
         assert p.returncode == 2 and p.stderr.startswith("error[INPUT_NOT_FOUND]: "), (args, p.stderr)
         assert p.stdout == ""
     assert not (tmp_path / "out1").exists()
+
+
+def _donor(tmp_path):
+    abstar("germline", "build", recipe(tmp_path, "base"))
+    d = tmp_path / "donor"
+    d.mkdir()
+    (d / "genotype.txt").write_text("IGHJ6*03\n")
+    (d / "v.fasta").write_text(">IGHV9-9*01\nCAGGTGCAGCTGGTGCAG\n")
+    (d / "donor.toml").write_text(
+        'name = "donor"\nkeep = "genotype.txt"\n[[source]]\ndatabase = "base"\n'
+        '[[source]]\nspecies = "human"\nv_fasta = ["v.fasta"]\n'
+    )
+    return d / "donor.toml"
+
+
+def test_build_human_output(tmp_path):
+    p = abstar("germline", "build", _donor(tmp_path))
+    assert p.returncode == 0, p.stderr
+    lines = p.stdout.splitlines()
+    assert "restricted: IGH/J" in lines
+    assert "passed through: IGH/V, IGH/C" in lines
+    assert "warning: IGHV9-9*01: no Cys104 codon at IMGT positions 310-312" in p.stderr
+    assert "{" not in p.stderr
+
+
+def test_list_survives_corrupt_user_database(abstar_home, tmp_path):
+    abstar("germline", "build", recipe(tmp_path, "good"))
+    bad = abstar_home / "germline" / "bad"
+    bad.mkdir(parents=True)
+    (bad / "manifest.toml").write_text("not = [toml")
+    for leftover in ("good.staging-123", "good.old-456"):
+        (abstar_home / "germline" / leftover).mkdir()
+        (abstar_home / "germline" / leftover / "manifest.toml").write_text("")
+    p = abstar("germline", "list", "--json")
+    assert p.returncode == 0, p.stderr
+    users = {d["name"]: d for d in json.loads(p.stdout) if d["kind"] == "user"}
+    assert sorted(users) == ["bad", "good"]
+    assert users["good"]["error"] is None and users["good"]["n_alleles"] > 0
+    assert users["bad"]["n_alleles"] == 0 and "DATABASE_INVALID" in users["bad"]["error"]
+    assert str(bad) in users["bad"]["error"]
+    p = abstar("germline", "list")
+    assert p.returncode == 0 and "bad" in p.stdout and "invalid" in p.stdout
+    assert abstar("germline", "info", "good.staging-123").returncode == 2
+
+
+def test_info_shows_manifest(tmp_path):
+    abstar("germline", "build", _donor(tmp_path))
+    d = json.loads(abstar("germline", "info", "donor", "--json").stdout)
+    for k in ("built", "abstar_version", "alleles_sha256", "prefixes", "provenance", "warnings"):
+        assert k in d, k
+    assert len(d["alleles_sha256"]) == 64 and d["provenance"] and d["warnings"]
+    p = abstar("germline", "info", "donor")
+    assert p.returncode == 0
+    for s in (d["built"], d["abstar_version"], d["alleles_sha256"], "provenance", "IGHV9-9*01: no Cys104"):
+        assert s in p.stdout, s
+
+
+def _closed_stdout(*args):
+    """Run abstar with a stdout pipe whose reader is already gone (`| head` that exited)."""
+    import os
+
+    r, w = os.pipe()
+    os.close(r)
+    try:
+        return subprocess.run([ABSTAR, *map(str, args)], stdout=w, stderr=subprocess.PIPE, text=True)
+    finally:
+        os.close(w)
+
+
+def test_closed_stdout_pipe(tmp_path):
+    fa = tmp_path / "in.fasta"
+    fa.write_text(FA)
+    for args in (["manual"], ["germline", "list"], ["run", fa, tmp_path / "out"]):
+        p = _closed_stdout(*args)
+        assert p.returncode == 0, (args, p.returncode, p.stderr)
+        assert "Traceback" not in p.stderr and "BrokenPipe" not in p.stderr, (args, p.stderr)
+
+
+def test_unknown_locus_is_invalid_argument():
+    p = abstar("run", "--seq", "ACGT", "--locus", "TRZ")
+    assert p.returncode == 2 and p.stderr.startswith("error[INVALID_ARGUMENT]: ")
+    assert "TRZ" in p.stderr and "IGH" in p.stderr and "germline database" not in p.stderr
+
+
+def test_output_dir_is_a_file(tmp_path):
+    fa = tmp_path / "in.fasta"
+    fa.write_text(FA)
+    p = abstar("run", fa, fa)
+    assert p.returncode == 2 and p.stderr.startswith("error[INVALID_ARGUMENT]: "), p.stderr
+    assert fa.read_text() == FA

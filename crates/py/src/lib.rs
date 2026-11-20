@@ -41,10 +41,12 @@ fn inputs(paths: Vec<String>) -> Vec<Input> {
 }
 
 fn options(threads: Option<usize>, strict: bool, loci: Option<Vec<String>>) -> PyResult<RunOptions> {
-    let loci = loci
-        .map(|l| l.iter().map(|s| s.parse::<Locus>()).collect::<Result<Vec<_>, _>>())
-        .transpose()
-        .map_err(|e| err("INVALID_ARGUMENT", e))?;
+    let parse = |s: &String| {
+        s.parse::<Locus>().map_err(|_| {
+            err("INVALID_ARGUMENT", format!("unknown locus {s:?}; valid loci: {}", Locus::NAMES.join(", ")))
+        })
+    };
+    let loci = loci.map(|l| l.iter().map(parse).collect::<PyResult<Vec<_>>>()).transpose()?;
     Ok(RunOptions { threads, strict, loci, ..Default::default() })
 }
 
