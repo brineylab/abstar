@@ -1,6 +1,6 @@
 # abstar rewrite — foundation design
 
-Status: draft for approval · 2026-11-20
+Status: approved · 2026-11-20
 
 This is the first of four design documents for a ground-up rewrite of abstar.
 It covers the **shared foundation**: repository and build layout, the
@@ -433,6 +433,28 @@ silently dropped.
   - database name and content hash
   - AIRR schema version
   - counts by status
+
+### Decision records
+
+*User decision.* Every consequential decision gets a short written record so
+the docs can explain exactly what each non-AIRR field means and why:
+
+- This covers every *user decision* and *my call* in this document, and
+  every later one.
+- Records live in `python/abstar/decisions/NNNN-<slug>.md`. Each has:
+  - Status and date
+  - Context
+  - Decision
+  - Alternatives considered
+  - Consequences
+- They ship inside the package, so `abstar manual decisions [ID]` shows
+  them without the repository. The Sphinx docs include them too.
+- Every `abstar`-origin field in the field definitions names the record that
+  defines it (`decision = "NNNN"`), and a test enforces this.
+  `abstar manual fields <name>` prints the field's meaning together with its
+  rationale.
+- A decision that is later reversed gets a new record that supersedes the
+  old one. The old record is never edited away.
 
 ### Performance targets
 
