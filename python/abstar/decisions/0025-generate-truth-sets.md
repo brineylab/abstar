@@ -79,6 +79,19 @@ The generator records the origin of every read base (`Origin`: a gapped V index,
 - **Cost profile.** Candidate sequences are cached once per run (`Candidates::new`).
   - Per read, the V set compares the read's V bases (placed at their IMGT positions) with every V candidate in one vectorized pass.
   - D and J sets count matches at all shifts at once: candidates × run length × allele length.
-  - Boundaries cost (V alleles in the set) × (J placements) × (D placements) × D length. Short D runs (1–3 nt) tie at many shifts across many D alleles in both orientations, so they are the expensive case.
-  - Measured on the human IGH candidate set (198 V, 31 D, 7 J, 88 C, inversion on), single-threaded, release build: about 40 µs for a typical read (15 nt D), 45 µs with a 3 nt D, and 80 µs with a 1 nt D. The test is `truth_speed_human_igh`, ignored by default.
+  - Boundaries cost (distinct V score profiles inside the D windows) × (J placements) × (D placements) × D length, plus a linear pass per V allele.
+    - V alleles that agree inside the D windows share one pass. This is common in large, ambiguous V sets from 5'-truncated reads.
+    - Short D runs (1–3 nt) tie at many shifts across many D alleles in both orientations, so they are the expensive case.
+  - Measured on the human IGH candidate set (198 V, 31 D, 7 J, 88 C, inversion on), single-threaded, release build:
+
+    | Read | Time |
+    |---|---|
+    | Typical (15 nt D) | about 37 µs |
+    | 3 nt D | 45 µs |
+    | 1 nt D | 80 µs |
+    | 1 nt D, 5'-truncated: IGHV1-69\*01 with 60 V nt kept (V set of 19) | 160 µs |
+    | 1 nt D, 5'-truncated: IGHV1-69\*01 with 25 V nt kept (V set of 63) | 260 µs |
+    | 1 nt D, 5'-truncated: IGHV3-30\*01 with 10 V nt kept (V set of 114, the worst case found) | 310 µs |
+
+    The test is `truth_speed_human_igh`, ignored by default.
   - The V comparison is the largest fixed cost, so it grows linearly with the number of V alleles in the database.

@@ -382,19 +382,30 @@ pub fn truth(s: &Simulated, c: &Candidates) -> Truth {
     let mut v_lims: Vec<BTreeSet<usize>> = vec![BTreeSet::new(); v_cuts.len()];
     let mut j_lims: Vec<Vec<BTreeSet<usize>>> = j_groups.iter().map(|g| vec![BTreeSet::new(); g.len()]).collect();
     let (mut d_starts, mut d_ends) = (BTreeSet::new(), BTreeSet::new());
-    for (vi, (_, pa)) in v_cuts.iter().enumerate() {
+    for (vi, (_, pa)) in v_cuts.iter().enumerate().filter(|_| no_d) {
         for (gi, jg) in j_groups.iter().enumerate() {
-            if no_d {
-                let found: Vec<_> = jg.iter().enumerate().filter_map(|(ji, (_, sb))| Some((best_no_d(pa, sb)?, ji))).collect();
-                let max = found.iter().map(|x| x.0 .0).max();
-                for ((m, ts), ji) in found {
-                    if Some(m) == max {
-                        v_lims[vi].extend(&ts);
-                        j_lims[gi][ji].extend(ts);
-                    }
+            let found: Vec<_> = jg.iter().enumerate().filter_map(|(ji, (_, sb))| Some((best_no_d(pa, sb)?, ji))).collect();
+            let max = found.iter().map(|x| x.0 .0).max();
+            for ((m, ts), ji) in found {
+                if Some(m) == max {
+                    v_lims[vi].extend(&ts);
+                    j_lims[gi][ji].extend(ts);
                 }
             }
-            for dg in d_groups.iter().filter(|_| with_d) {
+        }
+    }
+    // With a D, a V allele's `pa` matters only inside the D windows, so V alleles that agree
+    // there (common in short, ambiguous V sets) share one pass.
+    let places = d_groups.iter().flatten();
+    let zone = places.clone().map(|d| d.start).min().unwrap_or(0)..places.map(|d| d.end).max().unwrap_or(0);
+    let mut by_zone: std::collections::BTreeMap<&[i32], Vec<usize>> = Default::default();
+    for (vi, (_, pa)) in v_cuts.iter().enumerate().filter(|_| with_d) {
+        by_zone.entry(&pa[zone.clone()]).or_default().push(vi);
+    }
+    for vis in by_zone.values() {
+        let pa = &v_cuts[vis[0]].1;
+        for (gi, jg) in j_groups.iter().enumerate() {
+            for dg in &d_groups {
                 let scored: Vec<(i32, usize, &DPlace)> = jg
                     .iter()
                     .enumerate()
@@ -406,7 +417,9 @@ pub fn truth(s: &Simulated, c: &Candidates) -> Truth {
                 }
                 for &(_, ji, d) in scored.iter().filter(|x| x.0 == max) {
                     let (st, en) = d_ties(read, pa, d, &jg[ji].1, max);
-                    v_lims[vi].extend(&st);
+                    for &vi in vis {
+                        v_lims[vi].extend(&st);
+                    }
                     j_lims[gi][ji].extend(&en);
                     d_starts.extend(st);
                     d_ends.extend(en);

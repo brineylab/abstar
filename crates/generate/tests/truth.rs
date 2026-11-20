@@ -666,18 +666,36 @@ fn truth_speed_human_igh() {
         .filter(|a| a.species == "human" && a.locus == abstar_germline::Locus::IGH)
         .collect();
     let c = cands(&al, true);
-    let (v, d, j) = (get(&al, "IGHV3-23*01"), get(&al, "IGHD3-10*01"), get(&al, "IGHJ4*02"));
-    let vl = bytes(&v).len() - 2;
-    for (name, r) in [("typical (15 nt D)", 3..18), ("3 nt D", 10..13), ("1 nt D", 12..13)] {
+    let (d, j) = (get(&al, "IGHD3-10*01"), get(&al, "IGHJ4*02"));
+    let cases = [
+        ("typical (15 nt D)", "IGHV3-23*01", 3..18, None),
+        ("3 nt D", "IGHV3-23*01", 10..13, None),
+        ("1 nt D", "IGHV3-23*01", 12..13, None),
+        // 5'-truncated to a few V bases: large, ambiguous V sets
+        ("1 nt D, IGHV1-69*01 60 V nt", "IGHV1-69*01", 12..13, Some(60)),
+        ("1 nt D, IGHV1-69*01 25 V nt", "IGHV1-69*01", 12..13, Some(25)),
+        ("1 nt D, IGHV3-30*01 25 V nt", "IGHV3-30*01", 12..13, Some(25)),
+        ("1 nt D, IGHV3-30*01 10 V nt", "IGHV3-30*01", 12..13, Some(10)),
+    ];
+    for (name, vname, r, keep) in cases {
+        let v = get(&al, vname);
+        let vl = bytes(&v).len() - 2;
         let mut s = hand(&v, vl, b"GGT", Some((&d, r)), b"CCA", &j, 4);
         for i in (7..vl).step_by(20) {
             s.read[i] = other(&[s.read[i]]); // 5% V mutation
         }
-        let n = 2000;
+        if let Some(k) = keep {
+            s.read.drain(..vl - k);
+            s.origin.drain(..vl - k);
+            s.truncate_5 = vl - k;
+        }
+        let n = 500;
         let t0 = std::time::Instant::now();
         for _ in 0..n {
             std::hint::black_box(truth(std::hint::black_box(&s), &c));
         }
-        eprintln!("{name}: {:.1} µs/read", t0.elapsed().as_secs_f64() * 1e6 / n as f64);
+        let us = t0.elapsed().as_secs_f64() * 1e6 / n as f64;
+        eprintln!("{name}: {us:.1} µs/read (V set {})", truth(&s, &c).v_valid.len());
+        assert!(us < 500.0, "{name}: {us:.1} µs/read");
     }
 }
