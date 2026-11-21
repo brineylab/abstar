@@ -49,6 +49,27 @@ As with `run.json` (0018), an existing `generate.json` is deleted before any out
   - An indel is listed only when the read has a base on both sides of it. An indel lost to, or cut by, truncation is unobservable: it is dropped, and the equivalence range is clipped to positions that stay in the read.
 - `truncate_5p`, `truncate_3p`: bases cut from each end. `v_mutation_frequency`: the realized divergence of the read's V-derived bases (0 when there are none).
 
+**Annotator truth fields** (regions, amino acids, masks, per-segment mutations). These carry the names and encodings of `abstar run`'s v1 fields, so each is graded by a join. They are valued for the true alleles and derived from the origin map and the alleles only (`crates/generate/src/derive.rs`), independently of the annotator. Where the annotator plan's rules left a case open, this record fixes it, and the annotator follows it.
+- **Reading frame.** Every translation uses the V frame: codons start at read positions in phase with the IMGT-gapped position of the read's first V base. With a frameshifting indel the frame does not follow the germline codons after it; this is the continuous V(D)J query frame.
+- **Regions.** On the true V's IMGT-gapped nt positions: FWR1 1–78, CDR1 79–114, FWR2 115–165, CDR2 166–195, FWR3 196–312 (ending with the Cys104 codon); CDR3 the bases after the Cys104 codon and before the Trp/Phe118 codon (V tail, P, N, D and J bases); FWR4 the true J's bases from the Trp/Phe118 codon to the J end.
+  - An inserted base belongs to the region of the germline base it follows (the base its `ins` position names).
+  - A region cut by truncation is partial. A region inside the read whose every base is deleted is empty: `R` and `R_aa` are `""`, `R_length` 0, `R_start`/`R_end` null. A region with no base in the read is null.
+  - CDR3 is null whenever `junction` is null, even when one anchor is in the read: its other end is undefined. FWR4 is null when the J has no anchor.
+  - `R_aa` holds the codons (first V base to the last read base that is not a dangling insertion) whose 3rd base is in R, so a codon crossing a boundary belongs to the downstream region and partial codons are not translated. `R_length` is the length of `R_aa`, so `cdr3_length` counts the CDR3 in the V frame, not `junction_aa` length − 2 on an out-of-frame read.
+  - Every region, `sequence_aa`, the `sequence_vdj*` fields and the masks are null when the read has no V base or the V allele is not IMGT-gapped.
+- **Sequences.** `sequence_aa` translates the whole read in the V frame. `sequence_vdj` runs from the first V base to the last J base (null without a V or J base), `sequence_vdjc` to the last constant-region base (null without one). Each `_aa` translates its sequence in the V frame.
+- **Masks** index `sequence_vdjc`, or `sequence_vdj` when the read has no C base; they are null when that sequence is null.
+  - `cdr_mask`: `1`/`2`/`3` for CDR1/CDR2/CDR3, `0` for framework and constant-region bases. Null when `junction` is null.
+  - `gene_segment_mask`: `V`, `D`, `J`, `C`; `N` for N and P nucleotides. An inserted base takes the segment it sits in (always V or J).
+  - `nongermline_mask`: `1` for N, P and inserted bases and for bases differing from the germline base behind them.
+  - The `_aa` masks have one character per codon of the matching translation: the 3rd base's character for `cdr_mask_aa` and `gene_segment_mask_aa`; for `nongermline_mask_aa`, `1` when a base is N, P or inserted or the codon's amino acid differs from the translation of the germline bases behind it.
+- **Per-segment mutations** (`v`, `d`, `j`, `c`).
+  - All of a segment's fields are null when no base of it is in the read (truncated away, trimmed to nothing, or no such segment).
+  - nt: `IMGT{pos}:REF>ALT` for V (IMGT-gapped position), `{pos}:REF>ALT` for D, J and C (1-based in the allele; for an inverted D, in the reverse complement), in germline order. REF is the germline base, ALT the read base.
+  - aa: over germline codons whose three bases are all in the read; REF translates the germline codon, ALT the read bases aligned to it (an inserted base inside the codon is ignored). Codons: V by IMGT codon (`IMGT{n}`; gap codons skipped); J in phase with the Trp/Phe118 codon; D in the V frame at the read's last V base, the frame D occupies in the junction (null without a V base in the read); C continuing the J's Trp/Phe118 frame across the J end, as the spliced transcript reads (null when the J has no anchor). Codons are numbered from 1 at the allele's first complete codon in that frame.
+  - Counts are list lengths. `S_mutation_frequency` is the count ÷ the segment's germline positions in the read (deleted positions and inserted bases excluded); `S_mutation_frequency_aa` is the aa count ÷ codons counted, null when none is. The existing `v_mutation_frequency` has this definition and serves as the V member (it stays 0, not null, without a V base).
+  - Indels: `{pos}:ins:BASES` (pos the germline position the inserted bases follow) and `{pos}:del:BASES` (pos the first deleted germline position, BASES the germline bases), with V positions as `IMGT{pos}`. They are the generated placement, not normalized within the equivalence range; the `indels` column's MIN-MAX gives that range. An insertion is listed only with a read base on both sides, as in `indels`. Indels are generated only in V and J, so D and C lists are empty when present.
+
 **Difficulty flags** (extending the labels of 0025):
 - `high_mutation`: `v_mutation_frequency` ≥ 0.20.
 - `long_cdr3`: CDR3 length (`junction_aa` length − 2) ≥ 24 aa for IGH, ≥ 16 aa for other loci. Null without a junction.
@@ -66,6 +87,10 @@ As with `run.json` (0018), an existing `generate.json` is deleted before any out
 - **One RNG stream per batch or per thread:** output would depend on the batch size or the thread count.
 - **Retry productive-only reads forever:** a model that cannot produce productive reads would hang the run.
 - **Delete `generate.json` before validating parameters:** a typo would destroy a finished run's provenance without producing anything.
+- **Left-normalized indel positions in the per-segment indel lists:** the lists would disagree with the masks and regions, which follow the bases actually inserted. The grader can use the `indels` equivalence range instead.
+- **A partial CDR3 when one anchor is missing:** its length would depend on where truncation or trimming fell, and `cdr3` would disagree with the null `junction`.
+- **A separate `cdr_mask` character for constant-region bases:** the mask alphabet is fixed at `0`–`3`; `gene_segment_mask` already marks C.
+- **Germline-frame codons for region and mask amino acids:** on frameshifted reads they would not match the read's own translation (`sequence_vdj_aa`), which an annotator reports.
 
 ## Consequences
 
@@ -73,3 +98,4 @@ As with `run.json` (0018), an existing `generate.json` is deleted before any out
 - The same seed and parameters give byte-identical FASTA and TSV at any thread count and batch size. Changing the seeding scheme, the id form, or the order in which a read consumes random numbers changes the output for a given seed and needs a superseding record.
 - `productive_only` costs about 1/(productive rate) simulations per read, and is refused when that rate is below roughly 1 in 1000.
 - The truth schema lives in `truth.toml`, so the manual's field reference and the Arrow schema cannot drift from the rows.
+- Adding the annotator truth fields changed the truth TSV bytes for a given seed (not the FASTA): the generator's pinned TSV hash was updated with them.

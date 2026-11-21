@@ -1,4 +1,5 @@
 mod bind;
+mod derive;
 mod error;
 mod meta;
 mod model;

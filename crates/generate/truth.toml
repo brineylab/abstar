@@ -530,7 +530,7 @@ type = "float64"
 nullable = false
 origin = "abstar"
 coordinates = ""
-description = "Fraction of the read's V-derived bases that differ from the true V allele (0 when the read has no V base)."
+description = "Fraction of the read's V-derived bases that differ from the true V allele: v_mutation_count ÷ the V germline positions in the read (0 when the read has no V base)."
 decision = "0026"
 
 [[field]]
@@ -631,3 +631,696 @@ origin = "abstar"
 coordinates = ""
 description = "j_call_valid has more than one allele."
 decision = "0025"
+
+[[field]]
+name = "sequence_aa"
+type = "string"
+nullable = true
+origin = "airr-optional"
+coordinates = ""
+description = "Translation of the whole read in the V reading frame (codons in phase with the first V base's IMGT position), dropping partial codons at either end. Null when the read has no V base."
+decision = ""
+
+[[field]]
+name = "fwr1"
+type = "string"
+nullable = true
+origin = "airr-optional"
+coordinates = ""
+description = "FWR1: V bases at IMGT nt 1-78. Valued for the true alleles. An inserted base belongs to the region of the germline base it follows. Partial when truncation cuts the region, empty when the region lies inside the read but every base is deleted, null when no base of it is in the read or the read has no V base."
+decision = ""
+
+[[field]]
+name = "fwr1_aa"
+type = "string"
+nullable = true
+origin = "airr-optional"
+coordinates = ""
+description = "Translation of fwr1 in the continuous V(D)J reading frame of sequence_vdj: a codon crossing a region boundary belongs to the downstream region (the region of its 3rd base); partial codons are not translated. Null when fwr1 is null."
+decision = ""
+
+[[field]]
+name = "fwr1_start"
+type = "int64"
+nullable = true
+origin = "airr-optional"
+coordinates = "read: 1-based closed"
+description = "First read base of fwr1. Null when fwr1 is null or empty."
+decision = ""
+
+[[field]]
+name = "fwr1_end"
+type = "int64"
+nullable = true
+origin = "airr-optional"
+coordinates = "read: 1-based closed"
+description = "Last read base of fwr1. Null when fwr1 is null or empty."
+decision = ""
+
+[[field]]
+name = "fwr1_length"
+type = "int64"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Length of fwr1_aa in amino acids. Null when fwr1 is null."
+decision = "0026"
+
+[[field]]
+name = "cdr1"
+type = "string"
+nullable = true
+origin = "airr-optional"
+coordinates = ""
+description = "CDR1: V bases at IMGT nt 79-114. Valued for the true alleles. An inserted base belongs to the region of the germline base it follows. Partial when truncation cuts the region, empty when the region lies inside the read but every base is deleted, null when no base of it is in the read or the read has no V base."
+decision = ""
+
+[[field]]
+name = "cdr1_aa"
+type = "string"
+nullable = true
+origin = "airr-optional"
+coordinates = ""
+description = "Translation of cdr1 in the continuous V(D)J reading frame of sequence_vdj: a codon crossing a region boundary belongs to the downstream region (the region of its 3rd base); partial codons are not translated. Null when cdr1 is null."
+decision = ""
+
+[[field]]
+name = "cdr1_start"
+type = "int64"
+nullable = true
+origin = "airr-optional"
+coordinates = "read: 1-based closed"
+description = "First read base of cdr1. Null when cdr1 is null or empty."
+decision = ""
+
+[[field]]
+name = "cdr1_end"
+type = "int64"
+nullable = true
+origin = "airr-optional"
+coordinates = "read: 1-based closed"
+description = "Last read base of cdr1. Null when cdr1 is null or empty."
+decision = ""
+
+[[field]]
+name = "cdr1_length"
+type = "int64"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Length of cdr1_aa in amino acids. Null when cdr1 is null."
+decision = "0026"
+
+[[field]]
+name = "fwr2"
+type = "string"
+nullable = true
+origin = "airr-optional"
+coordinates = ""
+description = "FWR2: V bases at IMGT nt 115-165. Valued for the true alleles. An inserted base belongs to the region of the germline base it follows. Partial when truncation cuts the region, empty when the region lies inside the read but every base is deleted, null when no base of it is in the read or the read has no V base."
+decision = ""
+
+[[field]]
+name = "fwr2_aa"
+type = "string"
+nullable = true
+origin = "airr-optional"
+coordinates = ""
+description = "Translation of fwr2 in the continuous V(D)J reading frame of sequence_vdj: a codon crossing a region boundary belongs to the downstream region (the region of its 3rd base); partial codons are not translated. Null when fwr2 is null."
+decision = ""
+
+[[field]]
+name = "fwr2_start"
+type = "int64"
+nullable = true
+origin = "airr-optional"
+coordinates = "read: 1-based closed"
+description = "First read base of fwr2. Null when fwr2 is null or empty."
+decision = ""
+
+[[field]]
+name = "fwr2_end"
+type = "int64"
+nullable = true
+origin = "airr-optional"
+coordinates = "read: 1-based closed"
+description = "Last read base of fwr2. Null when fwr2 is null or empty."
+decision = ""
+
+[[field]]
+name = "fwr2_length"
+type = "int64"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Length of fwr2_aa in amino acids. Null when fwr2 is null."
+decision = "0026"
+
+[[field]]
+name = "cdr2"
+type = "string"
+nullable = true
+origin = "airr-optional"
+coordinates = ""
+description = "CDR2: V bases at IMGT nt 166-195. Valued for the true alleles. An inserted base belongs to the region of the germline base it follows. Partial when truncation cuts the region, empty when the region lies inside the read but every base is deleted, null when no base of it is in the read or the read has no V base."
+decision = ""
+
+[[field]]
+name = "cdr2_aa"
+type = "string"
+nullable = true
+origin = "airr-optional"
+coordinates = ""
+description = "Translation of cdr2 in the continuous V(D)J reading frame of sequence_vdj: a codon crossing a region boundary belongs to the downstream region (the region of its 3rd base); partial codons are not translated. Null when cdr2 is null."
+decision = ""
+
+[[field]]
+name = "cdr2_start"
+type = "int64"
+nullable = true
+origin = "airr-optional"
+coordinates = "read: 1-based closed"
+description = "First read base of cdr2. Null when cdr2 is null or empty."
+decision = ""
+
+[[field]]
+name = "cdr2_end"
+type = "int64"
+nullable = true
+origin = "airr-optional"
+coordinates = "read: 1-based closed"
+description = "Last read base of cdr2. Null when cdr2 is null or empty."
+decision = ""
+
+[[field]]
+name = "cdr2_length"
+type = "int64"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Length of cdr2_aa in amino acids. Null when cdr2 is null."
+decision = "0026"
+
+[[field]]
+name = "fwr3"
+type = "string"
+nullable = true
+origin = "airr-optional"
+coordinates = ""
+description = "FWR3: V bases at IMGT nt 196-312, including the Cys104 codon (310-312). Valued for the true alleles. An inserted base belongs to the region of the germline base it follows. Partial when truncation cuts the region, empty when the region lies inside the read but every base is deleted, null when no base of it is in the read or the read has no V base."
+decision = ""
+
+[[field]]
+name = "fwr3_aa"
+type = "string"
+nullable = true
+origin = "airr-optional"
+coordinates = ""
+description = "Translation of fwr3 in the continuous V(D)J reading frame of sequence_vdj: a codon crossing a region boundary belongs to the downstream region (the region of its 3rd base); partial codons are not translated. Null when fwr3 is null."
+decision = ""
+
+[[field]]
+name = "fwr3_start"
+type = "int64"
+nullable = true
+origin = "airr-optional"
+coordinates = "read: 1-based closed"
+description = "First read base of fwr3. Null when fwr3 is null or empty."
+decision = ""
+
+[[field]]
+name = "fwr3_end"
+type = "int64"
+nullable = true
+origin = "airr-optional"
+coordinates = "read: 1-based closed"
+description = "Last read base of fwr3. Null when fwr3 is null or empty."
+decision = ""
+
+[[field]]
+name = "fwr3_length"
+type = "int64"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Length of fwr3_aa in amino acids. Null when fwr3 is null."
+decision = "0026"
+
+[[field]]
+name = "cdr3"
+type = "string"
+nullable = true
+origin = "airr-optional"
+coordinates = ""
+description = "CDR3: the bases after the Cys104 codon and before the Trp/Phe118 codon (the junction without its anchor codons); null whenever junction is null. Valued for the true alleles. An inserted base belongs to the region of the germline base it follows. Partial when truncation cuts the region, empty when the region lies inside the read but every base is deleted, null when no base of it is in the read or the read has no V base."
+decision = ""
+
+[[field]]
+name = "cdr3_aa"
+type = "string"
+nullable = true
+origin = "airr-optional"
+coordinates = ""
+description = "Translation of cdr3 in the continuous V(D)J reading frame of sequence_vdj: a codon crossing a region boundary belongs to the downstream region (the region of its 3rd base); partial codons are not translated. Null when cdr3 is null."
+decision = ""
+
+[[field]]
+name = "cdr3_start"
+type = "int64"
+nullable = true
+origin = "airr-optional"
+coordinates = "read: 1-based closed"
+description = "First read base of cdr3. Null when cdr3 is null or empty."
+decision = ""
+
+[[field]]
+name = "cdr3_end"
+type = "int64"
+nullable = true
+origin = "airr-optional"
+coordinates = "read: 1-based closed"
+description = "Last read base of cdr3. Null when cdr3 is null or empty."
+decision = ""
+
+[[field]]
+name = "cdr3_length"
+type = "int64"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Length of cdr3_aa in amino acids. Null when cdr3 is null."
+decision = "0026"
+
+[[field]]
+name = "fwr4"
+type = "string"
+nullable = true
+origin = "airr-optional"
+coordinates = ""
+description = "FWR4: the true J's bases from the Trp/Phe118 codon to the J end. Valued for the true alleles. An inserted base belongs to the region of the germline base it follows. Partial when truncation cuts the region, empty when the region lies inside the read but every base is deleted, null when no base of it is in the read or the read has no V base."
+decision = ""
+
+[[field]]
+name = "fwr4_aa"
+type = "string"
+nullable = true
+origin = "airr-optional"
+coordinates = ""
+description = "Translation of fwr4 in the continuous V(D)J reading frame of sequence_vdj: a codon crossing a region boundary belongs to the downstream region (the region of its 3rd base); partial codons are not translated. Null when fwr4 is null."
+decision = ""
+
+[[field]]
+name = "fwr4_start"
+type = "int64"
+nullable = true
+origin = "airr-optional"
+coordinates = "read: 1-based closed"
+description = "First read base of fwr4. Null when fwr4 is null or empty."
+decision = ""
+
+[[field]]
+name = "fwr4_end"
+type = "int64"
+nullable = true
+origin = "airr-optional"
+coordinates = "read: 1-based closed"
+description = "Last read base of fwr4. Null when fwr4 is null or empty."
+decision = ""
+
+[[field]]
+name = "fwr4_length"
+type = "int64"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Length of fwr4_aa in amino acids. Null when fwr4 is null."
+decision = "0026"
+
+[[field]]
+name = "sequence_vdj"
+type = "string"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "The read from the first V base through the last J base. Null when the read lacks V or J bases."
+decision = "0026"
+
+[[field]]
+name = "sequence_vdj_aa"
+type = "string"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Translation of sequence_vdj in the V reading frame (first codon in phase with the first V base's IMGT position), dropping partial codons."
+decision = "0026"
+
+[[field]]
+name = "sequence_vdjc"
+type = "string"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "The read from the first V base through the last constant-region base. Null when the read lacks V, J or C bases."
+decision = "0026"
+
+[[field]]
+name = "sequence_vdjc_aa"
+type = "string"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Translation of sequence_vdjc in the V reading frame, dropping partial codons."
+decision = "0026"
+
+[[field]]
+name = "cdr_mask"
+type = "string"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Region of each base: 1, 2 or 3 in CDR1, CDR2 or CDR3, else 0 (framework and constant region). One character per base of sequence_vdjc, or of sequence_vdj when the read has no C base; null when that sequence is null. Also null when junction is null (the CDR3 is undefined)."
+decision = "0026"
+
+[[field]]
+name = "cdr_mask_aa"
+type = "string"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "One character per codon of sequence_vdjc_aa (or sequence_vdj_aa when the read has no C base): the cdr_mask character of the codon's 3rd base (a codon crossing a boundary belongs to the downstream region). Null when cdr_mask is null."
+decision = "0026"
+
+[[field]]
+name = "gene_segment_mask"
+type = "string"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Origin of each base: V, D, J or C; N for N and P nucleotides. An inserted base takes the segment it sits in. One character per base of sequence_vdjc, or of sequence_vdj when the read has no C base; null when that sequence is null."
+decision = "0026"
+
+[[field]]
+name = "gene_segment_mask_aa"
+type = "string"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "One character per codon of sequence_vdjc_aa (or sequence_vdj_aa when the read has no C base): the gene_segment_mask character of the codon's 3rd base."
+decision = "0026"
+
+[[field]]
+name = "nongermline_mask"
+type = "string"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "1 for N and P nucleotides, inserted bases, and bases differing from the true germline (mutations), else 0. One character per base of sequence_vdjc, or of sequence_vdj when the read has no C base; null when that sequence is null."
+decision = "0026"
+
+[[field]]
+name = "nongermline_mask_aa"
+type = "string"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "One character per codon of sequence_vdjc_aa (or sequence_vdj_aa when the read has no C base): 1 when any of its bases is N, P or inserted, or its amino acid differs from the translation of the germline bases behind it, else 0."
+decision = "0026"
+
+[[field]]
+name = "v_mutations"
+type = "list<string>"
+nullable = true
+origin = "abstar"
+coordinates = "germline: IMGT-gapped nt position (aa: IMGT codon number)"
+description = "Substitutions in the read's V bases against the true V allele, in germline order, as \"IMGT{pos}:REF>ALT\" (the IMGT-gapped position). Null when no V base is in the read."
+decision = "0026"
+
+[[field]]
+name = "v_mutations_aa"
+type = "list<string>"
+nullable = true
+origin = "abstar"
+coordinates = "germline: IMGT-gapped nt position (aa: IMGT codon number)"
+description = "Amino-acid changes, as \"IMGT{aa_pos}:REF>ALT\" (the IMGT codon number), over germline codons whose three bases are all in the read; ALT translates the read bases at those positions. Null when no V base is in the read."
+decision = "0026"
+
+[[field]]
+name = "v_insertions"
+type = "list<string>"
+nullable = true
+origin = "abstar"
+coordinates = "germline: IMGT-gapped nt position (aa: IMGT codon number)"
+description = "Insertions in V, as \"IMGT{pos}:ins:BASES\", POS the germline position the inserted bases follow. Only insertions with a read base on both sides are listed. Null when no V base is in the read."
+decision = "0026"
+
+[[field]]
+name = "v_deletions"
+type = "list<string>"
+nullable = true
+origin = "abstar"
+coordinates = "germline: IMGT-gapped nt position (aa: IMGT codon number)"
+description = "Deletions from V, as \"IMGT{pos}:del:BASES\", POS the first deleted germline position and BASES the deleted germline bases. Null when no V base is in the read."
+decision = "0026"
+
+[[field]]
+name = "v_mutation_count"
+type = "int64"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Length of v_mutations (indels are not substitutions). Null when no V base is in the read."
+decision = "0026"
+
+[[field]]
+name = "v_mutation_count_aa"
+type = "int64"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Length of v_mutations_aa. Null when v_mutations_aa is null."
+decision = "0026"
+
+[[field]]
+name = "v_mutation_frequency_aa"
+type = "float64"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "v_mutation_count_aa ÷ the germline codons counted for v_mutations_aa. Null when that is null or no codon is counted."
+decision = "0026"
+
+[[field]]
+name = "d_mutations"
+type = "list<string>"
+nullable = true
+origin = "abstar"
+coordinates = "germline: 1-based ungapped allele, as used (reverse-complemented when d_inverted)"
+description = "Substitutions in the read's D bases against the true D allele, in germline order, as \"{pos}:REF>ALT\" (the 1-based position in the D as used (reverse-complemented when d_inverted)). Null when no D base is in the read."
+decision = "0026"
+
+[[field]]
+name = "d_mutations_aa"
+type = "list<string>"
+nullable = true
+origin = "abstar"
+coordinates = "germline: 1-based ungapped allele, as used (reverse-complemented when d_inverted)"
+description = "Amino-acid changes, as \"{codon_pos}:REF>ALT\" (the 1-based codon number in the D as used, in the frame D occupies in the junction (the V frame at the V's last read base)), over germline codons whose three bases are all in the read; ALT translates the read bases at those positions. Null when no D base is in the read. Also null when the read has no V base."
+decision = "0026"
+
+[[field]]
+name = "d_insertions"
+type = "list<string>"
+nullable = true
+origin = "abstar"
+coordinates = "germline: 1-based ungapped allele, as used (reverse-complemented when d_inverted)"
+description = "Insertions in D, as \"{pos}:ins:BASES\", POS the germline position the inserted bases follow. Only insertions with a read base on both sides are listed. Null when no D base is in the read."
+decision = "0026"
+
+[[field]]
+name = "d_deletions"
+type = "list<string>"
+nullable = true
+origin = "abstar"
+coordinates = "germline: 1-based ungapped allele, as used (reverse-complemented when d_inverted)"
+description = "Deletions from D, as \"{pos}:del:BASES\", POS the first deleted germline position and BASES the deleted germline bases. Null when no D base is in the read."
+decision = "0026"
+
+[[field]]
+name = "d_mutation_count"
+type = "int64"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Length of d_mutations (indels are not substitutions). Null when no D base is in the read."
+decision = "0026"
+
+[[field]]
+name = "d_mutation_count_aa"
+type = "int64"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Length of d_mutations_aa. Null when d_mutations_aa is null."
+decision = "0026"
+
+[[field]]
+name = "d_mutation_frequency"
+type = "float64"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "d_mutation_count ÷ the D germline positions present in the read (deleted positions and inserted bases excluded). Null when no D base is in the read."
+decision = "0026"
+
+[[field]]
+name = "d_mutation_frequency_aa"
+type = "float64"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "d_mutation_count_aa ÷ the germline codons counted for d_mutations_aa. Null when that is null or no codon is counted."
+decision = "0026"
+
+[[field]]
+name = "j_mutations"
+type = "list<string>"
+nullable = true
+origin = "abstar"
+coordinates = "germline: 1-based ungapped allele"
+description = "Substitutions in the read's J bases against the true J allele, in germline order, as \"{pos}:REF>ALT\" (the 1-based position in the J allele). Null when no J base is in the read."
+decision = "0026"
+
+[[field]]
+name = "j_mutations_aa"
+type = "list<string>"
+nullable = true
+origin = "abstar"
+coordinates = "germline: 1-based ungapped allele"
+description = "Amino-acid changes, as \"{codon_pos}:REF>ALT\" (the 1-based codon number of the J allele, codons in phase with the Trp/Phe118 codon), over germline codons whose three bases are all in the read; ALT translates the read bases at those positions. Null when no J base is in the read. Also null when the J has no anchor."
+decision = "0026"
+
+[[field]]
+name = "j_insertions"
+type = "list<string>"
+nullable = true
+origin = "abstar"
+coordinates = "germline: 1-based ungapped allele"
+description = "Insertions in J, as \"{pos}:ins:BASES\", POS the germline position the inserted bases follow. Only insertions with a read base on both sides are listed. Null when no J base is in the read."
+decision = "0026"
+
+[[field]]
+name = "j_deletions"
+type = "list<string>"
+nullable = true
+origin = "abstar"
+coordinates = "germline: 1-based ungapped allele"
+description = "Deletions from J, as \"{pos}:del:BASES\", POS the first deleted germline position and BASES the deleted germline bases. Null when no J base is in the read."
+decision = "0026"
+
+[[field]]
+name = "j_mutation_count"
+type = "int64"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Length of j_mutations (indels are not substitutions). Null when no J base is in the read."
+decision = "0026"
+
+[[field]]
+name = "j_mutation_count_aa"
+type = "int64"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Length of j_mutations_aa. Null when j_mutations_aa is null."
+decision = "0026"
+
+[[field]]
+name = "j_mutation_frequency"
+type = "float64"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "j_mutation_count ÷ the J germline positions present in the read (deleted positions and inserted bases excluded). Null when no J base is in the read."
+decision = "0026"
+
+[[field]]
+name = "j_mutation_frequency_aa"
+type = "float64"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "j_mutation_count_aa ÷ the germline codons counted for j_mutations_aa. Null when that is null or no codon is counted."
+decision = "0026"
+
+[[field]]
+name = "c_mutations"
+type = "list<string>"
+nullable = true
+origin = "abstar"
+coordinates = "germline: 1-based ungapped allele"
+description = "Substitutions in the read's C bases against the true C allele, in germline order, as \"{pos}:REF>ALT\" (the 1-based position in the C allele). Null when no C base is in the read."
+decision = "0026"
+
+[[field]]
+name = "c_mutations_aa"
+type = "list<string>"
+nullable = true
+origin = "abstar"
+coordinates = "germline: 1-based ungapped allele"
+description = "Amino-acid changes, as \"{codon_pos}:REF>ALT\" (the 1-based codon number of the C allele, codons continuing the true J's Trp/Phe118 frame across the J end), over germline codons whose three bases are all in the read; ALT translates the read bases at those positions. Null when no C base is in the read. Also null when the J has no anchor."
+decision = "0026"
+
+[[field]]
+name = "c_insertions"
+type = "list<string>"
+nullable = true
+origin = "abstar"
+coordinates = "germline: 1-based ungapped allele"
+description = "Insertions in C, as \"{pos}:ins:BASES\", POS the germline position the inserted bases follow. Only insertions with a read base on both sides are listed. Null when no C base is in the read."
+decision = "0026"
+
+[[field]]
+name = "c_deletions"
+type = "list<string>"
+nullable = true
+origin = "abstar"
+coordinates = "germline: 1-based ungapped allele"
+description = "Deletions from C, as \"{pos}:del:BASES\", POS the first deleted germline position and BASES the deleted germline bases. Null when no C base is in the read."
+decision = "0026"
+
+[[field]]
+name = "c_mutation_count"
+type = "int64"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Length of c_mutations (indels are not substitutions). Null when no C base is in the read."
+decision = "0026"
+
+[[field]]
+name = "c_mutation_count_aa"
+type = "int64"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Length of c_mutations_aa. Null when c_mutations_aa is null."
+decision = "0026"
+
+[[field]]
+name = "c_mutation_frequency"
+type = "float64"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "c_mutation_count ÷ the C germline positions present in the read (deleted positions and inserted bases excluded). Null when no C base is in the read."
+decision = "0026"
+
+[[field]]
+name = "c_mutation_frequency_aa"
+type = "float64"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "c_mutation_count_aa ÷ the germline codons counted for c_mutations_aa. Null when that is null or no codon is counted."
+decision = "0026"

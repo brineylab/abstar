@@ -52,7 +52,7 @@ fn io_err(path: &Path, e: io::Error) -> GenerateError {
 }
 
 /// Standard genetic code; anything but ACGT translates to `X`.
-fn translate(nt: &[u8]) -> String {
+pub(crate) fn translate(nt: &[u8]) -> String {
     const AA: &[u8; 64] = b"KNKNTTTTRSRSIIMIQHQHPPPPRRRRLLLLEDEDAAAAGGGGVVVV*Y*YSSSS*CWCLFLF";
     let code = |b: u8| match b.to_ascii_uppercase() {
         b'A' => Some(0),
@@ -263,7 +263,7 @@ impl<'a> Run<'a> {
         let gene = |a: &Allele| a.gene.clone();
         let vmf = s.v_mutation_frequency;
 
-        TruthRecord {
+        let mut rec = TruthRecord {
             sequence_id: id,
             sequence: text(read),
             rev_comp: Some(false),
@@ -334,7 +334,10 @@ impl<'a> Run<'a> {
             unrecoverable_v: Some(t.unrecoverable_v),
             unrecoverable_d: Some(t.unrecoverable_d),
             unrecoverable_j: Some(t.unrecoverable_j),
-        }
+            ..Default::default()
+        };
+        crate::derive::fill(&mut rec, s, pr.junction.is_some());
+        rec
     }
 }
 
