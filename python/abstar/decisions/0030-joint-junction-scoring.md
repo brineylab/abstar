@@ -35,8 +35,9 @@ The generator's truth code is not a library dependency of the annotator (record 
 - The tie-break below is then applied by enumerating the D starts and ends of the primary D's placements that reach the best score.
 
 **D call.**
-- `Sd` is the best score over every D allele, orientation and placement.
-- The D tie set holds the alleles reaching `Sd` in either orientation. The primary is their record 0008 pick.
+- The D orientation is chosen first, with the inverted-D margin of record 0031: inverted only when the best reverse-complement score beats the best forward score by at least 2.
+- `Sd` is the best score in that orientation over every D allele and placement.
+- The D tie set holds the alleles reaching `Sd` in that orientation. The primary is their record 0008 pick.
 - No D (`d` is `None`) when:
   - the locus has no D (`locus_has_d` false: light chains, TRA, TRG);
   - `Sd ≤ S0`: no D configuration beats the best without a D;
@@ -61,7 +62,7 @@ The generator's truth code is not a library dependency of the annotator (record 
 
 ## Alternatives considered
 
-- **A mismatch penalty of 2 or 3 inside D for choosing the D**, with the boundaries still scored ±1:
+- **A mismatch penalty of 2 or 3 inside D for choosing the D**, with the boundaries still scored ±1 (measured before ruling A24, both orientations, no margin):
   - On naive reads it helps. Correct D-and-boundary reads rose from 1,856 to 1,889 of 2,000 at 3.
   - On reads with 0–30% mutation it hurts: 1,272 fell to 1,002 of 1,621.
   - A penalty tied to the read's V mutation level could get both. It departs from truth's ±1 score and is left for a later record.
@@ -71,19 +72,23 @@ The generator's truth code is not a library dependency of the annotator (record 
 
 ## Consequences
 
-Measured with the built-in `human` database (release build), over reads where V, J and D are each absent or have the true allele in their valid set. A boundary is correct when it is in its `_valid` list. A null D's boundaries, like the null call itself, are correct iff `d_call_null_valid`. The D call is correct when its primary is in `d_call_valid` in the true orientation.
+Measured with the built-in `human` database (release build), with truth comparing both D orientations (record 0025 as amended by ruling A24) and the inverted-D margin of 2 (record 0031). Rates are over reads where V, J and D are each absent or have the true allele in their valid set.
+- A boundary is correct when it is in its `_valid` list. A null D's boundaries, like the null call itself, are correct iff `d_call_null_valid`.
+- The D call is correct when its primary is in `d_call_valid`, or it is null and `d_call_null_valid`.
+- "D placed right" narrows that: a null call with `d_call_null_valid`, or a called D in `d_call_valid`, in the true orientation, with a true D run of at least 5 nt. A shorter run puts every allele containing its few bases in `d_call_valid`, wherever the call is placed.
 
-| Set | V end | D start | D end | J start (J alignment start) | All four | D call | All four, D call correct |
+| Set | V end | D start | D end | J start (J alignment start) | All four | D call | All four, D placed right |
 |---|---|---|---|---|---|---|---|
-| naive, seed 1 (2,000) | 99.85% | 94.60% | 94.65% | 99.80% (98.55%) | 93.50% | 93.35% | 99.41% |
-| mutation 0–30%, seed 1 (1,621) | 99.38% | 83.10% | 83.41% | 98.40% (96.98%) | 79.64% | 80.75% | 97.17% |
-| memory + 20% indels, seed 11 (2,817) | 99.65% | 90.27% | 90.38% | 98.86% (97.76%) | 88.18% | 88.57% | 98.56% |
-| bnab, seed 1 (1,246) | 95.99% | 66.93% | 66.77% | 93.42% (92.54%) | 62.36% | 63.72% | 95.97% |
+| naive, seed 1 (2,000) | 99.90% | 96.00% | 95.75% | 99.75% (98.55%) | 95.10% | 96.15% | 99.52% |
+| mutation 0–30%, seed 1 (1,596) | 99.37% | 86.34% | 86.59% | 98.37% (96.93%) | 83.83% | 86.09% | 97.39% |
+| memory + 20% indels, seed 11 (2,810) | 99.64% | 92.70% | 92.60% | 99.04% (97.79%) | 91.03% | 92.70% | 98.63% |
+| bnab, seed 1 (1,208) | 95.53% | 71.94% | 71.69% | 93.87% (92.22%) | 67.80% | 72.35% | 94.56% |
+| naive, d_inversion 0.5, seed 3 (2,000) | 99.90% | 94.50% | 94.65% | 99.70% (98.15%) | 93.30% | 94.40% | 99.51% |
+| mutation 0–30%, d_inversion 0.5, seed 3 (1,587) | 98.87% | 82.36% | 82.73% | 98.36% (96.72%) | 80.09% | 82.42% | 98.48% |
 
-- **The D call limits the D boundaries.** Truth's D set counts only the D-derived bases, which the read does not show. A short true D (5–10 nt) is often outscored by another allele placed partly over N bases. On naive reads that is 48 of 2,000. For example, 12 matches and 2 mismatches (+10) beat an exact 8-nt D (+8). Truth cannot accept such a D.
-- Searching the reverse complement (record 0031) adds 80 more naive misses, because the human-igh model never inverts D.
-- When the D call is correct, the boundaries agree with truth on 99.41% of naive reads. The rest are mostly V or J misplacements from the earlier steps, such as a spurious V insertion near Cys104 or a wrong short-J call.
-- **J start.** The joint step moves the J start into `j_sequence_start_valid` for most reads whose J alignment start was outside it (0–30%: 96.98% → 98.40%). Most of the remainder follow a wrong D.
+- **The D call limits the D boundaries.** Truth's D set counts only the D-derived bases, which the read does not show. A short true D (5–10 nt) is often outscored by another allele placed partly over N bases. For example, 12 matches and 2 mismatches (+10) beat an exact 8-nt D (+8). Truth cannot accept such a D. This is a read-level limit under the origin-based truth (ruling A26).
+- When the D is placed right, the boundaries agree with truth on 99.52% of naive reads. The rest are mostly V or J misplacements from the earlier steps, such as a spurious V insertion near Cys104 or a wrong short-J call.
+- **J start.** The joint step moves the J start into `j_sequence_start_valid` for most reads whose J alignment start was outside it (0–30%: 96.93% → 98.37%). Most of the remainder follow a wrong D.
 - **C:** on naive reads with 40 nt of C (seed 2, 2,000 reads) the primary is in `c_call_valid` on 100%.
-- **Cost:** about 165 µs per naive read and 230 µs per bnab read, single thread. Without the D search it is about 2.5 µs. The D search scores 62 orientations × about 100 offsets × a window of up to the D's length, as one serial DP pass each.
+- **Cost:** about 160 µs per naive read and 230 µs per bnab read, single thread. Without the D search it is about 2.5 µs. The D search scores 62 orientations × about 100 offsets × a window of up to the D's length, as one serial DP pass each. SIMD across offsets is the upgrade path.
 - **Constants.** The ±1 score, the 5-nt D threshold, the 10-nt C threshold and the tie-break order are part of this decision. Changing any of them needs a superseding record.

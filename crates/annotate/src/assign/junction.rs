@@ -10,10 +10,10 @@ use std::ops::Range;
 pub struct DHit {
     /// Database index of the primary allele (record 0008); `ties[0]`.
     pub primary: usize,
-    /// Database indices of the V locus's D alleles reaching the best joint score in either
+    /// Database indices of the V locus's D alleles reaching the best joint score in the called
     /// orientation, primary first, then record 0008 order.
     pub ties: Vec<usize>,
-    /// The primary's best configuration places its reverse complement.
+    /// The D is called in reverse complement (record 0031).
     pub inverted: bool,
     /// Read bases `start..end` are the primary's bases `g_start..g_end`, indexed on the
     /// reverse-complemented allele when `inverted`.
@@ -34,6 +34,10 @@ pub struct Junction {
 
 /// A chosen D run shorter than this is no D (record 0025's threshold).
 const MIN_D_LEN: usize = 5;
+
+/// An inverted D is called only when its best score beats the best forward D score by at
+/// least this (forward wins ties; record 0031).
+const INVERTED_MARGIN: i32 = 2;
 
 /// Score of an impossible cut; sums of three stay far above `i32::MIN`.
 const NEG: i32 = -(1 << 28);
@@ -118,6 +122,8 @@ fn placements(lg: usize, zone: Range<usize>) -> impl Iterator<Item = (i64, Range
 
 /// Best V + D + J score with the D at `s` restricted to `w` (V end ≤ D start < D end ≤ J
 /// start): D from `i1` to `i2` scores `pa[i1] − P(i1) + P(i2) + sb[i2]`, `P` the running D score.
+// ponytail: one serial pass per placement is about 165 µs/read over 62 D orientations; SIMD
+// across offsets (independent diagonals, i16 lanes) is the upgrade path if it matters.
 fn best_d(q: &[u8], g: &[u8], s: i64, w: Range<usize>, pa: &[i32], sb: &[i32]) -> i32 {
     let gw = &g[(w.start as i64 - s) as usize..(w.end as i64 - s) as usize];
     let (mut p, mut ml, mut best) = (0, NEG, NEG);
@@ -141,9 +147,10 @@ fn best_d(q: &[u8], g: &[u8], s: i64, w: Range<usize>, pa: &[i32], sb: &[i32]) -
 /// - **No D** when `locus_has_d` is false, when no D configuration beats the best no-D score,
 ///   or when the chosen D configuration's run is shorter than `MIN_D_LEN`: the boundaries are
 ///   the best no-D configuration's.
-/// - Otherwise the D tie set is the alleles reaching the best D score, the primary its record
-///   0008 pick (its forward orientation when both tie), and the boundaries come from the
-///   primary's best configuration.
+/// - The D orientation is inverted only when the best inverted score beats the best forward
+///   score by at least `INVERTED_MARGIN` (record 0031). The D tie set is the alleles reaching
+///   that orientation's best score, the primary its record 0008 pick, and the boundaries come
+///   from the primary's best configuration.
 /// - Ties break toward the longest V, then the longest J, then the earliest D start, then the
 ///   longest D.
 pub fn resolve_junction(read: &Oriented, v: &VHit, j: &JHit, alleles: &[Allele], d: &SegmentIndex, locus_has_d: bool) -> Junction {
@@ -182,15 +189,16 @@ pub fn resolve_junction(read: &Oriented, v: &VHit, j: &JHit, alleles: &[Allele],
     let seqs: Vec<[Vec<u8>; 2]> = ks.iter().map(|&k| [d.seqs[k].clone(), reverse_complement(&d.seqs[k])]).collect();
     let best_of = |g: &[u8]| placements(g.len(), zone(g.len())).map(|(s, w)| best_d(q, g, s, w, &pa, &sb)).max().unwrap_or(NEG);
     let scores: Vec<[i32; 2]> = seqs.iter().map(|[f, r]| [best_of(f), best_of(r)]).collect();
-    let sd = scores.iter().flatten().copied().max().unwrap_or(NEG);
+    let best = |o: usize| scores.iter().map(|s| s[o]).max().unwrap_or(NEG);
+    let inverted = best(1) - best(0) >= INVERTED_MARGIN;
+    let o = usize::from(inverted);
+    let sd = best(o);
     if sd <= s0 {
         return no_d;
     }
-    let mut ties: Vec<usize> = (0..ks.len()).filter(|&x| scores[x].contains(&sd)).collect();
+    let mut ties: Vec<usize> = (0..ks.len()).filter(|&x| scores[x][o] == sd).collect();
     ties.sort_by(|&x, &y| tiebreak_cmp(&alleles[d.ids[ks[x]]], &alleles[d.ids[ks[y]]]).then(x.cmp(&y)));
-    let x = ties[0];
-    let inverted = scores[x][0] != sd;
-    let g = &seqs[x][usize::from(inverted)];
+    let g = &seqs[ties[0]][o];
 
     // The primary's configurations reaching sd: (V end, J start, D start, D end, D offset).
     let mut pick: Option<(usize, usize, usize, usize, i64)> = None;

@@ -140,11 +140,7 @@ pub fn truth(s: &Simulated, c: &Candidates) -> Truth {
     let mut d_all = vec![];
     if !ds.is_empty() {
         for a in &c.d {
-            let mut orients = vec![bytes(a)];
-            if c.d_inversion {
-                orients.push(rc(&bytes(a)));
-            }
-            for o in orients {
+            for o in [bytes(a), rc(&bytes(a))] {
                 for shift in -(ds.len() as i64 - 1)..o.len() as i64 {
                     let mm = (0..ds.len())
                         .filter(|&x| {

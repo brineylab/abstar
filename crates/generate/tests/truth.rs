@@ -22,9 +22,9 @@ fn bound(name: &str, alleles: Vec<Allele>, d_inversion: f64, short_d: bool) -> B
     bind(m, &db(alleles)).unwrap()
 }
 
-fn cands(alleles: &[Allele], d_inversion: bool) -> Candidates {
+fn cands(alleles: &[Allele]) -> Candidates {
     let of = |s: Segment| alleles.iter().filter(|a| a.segment == s).cloned().collect();
-    Candidates::new(of(Segment::V), of(Segment::D), of(Segment::J), of(Segment::C), d_inversion)
+    Candidates::new(of(Segment::V), of(Segment::D), of(Segment::J), of(Segment::C))
 }
 
 fn get(alleles: &[Allele], name: &str) -> Allele {
@@ -158,13 +158,13 @@ fn n_matching_germline_widens_boundary() {
     let t = (1..jq.len())
         .find(|&t| jq[t - 1] == vs[100] && jq[t] != vs[101] && (t < 2 || jq[t - 2] != vs[99]))
         .unwrap();
-    let tr = truth(&hand(&v, 100, &[vs[100]], None, b"", &j, t), &cands(&al, false));
+    let tr = truth(&hand(&v, 100, &[vs[100]], None, b"", &j, t), &cands(&al));
     assert_eq!(tr.v_end_valid, vec![100, 101]);
     assert_eq!(tr.j_start_valid, vec![101, 102]);
 
     // when only V can claim it, the matching N base moves V's end (+1 beats 0)
     let n = [vs[100], other(&[vs[101]])];
-    let tr = truth(&hand(&v, 100, &n, None, b"", &j, 0), &cands(&al, false));
+    let tr = truth(&hand(&v, 100, &n, None, b"", &j, 0), &cands(&al));
     assert_eq!(tr.v_end_valid, vec![101]);
     assert_eq!(tr.j_start_valid, vec![103]);
 }
@@ -176,7 +176,7 @@ fn mutated_edge_base_goes_to_n() {
     let vs = bytes(&v);
     let mut s = hand(&v, 100, &[other(&[vs[100]])], None, b"", &j, 0);
     s.read[99] = other(&[vs[99]]);
-    let tr = truth(&s, &cands(&al, false));
+    let tr = truth(&s, &cands(&al));
     assert_eq!(tr.v_end_valid, vec![99]);
     assert_eq!(tr.v_valid, names(&["IGKV1-1*01", "IGKV1-1*02"]));
 }
@@ -186,7 +186,7 @@ fn closer_allele_makes_unrecoverable() {
     let al = tricky_igh_alleles();
     let (v, d, j) = (get(&al, "IGHV1-1*01"), get(&al, "IGHD2-1*01"), get(&al, "IGHJ2*01"));
     let mut s = hand(&v, bytes(&v).len(), b"GG", Some((&d, 2..20)), b"TC", &j, 0);
-    let c = cands(&al, false);
+    let c = cands(&al);
     let tr = truth(&s, &c);
     assert_eq!(tr.v_valid, names(&["IGHV1-1*01"]));
     assert!(!tr.unrecoverable_v);
@@ -213,7 +213,7 @@ fn short_d_null_valid() {
     let al = tricky_igh_alleles();
     let (v, d, j) = (get(&al, "IGHV1-1*01"), get(&al, "IGHD2-1*01"), get(&al, "IGHJ2*01"));
     let vl = bytes(&v).len() - 2;
-    let c = cands(&al, false);
+    let c = cands(&al);
     for (r, null) in [(5..9, true), (5..10, false)] {
         let tr = truth(&hand(&v, vl, b"CC", Some((&d, r.clone())), b"CC", &j, 0), &c);
         assert_eq!(tr.d_null_valid, null, "D run {r:?}");
@@ -221,7 +221,7 @@ fn short_d_null_valid() {
     }
     // a VJ locus has no D: null is the only valid D call
     let al = tricky_igk_alleles();
-    let tr = truth(&hand(&get(&al, "IGKV1-1*01"), 200, b"A", None, b"", &get(&al, "IGKJ1*01"), 0), &cands(&al, false));
+    let tr = truth(&hand(&get(&al, "IGKV1-1*01"), 200, b"A", None, b"", &get(&al, "IGKJ1*01"), 0), &cands(&al));
     assert!(tr.d_null_valid && tr.d_valid.is_empty() && tr.d_start_valid.is_empty() && tr.d_end_valid.is_empty());
 }
 
@@ -230,7 +230,7 @@ fn truncated_read_coverage() {
     let al = tricky_igh_alleles();
     let (v, d, j) = (get(&al, "IGHV1-1*01"), get(&al, "IGHD1-1*01"), get(&al, "IGHJ1*01"));
     let full = hand(&v, bytes(&v).len(), b"A", Some((&d, 0..17)), b"T", &j, 0);
-    let c = cands(&al, false);
+    let c = cands(&al);
     // the 5'-partial *04 lacks bases the full read has: each counts as a mismatch
     assert_eq!(truth(&full, &c).v_valid, names(&["IGHV1-1*01"]));
 
@@ -266,7 +266,7 @@ fn short_v_sibling_keeps_its_own_best_end() {
     let (vs, ds) = (bytes(&v), bytes(&d));
     let l = vs.len();
     let s = hand(&v, l - 3, &[vs[l - 3], other(&[vs[l - 2], ds[1]])], Some((&d, 2..20)), b"TC", &j, 0);
-    let c = cands(&al, false);
+    let c = cands(&al);
     let tr = truth(&s, &c);
     assert_eq!(tr.v_valid, names(&["IGHV1-2*01", "IGHV1-2*02"]));
     assert_eq!(tr.v_end_valid, vec![l as i64 - 3, l as i64 - 2]);
@@ -282,7 +282,7 @@ fn short_j_sibling_keeps_its_own_best_start() {
     let (ds, jq) = (bytes(&d), bytes(&j));
     let n2 = [other(&[jq[1], ds[20]]), jq[2]];
     let s = hand(&v, bytes(&v).len() - 2, b"CC", Some((&d, 2..20)), &n2, &j, 3);
-    let c = cands(&al, false);
+    let c = cands(&al);
     let tr = truth(&s, &c);
     let pf = s.origin.iter().position(|o| matches!(o, Origin::J(_))).unwrap() as i64;
     assert_eq!(tr.j_valid, names(&["IGHJ1*01", "IGHJ1*02", "IGHJ1*03"]));
@@ -308,7 +308,7 @@ fn short_d_adds_no_d_boundaries() {
     };
     let n2 = [other(&[b as u8]), other(&[b as u8])];
     let s = hand(&v, l - 3, b"", Some((&d, 4..7)), &n2, &j, 0);
-    let c = cands(&[v.clone(), d.clone(), j.clone()], false);
+    let c = cands(&[v.clone(), d.clone(), j.clone()]);
     let tr = truth(&s, &c);
     assert!(tr.d_null_valid);
     let l = l as i64;
@@ -327,7 +327,7 @@ fn truth_speed_human_igh() {
         .into_iter()
         .filter(|a| a.species == "human" && a.locus == abstar_germline::Locus::IGH)
         .collect();
-    let c = cands(&al, true);
+    let c = cands(&al);
     let (d, j) = (get(&al, "IGHD3-10*01"), get(&al, "IGHJ4*02"));
     let cases = [
         ("typical (15 nt D)", "IGHV3-23*01", 3..18, None),

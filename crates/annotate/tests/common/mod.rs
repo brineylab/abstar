@@ -114,8 +114,14 @@ impl Generated {
 /// `n` reads from the built-in `human-igh` model on the built-in `human` database, with the
 /// `preset`'s parameters, `seed`, then `edit` applied.
 pub fn generated(seed: u64, preset_name: &str, n: usize, edit: impl FnOnce(&mut GenerateParams)) -> Generated {
+    generated_inverting(seed, preset_name, n, 0.0, edit)
+}
+
+/// `generated` with the model's `d_inversion` set to `d_inversion`.
+pub fn generated_inverting(seed: u64, preset_name: &str, n: usize, d_inversion: f64, edit: impl FnOnce(&mut GenerateParams)) -> Generated {
     let root = package_root();
-    let model = load_model(&root.join("models/human-igh/model.toml")).unwrap();
+    let mut model = load_model(&root.join("models/human-igh/model.toml")).unwrap();
+    model.d_inversion = d_inversion;
     let bound = bind(model, &human_db()).unwrap();
     let mut params = preset(preset_name).unwrap();
     params.n = n;

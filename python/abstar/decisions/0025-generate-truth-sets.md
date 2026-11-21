@@ -22,6 +22,7 @@ The generator records the origin of every read base (`Origin`: a gapped V index,
   - J bases are indexed by their true J index. Read base `J(u)` is compared with `candidate[u + k]`, so an indel in J is skipped as in V.
   - D bases are indexed by their place in the D run.
   - A candidate's reverse complement is also compared, but only when the model's `d_inversion` is above 0 (`Candidates::d_inversion`). This follows the spec ("where inversion is enabled"). A model that never inverts D does not make a forward-only annotator compete with chance reverse-complement matches.
+  - **Amended 2026-11-21 (ruling A24):** the reverse complement is now always compared, whatever the model's `d_inversion`, and `Candidates::d_inversion` is removed. `d_inversion` governs generation only. The valid set is what the read supports, and an annotator cannot know that a model forbids inversion. Record 0031 sets the annotator's side.
 - **C:** a prefix comparison. Read base `C(u)` is compared with `candidate[u]`.
 - **Coverage rule.** A derived read base that the candidate does not cover counts as a mismatch. That includes a gap `.`, a base past either end, or a shift that leaves it uncovered. A partial allele cannot explain bases it lacks. Candidate positions outside the read are ignored, which handles truncation.
 - **Absent segments.** A segment with no derived bases in the read has an empty set and empty boundary lists, and is never unrecoverable. For example, a V lost to truncation, a D trimmed away, or no C appended.
@@ -64,7 +65,7 @@ The generator records the origin of every read base (`Origin`: a gapped V index,
 - **Align the read to every candidate:** slower and circular. The truth would depend on an aligner, the very thing being graded. The origin map makes alignment unnecessary.
 - **Count mismatches alone for boundaries:** degenerate. N bases are free, so giving every base to N scores 0.
 - **Count the true value as valid in addition to the tied maxima:** it would grade an unobservable end (N bases that match germline) as correct. The true value is recorded separately for anyone who wants it.
-- **Always compare D reverse complements:** with short D runs, chance reverse-complement matches would mark forward-only annotators wrong on models that never invert D.
+- **Always compare D reverse complements:** with short D runs, chance reverse-complement matches would mark forward-only annotators wrong on models that never invert D. (Adopted on 2026-11-21 by ruling A24; see the amendment above.)
 - **Place J siblings by the true J index:** misplaces siblings of different lengths, and disagrees with the shift used to admit them to the set.
 - **Store boundary sets as `[min, max]`:** tied cuts need not be contiguous.
 - **One global maximum across all allele combinations:** drops the best cuts of valid alleles that score lower overall, such as shorter siblings (rejected in ruling G7).

@@ -283,16 +283,13 @@ pub fn truth(s: &Simulated, c: &Candidates) -> Truth {
     let (v_set, v_valid) = fewest(&c.v, &mm(&seqs.v_gapped, &v_proj, v_at.len()));
     let (_, c_valid) = fewest(&c.c, &mm(&seqs.c, &c_proj, c_at.len()));
 
-    // D: every allele (and its reverse complement when inversion is on) at every shift
+    // D: every allele and its reverse complement at every shift, whatever the model's
+    // d_inversion (record 0025, ruling A24)
     let mut d_scores = Vec::new();
     let mut d_shifts: Vec<Vec<(&[u8], i64)>> = Vec::new();
     if !d_at.is_empty() {
-        for (x, fwd) in seqs.d.iter().enumerate() {
-            let mut orients = vec![(slide(&d_proj, d_at.len(), fwd), &fwd[..])];
-            if c.d_inversion {
-                let rc = &seqs.d_rc[x];
-                orients.push((slide(&d_proj, d_at.len(), rc), &rc[..]));
-            }
+        for (fwd, rc) in seqs.d.iter().zip(&seqs.d_rc) {
+            let orients = [(slide(&d_proj, d_at.len(), fwd), &fwd[..]), (slide(&d_proj, d_at.len(), rc), &rc[..])];
             let best = orients.iter().map(|o| o.0 .0).min().unwrap();
             d_scores.push(best);
             d_shifts.push(
