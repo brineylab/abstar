@@ -153,3 +153,10 @@ def test_manual_topics():
 def test_error_codes():
     assert ERROR_CODES["MODEL_NOT_FOUND"] == (2, "the recombination model does not exist")
     assert ERROR_CODES["MODEL_INVALID"] == (2, "the recombination model is malformed or does not fit the germline database")
+
+
+def test_string_truth_fields_have_no_coordinates():
+    # a plain string is not a position (list<string> mutations and indels hold positions)
+    for f in tomllib.loads(_core.truth_toml())["field"]:
+        if f["type"] == "string":
+            assert f["coordinates"] == "", f["name"]

@@ -371,7 +371,8 @@ stdout/stderr convention follows `abstar run`.
     (`v_call`, `junction`, `v_sequence_end`, …), so grading is a join on
     `sequence_id`.
   - Valid-answer sets are list columns with a `_valid` suffix
-    (`v_call_valid`, `v_sequence_end_valid` as `[min, max]`, …).
+    (`v_call_valid`, `v_sequence_end_valid` as the list of every valid
+    position, …; see [Truth](#truth-what-counts-as-correct)).
   - Event columns describe what happened: trims, N/P bases, inversion,
     mutations as positions and substitutions, indels, truncation.
   - The difficulty flags.

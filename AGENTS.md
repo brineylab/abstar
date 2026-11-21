@@ -5,7 +5,7 @@
 This branch is a ground-up rewrite: a Rust core (PyO3, maturin) behind a
 Python package.
 
-- New code lives in `crates/` (`germline`, `annotate`, `py`) and `python/abstar/`.
+- New code lives in `crates/` (`germline`, `table`, `annotate`, `generate`, `py`) and `python/abstar/`.
 - `legacy/` is the previous implementation. It is read-only reference: never
   edit it, import from it, or depend on it. The sections below describe the
   legacy code and its correctness rules.
@@ -18,8 +18,10 @@ Python package.
   - Rebuild the built-in human recombination models (`python/abstar/models/`)
     from `germline-sources/models/`: `python scripts/build_default_models.py`
     (decision 0027)
-- Spec: `docs/superpowers/specs/2026-11-20-abstar-foundation-design.md`.
-  Plan: `docs/superpowers/plans/2026-11-20-abstar-foundation.md`.
+- Specs: `docs/superpowers/specs/2026-11-20-abstar-foundation-design.md`
+  (foundation) and `docs/superpowers/specs/2026-11-20-abstar-generate-design.md`
+  (`abstar generate`). Plans: `docs/superpowers/plans/2026-11-20-abstar-foundation.md`
+  and `docs/superpowers/plans/2026-11-20-abstar-generate.md`.
   Design decisions are recorded in `python/abstar/decisions/`.
 
 This file is the source of truth for coding-agent guidance in this repository.

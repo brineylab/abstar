@@ -106,7 +106,7 @@ name = "junction"
 type = "string"
 nullable = true
 origin = "airr-required"
-coordinates = "read: 1-based closed"
+coordinates = ""
 description = "Read bases from the first base of the Cys104 codon through the last base of the Trp/Phe118 codon of the true alleles. Null when either codon is not wholly in the read."
 decision = ""
 
