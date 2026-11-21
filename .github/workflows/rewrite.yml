@@ -28,6 +28,9 @@ jobs:
           maturin develop --release --extras test
       - name: Rust tests
         run: cargo test --workspace
+      - name: Generator validation (release)
+        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
+        run: cargo test -p abstar_generate --release --test validation -- --include-ignored
       - name: Python tests
         run: |
           . .venv/bin/activate

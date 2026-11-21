@@ -35,9 +35,9 @@ A model that does not fit the database (less than 90 % of its V, D or J mass map
 |---|---|---|---|
 | (none), `naive`, `tcr` | 0 | 0 | 0 |
 | `memory` | `uniform:0.02-0.12` | 0 | 0 |
-| `bnab` | `uniform:0.15-0.35` | 0.3 | 0.10 |
+| `bnab` | `uniform:0.15-0.35` | 0.05 | 0.10 |
 
-`bnab`'s long-CDR3 weight draws N lengths from the IGH model's long tail (20-60 nt per junction).
+`bnab`'s long-CDR3 weight draws each junction's N length from the IGH model's long tail (20-60 nt) with probability 0.05. On `human-igh` this gives about 29% of reads with CDRH3 ≥ 24 aa and 2.7% with ≥ 35 aa.
 
 ## Options
 

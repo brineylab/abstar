@@ -28,6 +28,7 @@ dependencies = [
  "abstar_table",
  "arrow-array",
  "arrow-schema",
+ "criterion",
  "rand",
  "rand_chacha",
  "rand_distr",

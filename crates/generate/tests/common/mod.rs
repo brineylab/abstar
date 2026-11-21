@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+pub mod oracle;
 use abstar_germline::{Allele, Database, Functionality, Locus, Manifest, Segment};
 
 pub fn allele(name: &str, locus: Locus, segment: Segment, species: &str, anchored: bool) -> Allele {

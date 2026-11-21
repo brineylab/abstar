@@ -132,8 +132,11 @@ pub fn preset(name: &str) -> Result<GenerateParams, GenerateError> {
         "memory" => GenerateParams { mutation: Spec::Uniform(0.02, 0.12), ..base },
         "bnab" => GenerateParams {
             mutation: Spec::Uniform(0.15, 0.35),
-            // placeholder: Task 11 tunes this to give ≥25% CDRH3 ≥ 24 aa and ≥2% ≥ 35 aa
-            long_cdr3_weight: 0.3,
+            // Smallest round weight giving ≥ 25% CDRH3 ≥ 24 aa and ≥ 2% ≥ 35 aa with margin,
+            // over human-igh reads with a junction (tests/validation.rs `bnab_targets`,
+            // 50,000 reads, seed 2026): 0.05 gives 29.4% ≥ 24 aa and 2.66% ≥ 35 aa
+            // (0 gives 23.8% / 0.48%; 0.04 gives 28.3% / 2.18%, under 3 SE above 2%).
+            long_cdr3_weight: 0.05,
             indel_rate: 0.10,
             ..base
         },
