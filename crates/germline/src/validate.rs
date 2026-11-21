@@ -46,27 +46,30 @@ pub fn validate(alleles: &[Allele]) -> Result<Vec<BuildWarning>, GermlineError> 
 /// Share of V alleles that must carry Cys104 at IMGT 310-312 for a database to count as IMGT-gapped.
 const MIN_ANCHORED_V: f64 = 0.95;
 
-/// Refuses a database whose V alleles are not IMGT-gapped (record 0036). The rule is
-/// database-level: a few real alleles lack Cys104 (mutated or partial), most must not.
+/// Refuses a database whose V alleles are not IMGT-gapped (record 0036). The rule is per species
+/// and database-level: a few real alleles lack Cys104 (mutated or partial), most must not.
 pub(crate) fn check_imgt_gapped(name: &str, alleles: &[Allele]) -> Result<(), GermlineError> {
-    let v: Vec<&Allele> = alleles.iter().filter(|a| a.segment == Segment::V).collect();
-    let bad: Vec<&Allele> = v
-        .iter()
-        .copied()
-        .filter(|a| !a.sequence_gapped.contains('.') || find_v_anchor(&a.sequence_gapped).is_none())
-        .collect();
-    let ungapped = v.iter().any(|a| !a.sequence_gapped.contains('.'));
-    if v.is_empty() || (!ungapped && (v.len() - bad.len()) as f64 >= MIN_ANCHORED_V * v.len() as f64) {
-        return Ok(());
+    let species: std::collections::BTreeSet<&str> =
+        alleles.iter().filter(|a| a.segment == Segment::V).map(|a| a.species.as_str()).collect();
+    for sp in species {
+        let v: Vec<&Allele> = alleles.iter().filter(|a| a.segment == Segment::V && a.species == sp).collect();
+        let ungapped = v.iter().filter(|a| !a.sequence_gapped.contains('.'));
+        let anchorless = v.iter().filter(|a| a.sequence_gapped.contains('.') && find_v_anchor(&a.sequence_gapped).is_none());
+        // ungapped alleles first: they break the every-V-has-gaps rule and are always named
+        let bad: Vec<&Allele> = ungapped.clone().chain(anchorless).copied().collect();
+        if ungapped.count() == 0 && (v.len() - bad.len()) as f64 >= MIN_ANCHORED_V * v.len() as f64 {
+            continue;
+        }
+        let ex: Vec<&str> = bad.iter().take(5).map(|a| a.name.as_str()).collect();
+        return Err(GermlineError::Invalid(format!(
+            "database {name} is not IMGT-gapped: {} of {} {sp} V alleles lack IMGT gaps or Cys104 (TGT/TGC) at \
+             IMGT 310-312 (at least {:.0}% must have it, and every V allele needs gaps; e.g. {}); \
+             IMGT-gapped V sequences are required",
+            bad.len(),
+            v.len(),
+            MIN_ANCHORED_V * 100.0,
+            ex.join(", ")
+        )));
     }
-    let ex: Vec<&str> = bad.iter().take(5).map(|a| a.name.as_str()).collect();
-    Err(GermlineError::Invalid(format!(
-        "database {name} is not IMGT-gapped: {} of {} V alleles lack IMGT gaps or Cys104 (TGT/TGC) at \
-         IMGT 310-312 (at least {:.0}% must have it, and every V allele needs gaps; e.g. {}); \
-         IMGT-gapped V sequences are required",
-        bad.len(),
-        v.len(),
-        MIN_ANCHORED_V * 100.0,
-        ex.join(", ")
-    )))
+    Ok(())
 }

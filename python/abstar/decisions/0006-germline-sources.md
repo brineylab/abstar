@@ -12,7 +12,7 @@ Germline sets differ in quality and coverage by source and locus. The choice of 
 
 OGRDB supplies V/D/J wherever it covers the locus. Otherwise the best curated alternative is used (for example IMGT GENE-DB, KIMDB). IMGT supplies constant regions. The source is recorded per locus in the manifest, and a locus switches to OGRDB when OGRDB adds it. This was a user decision.
 
-Built-in databases: `human` (IG from OGRDB, TR from IMGT), `macaque` (IGH from KIMDB, IGK/IGL from IMGT), `c57bl6`, `balbc`, and `human+c57bl6`. Today's `balbc` and `c57bl6` manifests cite the Homo sapiens OGRDB URL; provenance is fixed when they are rebuilt.
+Built-in databases: `human` (IG from OGRDB, TR from IMGT), `macaque` (IGH from KIMDB, IGK/IGL from IMGT), `c57bl6`, `balbc`, and `human+c57bl6`. (Amended 2026-11-21: `macaque` is no longer built in, because its V genes are not IMGT-gapped; see 0036 and #137.) Today's `balbc` and `c57bl6` manifests cite the Homo sapiens OGRDB URL; provenance is fixed when they are rebuilt.
 
 ## Alternatives considered
 

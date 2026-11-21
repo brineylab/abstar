@@ -318,3 +318,47 @@ fn database_without_v_alleles_skips_the_gap_check() {
     let d = db_with_v(vec![allele("J1", Locus::IGH, Segment::J, "ACGT", None)]);
     write(&d, &t.path().join("db"), false).unwrap();
 }
+
+#[test]
+fn examples_name_ungapped_alleles_first() {
+    let t = tempfile::tempdir().unwrap();
+    let mut vs: Vec<Allele> = (0..7).map(|i| gapped_v(&format!("A{i}"), "AAA")).collect();
+    vs.push(allele("U1", Locus::IGH, Segment::V, "ACGTACGT", None));
+    let e = write(&db_with_v(vs), &t.path().join("db"), false).unwrap_err().to_string();
+    assert!(e.contains("U1*01"), "{e}");
+}
+
+#[test]
+fn mixed_database_checked_per_species() {
+    let t = tempfile::tempdir().unwrap();
+    let mut vs: Vec<Allele> = (0..20).map(|i| gapped_v(&format!("H{i}"), "TGT")).collect();
+    for i in 0..2 {
+        let mut a = gapped_v(&format!("M{i}"), "AAA");
+        a.species = "macaque".into();
+        vs.push(a);
+    }
+    let e = write(&db_with_v(vs), &t.path().join("db"), false).unwrap_err().to_string();
+    assert!(e.contains("2 of 2 macaque V alleles") && e.contains("M0*01"), "{e}");
+}
+
+#[test]
+fn load_refuses_an_invalid_database_directory() {
+    let t = tempfile::tempdir().unwrap();
+    let dir = t.path().join("db");
+    write(&db_with_v(vec![gapped_v("V1", "TGT")]), &dir, false).unwrap();
+    // swap in an ungapped V, keeping the manifest hash consistent
+    let tsv = fs::read_to_string(dir.join("alleles.tsv")).unwrap();
+    let bad = tsv.replace(&cys_seq("ACGT"), "ACGTACGT");
+    assert_ne!(tsv, bad);
+    let (old, new) = (hex(&tsv), hex(&bad));
+    fs::write(dir.join("alleles.tsv"), &bad).unwrap();
+    let m = fs::read_to_string(dir.join("manifest.toml")).unwrap();
+    assert!(m.contains(&old));
+    fs::write(dir.join("manifest.toml"), m.replace(&old, &new)).unwrap();
+    let e = load(&dir).unwrap_err().to_string();
+    assert!(e.contains("not IMGT-gapped"), "{e}");
+}
+
+fn hex(s: &str) -> String {
+    sha2::Sha256::digest(s.as_bytes()).iter().map(|b| format!("{b:02x}")).collect()
+}

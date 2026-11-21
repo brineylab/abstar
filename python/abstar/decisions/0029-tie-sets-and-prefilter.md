@@ -176,7 +176,7 @@ On reads with a single true V indel where the primary is the true allele, the pl
 - **Ties are exact but not always truth's set.** The read alone cannot show where V ends. N bases that continue an allele's 3' tail count for that allele, while truth counts only V-origin bases. This dominates the misses on 5'-truncated reads, whose short V leaves few positions. Above about 25% mutation, the remaining compensating gaps and alignments to the wrong CDR length misplace bases.
 - **Junk-read cost.** No-hit input costs about 1.3 ms per read, both strands included.
 - **Typical cost:** 0.3 ms per naive read.
-- **Gapping limits.** An allele whose IMGT gapping is shifted (#138), or that lacks gaps (macaque, #137), is compared at the wrong positions, as in the truth sets.
+- **Gapping limits.** An allele whose IMGT gapping is shifted (#138), or that lacks gaps (macaque, #137), is compared at the wrong positions, as in the truth sets. (Amended 2026-11-21: a database without IMGT gaps is now refused at build and load, record 0036; the macaque case no longer arises.)
 - **Constants.** Changing any constant here changes calls, so it needs a superseding record: k, scores, 90%, 3, 12, bin 8, 8 diagonal hits, J 30, near V 20, floor 50, the cut scores, the pair span of 40, the V start extension's 20 and 3 bases and quarter identity, or for J the 10-nt overlap, 3 cut alleles, the J floor of 30 and the J protect margin of 5.
 - **2026-11-21 (fix wave, rulings B1 and B4; measured on the Task 12 benchmark sets, 5,000 reads each, seeds 20261201–09).**
   - **B1: short 3′ J fragments.** Below the J floor of 30, the best gapless alignment of the read's 3′ end to any J allele of the V's locus is called when all of these hold:
