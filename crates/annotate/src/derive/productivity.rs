@@ -4,8 +4,8 @@ use crate::assign::Oriented;
 /// AIRR productivity (record 0032), defined as the generator defines it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Productivity {
-    /// `vj_in_frame`, no stop codon, and the junction keeps a conserved Cys104 (TGT/TGC) and
-    /// Trp/Phe118 (TGG/TTT/TTC) codon.
+    /// `vj_in_frame`, no stop codon, every junction base ACGT, and the junction keeps a conserved
+    /// Cys104 (TGT/TGC) and Trp/Phe118 (TGG/TTT/TTC) codon, whatever the locus.
     pub productive: bool,
     /// There is a junction, its length is a multiple of 3, and its Trp/Phe118 codon is in the V
     /// reading frame.
@@ -20,7 +20,9 @@ pub fn productivity(read: &Oriented, regions: &Regions) -> Productivity {
     let (vj_in_frame, conserved) = regions.junction.map_or((false, false), |(s, e)| {
         (
             (e - s) % 3 == 0 && (e - 3) % 3 == regions.frame % 3,
-            matches!(&q[s..s + 3], b"TGT" | b"TGC") && matches!(&q[e - 3..e], b"TGG" | b"TTT" | b"TTC"),
+            matches!(&q[s..s + 3], b"TGT" | b"TGC")
+                && matches!(&q[e - 3..e], b"TGG" | b"TTT" | b"TTC")
+                && q[s..e].iter().all(|b| matches!(b, b'A' | b'C' | b'G' | b'T')),
         )
     });
     Productivity { productive: vj_in_frame && !stop_codon && conserved, vj_in_frame, stop_codon }

@@ -155,6 +155,22 @@ fn engine_c_fields() {
     assert_eq!(r.gene_segment_mask.as_ref().map(|m| m.len()), Some(379));
 }
 
+/// An ambiguous junction base makes the read nonproductive (record 0032), though it stays in frame
+/// with no stop codon.
+#[test]
+fn ambiguous_junction_base_is_nonproductive() {
+    let mut read = igh_read().into_bytes();
+    read[310] = b'N'; // inside the D, in CDR3
+    let r = engine().annotate("r1", std::str::from_utf8(&read).unwrap());
+    assert_eq!(r.junction.as_deref().map(|j| j.contains('N')), Some(true));
+    assert_eq!((r.productive, r.vj_in_frame, r.stop_codon), (Some(false), Some(true), Some(false)));
+    // an N outside the junction leaves it productive
+    let mut read = igh_read().into_bytes();
+    read[100] = b'N';
+    let r = engine().annotate("r1", std::str::from_utf8(&read).unwrap());
+    assert_eq!((r.productive, r.vj_in_frame, r.stop_codon), (Some(true), Some(true), Some(false)));
+}
+
 #[test]
 fn no_j_hit_keeps_v_fields() {
     let read = [ungapped(human(), "IGHV1-2*02"), "CCGTATTACG".into()].concat();

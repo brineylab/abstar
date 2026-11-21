@@ -38,7 +38,7 @@ Coordinates here are 0-based half-open on the oriented read. They become AIRR 1-
 **Productivity** (`derive::productivity`), as the generator defines it.
 - `vj_in_frame`: a junction exists, its length is a multiple of 3, and its Trp/Phe118 codon is in the V frame.
 - `stop_codon`: TAA, TAG or TGA in the V frame over `sequence_vdj` (no C).
-- `productive`: `vj_in_frame`, no stop codon, a Cys104 codon of TGT or TGC, and a Trp/Phe118 codon of TGG, TTT or TTC.
+- `productive`: `vj_in_frame`, no stop codon, a Cys104 codon of TGT or TGC, and a Trp/Phe118 codon of TGG, TTT or TTC. (2026-11-21: also every junction base ACGT; see the final-review note at the end.)
 - Without a junction, `vj_in_frame` and `productive` are F.
 
 ## Alternatives considered
@@ -78,3 +78,6 @@ Agreement with truth (`tests/derive.rs`, seeds as listed) is measured on reads w
     | igh_memory | 99.44% → 99.46% | | |
     | igh_truncated | 94.46% → 94.44% (one read) | | |
     | igh_naive, igk, igl, tra, trb | unchanged | | |
+- **2026-11-21 (final review, ruling I5): ambiguity and motifs in productivity.**
+  - **Ambiguous junction bases.** `productive` is F when the junction holds a base other than A, C, G or T (an `N` or IUPAC code from the sequencer): the read cannot show that the junction encodes a functional chain. AGENTS.md lists ambiguity among the productivity rules, and legacy abstar calls such reads nonproductive. Before, an `N` in CDR3 left `productive` T. `vj_in_frame` and `stop_codon` are unchanged. The generator emits only ACGT bases, so truth's productivity needs no change and the accuracy gate is unaffected.
+  - **Motifs.** The Trp/Phe118 codon may be TGG, TTT or TTC on every locus, heavy or light, BCR or TCR. A locus-specific motif (Trp for IGH, Phe for light chains and TCRs) would call real rearrangements whose J allele carries the other residue nonproductive (2 human TRAJ alleles carry Trp118), and the generator's selection uses the same universal set. So the rule stays universal.
