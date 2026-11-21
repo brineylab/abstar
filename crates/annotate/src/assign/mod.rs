@@ -1,13 +1,19 @@
-//! Orientation and gene assignment (record 0029).
+//! Orientation and gene assignment (record 0029), junction resolution (records 0030, 0031)
+//! and C assignment.
 //!
-//! Allele indices in results (`primary`, `ties` of `VHit` and `JHit`) index the database's allele slice.
+//! Allele indices in results (`primary`, `ties` of `VHit`, `JHit`, `DHit` and `CHit`) index the
+//! database's allele slice.
 //! Coordinates are 0-based half-open on the oriented read.
+mod c;
 mod j;
+mod junction;
 mod orient;
 mod ties;
 mod v;
 
+pub use c::{assign_c, CHit};
 pub use j::{assign_j, JHit};
+pub use junction::{resolve_junction, DHit, Junction};
 pub use orient::{orient, reverse_complement, Oriented};
 pub use ties::primary_by_tiebreak;
 pub use v::{assign_v, VHit, MIN_V_SCORE};

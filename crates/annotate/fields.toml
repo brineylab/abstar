@@ -574,7 +574,7 @@ nullable = true
 origin = "abstar"
 coordinates = ""
 description = "True when the D was aligned as its reverse complement. Null without a D call."
-decision = "0028"
+decision = "0031"
 
 [[field]]
 name = "sequence_aa"

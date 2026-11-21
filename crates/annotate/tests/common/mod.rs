@@ -2,7 +2,7 @@
 //! (generator dev-dependency; the library never uses it).
 #![allow(dead_code)]
 use abstar_annotate::align::Scoring;
-use abstar_annotate::assign::{assign_j, call_v, JHit, Oriented, SegmentIndex, VHit};
+use abstar_annotate::assign::{assign_c, assign_j, call_v, resolve_junction, CHit, JHit, Junction, Oriented, SegmentIndex, VHit};
 use abstar_generate::{bind, generate_in_memory, load_model, preset, GenerateParams};
 use abstar_germline::Database;
 use abstar_germline::{Allele, Segment};
@@ -20,18 +20,31 @@ pub fn human_db() -> Database {
     abstar_germline::load(&package_root().join("germline_dbs/human")).unwrap()
 }
 
-/// A database's alleles with their V and J indexes.
+/// A database's alleles with their V, D, J and C indexes.
 pub struct Ref {
     pub alleles: Vec<Allele>,
     pub v: SegmentIndex,
+    pub d: SegmentIndex,
     pub j: SegmentIndex,
+    pub c: SegmentIndex,
+}
+
+/// Every call for one read: V, J, the junction and C.
+pub struct Calls {
+    pub read: Oriented,
+    pub v: VHit,
+    pub j: JHit,
+    pub junction: Junction,
+    pub c: Option<CHit>,
 }
 
 impl Ref {
     pub fn new(alleles: Vec<Allele>) -> Ref {
         let v = SegmentIndex::new(&alleles, Segment::V);
+        let d = SegmentIndex::new(&alleles, Segment::D);
         let j = SegmentIndex::new(&alleles, Segment::J);
-        Ref { alleles, v, j }
+        let c = SegmentIndex::new(&alleles, Segment::C);
+        Ref { alleles, v, d, j, c }
     }
     pub fn call(&self, read: &[u8]) -> Option<(Oriented, VHit)> {
         call_v(read, &self.alleles, &self.v, &self.j, &Scoring::default())
@@ -40,6 +53,15 @@ impl Ref {
     pub fn call_j(&self, read: &[u8]) -> Option<JHit> {
         let (o, v) = self.call(read)?;
         assign_j(&o, &v, &self.alleles, &self.j, &Scoring::default())
+    }
+    /// V, J, then the junction (a D searched when the V locus has D alleles) and C.
+    pub fn call_all(&self, read: &[u8]) -> Option<Calls> {
+        let (o, v) = self.call(read)?;
+        let j = assign_j(&o, &v, &self.alleles, &self.j, &Scoring::default())?;
+        let has_d = self.d.loci.contains(&self.alleles[v.primary].locus);
+        let junction = resolve_junction(&o, &v, &j, &self.alleles, &self.d, has_d);
+        let c = assign_c(&o, &j, &self.alleles, &self.c);
+        Some(Calls { read: o, v, j, junction, c })
     }
     pub fn idx(&self, name: &str) -> usize {
         self.alleles.iter().position(|a| a.name == name).unwrap_or_else(|| panic!("no allele {name}"))
