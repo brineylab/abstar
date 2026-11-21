@@ -15,6 +15,9 @@ Python package.
   - `python -m pytest -q`
   - Rebuild built-in germline databases from `germline-sources/recipes/`:
     `python scripts/build_builtin_germlines.py [NAME ...]` (decision 0019)
+  - Rebuild the built-in human recombination models (`python/abstar/models/`)
+    from `germline-sources/models/`: `python scripts/build_default_models.py`
+    (decision 0027)
 - Spec: `docs/superpowers/specs/2026-11-20-abstar-foundation-design.md`.
   Plan: `docs/superpowers/plans/2026-11-20-abstar-foundation.md`.
   Design decisions are recorded in `python/abstar/decisions/`.
