@@ -256,16 +256,17 @@ pub(crate) fn fill(r: &mut TruthRecord, s: &Simulated) {
                     (p > 0 && p + len < g.len() && at[p - 1].is_some() && at[p + len].is_some()).then(|| (p - 1, p + len))
                 }
             };
-            let anchor = match k {
-                0 => s.v.anchor,
-                2 => s.j.anchor,
-                _ => None,
+            // the generator's indel zone (ruling A18; never in CDR3): V at least 3 nt upstream of Cys104,
+            // J at least 3 nt downstream of Trp/Phe118, as `place_indel` draws them
+            let clear = |(l, r): (usize, usize)| match k {
+                0 => s.v.anchor.is_none_or(|c| r + 3 <= c),
+                2 => s.j.anchor.is_none_or(|c| l >= c + 5),
+                _ => true,
             };
-            let clear = |(l, r): (usize, usize)| anchor.is_none_or(|c| r <= c || l >= c + 2);
             let mismatches = |at: &[Option<usize>]| (0..g.len()).filter(|&u| at[u].is_some_and(|i| !read[i].eq_ignore_ascii_case(&g[u]))).count();
             // ruling A17: each indel moves to the placement of its kind and length, between two aligned
-            // bases and clear of the Cys104 / Trp-Phe118 codon, with the fewest read-vs-germline
-            // mismatches over the segment, leftmost on ties; the segment's other indels stay fixed.
+            // bases and inside the generator's indel zone, with the fewest read-vs-germline mismatches
+            // over the segment, leftmost on ties; the segment's other indels stay fixed.
             // ponytail: rebuilds the alignment per candidate, O(segment^2) per indel; prefix sums if it shows up
             let mut ids = std::mem::take(&mut placed[k]);
             for j in 0..ids.len() {

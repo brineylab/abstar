@@ -884,8 +884,9 @@ fn drawn(b: &Bound, p: &GenerateParams, i: usize) -> abstar_generate::Simulated 
 
 /// An independent optimal aligner (ruling A17), driven by the read, the germline, the origin map's
 /// segment span and the generated indel's kind and length (never by the truth indel strings): it
-/// scores every placement of that indel with a read base of the segment on both sides and clear of
-/// the Cys104 / Trp-Phe118 codon by its read-vs-germline mismatches over the segment, and keeps the
+/// scores every placement of that indel with a read base of the segment on both sides and inside the
+/// generator's indel zone (V at least 3 nt upstream of Cys104, J at least 3 nt downstream of
+/// Trp/Phe118; ruling A18) by its read-vs-germline mismatches over the segment, and keeps the
 /// fewest, leftmost on ties. From that alignment it rebuilds the segment's insertion and deletion
 /// strings, nt list, counts, frequency and aa list (and `v_identity`), which must equal truth's.
 /// Returns, for [V, J] x [deletion, insertion]: rows tested, rows whose placement differs from the
@@ -946,12 +947,13 @@ fn check_optimal_alignment(b: &Bound, p: &GenerateParams) -> [[[usize; 2]; 2]; 3
             } else {
                 (u0 + 1..=u0 + last - first).map(|d| (d, d - 1, d + len)).collect()
             };
-            let anchor = if k == 0 { sim.v.anchor } else { sim.j.anchor };
             let mismatches = |q: usize| (first..=last).filter(|&i| pos(q, i).is_some_and(|u| !sim.read[i].eq_ignore_ascii_case(&g[u]))).count();
             let mut best: Option<(usize, usize)> = None;
             for (q, left, right) in candidates {
-                if anchor.is_some_and(|c| right > c && left < c + 2) {
-                    continue; // touches the anchor codon
+                // the generator's zone (ruling A18): V >= 3 nt upstream of Cys104, J >= 3 nt downstream of Trp/Phe118
+                let zone = if k == 0 { right + 3 <= sim.v.anchor.unwrap() } else { left >= sim.j.anchor.unwrap() + 5 };
+                if !zone {
+                    continue;
                 }
                 let m = mismatches(q);
                 if best.is_none_or(|(bm, _)| m < bm) {
