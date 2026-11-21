@@ -1,42 +1,13 @@
 //! Orientation and V assignment (record 0029) on the built-in human database.
 mod common;
-use abstar_annotate::align::{Op, Scoring};
-use abstar_annotate::assign::{call_v, orient, primary_by_tiebreak, Oriented, SegmentIndex, VHit};
+use abstar_annotate::align::Op;
+use abstar_annotate::assign::{orient, primary_by_tiebreak, VHit};
 use abstar_generate::Spec;
 use abstar_germline::{Allele, Functionality, Locus, Segment};
-use common::{generated, human_db, rand_seq, revcomp, Generated};
+use common::{generated, human, human_db, rand_seq, revcomp, Generated, Ref};
 use rayon::prelude::*;
 use std::collections::BTreeSet;
-use std::sync::OnceLock;
 use std::time::Instant;
-
-struct Ref {
-    alleles: Vec<Allele>,
-    v: SegmentIndex,
-    j: SegmentIndex,
-}
-
-impl Ref {
-    fn new(alleles: Vec<Allele>) -> Ref {
-        let v = SegmentIndex::new(&alleles, Segment::V);
-        let j = SegmentIndex::new(&alleles, Segment::J);
-        Ref { alleles, v, j }
-    }
-    fn call(&self, read: &[u8]) -> Option<(Oriented, VHit)> {
-        call_v(read, &self.alleles, &self.v, &self.j, &Scoring::default())
-    }
-    fn idx(&self, name: &str) -> usize {
-        self.alleles.iter().position(|a| a.name == name).unwrap_or_else(|| panic!("no allele {name}"))
-    }
-    fn names(&self, ids: &[usize]) -> BTreeSet<String> {
-        ids.iter().map(|&i| self.alleles[i].name.clone()).collect()
-    }
-}
-
-fn human() -> &'static Ref {
-    static R: OnceLock<Ref> = OnceLock::new();
-    R.get_or_init(|| Ref::new(human_db().alleles))
-}
 
 fn ungapped(a: &Allele) -> Vec<u8> {
     a.sequence().into_bytes()

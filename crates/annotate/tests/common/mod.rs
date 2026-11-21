@@ -1,10 +1,15 @@
 //! Shared test helpers: the built-in human database and generated reads with their truth
 //! (generator dev-dependency; the library never uses it).
 #![allow(dead_code)]
+use abstar_annotate::align::Scoring;
+use abstar_annotate::assign::{assign_j, call_v, JHit, Oriented, SegmentIndex, VHit};
 use abstar_generate::{bind, generate_in_memory, load_model, preset, GenerateParams};
 use abstar_germline::Database;
+use abstar_germline::{Allele, Segment};
 use arrow_array::{Array, BooleanArray, Int64Array, ListArray, RecordBatch, StringArray};
+use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 
 pub fn package_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../python/abstar")
@@ -13,6 +18,41 @@ pub fn package_root() -> PathBuf {
 /// The built-in `human` germline database (IG and TR).
 pub fn human_db() -> Database {
     abstar_germline::load(&package_root().join("germline_dbs/human")).unwrap()
+}
+
+/// A database's alleles with their V and J indexes.
+pub struct Ref {
+    pub alleles: Vec<Allele>,
+    pub v: SegmentIndex,
+    pub j: SegmentIndex,
+}
+
+impl Ref {
+    pub fn new(alleles: Vec<Allele>) -> Ref {
+        let v = SegmentIndex::new(&alleles, Segment::V);
+        let j = SegmentIndex::new(&alleles, Segment::J);
+        Ref { alleles, v, j }
+    }
+    pub fn call(&self, read: &[u8]) -> Option<(Oriented, VHit)> {
+        call_v(read, &self.alleles, &self.v, &self.j, &Scoring::default())
+    }
+    /// The V call, then J assignment after it.
+    pub fn call_j(&self, read: &[u8]) -> Option<JHit> {
+        let (o, v) = self.call(read)?;
+        assign_j(&o, &v, &self.alleles, &self.j, &Scoring::default())
+    }
+    pub fn idx(&self, name: &str) -> usize {
+        self.alleles.iter().position(|a| a.name == name).unwrap_or_else(|| panic!("no allele {name}"))
+    }
+    pub fn names(&self, ids: &[usize]) -> BTreeSet<String> {
+        ids.iter().map(|&i| self.alleles[i].name.clone()).collect()
+    }
+}
+
+/// The built-in `human` database, indexed once.
+pub fn human() -> &'static Ref {
+    static R: OnceLock<Ref> = OnceLock::new();
+    R.get_or_init(|| Ref::new(human_db().alleles))
 }
 
 /// Generated reads and their truth table (one Arrow batch, one row per read).

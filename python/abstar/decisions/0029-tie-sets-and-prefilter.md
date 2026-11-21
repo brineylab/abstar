@@ -6,7 +6,7 @@ Accepted (2026-11-20)
 
 ## Context
 
-The annotator's first steps (spec *Pipeline* steps 2–3) orient the read, find the V gene and report a tie set by the same fewest-mismatches rule the generator's truth uses (record 0025). Truth sets are computed from each read base's known origin; an annotator only sees the read.
+The annotator's first steps (spec *Pipeline* steps 2–3) orient the read, find the V gene and then the J gene, and report tie sets by the same fewest-mismatches rule the generator's truth uses (record 0025). Truth sets are computed from each read base's known origin; an annotator only sees the read.
 
 Aligning every V allele of a locus is too slow: one 300-nt V alignment costs about 104 µs score-only and about 148 µs with traceback on the development machine. The spec's first idea was a k-mer prefilter with a margin that keeps every possible tie, but no useful margin exists: at high mutation the true allele's k-mer count is within the noise of unrelated alleles.
 
@@ -76,6 +76,16 @@ Diagnosis of the no-hit losses on bnab-preset reads (A22):
 - The primary is their record 0008 pick: F > ORF > P > NF > unknown, then higher `usage` (a missing usage after any given one), then natural sort of names. `mismatches` is the count.
 - The reported alignment and IMGT projection are the primary's own.
 
+**J assignment** (`assign_j`, after a V hit; no V hit gives no J for now).
+- Candidates are the J alleles of the V primary's locus, across all species in a mixed-species database. Each is scored with `score_semiglobal` against the read from 10 nt before the V alignment's end.
+- The 3 best are aligned, gap pairs are collapsed, and the alignment's 5' end is cut to the J-derived bases. The cut keeps the maximum-scoring run of columns that ends at the alignment's 3' end, with the V cut's scores (+2/−2, gaps as above). Among equal scores the shortest run wins, so N bases that only break even are left out.
+  - The 3' end is not cut: it is the J's own end or the read's end.
+  - Ranking by the cut score rather than the DP score matters. The overlap alignment must start at the J's first base, so the DP charges each allele for its own 5'-trimmed bases.
+- `place_gaps` runs with `protect` = the germline up to 5 nt past the first base of the Trp/Phe118 codon. This is the generator's J indel zone (A18).
+- The best cut score becomes the projecting allele. Below 30 there is no J hit (`no_j_hit`).
+- **Tie set (A21 rule, truth's sliding comparison).** The J-derived bases are taken as (projecting-allele index, read base). Inserted bases are skipped, and deleted positions have no read base. Every J allele of the locus is counted at its best shift, where read index `u` faces allele base `u + k`. A base the shifted allele does not cover, or a non-ACGT read base, is a mismatch. This is how short J siblings separate.
+- The record 0008 pick among the fewest cuts the J-derived bases itself, and the count is repeated once over its cut. The tie set is exactly the fewest-mismatch alleles there, with no end slack. The primary is their record 0008 pick, and the reported alignment is the primary's own.
+
 ## Alternatives considered
 
 - **Prefilter margin** (the brief's first rule): no margin both bounds the work and guarantees completeness. At 25–30% mutation the true allele's 7-mer count (about 24) is within random-read noise (30 for 600 nt).
@@ -90,6 +100,20 @@ Diagnosis of the no-hit losses on bnab-preset reads (A22):
   - +1/−1 with alignment gaps loses true indels near V ends: single-indel placement agreed with truth on 468 of 517 reads, against 494 of 518.
   - +2/−3 biases the cut toward the aligned allele: bnab primary accuracy 96.8%, against 98.9%.
 
+- **J: rank by DP score, gate the DP score at 30.** The forced 5' overlap gives N bases to alleles with long 5' ends (IGHJ1, IGHJ5 over IGHJ4). Naive tie coverage was 98.75%, and 11% of 0–30%-mutation reads had no J hit.
+- **J: longest cut among equal scores** (the V rule): naive tie coverage 98.90%, against 99.15%.
+- **J: among equal cut scores, the shortest projects:** within noise. Naive primary rose by 2 reads, bnab tie coverage fell by 15.
+- **J: cut every locus allele instead of 3:** within noise (mutation 0–30%: 98.27% against 98.17% primary), at about 1.5 times the cost.
+- **J floor on the cut score:** random 250-nt tails after a V (100,000 each, after IGHV3-23, IGKV3-20 and TRAV1-1) reach it at these rates:
+
+  | Floor | Random tails reaching it (IGH / IGK / TRA) | No J hit on mutation 0–30% | No J hit on bnab |
+  |---|---|---|---|
+  | 20 | 194 / 630 / 1207 | 6 | 92 |
+  | 30 | 3 / 14 / 18 | 11 | 118 |
+  | 40 | 0 / 1 / 0 | 62 | 254 |
+
+  Calls below 30 are mostly wrong: 4 of 10 at 0–30% mutation and 32 of 109 on bnab had the primary in `j_call_valid`. So 30 costs few correct calls and keeps random tails at about 10⁻⁴.
+
 ## Consequences
 
 Measured with the built-in `human` database (release build). Rates are over recoverable reads.
@@ -102,6 +126,19 @@ Measured with the built-in `human` database (release build). Rates are over reco
 | memory + 20% indels, seed 11 (2,913) | 99.86% | 99.83% | 0 | 1.05 |
 | bnab preset, seed 1 (1,729) | 98.90% | 98.44% | 5 | 1.27 |
 | mutation 30–40%, seed 1 (1,641) | 64.5% | 64.5% | 542 | 1.37 |
+
+J assignment, same database and build. These rates are over reads whose `j_call_valid` is non-empty and holds the true allele. A read with no V hit counts as no J hit.
+
+| Set | Primary in `j_call_valid` | `j_call_valid` ⊆ ties | No J hit |
+|---|---|---|---|
+| naive, seed 1 (2,000) | 99.85% | 99.15% | 0 |
+| mutation 0–30%, seed 1 (1,968) | 98.17% | 95.83% | 7 |
+| memory + 20% indels, seed 11 (2,995) | 99.40% | 98.20% | 1 |
+| bnab preset, seed 1 (1,906) | 92.39% | 87.25% | 107 |
+
+The J step costs about 71 µs per read.
+- J tie misses have the same cause as V's: the read cannot show where J starts. IGHJ alleles share their 3' 30–35 nt and differ in the 5' bases next to the N region. An N base that happens to match one allele's 5' tail counts for it, and a cut that starts late drops the J bases that separate siblings. At 0–30% mutation the J start agrees with truth on 46% of reads and is off by up to 10 nt either way.
+- On bnab reads, most of the loss is the floor: 107 reads (5.6%) score below 30 against a J mutated 15–35%. Among called reads, 97.9% have the primary in `j_call_valid`.
 
 Spurious gaps, measured as V alignments with a gap on indel-free reads, with `collapse_gap_pairs` off and on:
 
@@ -116,4 +153,4 @@ On reads with a single true V indel where the primary is the true allele, the pl
 - **Junk-read cost.** No-hit input costs about 1.3 ms per read, both strands included.
 - **Typical cost:** 0.3 ms per naive read.
 - **Gapping limits.** An allele whose IMGT gapping is shifted (#138), or that lacks gaps (macaque, #137), is compared at the wrong positions, as in the truth sets.
-- **Constants.** Changing any constant here changes calls, so it needs a superseding record: k, scores, 90%, 3, 12, bin 8, 8 diagonal hits, J 30, near V 20, floor 50, the cut scores, or the pair span of 40.
+- **Constants.** Changing any constant here changes calls, so it needs a superseding record: k, scores, 90%, 3, 12, bin 8, 8 diagonal hits, J 30, near V 20, floor 50, the cut scores, the pair span of 40, or for J the 10-nt overlap, 3 cut alleles, the J floor of 30 and the J protect margin of 5.

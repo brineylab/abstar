@@ -58,8 +58,9 @@ struct Projected {
 
 /// `aln` cut to its maximum-scoring contiguous stretch of columns under `s` (a gap run is one
 /// column): the read's V-derived bases. Among equal scores the longest stretch wins, then the
-/// leftmost. The score becomes the kept ops' score.
-fn trim(aln: &Alignment, s: &Scoring) -> Alignment {
+/// leftmost. With `keep_end` (J) only the start is cut: the stretch ends at the last column,
+/// and among equal scores the shortest wins. The score becomes the kept ops' score.
+pub(super) fn trim(aln: &Alignment, s: &Scoring, keep_end: bool) -> Alignment {
     let gap = |n: u32| s.gap_open as i32 + (n as i32 - 1) * s.gap_extend as i32;
     let mut cols: Vec<(Op, u32, i32)> = Vec::new();
     for &(op, n) in &aln.ops {
@@ -75,10 +76,10 @@ fn trim(aln: &Alignment, s: &Scoring) -> Alignment {
     for (c, col) in cols.iter().enumerate() {
         prefix += col.2;
         let (sum, len) = (prefix - low, c + 1 - low_at);
-        if sum > best || (sum == best && len > end - start) {
+        if (!keep_end || c + 1 == cols.len()) && (sum > best || (sum == best && len > end - start)) {
             (best, start, end) = (sum, low_at, c + 1);
         }
-        if prefix < low {
+        if prefix < low || (keep_end && prefix == low) {
             (low, low_at) = (prefix, c + 1);
         }
     }
@@ -109,7 +110,7 @@ fn before_gap_in(aln: &Alignment, from: usize, s: &Scoring) -> Alignment {
     for (i, &(op, n)) in aln.ops.iter().enumerate() {
         if matches!(op, Op::Ins | Op::Del) && gi >= from {
             let ops = aln.ops[..i].to_vec();
-            let score = trim(&Alignment { ops: ops.clone(), q_end: qi, g_end: gi, ..aln.clone() }, s).score;
+            let score = trim(&Alignment { ops: ops.clone(), q_end: qi, g_end: gi, ..aln.clone() }, s, false).score;
             return Alignment { score, q_start: aln.q_start, q_end: qi, g_start: aln.g_start, g_end: gi, ops };
         }
         match op {
@@ -129,7 +130,7 @@ fn project(q: &[u8], alleles: &[Allele], v: &SegmentIndex, k: usize, s: &Scoring
     let (a, g) = (&alleles[v.ids[k]], &v.seqs[k]);
     let raw = align_semiglobal(q, g, s);
     let protect = a.anchor.map(|c| c.saturating_sub(2)..g.len());
-    let mut cut = trim(&collapse_gap_pairs(&raw, q, g, s), s);
+    let mut cut = trim(&collapse_gap_pairs(&raw, q, g, s), s, false);
     if let Some(zone) = &protect {
         cut = before_gap_in(&cut, zone.start, s);
     }
@@ -174,7 +175,7 @@ fn counts(p: &Projected, v: &SegmentIndex, locus: Locus) -> Vec<(usize, u32)> {
 }
 
 /// Alleles with the fewest mismatches, and that count.
-fn fewest(c: &[(usize, u32)]) -> (Vec<usize>, u32) {
+pub(super) fn fewest(c: &[(usize, u32)]) -> (Vec<usize>, u32) {
     let min = c.iter().map(|x| x.1).min().unwrap_or(0);
     (c.iter().filter(|x| x.1 == min).map(|x| x.0).collect(), min)
 }

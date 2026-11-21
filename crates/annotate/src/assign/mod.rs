@@ -1,11 +1,13 @@
 //! Orientation and gene assignment (record 0029).
 //!
-//! Allele indices in results (`VHit::primary`, `VHit::ties`) index the database's allele slice.
+//! Allele indices in results (`primary`, `ties` of `VHit` and `JHit`) index the database's allele slice.
 //! Coordinates are 0-based half-open on the oriented read.
+mod j;
 mod orient;
 mod ties;
 mod v;
 
+pub use j::{assign_j, JHit};
 pub use orient::{orient, reverse_complement, Oriented};
 pub use ties::primary_by_tiebreak;
 pub use v::{assign_v, VHit, MIN_V_SCORE};
