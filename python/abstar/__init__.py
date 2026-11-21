@@ -1,8 +1,15 @@
 from importlib.metadata import version as _version
+from typing import TYPE_CHECKING
 
 __version__ = _version("abstar")
 
-__all__ = ["run", "RunSummary", "InputSummary", "AbstarError", "germline", "generate"]
+__all__ = ["run", "RunSummary", "InputSummary", "AbstarError", "germline", "generate", "GenerateSummary", "model"]
+
+if TYPE_CHECKING:
+    from . import germline, model
+    from ._generate import GenerateSummary, generate
+    from .api import InputSummary, RunSummary, run
+    from .errors import AbstarError
 
 
 def __getattr__(name):
@@ -11,11 +18,15 @@ def __getattr__(name):
         from . import api
 
         return getattr(api, name)
+    if name in ("generate", "GenerateSummary"):
+        from . import _generate
+
+        return getattr(_generate, name)
     if name == "AbstarError":
         from .errors import AbstarError
 
         return AbstarError
-    if name in ("germline", "generate"):  # `generate` is a callable module
+    if name in ("germline", "model"):
         import importlib
 
         return importlib.import_module(f".{name}", __name__)

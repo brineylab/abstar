@@ -23,7 +23,7 @@ A recombination model gives gene usage, P(D|J), trims, N lengths and composition
 - Built-in: `human-igh`, `human-igk`, `human-igl`, `human-tra`, `human-trb` (decision 0027). Their values come from published figures, cited in each model's sources (`abstar model info human-igh`).
 - User models: `~/.abstar/models/<name>/model.toml` (`$ABSTAR_HOME/models/`). A user model may not use a built-in name (`BUILTIN_NAME_CONFLICT`, decision 0010).
 - `--model` also takes a path to a `model.toml` or a directory holding one. The format is in decision 0023.
-- `abstar model list` and `abstar model info NAME` show them.
+- `abstar model list` and `abstar model info NAME` show them (Python: `abstar.model.list()`, `abstar.model.info(name)`).
 
 A model that does not fit the database (less than 90 % of its V, D or J mass maps to database alleles) is `MODEL_INVALID`. Genes it drops are listed as warnings.
 

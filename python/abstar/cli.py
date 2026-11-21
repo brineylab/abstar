@@ -215,7 +215,7 @@ def generate(
         # flags only override a preset when given
         "frameshift_indels": frameshift_indels or None, "productive_only": productive_only or None,
     }
-    from . import generate as gen
+    from . import _generate as gen
 
     kw = dict(germline_db=germline_db, model=model, preset=preset, seed=seed, threads=threads, **options)
     if output_dir is not None:
@@ -251,13 +251,13 @@ def generate(
 @model_app.command("list")
 def model_list_cmd(json_out: Annotated[bool, typer.Option("--json", help="Machine-readable output.")] = False) -> None:
     """List built-in and user recombination models."""
-    from .generate import list_models
+    from . import model
 
-    ms = list_models()
+    ms = model.list()
     if json_out:
         print(json.dumps([asdict(m) for m in ms], default=str))
     for m in [] if json_out else ms:
-        print(f"{m.name}\t{m.kind}\t{m.species}\t{m.locus}\t{m.path}")
+        print(f"{m.name}\t{m.kind}\t{m.species}\t{m.locus}\t{m.path}" + (f"\tinvalid: {' '.join(m.error.split())}" if m.error else ""))
 
 
 @model_app.command("info")
@@ -266,9 +266,9 @@ def model_info_cmd(
     json_out: Annotated[bool, typer.Option("--json", help="Machine-readable output.")] = False,
 ) -> None:
     """Show details of one recombination model."""
-    from .generate import model_info
+    from . import model
 
-    m = model_info(name)
+    m = model.info(name)
     if json_out:
         print(_json(m))
         return

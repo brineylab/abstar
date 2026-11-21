@@ -401,7 +401,11 @@ abstar model list|info|import-igor        # top-level, like `abstar germline` (a
 abstar.generate(n, locus, *, germline_db="human", model=None, preset=None,
                 seed=None, output_dir=None, **options)
     -> pl.DataFrame | GenerateSummary
+abstar.model.list() / abstar.model.info(name_or_path) / abstar.model.resolve(name_or_path, species, locus)
 ```
+
+- `abstar.generate` is a function and `abstar.model` a module mirroring
+  `abstar.germline` (record 0026).
 
 - `--model` defaults to the built-in model for the database's species and the
   locus.

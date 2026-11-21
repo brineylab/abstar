@@ -8,7 +8,8 @@ import pytest
 import abstar
 from abstar import _core
 from abstar.errors import AbstarError
-from abstar.generate import GenerateSummary, list_models, model_info, resolve_model
+from abstar import GenerateSummary
+from abstar.model import info as model_info, list as list_models, resolve as resolve_model
 
 BUILTIN_MODELS = Path(abstar.__file__).parent / "models"
 
@@ -21,6 +22,19 @@ def _code(fn):
     with pytest.raises(AbstarError) as e:
         fn()
     return e.value.code
+
+
+def test_public_api_layout():
+    import inspect
+    import types
+
+    assert isinstance(abstar.generate, types.FunctionType)
+    params = inspect.signature(abstar.generate).parameters
+    assert list(params)[:3] == ["n", "locus", "germline_db"] and "output_dir" in params
+    assert abstar.generate.__doc__.startswith("Simulate `n` V(D)J reads")
+    assert isinstance(abstar.model, types.ModuleType) and abstar.model.ModelInfo is type(model_info("human-igh"))
+    assert abstar.GenerateSummary is GenerateSummary
+    assert not hasattr(abstar.model, "generate")
 
 
 def test_in_memory_columns_and_rows():

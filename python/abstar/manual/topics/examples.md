@@ -105,6 +105,6 @@ abstar.germline.build("donor.toml")
 truth = abstar.generate(1000, "IGH", seed=1)        # truth table as a Polars DataFrame
 s = abstar.generate(1000, "IGH", seed=1, preset="bnab", output_dir="bench/", formats=["airr", "parquet"])
 s.fasta, s.truth, s.generate_json                   # paths; s.seed, s.n, s.productive, s.attempts
-abstar.generate.list_models()
-abstar.generate.model_info("human-igh")
+abstar.model.list()                                 # recombination models, like abstar.germline.list()
+abstar.model.info("human-igh")
 ```
