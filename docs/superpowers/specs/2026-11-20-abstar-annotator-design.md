@@ -202,8 +202,15 @@ Each step records why it stopped when it can't continue. A record is then
    - **D call and boundaries:** the D tie set holds the alleles reaching the
      best score. The boundaries come from the primary allele combination's
      best configuration, with deterministic tie-breaks. D is left uncalled
-     when the best D match is shorter than 5 nt (the generator's no-D rule).
-     Its abstar ties are then empty and `d_call` is null.
+     unless the best D configuration scores at least 6 more than the best
+     no-D configuration (in practice, an exact D run of at least 6 nt). Its
+     abstar ties are then empty and `d_call` is null.
+     - *Amended 2026-11-21 (user ruling):* originally "D is left uncalled
+       when the best D match is shorter than 5 nt (the generator's no-D
+       rule)". The margin of 6 (ruling B3, record 0030) removes chance D
+       matches in N regions and raised true D accuracy on every generated
+       set (TRB 85.7 → 91.9%). It is kept even though it lowers agreement
+       with legacy (95.0 → 94.2%).
    - **Final V and J boundaries:** this step also settles the final V end and
      J start. The V/J body alignments from steps 3–4 fix everything upstream
      and downstream.
