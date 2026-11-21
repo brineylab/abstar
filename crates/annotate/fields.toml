@@ -646,7 +646,7 @@ nullable = true
 origin = "abstar"
 coordinates = ""
 description = "Length of fwr1_aa in amino acids. Null when fwr1 is null."
-decision = "0028"
+decision = "0032"
 
 [[field]]
 name = "cdr1"
@@ -691,7 +691,7 @@ nullable = true
 origin = "abstar"
 coordinates = ""
 description = "Length of cdr1_aa in amino acids. Null when cdr1 is null."
-decision = "0028"
+decision = "0032"
 
 [[field]]
 name = "fwr2"
@@ -736,7 +736,7 @@ nullable = true
 origin = "abstar"
 coordinates = ""
 description = "Length of fwr2_aa in amino acids. Null when fwr2 is null."
-decision = "0028"
+decision = "0032"
 
 [[field]]
 name = "cdr2"
@@ -781,7 +781,7 @@ nullable = true
 origin = "abstar"
 coordinates = ""
 description = "Length of cdr2_aa in amino acids. Null when cdr2 is null."
-decision = "0028"
+decision = "0032"
 
 [[field]]
 name = "fwr3"
@@ -826,7 +826,7 @@ nullable = true
 origin = "abstar"
 coordinates = ""
 description = "Length of fwr3_aa in amino acids. Null when fwr3 is null."
-decision = "0028"
+decision = "0032"
 
 [[field]]
 name = "cdr3"
@@ -871,7 +871,7 @@ nullable = true
 origin = "abstar"
 coordinates = ""
 description = "Length of cdr3_aa in amino acids. Null when cdr3 is null."
-decision = "0028"
+decision = "0032"
 
 [[field]]
 name = "fwr4"
@@ -916,7 +916,7 @@ nullable = true
 origin = "abstar"
 coordinates = ""
 description = "Length of fwr4_aa in amino acids. Null when fwr4 is null."
-decision = "0028"
+decision = "0032"
 
 [[field]]
 name = "sequence_vdj"
