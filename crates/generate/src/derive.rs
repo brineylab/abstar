@@ -8,7 +8,7 @@
 use crate::pipeline::translate;
 use crate::recombine::revcomp;
 use crate::schema::TruthRecord;
-use crate::{Origin, Simulated};
+use crate::{IndelKind, Origin, Simulated};
 
 /// Exclusive IMGT-gapped ends of FWR1, CDR1, FWR2, CDR2 and FWR3 (which ends with Cys104).
 const V_ENDS: [usize; 5] = [78, 114, 165, 195, 312];
@@ -36,8 +36,7 @@ fn text(b: &[u8]) -> String {
 }
 
 /// Fills the region, sequence, mask and per-segment mutation columns of `r`.
-/// `junction`: the read holds both anchor codons (`Productivity::junction` is set).
-pub(crate) fn fill(r: &mut TruthRecord, s: &Simulated, junction: bool) {
+pub(crate) fn fill(r: &mut TruthRecord, s: &Simulated) {
     use Origin::*;
     let (read, o) = (&s.read, &s.origin);
     let vg = s.v.sequence_gapped.as_bytes();
@@ -65,6 +64,11 @@ pub(crate) fn fill(r: &mut TruthRecord, s: &Simulated, junction: bool) {
     };
     let gbase = |x: Origin| seg_of(x).map(|(k, u)| germ[k].as_ref().expect("segment allele")[u]);
     let label = |k: usize, u: usize| if k == 0 { format!("IMGT{}", gi[u] + 1) } else { (u + 1).to_string() };
+    // CDR3's ends are known when both anchor codons survive trimming; truncation may still
+    // cut it, leaving the covered part
+    let v_kept = s.v.sequence().len() as i64 - s.v_trim_3.max(0);
+    let cdr3_known =
+        s.v.anchor.is_some_and(|a| a as i64 + 3 <= v_kept) && s.j.anchor.is_some_and(|b| s.j_trim_5 <= b as i64);
 
     if let (true, Some(i0)) = (gapped, o.iter().position(|x| matches!(x, V(_)))) {
         let V(g0) = o[i0] else { unreachable!() };
@@ -86,7 +90,7 @@ pub(crate) fn fill(r: &mut TruthRecord, s: &Simulated, junction: bool) {
             .map(|k| {
                 let mut idx = (i0..end).filter(|&i| reg[i] == Some(k));
                 let (first, last) = (idx.next(), idx.next_back());
-                if k == CDR3 && !junction {
+                if k == CDR3 && !cdr3_known {
                     (None, None, None, None, None)
                 } else if let Some(a) = first {
                     let z = last.unwrap_or(a);
@@ -133,7 +137,7 @@ pub(crate) fn fill(r: &mut TruthRecord, s: &Simulated, junction: bool) {
             }
             let ng: Vec<u8> =
                 (i0..m).map(|i| if gbase(o[i]).is_some_and(|g| g.eq_ignore_ascii_case(&read[i])) { b'0' } else { b'1' }).collect();
-            let cdr: Option<Vec<u8>> = junction.then(|| {
+            let cdr: Option<Vec<u8>> = cdr3_known.then(|| {
                 (i0..m)
                     .map(|i| match reg[i] {
                         Some(1) => b'1',
@@ -162,26 +166,29 @@ pub(crate) fn fill(r: &mut TruthRecord, s: &Simulated, junction: bool) {
         }
     }
 
-    // per-segment indels, from consecutive germline bases and runs of inserted bases;
-    // an insertion without a read base on both sides is not observable
+    // per-segment indels at their leftmost equivalent placement (VCF-style, against the
+    // unmutated germline: the left end of `equiv`), kept where the base to their left is
+    // still of the same segment and in the read. Listed only with a read base on both sides.
     let (mut ins, mut del): ([Vec<String>; 4], [Vec<String>; 4]) = Default::default();
-    let (mut prev, mut run): (Option<(usize, usize)>, Option<usize>) = (None, None);
-    for i in 0..read.len() {
-        let cur = seg_of(o[i]);
-        if o[i] == Inserted {
-            run.get_or_insert(i);
+    let t5 = s.truncate_5;
+    for x in &s.indels {
+        let is_ins = x.kind == IndelKind::Ins;
+        let after = x.read_pos + if is_ins { x.len } else { 0 }; // first base after it
+        if x.read_pos <= t5 || after >= t5 + read.len() {
             continue;
         }
-        if let (Some(st), Some((k, u))) = (run.take(), prev) {
-            ins[k].push(format!("{}:ins:{}", label(k, u), text(&read[st..i])));
+        let Some((k, _)) = seg_of(o[after - t5]) else { continue };
+        let first = t5 + o.iter().position(|&y| seg_of(y).is_some_and(|y| y.0 == k)).expect("segment base");
+        let shift = x.read_pos - x.equiv.0.max(first + 1);
+        let g = germ[k].as_ref().expect("segment allele");
+        if is_ins {
+            let mut bases = x.bases.clone().into_bytes();
+            bases.rotate_right(shift % x.len);
+            ins[k].push(format!("{}:ins:{}", label(k, x.germline_pos - 1 - shift), text(&bases)));
+        } else {
+            let u = x.germline_pos - shift;
+            del[k].push(format!("{}:del:{}", label(k, u), text(&g[u..u + x.len])));
         }
-        if let (Some((k, u)), Some((k2, u2))) = (prev, cur) {
-            if k == k2 && u2 > u + 1 {
-                let g = germ[k].as_ref().expect("segment allele");
-                del[k].push(format!("{}:del:{}", label(k, u + 1), text(&g[u + 1..u2])));
-            }
-        }
-        prev = cur;
     }
 
     // codon frames: V by IMGT codon; D by the V frame at the read's last V base; J by

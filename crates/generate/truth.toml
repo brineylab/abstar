@@ -527,10 +527,10 @@ decision = "0026"
 [[field]]
 name = "v_mutation_frequency"
 type = "float64"
-nullable = false
+nullable = true
 origin = "abstar"
 coordinates = ""
-description = "Fraction of the read's V-derived bases that differ from the true V allele: v_mutation_count ÷ the V germline positions in the read (0 when the read has no V base)."
+description = "Fraction of the read's V-derived bases that differ from the true V allele: v_mutation_count ÷ the V germline positions in the read (deleted positions and inserted bases excluded). Null when no V base is in the read."
 decision = "0026"
 
 [[field]]
@@ -872,7 +872,7 @@ type = "string"
 nullable = true
 origin = "airr-optional"
 coordinates = ""
-description = "CDR3: the bases after the Cys104 codon and before the Trp/Phe118 codon (the junction without its anchor codons); null whenever junction is null. Valued for the true alleles. An inserted base belongs to the region of the germline base it follows. Partial when truncation cuts the region, empty when the region lies inside the read but every base is deleted, null when no base of it is in the read or the read has no V base."
+description = "CDR3: the bases after the Cys104 codon and before the Trp/Phe118 codon (the junction without its anchor codons). Partial when truncation removes an anchor codon (junction is then null); null when trimming cut into either anchor codon or an allele has no anchor. Valued for the true alleles. An inserted base belongs to the region of the germline base it follows. Partial when truncation cuts the region, empty when the region lies inside the read but every base is deleted, null when no base of it is in the read or the read has no V base."
 decision = ""
 
 [[field]]
@@ -998,7 +998,7 @@ type = "string"
 nullable = true
 origin = "abstar"
 coordinates = ""
-description = "Region of each base: 1, 2 or 3 in CDR1, CDR2 or CDR3, else 0 (framework and constant region). One character per base of sequence_vdjc, or of sequence_vdj when the read has no C base; null when that sequence is null. Also null when junction is null (the CDR3 is undefined)."
+description = "Region of each base: 1, 2 or 3 in CDR1, CDR2 or CDR3, else 0 (framework and constant region). One character per base of sequence_vdjc, or of sequence_vdj when the read has no C base; null when that sequence is null. Also null when cdr3's ends are undefined (trimming cut into an anchor codon, or an allele has no anchor)."
 decision = "0026"
 
 [[field]]
@@ -1070,7 +1070,7 @@ type = "list<string>"
 nullable = true
 origin = "abstar"
 coordinates = "germline: IMGT-gapped nt position (aa: IMGT codon number)"
-description = "Insertions in V, as \"IMGT{pos}:ins:BASES\", POS the germline position the inserted bases follow. Only insertions with a read base on both sides are listed. Null when no V base is in the read."
+description = "Insertions in V, as \"IMGT{pos}:ins:BASES\", POS the germline position the inserted bases follow. Only insertions with a read base on both sides are listed. Null when no V base is in the read. Placed at the leftmost equivalent position (VCF-style left normalization against the unmutated germline), staying inside the segment and the read."
 decision = "0026"
 
 [[field]]
@@ -1079,7 +1079,7 @@ type = "list<string>"
 nullable = true
 origin = "abstar"
 coordinates = "germline: IMGT-gapped nt position (aa: IMGT codon number)"
-description = "Deletions from V, as \"IMGT{pos}:del:BASES\", POS the first deleted germline position and BASES the deleted germline bases. Null when no V base is in the read."
+description = "Deletions from V, as \"IMGT{pos}:del:BASES\", POS the first deleted germline position and BASES the deleted germline bases. Null when no V base is in the read. Placed at the leftmost equivalent position (VCF-style left normalization against the unmutated germline), staying inside the segment and the read."
 decision = "0026"
 
 [[field]]
@@ -1133,7 +1133,7 @@ type = "list<string>"
 nullable = true
 origin = "abstar"
 coordinates = "germline: 1-based ungapped allele, as used (reverse-complemented when d_inverted)"
-description = "Insertions in D, as \"{pos}:ins:BASES\", POS the germline position the inserted bases follow. Only insertions with a read base on both sides are listed. Null when no D base is in the read."
+description = "Insertions in D, as \"{pos}:ins:BASES\", POS the germline position the inserted bases follow. Only insertions with a read base on both sides are listed. Null when no D base is in the read. Placed at the leftmost equivalent position (VCF-style left normalization against the unmutated germline), staying inside the segment and the read."
 decision = "0026"
 
 [[field]]
@@ -1142,7 +1142,7 @@ type = "list<string>"
 nullable = true
 origin = "abstar"
 coordinates = "germline: 1-based ungapped allele, as used (reverse-complemented when d_inverted)"
-description = "Deletions from D, as \"{pos}:del:BASES\", POS the first deleted germline position and BASES the deleted germline bases. Null when no D base is in the read."
+description = "Deletions from D, as \"{pos}:del:BASES\", POS the first deleted germline position and BASES the deleted germline bases. Null when no D base is in the read. Placed at the leftmost equivalent position (VCF-style left normalization against the unmutated germline), staying inside the segment and the read."
 decision = "0026"
 
 [[field]]
@@ -1205,7 +1205,7 @@ type = "list<string>"
 nullable = true
 origin = "abstar"
 coordinates = "germline: 1-based ungapped allele"
-description = "Insertions in J, as \"{pos}:ins:BASES\", POS the germline position the inserted bases follow. Only insertions with a read base on both sides are listed. Null when no J base is in the read."
+description = "Insertions in J, as \"{pos}:ins:BASES\", POS the germline position the inserted bases follow. Only insertions with a read base on both sides are listed. Null when no J base is in the read. Placed at the leftmost equivalent position (VCF-style left normalization against the unmutated germline), staying inside the segment and the read."
 decision = "0026"
 
 [[field]]
@@ -1214,7 +1214,7 @@ type = "list<string>"
 nullable = true
 origin = "abstar"
 coordinates = "germline: 1-based ungapped allele"
-description = "Deletions from J, as \"{pos}:del:BASES\", POS the first deleted germline position and BASES the deleted germline bases. Null when no J base is in the read."
+description = "Deletions from J, as \"{pos}:del:BASES\", POS the first deleted germline position and BASES the deleted germline bases. Null when no J base is in the read. Placed at the leftmost equivalent position (VCF-style left normalization against the unmutated germline), staying inside the segment and the read."
 decision = "0026"
 
 [[field]]
@@ -1277,7 +1277,7 @@ type = "list<string>"
 nullable = true
 origin = "abstar"
 coordinates = "germline: 1-based ungapped allele"
-description = "Insertions in C, as \"{pos}:ins:BASES\", POS the germline position the inserted bases follow. Only insertions with a read base on both sides are listed. Null when no C base is in the read."
+description = "Insertions in C, as \"{pos}:ins:BASES\", POS the germline position the inserted bases follow. Only insertions with a read base on both sides are listed. Null when no C base is in the read. Placed at the leftmost equivalent position (VCF-style left normalization against the unmutated germline), staying inside the segment and the read."
 decision = "0026"
 
 [[field]]
@@ -1286,7 +1286,7 @@ type = "list<string>"
 nullable = true
 origin = "abstar"
 coordinates = "germline: 1-based ungapped allele"
-description = "Deletions from C, as \"{pos}:del:BASES\", POS the first deleted germline position and BASES the deleted germline bases. Null when no C base is in the read."
+description = "Deletions from C, as \"{pos}:del:BASES\", POS the first deleted germline position and BASES the deleted germline bases. Null when no C base is in the read. Placed at the leftmost equivalent position (VCF-style left normalization against the unmutated germline), staying inside the segment and the read."
 decision = "0026"
 
 [[field]]

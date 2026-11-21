@@ -525,6 +525,8 @@ fn masks_consistent() {
         assert_eq!(s(&rows, "sequence", r).unwrap().as_bytes(), &sim.read[..]);
         if let Some(j) = s(&rows, "junction", r) {
             assert_eq!(s(&rows, "cdr3", r).as_deref(), Some(&j[3..j.len() - 3]));
+        }
+        if s(&rows, "cdr3", r).is_some() {
             assert_eq!(i(&rows, "cdr3_length", r), Some(s(&rows, "cdr3_aa", r).unwrap().len() as i64));
             // the regions in the read tile sequence_vdj, in nt and in aa
             let regions = ["fwr1", "cdr1", "fwr2", "cdr2", "fwr3", "cdr3", "fwr4"];
@@ -535,7 +537,7 @@ fn masks_consistent() {
             }
             empty += regions.iter().filter(|x| s(&rows, x, r).is_some_and(|v| v.is_empty())).count();
         } else {
-            assert_eq!((s(&rows, "cdr3", r), s(&rows, "cdr_mask", r)), (None, None));
+            assert_eq!(s(&rows, "cdr_mask", r), None);
         }
         let has_c = sim.origin.iter().any(|o| matches!(o, abstar_generate::Origin::C(_)));
         let (nt, aa) = if has_c {
@@ -596,7 +598,7 @@ fn segment_mutations_from_events() {
         ..busy(2000, 22)
     };
     let rows = one(&generate_in_memory(&b, &p).unwrap());
-    let (mut inverted, mut v_aa, mut seg_indels) = (0, 0, 0);
+    let (mut inverted, mut v_aa, mut seg_indels, mut shifted) = (0, 0, 0, 0);
     for r in 0..rows.num_rows() {
         let sim = simulated(&b, &p, r);
         let t5 = sim.truncate_5;
@@ -623,9 +625,7 @@ fn segment_mutations_from_events() {
             let n = sim.origin.iter().filter(|o| matches!((k, o), (0, V(_)) | (1, D(_)) | (2, J(_)))).count();
             if n == 0 {
                 assert!(col(&rows, &format!("{seg}_mutations")).is_null(r), "{seg} row {r}");
-                // v_mutation_frequency predates this set and is 0 without V bases
-                let freq = f(&rows, &format!("{seg}_mutation_frequency"), r);
-                assert_eq!(freq, if k == 0 { Some(0.0) } else { None }, "{seg} row {r}");
+                assert_eq!(f(&rows, &format!("{seg}_mutation_frequency"), r), None, "{seg} row {r}");
                 continue;
             }
             let got = ls(&rows, &format!("{seg}_mutations"), r);
@@ -658,21 +658,105 @@ fn segment_mutations_from_events() {
             .iter()
             .filter(|_| !ls(&rows, "indels", r).is_empty())
             .map(|x| {
-                let after = x.read_pos - t5 + if x.kind == IndelKind::Ins { x.len } else { 0 };
+                let ins = x.kind == IndelKind::Ins;
+                let after = x.read_pos - t5 + if ins { x.len } else { 0 };
                 let gapped = |u: usize| sim.v.sequence_gapped.bytes().enumerate().filter(|c| c.1 != b'.').nth(u).unwrap().0;
-                let (seg, pos) = match (sim.origin[after], x.kind) {
-                    (V(_), IndelKind::Ins) => ("v", format!("IMGT{}", gapped(x.germline_pos - 1) + 1)),
-                    (V(_), IndelKind::Del) => ("v", format!("IMGT{}", gapped(x.germline_pos) + 1)),
-                    (J(_), IndelKind::Ins) => ("j", x.germline_pos.to_string()),
-                    (J(_), IndelKind::Del) => ("j", (x.germline_pos + 1).to_string()),
-                    o => panic!("indel before {o:?}"),
+                // leftmost equivalent placement whose left neighbour is in the read and segment
+                let is_v = matches!(sim.origin[after], V(_));
+                let first = sim.origin.iter().position(|o| if is_v { matches!(o, V(_)) } else { matches!(o, J(_)) });
+                let shift = x.read_pos - x.equiv.0.max(t5 + first.unwrap() + 1);
+                shifted += usize::from(shift > 0);
+                let germ = if is_v { sim.v.sequence() } else { sim.j.sequence() };
+                let mut bases = x.bases.clone();
+                let u = if ins { x.germline_pos - 1 - shift } else { x.germline_pos - shift };
+                if ins {
+                    let mut b = bases.into_bytes();
+                    b.rotate_right(shift % x.len);
+                    bases = String::from_utf8(b).unwrap();
+                } else {
+                    bases = germ[u..u + x.len].to_string();
+                }
+                let (seg, pos) = match (is_v, sim.origin[after]) {
+                    (true, _) => ("v", format!("IMGT{}", gapped(u) + 1)),
+                    (false, J(_)) => ("j", (u + 1).to_string()),
+                    (_, o) => panic!("indel before {o:?}"),
                 };
-                let kind = if x.kind == IndelKind::Ins { "ins" } else { "del" };
-                format!("{seg} {pos}:{kind}:{}", x.bases)
+                format!("{seg} {pos}:{}:{bases}", if ins { "ins" } else { "del" })
             })
             .collect();
         assert_eq!(got, want, "row {r}");
         seg_indels += got.len();
     }
-    assert!(inverted > 20 && v_aa > 1000 && seg_indels > 300, "{inverted} {v_aa} {seg_indels}");
+    let counts = (inverted, v_aa, seg_indels, shifted);
+    assert!(inverted > 20 && v_aa > 1000 && seg_indels > 300 && shifted > 50, "{counts:?}");
+}
+
+/// A homopolymer indel generated right of its leftmost equivalent placement is reported at
+/// the run's leftmost germline position (VCF-style left normalization).
+#[test]
+fn segment_indels_left_normalized() {
+    use abstar_generate::{IndelKind, Origin::V};
+    let b = igh();
+    let p = GenerateParams { indel_rate: 1.0, frameshift_indels: true, ..params(3000, 23) };
+    let rows = one(&generate_in_memory(&b, &p).unwrap());
+    let mut tested = 0;
+    for r in 0..rows.num_rows() {
+        let sim = simulated(&b, &p, r);
+        let Some(x) = sim.indels.first() else { continue };
+        let c = x.bases.as_bytes()[0];
+        let ins = x.kind == IndelKind::Ins;
+        let after = x.read_pos + if ins { x.len } else { 0 };
+        if x.bases.bytes().any(|y| y != c) || !matches!(sim.origin[after], V(_)) {
+            continue;
+        }
+        // walk left through the run of `c` on the germline V, keeping a V base on the left
+        let g = sim.v.sequence().into_bytes();
+        let mut u = x.germline_pos; // first deleted base, or the base after the insertion
+        while u > 1 && g[u - 1] == c {
+            u -= 1;
+        }
+        if u == x.germline_pos {
+            continue; // already leftmost
+        }
+        let gapped: Vec<usize> = sim.v.sequence_gapped.bytes().enumerate().filter(|y| y.1 != b'.').map(|y| y.0).collect();
+        let bases = x.bases.clone();
+        let want = if ins {
+            format!("IMGT{}:ins:{bases}", gapped[u - 1] + 1)
+        } else {
+            format!("IMGT{}:del:{bases}", gapped[u] + 1)
+        };
+        let got = ls(&rows, if ins { "v_insertions" } else { "v_deletions" }, r);
+        assert_eq!(got, [want], "row {r}: generated at germline {}", x.germline_pos);
+        tested += 1;
+    }
+    assert!(tested > 50, "{tested}");
+}
+
+/// A read cut inside CDR3, before the J's Phe118 codon: CDR3 holds the covered bases, the
+/// masks cover it, and the junction and FWR4 are null.
+#[test]
+fn partial_cdr3_when_truncated() {
+    let b = igk_fixed(3);
+    // V (306 nt after the 5' cut) + AAA + the first 5 J bases; Phe118 is J 8-10
+    let p = GenerateParams {
+        truncate_5p: "fixed:5".parse().unwrap(),
+        truncate_3p: "fixed:33".parse().unwrap(),
+        ..params(1, 9)
+    };
+    let rows = one(&generate_in_memory(&b, &p).unwrap());
+    let read = s(&rows, "sequence", 0).unwrap();
+    assert_eq!(read.len(), 314);
+    assert_eq!((s(&rows, "junction", 0), s(&rows, "fwr4", 0)), (None, None));
+    assert_eq!((i(&rows, "cdr3_start", 0), i(&rows, "cdr3_end", 0)), (Some(287), Some(314)));
+    assert_eq!(s(&rows, "cdr3", 0).as_deref(), Some(&read[286..]));
+    // codons start at read 2 (mod 3): 287-289 … 311-313 are whole, 314 is a lone base
+    assert_eq!(s(&rows, "cdr3_aa", 0).map(|x| x.len()), Some(9));
+    assert_eq!(i(&rows, "cdr3_length", 0), Some(9));
+    assert_eq!(s(&rows, "sequence_vdj", 0), Some(read.clone()));
+    let rep = |c: &str, n: usize| c.repeat(n);
+    let cdr = [rep("0", 70), rep("1", 24), rep("0", 51), rep("2", 24), rep("0", 117), rep("3", 28)];
+    assert_eq!(s(&rows, "cdr_mask", 0), Some(cdr.concat()));
+    let cdr_aa = [rep("0", 23), rep("1", 8), rep("0", 17), rep("2", 8), rep("0", 39), rep("3", 9)];
+    assert_eq!(s(&rows, "cdr_mask_aa", 0), Some(cdr_aa.concat()));
+    assert_eq!(s(&rows, "sequence_vdj_aa", 0).map(|x| x.len()), Some(104));
 }
