@@ -240,3 +240,44 @@ On reads with a single true V indel where the primary is the true allele, the pl
   - **New constants:**
     - B1: the 7 + ⌈log4⌉ (+1 for TR) shortest fragment, 4 nt per mismatch, at most 2 mismatches, the 6–180-nt junction;
     - B4: the 3-difference limit.
+- **2026-11-21 (Wave 2, user ruling: J may accept weaker and shorter evidence; settings are chosen by generated-truth accuracy).** J is searched only after a V call, so random non-antibody reads cannot get a J. The random-tail null (`scripts/benchmark/short_j_null.py`) is reported for information and **no longer gates the choice**; this supersedes the "+2 per 100k" bound of B1 above.
+  - **Old rule (kept for reference).** Below the J floor of 30 the only fallback was B1: a gapless 3′ fragment with "at most 2 mismatches" and "at least 7 + ⌈log4(the locus's total J nt)⌉ bases long, plus 1 for TR loci (12 for IGH, IGK and IGL; 13 for TRB; 14 for TRA), plus 4 bases per mismatch", implying a 6–180-nt junction.
+  - **New rule.** The floor of 30 on the cut score is unchanged. Below it, two fallbacks are tried in order:
+    1. **Weak J.** Every J allele of the V's locus is realigned with mismatch −1 (match +2, gaps −10/−1 as before) and cut as usual. The best cut that holds its allele's Trp/Phe118 codon and implies a 6–180-nt junction projects when its cut score (the ±2 scale) is at least 16. This recovers full-length J segments mutated 30–40%, which the −3 mismatch alignment cuts short. The B4 later-start count does not apply to it.
+    2. **Short 3′ fragment (B1, amended).** The best gapless alignment of the read's 3′ end is called when its matches minus mismatches reach 5 + ⌈log4(the locus's total J nt)⌉, plus 1 for TR loci: 10 for IGH, IGK and IGL, 11 for TRB, 12 for TRA. The mismatch cap and the per-mismatch length are gone. The 6–180-nt junction bound is kept.
+  - **Selection.** Measured with temporarily overridable constants on the benchmark's 12 generated sets (5,000 reads each: the nine Task 12 sets plus `igh_memory_c`, `igh_bnab_c`, `igk_c`), graded with `abstar.grade` on `j_call`, `j_sequence_start`, `junction`, `junction_aa`, `cdr3`, `fwr4`, `productive`, `vj_in_frame` and `d_call`. Objective: the summed `j_call` + `junction` gain over all sets. Constraint: no set's `all` cell for those fields drops by more than 0.1 pp. Selected rows (Σ gain in pp; worst drop; J / junction in %; truncated J by J nt left < 10 / 10–14 / 15–19 / ≥ 20):
+
+    | Setting | Σ gain | Worst drop | igh_bnab | igh_bnab_c | igh_truncated | truncated J by nt left |
+    |---|---|---|---|---|---|---|
+    | old rule | 0 | – | 93.63 / 94.50 | 93.23 / 94.73 | 80.91 / 94.46 | 0.0 / 31.7 / 70.4 / 98.2 |
+    | floor 22 (no other change) | +11.44 | −0.20 bnab_c fwr4 | 94.46 / 95.33 | 94.08 / 95.49 | 86.20 / 97.27 | 0.2 / 53.3 / 92.9 / 99.5 |
+    | floor 14 | +19.02 | −0.23 bnab_c fwr4 | 94.55 / 95.38 | 94.17 / 95.51 | 92.37 / 98.45 | 29.2 / 86.6 / 98.2 / 99.7 |
+    | floor 1 | +22.71 | −0.69 truncated cdr3 | 94.84 / 95.38 | 94.48 / 95.51 | 95.44 / 98.47 | 71.1 / 92.7 / 98.8 / 99.7 |
+    | weak ≥ 16, mismatch −2 (anchor, junction) | +23.01 | −0.13 bnab_c fwr4 | 96.98 / 98.18 | 97.00 / 98.48 | 85.25 / 98.53 | 5.3 / 49.9 / 87.8 / 98.8 |
+    | weak ≥ 16, mismatch −1 (anchor, junction) | +23.28 | −0.097 bnab_c fwr4 | 97.04 / 98.21 | 97.10 / 98.58 | 85.25 / 98.51 | 5.3 / 49.9 / 87.6 / 98.8 |
+    | weak ≥ 12, mismatch −1 | +24.01 | −0.22 truncated cdr3 | 97.06 / 98.23 | 97.17 / 98.60 | 85.85 / 98.51 | 10.8 / 51.6 / 88.0 / 98.8 |
+    | tail score ≥ 10 only (no weak J) | +17.92 | −0.021 | 96.84 / 97.94 | 93.23 / 94.73 | 88.44 / 98.16 | 3.1 / 70.0 / 96.1 / 99.7 |
+    | **weak ≥ 16, −1 (anchor, junction) + tail score ≥ 10 (chosen)** | **+27.15** | **−0.099 truncated fwr4** | **97.06 / 98.21** | **97.10 / 98.58** | **89.06 / 98.55** | **7.2 / 73.2 / 96.3 / 99.6** |
+    | same, tail score ≥ 9 | +28.83 | −0.15 truncated fwr4 | 97.06 / 98.21 | 97.10 / 98.58 | 90.72 / 98.57 | 16.1 / 81.2 / 97.5 / 99.7 |
+    | same, weak J without the anchor guard | +30.08 | −0.14 truncated fwr4 | 97.06 / 98.23 | 97.08 / 98.55 | 91.93 / 98.64 | 21.0 / 88.1 / 98.6 / 99.7 |
+    | same, weak ≥ 20 | +25.03 | −0.070 bnab_c fwr4 | 96.88 / 98.01 | 96.77 / 98.27 | 88.42 / 98.10 | 3.1 / 70.0 / 95.9 / 99.7 |
+    | weak ≥ 16 (−1) + old tail + floor 18 for read-end, gapless cuts inside J | +28.20 | −0.097 truncated fwr4 | 97.04 / 98.21 | 97.10 / 98.58 | 90.09 / 98.59 | 13.5 / 78.4 / 96.9 / 99.6 |
+
+    - The full 66-row sweep is in `.superpowers/sdd/2026-11-20-abstar-annotator/wave2-w2-report.md`. It also covers floor 6–26 with and without junction, read-end, gapless and order guards; weak thresholds 8–24; and tail rules 8–12 nt with 2–4 nt per mismatch.
+    - **Why lowering the floor alone fails.** On bnab the −3 mismatch alignment of a heavily mutated J stops early, so lower floors mostly add wrong alleles or 1–18-nt cuts that miss Trp118: at floor 1, 229 bnab reads gain a J but only 50 gain the right junction.
+    - **The binding cells are `fwr4` and `cdr3`.** They are graded only where the J allele is truth's, so each newly right J adds a graded read. On igh_truncated `fwr4`, correct reads rise from 3,526 to 3,858 while wrong ones rise from 2 to 6. The accuracy cell falls 0.099 pp, although 332 more reads are right. Every setting with more truncated calls than the chosen one (tail ≥ 9, the unguarded weak J, the floor-18 path) breaks the 0.1-pp bound through these cells.
+    - **Choice.** The floor-18 path meets the bound and gains 1.05 pp more than the chosen rule, nearly all of it truncated J (90.09 vs 89.06%). It needs a third acceptance path with four guards, so the simpler rule is kept (the brief: prefer the simpler of similar settings).
+    - **The junction guard** changes no benchmark cell. It halves the 250-nt null (below), so it is kept.
+    - The 54 igh_truncated reads with no recoverable J get one J call (none before).
+  - **Null (for information; per 100,000 reads, 250-nt tails / 1–150-nt tails).**
+
+    | Locus | old rule | chosen | chosen without the weak J's junction guard | tail score ≥ 10 only | weak J only (old tail) |
+    |---|---|---|---|---|---|
+    | IGH | 5 / 2 | 690 / 1,226 | 1,678 / 1,226 | 5 / 294 | 1,678 / 1,094 |
+    | IGK | 8 / 6 | 995 / 1,521 | 1,829 / 1,521 | 8 / 192 | 1,829 / 1,451 |
+    | IGL | 12 / 2 | 881 / 1,119 | 1,983 / 1,119 | 12 / 180 | 1,983 / 1,011 |
+    | TRA | 16 / 9 | 6,073 / 8,038 | 12,782 / 8,038 | 16 / 364 | 12,782 / 7,886 |
+    | TRB | 6 / 3 | 2,293 / 2,675 | 4,702 / 2,675 | 6 / 189 | 4,702 / 2,595 |
+
+    Most false calls come from the weak J. A random tail after a V gets a J on 0.7–1.5% of IG reads and up to 8% of TRA reads (61 TRAJ alleles). The requirement that the weak cut reach the J's or the read's 3′ end changed neither accuracy nor the null, so it is not used.
+  - **New constants:** the weak J's mismatch −1 and score 16; the fragment score 5 + ⌈log4⌉ (+1 for TR). Removed: B1's 2-mismatch cap and 4 nt per mismatch.

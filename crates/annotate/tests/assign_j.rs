@@ -86,7 +86,13 @@ fn missing_j_is_none() {
     let r = human();
     let v = ungapped(r, "IGHV3-23*01");
     assert!(r.call_j(&v).is_none(), "V only");
-    // V followed by random bases of 1-120 nt.
+    // A read that ends in N or D bases, before any J base, gets no J at any truncation point.
+    for k in 1..=NP.len() {
+        assert!(r.call_j(&[&v[..], &NP[..k]].concat()).is_none(), "read ends {k} nt into N/D");
+    }
+    // V followed by random bases of 1-120 nt. The random-tail rate is reported, not a bound
+    // (record 0029, Wave 2: J settings are chosen by generated-truth accuracy); 11 of these 1,000
+    // get a J. The cap only catches a gross change.
     let called: Vec<String> = (0..1000u64)
         .into_par_iter()
         .filter_map(|s| {
@@ -94,7 +100,7 @@ fn missing_j_is_none() {
             r.call_j(&read).map(|h| format!("seed {s}: {} score {}", r.alleles[h.primary].name, h.aln.score))
         })
         .collect();
-    assert!(called.is_empty(), "random tails given a J: {called:?}");
+    assert!(called.len() <= 20, "random tails given a J: {called:?}");
 }
 
 /// Recoverable reads: the true J allele is in its non-empty valid set.
@@ -160,23 +166,69 @@ fn j_call_accuracy_report() {
 
 #[test]
 fn short_3p_fragment_called() {
-    // Ruling B1: a read ending after the first 14 J nt (exact) gets a J call; 11 nt (below IGH's
-    // 12-nt minimum) does not.
+    // Ruling B1 as amended in Wave 2: a 3' J fragment is called when its matches minus mismatches
+    // reach 10 (IGH, IGK, IGL). An exact 10-nt fragment is called, a 9-nt one is not, and a
+    // 14-nt fragment with 2 mismatches (score 10) is called.
     let r = human();
     let (v, j) = (ungapped(r, "IGHV3-23*01"), ungapped(r, "IGHJ4*02"));
-    let h = r.call_j(&[&v[..], NP, &j[..14]].concat()).expect("J hit");
-    assert!(r.names(&h.ties).contains("IGHJ4*02"), "{:?}", r.names(&h.ties));
-    assert_eq!(h.aln.q_end - h.aln.q_start, 14);
-    assert!(r.call_j(&[&v[..], NP, &j[..11]].concat()).is_none());
+    let h = r.call_j(&[&v[..], NP, &j[..10]].concat()).expect("J hit");
+    assert_eq!(r.alleles[h.primary].name, "IGHJ4*02", "ties {:?}", r.names(&h.ties));
+    assert_eq!((h.aln.q_end - h.aln.q_start, h.aln.g_start, h.mismatches), (10, 0, 0));
+    assert!(r.call_j(&[&v[..], NP, &j[..9]].concat()).is_none());
+    let mut two = j[..14].to_vec();
+    two[5] = transition(two[5]);
+    two[10] = transition(two[10]);
+    let h = r.call_j(&[&v[..], NP, &two].concat()).expect("J hit");
+    assert_eq!(r.alleles[h.primary].name, "IGHJ4*02", "ties {:?}", r.names(&h.ties));
+    assert_eq!((h.aln.q_end - h.aln.q_start, h.aln.g_start, h.mismatches), (14, 0, 2));
 }
 
 #[test]
 fn short_fragment_needs_read_end_and_a_bounded_junction() {
     // B1 is anchored at the read's 3' end, and the junction it implies must be at most 180 nt.
+    // The non-J bases after the fragment mismatch the J's continuation at every base, so the weak
+    // path cannot reach the Trp118 codon either.
     let r = human();
     let (v, j) = (ungapped(r, "IGHV3-23*01"), ungapped(r, "IGHJ4*02"));
-    assert!(r.call_j(&[&v[..], NP, &j[..14], b"CCCCCCCCCC"].concat()).is_none(), "fragment not at the read end");
+    let other: Vec<u8> = j[12..22].iter().map(|&b| transversion(b)).collect();
+    assert!(r.call_j(&[&v[..], NP, &j[..12], &other].concat()).is_none(), "fragment not at the read end");
     assert!(r.call_j(&[&v[..], &rand_seq(200, 3), &j[..14]].concat()).is_none(), "implied junction over 180 nt");
+}
+
+#[test]
+fn heavily_mutated_j_called() {
+    // Record 0029, Wave 2: a full-length IGHJ1*01 with 20 of 52 bases mutated (38%, the bnab
+    // median), its Trp118 codon intact, scores below the J floor of 30 (no call before Wave 2)
+    // but is called on the weak path, with the anchor codon at its true read position.
+    let r = human();
+    let j = ungapped(r, "IGHJ1*01");
+    let w = r.alleles[r.idx("IGHJ1*01")].anchor.unwrap();
+    let m: Vec<u8> = j.iter().enumerate().map(|(i, &b)| if i % 5 % 2 == 1 && !(w..w + 3).contains(&i) { transition(b) } else { b }).collect();
+    assert_eq!(m.iter().zip(&j).filter(|(a, b)| a != b).count(), 20);
+    let v = ungapped(r, "IGHV3-23*01");
+    let start = v.len() + NP.len();
+    let h = r.call_j(&[&v[..], NP, &m].concat()).expect("J hit");
+    assert_eq!(r.alleles[h.primary].name, "IGHJ1*01", "ties {:?}", r.names(&h.ties));
+    assert!(h.aln.g_start <= w && w + 3 <= h.aln.g_end, "anchor codon in the cut: {:?}", h.aln);
+    assert_eq!(h.aln.q_start - h.aln.g_start, start, "J placed at its true offset");
+}
+
+fn transition(b: u8) -> u8 {
+    match b {
+        b'A' => b'G',
+        b'G' => b'A',
+        b'C' => b'T',
+        _ => b'C',
+    }
+}
+
+fn transversion(b: u8) -> u8 {
+    match b {
+        b'A' => b'C',
+        b'C' => b'A',
+        b'G' => b'T',
+        _ => b'G',
+    }
 }
 
 #[test]
