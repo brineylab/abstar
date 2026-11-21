@@ -90,9 +90,9 @@ fn missing_j_is_none() {
     for k in 1..=NP.len() {
         assert!(r.call_j(&[&v[..], &NP[..k]].concat()).is_none(), "read ends {k} nt into N/D");
     }
-    // V followed by random bases of 1-120 nt. The random-tail rate is reported, not a bound
-    // (record 0029, Wave 2: J settings are chosen by generated-truth accuracy); 11 of these 1,000
-    // get a J. The cap only catches a gross change.
+    // V followed by random bases of 1-120 nt. The random-tail rate is reported, not a bound: the
+    // user accepts false J calls on junk after a V (record 0029, Wave 3). 64 of these 1,000 get a J
+    // (11 in Wave 2); the cap only catches a gross change.
     let called: Vec<String> = (0..1000u64)
         .into_par_iter()
         .filter_map(|s| {
@@ -100,7 +100,7 @@ fn missing_j_is_none() {
             r.call_j(&read).map(|h| format!("seed {s}: {} score {}", r.alleles[h.primary].name, h.aln.score))
         })
         .collect();
-    assert!(called.len() <= 20, "random tails given a J: {called:?}");
+    assert!(called.len() <= 100, "random tails given a J: {called:?}");
 }
 
 /// Recoverable reads: the true J allele is in its non-empty valid set.
@@ -166,21 +166,22 @@ fn j_call_accuracy_report() {
 
 #[test]
 fn short_3p_fragment_called() {
-    // Ruling B1 as amended in Wave 2: a 3' J fragment is called when its matches minus mismatches
-    // reach 10 (IGH, IGK, IGL). An exact 10-nt fragment is called, a 9-nt one is not, and a
-    // 14-nt fragment with 2 mismatches (score 10) is called.
+    // Ruling B1 as amended in Waves 2 and 3: a 3' J fragment is called when its matches minus
+    // mismatches reach 8 (IGH, IGK, IGL; 10 in Wave 2). An exact 8-nt fragment is called (Wave 2
+    // left it uncalled, so this is the Wave 3 gain), a 7-nt one is not, and a 12-nt fragment with
+    // 2 mismatches (score 8) is called.
     let r = human();
     let (v, j) = (ungapped(r, "IGHV3-23*01"), ungapped(r, "IGHJ4*02"));
-    let h = r.call_j(&[&v[..], NP, &j[..10]].concat()).expect("J hit");
+    let h = r.call_j(&[&v[..], NP, &j[..8]].concat()).expect("J hit");
     assert_eq!(r.alleles[h.primary].name, "IGHJ4*02", "ties {:?}", r.names(&h.ties));
-    assert_eq!((h.aln.q_end - h.aln.q_start, h.aln.g_start, h.mismatches), (10, 0, 0));
-    assert!(r.call_j(&[&v[..], NP, &j[..9]].concat()).is_none());
-    let mut two = j[..14].to_vec();
+    assert_eq!((h.aln.q_end - h.aln.q_start, h.aln.g_start, h.mismatches), (8, 0, 0));
+    assert!(r.call_j(&[&v[..], NP, &j[..7]].concat()).is_none());
+    let mut two = j[..12].to_vec();
     two[5] = transition(two[5]);
     two[10] = transition(two[10]);
     let h = r.call_j(&[&v[..], NP, &two].concat()).expect("J hit");
     assert_eq!(r.alleles[h.primary].name, "IGHJ4*02", "ties {:?}", r.names(&h.ties));
-    assert_eq!((h.aln.q_end - h.aln.q_start, h.aln.g_start, h.mismatches), (14, 0, 2));
+    assert_eq!((h.aln.q_end - h.aln.q_start, h.aln.g_start, h.mismatches), (12, 0, 2));
 }
 
 #[test]

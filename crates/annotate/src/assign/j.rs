@@ -35,7 +35,7 @@ const WEAK_MISMATCH: i8 = -1;
 const WEAK_TOP: usize = 8;
 /// ... and the best cut that holds the allele's Trp/Phe118 codon is a candidate if it scores at
 /// least this (on `trim`'s ±2 scale).
-const WEAK_MIN_SCORE: i32 = 16;
+const WEAK_MIN_SCORE: i32 = 12;
 /// The later-start count (ruling B4) applies when the projecting cut has at most this many
 /// mismatched or gapped bases.
 const LATE_MAX_MM: u32 = 3;
@@ -92,13 +92,14 @@ fn tail_aln(q: &[u8], g: &[u8], s: &Scoring) -> Option<(i32, Alignment)> {
 /// its Trp/Phe118 codon's end, is 6 to this many nt (bnab truth sets reach 162).
 const MAX_JUNCTION: i64 = 180;
 
-/// Score (matches minus mismatches) a 3' J fragment needs for a locus: 5 + ⌈log4(the locus's
-/// total J nt)⌉, plus 1 for TR loci: 10 for IGH, IGK and IGL, 11 for TRB, 12 for TRA. Chosen by
-/// generated-truth accuracy (record 0029, Wave 2); the random-tail null is reported, not a bound.
+/// Score (matches minus mismatches) a 3' J fragment needs for a locus: 3 + ⌈log4(the locus's
+/// total J nt)⌉, plus 1 for TR loci: 8 for IGH, IGK and IGL, 9 for TRB, 10 for TRA. Chosen by
+/// generated-truth accuracy (record 0029, Waves 2 and 3); the random-tail null is reported, not a
+/// bound. 7 would call a J on reads that end in N/D bases resembling a J (`missing_j_is_none`).
 fn short_min(j: &SegmentIndex, ks: &[usize], locus: Locus) -> i32 {
     let total: usize = ks.iter().map(|&k| j.seqs[k].len()).sum();
     let tr = matches!(locus, Locus::TRA | Locus::TRB | Locus::TRG | Locus::TRD);
-    5 + (usize::BITS - total.saturating_sub(1).leading_zeros()).div_ceil(2) as i32 + i32::from(tr)
+    3 + (usize::BITS - total.saturating_sub(1).leading_zeros()).div_ceil(2) as i32 + i32::from(tr)
 }
 
 /// The aligned read bases of `aln` at read positions `>= min_q` as (allele index, read base);

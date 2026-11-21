@@ -303,3 +303,50 @@ On reads with a single true V indel where the primary is the true allele, the pl
   - **Null after the fix** (per 100k, 250-nt / 1–150-nt tails): IGH 673 / 1,214; IGK 987 / 1,515; IGL 871 / 1,105; TRA 5,430 / 6,281; TRB 2,243 / 2,579.
   - **Accuracy-gate cost.** One read, igh_bnab_c g1091: its weak J was the wrong allele but bounded the right junction. Its reported re-cut now fails the guard, so it has no J, C or junction. That lowered 15 floors (C call, J start, junction, productive and vj_in_frame cells that hold it).
   - **New constant:** `WEAK_TOP` = 8.
+- **2026-11-21 (Wave 3; user rulings).**
+  - **Rulings.**
+    - False J calls on junk after a V are accepted: false positives are preferred over discarding real recombinations.
+    - Settings lean permissive: where two are close, take the more permissive.
+    - The 0.1-pp no-drop bound applies only to real losses. A cell graded only where the J allele is right (`fwr4`, `cdr3`, J mutation fields, …) that falls only because more reads are graded is dilution, and does not count. In a dilution cell, the number of correct reads does not fall.
+  - **Old values (Wave 2 fix round 1):** weak J at "score 16"; B1 "10 for IGH, IGK and IGL, 11 for TRB, 12 for TRA" (5 + ⌈log4⌉, +1 TR).
+  - **New values:** weak J at score **12**; B1 matches minus mismatches ≥ 3 + ⌈log4⌉ (+1 TR), i.e. **8** for IGH, IGK and IGL, **9** for TRB, **10** for TRA. Nothing else changed: order, guards, re-check after the record 0008 pick, `WEAK_TOP`, and the joint-step cap.
+  - **The third acceptance path was swept and is not added.** The path is a strong-scoring (−3) cut below the floor of 30, tried after the weak J and B1. It must score at least N, imply a 6–180-nt junction, and optionally be gapless and end at the read's end inside J. On top of fix round 1 it gains only below the B1 threshold's doubled score.
+    - The binding test is `missing_j_is_none`: a read ending in N/D bases gets no J at any truncation point. Floor 14 already calls IGHJ2\*01 on the full NP read, whose last 7 nt (`CTGGTAC`) are an exact IGHJ2 stretch.
+    - Floors 16 and up keep that test green, but once B1 is at score 8 they add no call. A low path at 16 changed none of the 5,000 igh_truncated reads, none of the 12 sets and none of 6,000 synthetic mutated or indel-bearing J fragments.
+    - Its gapless and read-end guards never changed a result in any setting tried.
+    - Lowering B1 to 8 captures what the path gave: floor 16 with B1 at 10 reaches +30.87; B1 at 8 reaches +31.75.
+  - **Sweep** (Σ = summed `j_call` + `junction` gain over the pre-Wave-2 build on the 12 benchmark sets, pp; "real loss" = a listed `all` cell with fewer correct reads, against the pre-Wave-2 build and against fix round 1; "N/D" = the N/D-ending test):
+
+    | Setting | Σ | Worst real loss vs fix round 1 | Truncated J / junction | J on the 54 no-J truncated reads | N/D test |
+    |---|---|---|---|---|---|
+    | fix round 1 (weak 16, B1 10) | +27.83 | – | 89.20 / 98.70 | 1 | green |
+    | + low floor 18 | +29.20 | none | 90.51 / 98.76 | 1 | green |
+    | + low floor 16 | +30.35 | none | 91.66 / 98.76 | 1 | green |
+    | + low floor 14 | +31.58 | none | 92.82 / 98.84 | 2 | fails (NP 33 nt) |
+    | + low floor 10 | +33.08 | none | 94.29 / 98.86 | 8 | fails |
+    | + low floor 2 | +33.99 | none | 95.20 / 98.86 | 29 | fails (8 NP prefixes) |
+    | weak 12, B1 10, low 16 | +30.87 | none | 92.05 / 98.72 | 4 | green |
+    | B1 8 | +31.13 | bnab_c `j_call` −0.083 (4,662 → 4,658 of 4,800) | 92.53 / 98.80 | 1 | green |
+    | **weak 12, B1 8 (chosen)** | **+31.75** | **bnab_c `junction` −0.047 (4,157 → 4,155 of 4,212)** | **92.98 / 98.84** | **4** | **green** |
+    | same + low floor 16 or 18 (any guards) | +31.75 | same | same | 4 | green |
+    | weak 10, B1 9, low 2 | +34.21 | truncated `junction` −0.165 (4,774 → 4,766 of 4,837) | 95.40 / 98.53 | 32 | fails (low 2) |
+    | B1 7, low 2 | +34.81 | bnab_c `j_call` −0.083 | 96.06 / 98.95 | 31 | fails |
+
+    - No chosen-setting cell loses correct reads against the pre-Wave-2 build.
+    - Against fix round 1 the only real losses are 2 bnab_c junctions and 4 bnab_c J calls, each under 0.1 pp. Both come from the lower B1 threshold taking a fragment before the weak J.
+    - Dilution: igh_truncated `cdr3` 99.55% (3,512 of 3,528) → 99.38% (4,003 of 4,028).
+    - Weak 10 loses 8 truncated junctions (−0.165 pp) against fix round 1, so 12 is the most permissive weak threshold within the bound.
+    - **Marginal precision of the low path** (new igh_truncated calls right / wrong allele / on no-J reads, B1 at 10):
+
+      | floor | right | wrong allele | on no-J reads |
+      |---|---|---|---|
+      | 18 | 66 | 1 | 0 |
+      | 14 | 117 | 5 | 1 |
+      | 10 | 80 | 13 | 6 |
+      | 6 | 16 | 9 | 1 |
+      | 2 | 17 | 15 | 8 |
+
+      Below floor 6 the added calls are more often wrong than right, and the J is 1–3 nt.
+  - **Accuracy gate:** 32 floors rose and 24 fell. All 24 are igh_bnab J mutation cells that hold one more correct read (dilution).
+  - **Null** (per 100k, 250-nt / 1–150-nt tails): IGH 2,153 / 5,941; IGK 3,527 / 7,616; IGL 3,119 / 6,042; TRA 14,555 / 19,346; TRB 7,349 / 10,539. The ruling accepts it.
+
