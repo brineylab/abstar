@@ -272,7 +272,7 @@ fn spec_parsing() {
     assert_eq!(preset("tcr").unwrap().mutation, Spec::Fixed(0.0));
     assert_eq!(preset("memory").unwrap().mutation, Spec::Uniform(0.02, 0.12));
     let b = preset("bnab").unwrap();
-    assert_eq!((b.mutation, b.indel_rate), (Spec::Uniform(0.15, 0.35), 0.10));
+    assert_eq!((b.mutation, b.indel_rate), (Spec::Uniform(0.15, 0.35), 0.108));
     assert!(b.long_cdr3_weight > 0.0);
     let e = preset("bnAb2").unwrap_err();
     assert_eq!(e.code(), "INVALID_ARGUMENT");

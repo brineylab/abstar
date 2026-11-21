@@ -16,7 +16,9 @@ use abstar_germline::Allele;
 use rand::Rng;
 
 use crate::shm::pick;
-use crate::{load_s5f_dir, motif_model, mutate, Bound, ContextModel, Dist, GenerateError, GenerateParams, Mutation};
+use crate::{
+    load_s5f_dir, motif_model, mutate, Bound, ContextModel, Dist, GenerateError, GenerateParams, Mutation, Selection,
+};
 
 const BASES: [u8; 4] = *b"ACGT";
 
@@ -366,16 +368,23 @@ impl<'a> Simulator<'a> {
         if let (Some(model), true) = (self.shm(), target > 0.0) {
             let mutable: Vec<bool> = (0..vdj_len).map(kept).collect();
             let v_pos: Vec<usize> = (0..vdj_len).filter(|&i| mutable[i] && matches!(org[i], Origin::V(_))).collect();
-            // productive_only: purifying selection against stop codons in the V frame
-            // (record 0024). Codons are those of the pre-indel V(D)J, from V's IMGT phase; a
-            // codon an indel later changes is not covered, and a stop there resamples the read.
-            let stop_frame = p.productive_only.then(|| {
-                org.iter().enumerate().find_map(|(i, o)| match *o {
-                    Origin::V(g) => Some((i as i64 - g as i64).rem_euclid(3) as usize),
-                    _ => None,
-                })
+            // productive_only: purifying selection against stop codons in the V frame and
+            // non-conserved anchor codons (record 0024). Codons are those of the pre-indel
+            // V(D)J, from V's IMGT phase; a codon an indel later changes is not covered, and a
+            // stop there resamples the read. Indels never touch the anchor codons.
+            let selection = p.productive_only.then(|| Selection {
+                frame: org
+                    .iter()
+                    .enumerate()
+                    .find_map(|(i, o)| match *o {
+                        Origin::V(g) => Some((i as i64 - g as i64).rem_euclid(3) as usize),
+                        _ => None,
+                    })
+                    .unwrap_or(0),
+                cys: v.anchor.and_then(|a| org.iter().position(|&o| o == Origin::V(vg[a]))),
+                trp: j.anchor.and_then(|b| org.iter().position(|&o| o == Origin::J(b))),
             });
-            mutations = mutate(&mut seq[..vdj_len], &mutable, &v_pos, target, model, stop_frame.flatten(), rng);
+            mutations = mutate(&mut seq[..vdj_len], &mutable, &v_pos, target, model, selection.as_ref(), rng);
             let want = (target * v_pos.len() as f64).round() as usize;
             let got = v_pos.iter().filter(|&&i| seq[i] != germ[i]).count();
             if got < want {

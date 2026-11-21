@@ -219,15 +219,36 @@ pub(crate) fn pick(weights: &[f64], rng: &mut impl Rng) -> usize {
     weights.iter().position(|&w| w > 0.0 && { u -= w; u < 0.0 }).unwrap_or(last)
 }
 
-/// Whether `seq` with `to` at `pos` has a stop codon in the codon holding `pos`, for
-/// codons starting at indices ≡ `frame` (mod 3). A partial codon at either end never is.
-fn makes_stop(seq: &[u8], pos: usize, to: u8, frame: usize) -> bool {
-    let Some(c) = pos.checked_sub((pos + 3 - frame % 3) % 3) else { return false };
-    let Some(codon) = seq.get(c..c + 3) else { return false };
-    let mut codon = [codon[0], codon[1], codon[2]];
-    codon[pos - c] = to;
-    codon.make_ascii_uppercase();
-    matches!(&codon, b"TAA" | b"TAG" | b"TGA")
+/// Purifying selection applied in productive-only mode (record 0024): a substitution is
+/// rejected if it would make its codon a stop, or make an anchor codon non-conserved.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Selection {
+    /// Codons start at indices ≡ `frame` (mod 3).
+    pub frame: usize,
+    /// Start of the Cys104 codon (must stay TGT/TGC), if it is in the sequence.
+    pub cys: Option<usize>,
+    /// Start of the Trp/Phe118 codon (must stay TGG/TTT/TTC), if it is in the sequence.
+    pub trp: Option<usize>,
+}
+
+impl Selection {
+    /// Whether putting `to` at `pos` of `seq` is rejected. A partial codon at either end
+    /// is never a stop; synonymous changes within an anchor's allowed set are kept.
+    pub fn rejects(&self, seq: &[u8], pos: usize, to: u8) -> bool {
+        let codon = |c: usize| {
+            let mut x: [u8; 3] = seq.get(c..c + 3)?.try_into().ok()?;
+            x[pos - c] = to;
+            x.make_ascii_uppercase();
+            Some(x)
+        };
+        let anchor = |start: Option<usize>, ok: &[&[u8; 3]]| {
+            start.filter(|&c| (c..c + 3).contains(&pos)).and_then(codon).is_some_and(|x| !ok.contains(&&x))
+        };
+        let c = pos.checked_sub((pos + 3 - self.frame % 3) % 3);
+        c.and_then(codon).is_some_and(|x| matches!(&x, b"TAA" | b"TAG" | b"TGA"))
+            || anchor(self.cys, &[b"TGT", b"TGC"])
+            || anchor(self.trp, &[b"TGG", b"TTT", b"TTC"])
+    }
 }
 
 /// Mutates `seq` in place, one hit at a time, until the realized divergence of the
@@ -237,10 +258,9 @@ fn makes_stop(seq: &[u8], pos: usize, to: u8, frame: usize) -> bool {
 ///   lowercase base is replaced by a lowercase base.
 /// - Positions are picked ∝ the mutability of their 5-mer, recomputed after every hit;
 ///   repeat hits and back-mutations are allowed.
-/// - Stop-codon selection: with `stop_frame = Some(f)`, codons start at indices ≡ f (mod 3)
-///   of `seq`, and a drawn substitution that would leave a complete codon reading TAA, TAG
-///   or TGA is rejected: `seq` is unchanged, nothing is recorded, and a new position and
-///   base are drawn. `None` is neutral (no selection) and draws exactly as before.
+/// - Selection: with `Some(sel)`, a drawn substitution that [`Selection::rejects`] is
+///   dropped: `seq` is unchanged, nothing is recorded, and a new position and base are
+///   drawn. `None` is neutral (no selection).
 /// - Safety cap: at most 10 × target draws (hits plus rejected draws). A capped run returns with the V divergence
 ///   still below target; the caller, which records realized divergence anyway, detects
 ///   that and emits the warning (this function has no warning channel).
@@ -252,7 +272,7 @@ pub fn mutate(
     v_positions: &[usize],
     target_v_freq: f64,
     model: &ContextModel,
-    stop_frame: Option<usize>,
+    selection: Option<&Selection>,
     rng: &mut impl Rng,
 ) -> Vec<Mutation> {
     assert_eq!(mutable.len(), seq.len(), "mutable mask length");
@@ -273,7 +293,7 @@ pub fn mutate(
         if from.is_ascii_lowercase() {
             to = to.to_ascii_lowercase();
         }
-        if stop_frame.is_some_and(|f| makes_stop(seq, pos, to, f)) {
+        if selection.is_some_and(|x| x.rejects(seq, pos, to)) {
             rejected += 1;
             continue;
         }

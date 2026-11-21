@@ -1,4 +1,4 @@
-use abstar_generate::{load_s5f_dir, motif_model, mutate, ContextModel};
+use abstar_generate::{load_s5f_dir, motif_model, mutate, ContextModel, Selection};
 use rand::{Rng, SeedableRng};
 use rand_chacha::ChaCha8Rng;
 use std::fs;
@@ -217,33 +217,44 @@ fn s5f_dir_round_trip() {
 }
 
 #[test]
-fn stop_frame_never_creates_a_stop_and_reaches_target() {
+fn selection_keeps_frame_stop_free_and_anchors_conserved() {
     let in_frame_stops = |s: &[u8], f: usize| {
         s[f..].as_chunks::<3>().0.iter().filter(|c| matches!(&c.to_ascii_uppercase()[..], b"TAA" | b"TAG" | b"TGA")).count()
     };
-    let (mut neutral_stops, mut rejected_any) = (0, false);
+    let cys_ok = |s: &[u8], c: usize| matches!(&s[c..c + 3], b"TGT" | b"TGC");
+    let trp_ok = |s: &[u8], c: usize| matches!(&s[c..c + 3], b"TGG" | b"TTT" | b"TTC");
+    let (mut neutral_stops, mut neutral_anchor_loss, mut synonymous, mut rejected_any) = (0, 0, 0, false);
     for seed in 0..50u64 {
         let f = (seed % 3) as usize;
-        // 300 nt V + 60 nt junction, stop-free in frame f
+        // 300 nt V (Cys codon ending it) + 60 nt junction with a Trp codon, stop-free in frame f
         let mut orig = random_seq(360, 1000 + seed);
         for c in (f..358).step_by(3) {
             if in_frame_stops(&orig[c..c + 3], 0) > 0 {
                 orig[c] = b'C';
             }
         }
+        let (cys, trp) = (f + 3 * 98, f + 3 * 112);
+        orig[cys..cys + 3].copy_from_slice(b"TGT");
+        orig[trp..trp + 3].copy_from_slice(b"TGG");
+        let sel = Selection { frame: f, cys: Some(cys), trp: Some(trp) };
         let v: Vec<usize> = (0..300).collect();
         let mutable = vec![true; 360];
         let target = 0.15 + 0.2 * (seed as f64 / 50.0);
         let mut seq = orig.clone();
-        let muts = mutate(&mut seq, &mutable, &v, target, motif_model(), Some(f), &mut ChaCha8Rng::seed_from_u64(seed));
+        let muts = mutate(&mut seq, &mutable, &v, target, motif_model(), Some(&sel), &mut ChaCha8Rng::seed_from_u64(seed));
         assert_eq!(in_frame_stops(&seq, f), 0, "seed {seed}");
+        assert!(cys_ok(&seq, cys) && trp_ok(&seq, trp), "seed {seed}: anchors {:?}", (&seq[cys..cys + 3], &seq[trp..trp + 3]));
+        synonymous += usize::from(seq[cys..cys + 3] != orig[cys..cys + 3]);
         let frac = v_divergence(&orig, &seq, &v) as f64 / 300.0;
-        assert!(frac >= target - 0.5 / 300.0 && frac < target + 2.0 / 300.0, "seed {seed}: {frac} vs {target}");
+        assert!(frac >= target - 0.5 / 300.0 && frac < target + 0.5 / 300.0, "seed {seed}: {frac} vs {target}");
         // same draws without selection: diverge at the first rejected draw
         let mut free = orig.clone();
         let n = mutate(&mut free, &mutable, &v, target, motif_model(), None, &mut ChaCha8Rng::seed_from_u64(seed));
         rejected_any |= n != muts;
         neutral_stops += in_frame_stops(&free, f);
+        neutral_anchor_loss += usize::from(!cys_ok(&free, cys)) + usize::from(!trp_ok(&free, trp));
     }
-    assert!(rejected_any && neutral_stops > 50, "selection never engaged: {neutral_stops} neutral stops");
+    eprintln!("neutral: {neutral_stops} stops, {neutral_anchor_loss} anchors lost; selected: {synonymous} TGT->TGC");
+    assert!(rejected_any && neutral_stops > 50 && neutral_anchor_loss > 10, "selection never engaged");
+    assert!(synonymous > 0, "synonymous anchor changes must stay allowed");
 }

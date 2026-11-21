@@ -39,12 +39,18 @@ Accepted (2026-11-20)
 - **Stopping and the safety cap.**
   - Placement stops when the realized V divergence (V positions differing from their original base) reaches `round(target × V length)`.
   - A safety cap of 10 × target draws (hits plus draws rejected by stop-codon selection) stops placement early. A capped run returns short of target. The caller, which records realized divergence for the truth record, detects this and adds a warning.
-- **Stop-codon selection in productive-only mode.**
+- **Selection in productive-only mode.**
   - By default mutation is neutral: no selection, so stop codons can appear, and productivity is labelled.
-  - With `productive_only`, mutation applies purifying selection against stop codons. A drawn substitution that would make its codon TAA, TAG or TGA in the V reading frame is rejected: nothing changes and nothing is recorded. A new position and base are then drawn. A rejected draw does not count toward the divergence target. The frame is the read's V phase, over V start through J end.
-  - Why: without it, `--preset bnab --productive-only` failed. At 15-35 % V divergence nearly every read gains a stop codon, so only about 0.45 % of reads were productive. That meant about 220 attempts per read, and about 1 % of reads hit the 1000-attempt limit, so large runs aborted. Real mutated antibodies are productive because selection removes stop codons, so filtering neutral reads is the wrong model. With selection, bnab needs about 9.6 attempts per productive read.
-  - The remaining failures are not substitution stop codons. They are out-of-frame junctions (about 2/3 of reads), Cys104 or Trp/Phe118 codons lost to mutation, and stop codons in N/D bases or in indel-inserted bases. These still resample the whole read.
-  - Codons are those of the V(D)J before the indel is applied, so a codon that an indel later changes is not covered. A stop there resamples the read.
+  - With `productive_only`, mutation applies purifying selection. A drawn substitution is rejected if it would:
+    - make its codon TAA, TAG or TGA in the V reading frame (the read's V phase, over V start through J end);
+    - make the Cys104 codon anything but TGT/TGC;
+    - make the Trp/Phe118 codon anything but TGG/TTT/TTC.
+  - Synonymous changes within those sets, such as TGT→TGC, are allowed.
+  - A rejected draw changes nothing and records nothing; a new position and base are drawn. It does not count toward the divergence target, but it does count toward the safety cap.
+  - Why: without it, `--preset bnab --productive-only` failed. At 15-35 % V divergence nearly every read gains a stop codon, so only about 0.45 % of reads were productive. That meant about 220 attempts per read, and about 1 % of reads hit the 1000-attempt limit, so large runs aborted. Real mutated antibodies are productive because selection removes such reads, so filtering neutral reads is the wrong model.
+  - With stop-codon selection alone, bnab needed about 9.6 attempts per productive read. At bnab divergence, mutation broke Cys104 or Trp/Phe118 in more than half of in-frame reads. With anchor protection added, it needs about 4.0.
+  - The remaining failures are out-of-frame junctions (about 2/3 of reads), and stop codons in N/D bases or in indel-inserted bases. These still resample the whole read.
+  - Codons are those of the V(D)J before the indel is applied, so a codon that an indel later changes is not covered. A stop there resamples the read. Indels never touch the anchor codons.
   - Neutral mode draws exactly as before, so existing seeds give unchanged output when `productive_only` is off.
 - **Later work.** We plan to fit our own S5F-style model on data we may redistribute, with the repertoire work (board #148).
 
@@ -61,6 +67,6 @@ Accepted (2026-11-20)
 
 - Default mutation spectra show realistic hotspot and coldspot bias and a transition excess, but per-motif rates are not S5F rates. Benchmarks that need S5F-faithful spectra must use `--shm-table`.
 - The motif weights are fixed constants. Changing them changes generated sequences for a given seed, so a change needs a superseding record.
-- `--productive-only` output is not a filtered neutral sample: its mutations are shaped by stop-codon selection. Rerunning a seed with `productive_only` toggled changes which mutations a read gets, not only which reads are kept.
+- `--productive-only` output is not a filtered neutral sample: its mutations are shaped by selection against stop codons and anchor-codon loss. Rerunning a seed with `productive_only` toggled changes which mutations a read gets, not only which reads are kept.
 - `mutate` has no warning channel: callers must compare realized divergence with the target and report capped sequences.
 - When abstar fits its own model (#148), it is added as a new `shm_model` value; `motif` stays available for reproducibility.

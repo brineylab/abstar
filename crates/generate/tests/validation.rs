@@ -271,10 +271,13 @@ fn bnab_targets() {
         })
         .collect();
 
-    // Realized divergence is round(target × nV) / nV, so it can sit 0.5/nV below the
-    // 0.15 floor; the 2/nV above 0.35 allows for an indel moving V bases after mutation.
+    // Mutation hits only V bases that reach the final read (deleted and truncated bases are
+    // never mutable), so realized divergence is round(target × nV) / nV: within 0.5/nV of
+    // [0.15, 0.35] (measured: 0.40/nV below, 0.45/nV above). The bound allows a symmetric
+    // 2/nV either side, so a future change that lets an indel move mutated V bases (e.g. a
+    // deletion removing them) does not trip it spuriously.
     for (i, &(f, nv, ..)) in reads.iter().enumerate() {
-        let (lo, hi) = (0.15 - 0.5 / nv as f64, 0.35 + 2.0 / nv as f64);
+        let (lo, hi) = (0.15 - 2.0 / nv as f64, 0.35 + 2.0 / nv as f64);
         assert!(f >= lo - 1e-12 && f < hi, "read {i}: V mutation {f} outside [{lo}, {hi}) (nV {nv})");
     }
 
@@ -293,7 +296,9 @@ fn bnab_targets() {
 }
 
 /// `--preset bnab --productive-only` through the pipeline: no read hits the attempt limit,
-/// and the attempts per read stay near 1 / (in-frame junction rate).
+/// and attempts per read stay near 1 / (in-frame junction rate) ≈ 3.1, since selection
+/// keeps mutation from adding stops or breaking the anchor codons. Measured 3.98; the rest
+/// is stops in N/D and inserted bases.
 #[test]
 #[ignore = "release only: cargo test -p abstar_generate --release --test validation -- --include-ignored"]
 fn bnab_productive_only_attempts() {
@@ -312,7 +317,7 @@ fn bnab_productive_only_attempts() {
     let mean = sum.attempts as f64 / sum.n as f64;
     eprintln!("bnab productive_only: {} reads, mean attempts {mean:.2}; warnings {:?}", sum.n, sum.warnings);
     assert_eq!((sum.n, sum.productive), (5_000, 5_000));
-    assert!(mean < 15.0, "mean attempts {mean}");
+    assert!(mean < 4.5, "mean attempts {mean}");
 }
 
 #[test]
@@ -380,3 +385,29 @@ fn oracle_agreement_builtin() {
     }
 }
 
+
+/// Pins neutral-mode output (mutation on, `productive_only` off): any change to what the
+/// generator draws or writes in that mode changes these hashes. Update them only for an
+/// intended change, and say why in the commit.
+#[test]
+fn neutral_output_pinned() {
+    use sha2::{Digest, Sha256};
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../python/abstar");
+    let meta = GenerateMeta {
+        abstar_version: "test".into(),
+        germline_db: "human".into(),
+        db_path: root.join("germline_dbs/human"),
+        model_name: "human-igh".into(),
+        model_path: root.join("models/human-igh/model.toml"),
+        preset: Some("memory".into()),
+    };
+    let p = GenerateParams { n: 300, seed: 42, indel_rate: 0.2, ..preset("memory").unwrap() };
+    let dir = tempfile::tempdir().unwrap();
+    generate_to_files(&bound("human-igh"), &p, dir.path(), "pin", &[abstar_table::writers::Format::Airr], &meta).unwrap();
+    let hash = |f: &str| {
+        let bytes = std::fs::read(dir.path().join(f)).unwrap();
+        Sha256::digest(&bytes).iter().map(|b| format!("{b:02x}")).collect::<String>()
+    };
+    assert_eq!(hash("pin.fasta"), "1e60db4508fc6450f63399da818ee460cb64ecadd31c696dcb5b315157585ef9");
+    assert_eq!(hash("pin.truth.tsv"), "745e6f134bddb99aa69205be87a8e3ac91bed44b9c5018d0ef53ecdbb1def80a");
+}
