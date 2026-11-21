@@ -36,13 +36,13 @@ generator.
 4. **Assembled sequences:** `sequence_vdj`, `sequence_vdj_aa`,
    `sequence_vdjc`, `sequence_vdjc_aa`.
 5. **Masks**, using legacy encodings and names for compatibility (nt and aa).
-   Each nt mask indexes `sequence_vdjc` (or `sequence_vdj` when no C is
-   present), one character per base. Each aa mask indexes the matching
-   translation. This matches the legacy semantics, where the masks spanned
-   the ungapped assembled sequence. They do **not** index the IMGT-gapped
-   `sequence_alignment`. *(Builder-check answer; my call.)*
+   Masks cover **only the V(D)J region** (user decision, 2026-11-20). Each nt
+   mask indexes `sequence_vdj`, one character per base, and each aa mask
+   indexes `sequence_vdj_aa`. They never include constant-region bases. This
+   matches the legacy semantics, where the masks spanned the ungapped
+   assembled V(D)J. They do **not** index the IMGT-gapped `sequence_alignment`.
    - `cdr_mask` (`0` FWR, `1`/`2`/`3` CDR1/2/3);
-   - `gene_segment_mask` (`V`/`N`/`D`/`N`/`J`, and `C` when present);
+   - `gene_segment_mask` (`V`/`N`/`D`/`N`/`J`);
    - `nongermline_mask` (`1` for N bases and mismatches to germline, else
      `0`).
 6. **Mutations for every segment, V, D, J and C (nt and aa):**

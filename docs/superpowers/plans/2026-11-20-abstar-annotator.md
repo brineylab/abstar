@@ -56,9 +56,9 @@ Additions:
 
 **Masks**
 - `cdr_mask`: `0` FWR, `1`/`2`/`3` CDR1/2/3.
-- `gene_segment_mask`: `V`/`N`/`D`/`N`/`J`/`C`. P-nucleotides count as `N`.
+- `gene_segment_mask`: `V`/`N`/`D`/`N`/`J`. P-nucleotides count as `N`.
 - `nongermline_mask`: `1` for N/P bases, mismatches and inserted bases, else `0`.
-- nt masks index `sequence_vdjc` (or `sequence_vdj` when there is no C), one character per base. aa masks index the matching translation, one per codon. A codon takes the segment or region of its 3rd base for `gene_segment_mask_aa`, and the downstream-region rule for `cdr_mask_aa`. `nongermline_mask_aa` is `1` if the codon's aa differs from germline or any of its bases is N/P/inserted.
+- Masks cover only the V(D)J region (user decision): nt masks index `sequence_vdj`, one character per base, never constant-region bases. aa masks index `sequence_vdj_aa`, one per codon. A codon takes the segment or region of its 3rd base for `gene_segment_mask_aa`, and the downstream-region rule for `cdr_mask_aa`. `nongermline_mask_aa` is `1` if the codon's aa differs from germline or any of its bases is N/P/inserted.
 
 **Status and failure reasons** (`annotation_status` / `failure_reason`)
 
@@ -115,10 +115,10 @@ Shortfalls are reported, not hidden.
     - CDR3 = `junction[3..len-3]`, FWR4 starts at the Trp/Phe codon.
     - `cdr3_length == len(cdr3_aa)`.
   - `masks_consistent`: over 2,000 reads with every option on:
-    - each nt mask's length equals `len(sequence_vdjc)` (or `sequence_vdj` without C);
+    - each nt mask's length equals `len(sequence_vdj)`;
     - `gene_segment_mask` matches the origin map;
     - `nongermline_mask[i] == 1` iff origin is N/P/inserted or the base differs from the true germline base;
-    - each aa mask has `len(sequence_vdjc_aa)` characters.
+    - each aa mask has `len(sequence_vdj_aa)` characters.
   - `segment_mutations_from_events`: over 2,000 mutated reads (with inversion enabled on a test model copy), every entry in `v/d/j_mutations` corresponds to a recorded mutation at that germline position. Their union over segments, plus N/P hits, equals the `mutations` event list. Frequencies use the aligned-germline denominator.
 - [ ] **Step 2: Run and confirm they fail.** Run `cargo test -p abstar_generate --test pipeline`.
 - [ ] **Step 3: Implement** the derivations in the generate crate, independently of `crates/annotate`, and add the fields to `truth.toml` (abstar fields cite decision 0026).
