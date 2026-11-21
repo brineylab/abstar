@@ -18,11 +18,18 @@ igblast vs baseline	v	same gene, other allele		58
 igblast vs baseline	v	different gene		29
 igblast vs baseline	v	tie overlap		15
 igblast vs baseline	v	only tool called		1
+legacy vs baseline	c	same allele		49912
+legacy vs baseline	c	both null		87
 legacy vs baseline	d	both null		33415
 legacy vs baseline	d	same allele		12481
 legacy vs baseline	d	same allele (suffix stripped)		4103
 legacy vs baseline	j	same allele		49999
 legacy vs baseline	v	same allele		49999
+new vs baseline	c	same allele		49800
+new vs baseline	c	tie overlap	tie (read can't decide)	86
+new vs baseline	c	both null		70
+new vs baseline	c	only reference called	one null	26
+new vs baseline	c	only tool called	one null	18
 new vs baseline	d	both null		33411
 new vs baseline	d	same allele		11556
 new vs baseline	d	same allele (suffix stripped)		2111
@@ -45,10 +52,10 @@ new vs baseline	j	different gene	tie (read can't decide)	67
 new vs baseline	j	tie overlap	read favors baseline	10
 new vs baseline	j	different gene	read favors baseline	7
 new vs baseline	j	same gene, other allele	read favors baseline	5
-new vs baseline	j	same gene, other allele	tie (read can't decide)	4
 new vs baseline	j	only reference called	one null	4
-new vs baseline	j	same gene, other allele	read favors new	1
+new vs baseline	j	same gene, other allele	tie (read can't decide)	4
 new vs baseline	j	only tool called	one null	1
+new vs baseline	j	same gene, other allele	read favors new	1
 new vs baseline	junction_aa	agree		49141
 new vs baseline	junction_aa	only baseline has a junction		809
 new vs baseline	junction_aa	differ: length		49
@@ -63,8 +70,8 @@ new vs baseline	v	tie overlap	read favors new	9
 new vs baseline	v	different gene	read favors new	8
 new vs baseline	v	same gene, other allele	tie (read can't decide)	6
 new vs baseline	v	same gene, other allele	read favors baseline	3
-new vs baseline	v	same gene, other allele	read favors new	2
 new vs baseline	v	different gene	tie (read can't decide)	2
+new vs baseline	v	same gene, other allele	read favors new	2
 new vs baseline	v	only tool called	one null	1
 new vs igblast	d	both null		33775
 new vs igblast	d	same allele		13274

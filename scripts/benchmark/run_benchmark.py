@@ -38,6 +38,10 @@ SETS = {
     "igl": ("IGL", 20261207, ["--preset", "naive"]),
     "tra": ("TRA", 20261208, ["--preset", "tcr"]),
     "trb": ("TRB", 20261209, ["--preset", "tcr"]),
+    # with 60 nt of constant region, so C calls and C mutation fields are graded
+    "igh_memory_c": ("IGH", 20261210, ["--preset", "memory", "--constant", "60"]),
+    "igh_bnab_c": ("IGH", 20261211, ["--preset", "bnab", "--constant", "60"]),
+    "igk_c": ("IGK", 20261212, ["--preset", "naive", "--constant", "60"]),
 }
 TOOLS = ("new", "igblast", "legacy")
 PRIMARY = ("v_call", "d_call", "j_call", "v_sequence_end", "d_sequence_start", "d_sequence_end", "j_sequence_start",
@@ -420,12 +424,12 @@ def real_data(a, run, work):
     }
     timing = [{"set": "corpus_real_bcr", "tool": t, "reads": n, "seconds": round(s, 2), "reads_per_s": round(n / s, 1),
                "threads": THREADS} for t, (s, _) in outs.items()]
-    cols = ("locus", "productive", "junction_aa", "v_call", "d_call", "j_call", "v_sequence_end", "j_sequence_start")
+    cols = ("locus", "productive", "junction_aa", "v_call", "d_call", "j_call", "c_call", "v_sequence_end", "j_sequence_start")
     base = pl.read_parquet(corpus / "baseline.parquet").select("corpus_ordinal", *cols)
 
     def tool_frame(tool, path):
         df = pl.read_csv(path, separator="\t", infer_schema_length=0, quote_char=None) if path.suffix == ".tsv" else pl.read_parquet(path)
-        keep = [c for c in (*cols, "d_inverted", "v_call_ties", "d_call_ties", "j_call_ties") if c in df.columns]
+        keep = [c for c in (*cols, "d_inverted", "v_call_ties", "d_call_ties", "j_call_ties", "c_call_ties") if c in df.columns]
         df = df.select(pl.col("sequence_id").str.slice(1).cast(pl.Int64).alias("corpus_ordinal"), *keep)
         df = df.with_columns([pl.when(pl.col(c) == "").then(None).otherwise(pl.col(c)).alias(c) for c in keep if df.schema[c] == pl.String])
         return df.with_columns([pl.col(c).cast(pl.Int64) for c in ("v_sequence_end", "j_sequence_start") if c in keep])
@@ -439,7 +443,8 @@ def real_data(a, run, work):
         right = base if ref == "baseline" else frames[ref].drop([c for c in frames[ref].columns if c.endswith("_ties")])
         m = left.join(right, on="corpus_ordinal", how="full", suffix="_ref", coalesce=True)
         evidence = tool == "new" and ref == "baseline"
-        for s in "vdj":
+        # IgBLAST is run without a C database
+        for s in "vdj" if "igblast" in (tool, ref) else "vdjc":
             ties = f"{s}_call_ties" if f"{s}_call_ties" in m.columns else None
             for r in m.iter_rows(named=True):
                 cls = classify(r.get(f"{s}_call"), r.get(f"{s}_call_ref"), r.get(ties) if ties else None, names)
