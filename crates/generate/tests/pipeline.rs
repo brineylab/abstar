@@ -660,8 +660,11 @@ fn masks_consistent() {
     assert!(checked > 1500 && empty > 0, "{checked} {empty}");
 }
 
-/// Per-segment mutations are the recorded events in germline numbering; indels are the
-/// recorded indels; frequencies use the segment's bases in the read as denominator.
+/// Per-segment mutations are the recorded events in germline numbering, except between an indel's
+/// generated and normalized placements, where the normalized alignment renumbers (or re-reads) the
+/// bases (ruling A16; `segment_mutations_from_normalized_alignment` checks that window exactly);
+/// every aa change has an nt change in its codon; indels are the recorded indels at their normalized
+/// placement; frequencies use the segment's bases in the read as denominator.
 #[test]
 fn segment_mutations_from_events() {
     use abstar_generate::{IndelKind, Origin::*};
@@ -673,7 +676,7 @@ fn segment_mutations_from_events() {
         ..busy(2000, 22)
     };
     let rows = one(&generate_in_memory(&b, &p).unwrap());
-    let (mut inverted, mut v_aa, mut seg_indels, mut shifted, mut aa_without_nt) = (0, 0, 0, 0, 0);
+    let (mut inverted, mut v_aa, mut seg_indels, mut shifted, mut realigned) = (0, 0, 0, 0, 0);
     for r in 0..rows.num_rows() {
         let sim = simulated(&b, &p, r);
         let t5 = sim.truncate_5;
@@ -695,7 +698,30 @@ fn segment_mutations_from_events() {
             };
             want[k].push(format!("{label}:{}>{}", from as char, to as char));
         }
-        let mut total = np;
+        // An indel's normalized placement realigns the segment's bases between it and the generated
+        // placement (ruling A16): there truth may differ from the events. The window, as labels: germline
+        // positions from the normalized placement's first base right of the indel's left base through the
+        // generated placement's last aligned or deleted base.
+        let label = |k: usize, u: usize| {
+            let gapped = sim.v.sequence_gapped.as_bytes();
+            if k == 0 { format!("IMGT{}", (0..gapped.len()).filter(|&g| gapped[g] != b'.').nth(u).unwrap() + 1) } else { (u + 1).to_string() }
+        };
+        let mut window: [Vec<String>; 3] = Default::default();
+        for x in &sim.indels {
+            let ins = x.kind == IndelKind::Ins;
+            let after = x.read_pos + if ins { x.len } else { 0 };
+            if x.read_pos <= t5 || after >= t5 + sim.read.len() {
+                continue;
+            }
+            let k = if matches!(sim.origin[after - t5], V(_)) { 0 } else { 2 };
+            let first = sim.origin.iter().position(|o| if k == 0 { matches!(o, V(_)) } else { matches!(o, J(_)) }).unwrap();
+            let shift = x.read_pos - x.equiv.0.max(t5 + first + 1);
+            window[k].extend((x.germline_pos - shift..x.germline_pos + if ins { 0 } else { x.len }).map(|u| label(k, u)));
+        }
+        let outside = |k: usize, l: &[String]| -> Vec<String> {
+            l.iter().filter(|x| !window[k].iter().any(|w| x.starts_with(&format!("{w}:")))).cloned().collect()
+        };
+        let mut truth: [Vec<String>; 3] = Default::default();
         for (k, seg) in ["v", "d", "j"].iter().enumerate() {
             let n = sim.origin.iter().filter(|o| matches!((k, o), (0, V(_)) | (1, D(_)) | (2, J(_)))).count();
             if n == 0 {
@@ -704,34 +730,22 @@ fn segment_mutations_from_events() {
                 continue;
             }
             let got = ls(&rows, &format!("{seg}_mutations"), r);
-            assert_eq!(got, want[k], "{seg} row {r}");
+            assert_eq!(outside(k, &got), outside(k, &want[k]), "{seg} row {r}");
+            realigned += usize::from(got != want[k]);
             assert_eq!(i(&rows, &format!("{seg}_mutation_count"), r), Some(got.len() as i64));
             let freq = f(&rows, &format!("{seg}_mutation_frequency"), r).unwrap();
             assert!((freq - got.len() as f64 / n as f64).abs() < 1e-12, "{seg} row {r}");
-            total += got.len();
             if k == 1 && sim.d_inverted && !got.is_empty() {
                 inverted += 1;
             }
+            truth[k] = got;
         }
-        assert_eq!(total, ls(&rows, "mutations", r).len(), "row {r}");
-        // each V aa change sits in an IMGT codon holding a V nt change, except next to a deletion: the
-        // left-normalized alignment can change a codon there with no substitution (decision 0026)
-        let gapped = sim.v.sequence_gapped.as_bytes();
-        let gi: Vec<usize> = (0..gapped.len()).filter(|&g| gapped[g] != b'.').collect();
-        let near_deletion: Vec<usize> = ls(&rows, "v_deletions", r)
-            .iter()
-            .flat_map(|d| {
-                let pos: usize = d[4..d.find(':').unwrap()].parse().unwrap();
-                let u = gi.iter().position(|&g| g + 1 == pos).unwrap();
-                (u..u + d.rsplit(':').next().unwrap().len()).map(|x| gi[x] / 3 + 1).collect::<Vec<_>>()
-            })
-            .collect();
+        // the read's mutation list is the net events
+        assert_eq!(np + want.iter().map(Vec::len).sum::<usize>(), ls(&rows, "mutations", r).len(), "row {r}");
+        // nt and aa lists share one alignment: each V aa change sits in an IMGT codon holding a V nt change
         for m in ls(&rows, "v_mutations_aa", r) {
             let c: usize = m[4..m.find(':').unwrap()].parse().unwrap();
-            if !want[0].iter().any(|x| (3 * c - 2..=3 * c).contains(&x[4..x.find(':').unwrap()].parse().unwrap())) {
-                assert!(near_deletion.iter().any(|&n| n.abs_diff(c) <= 1), "{m}");
-                aa_without_nt += 1;
-            }
+            assert!(truth[0].iter().any(|x| (3 * c - 2..=3 * c).contains(&x[4..x.find(':').unwrap()].parse().unwrap())), "{m} row {r}");
             v_aa += 1;
         }
         // the observable indel, in germline numbering of its segment
@@ -756,15 +770,11 @@ fn segment_mutations_from_events() {
                 let shift = x.read_pos - x.equiv.0.max(t5 + first.unwrap() + 1);
                 shifted += usize::from(shift > 0);
                 let germ = if is_v { sim.v.sequence() } else { sim.j.sequence() };
-                let mut bases = x.bases.clone();
                 let u = if ins { x.germline_pos - 1 - shift } else { x.germline_pos - shift };
-                if ins {
-                    let mut b = bases.into_bytes();
-                    b.rotate_right(shift % x.len);
-                    bases = String::from_utf8(b).unwrap();
-                } else {
-                    bases = germ[u..u + x.len].to_string();
-                }
+                // an insertion's bases are the read bases the normalized placement sets aside (the generated
+                // bases rotated when no mutation lies between the placements)
+                let a = x.read_pos - shift - t5;
+                let bases = if ins { String::from_utf8(sim.read[a..a + x.len].to_vec()).unwrap() } else { germ[u..u + x.len].to_string() };
                 let (seg, pos) = match (is_v, sim.origin[after]) {
                     (true, _) => ("v", format!("IMGT{}", gapped(u) + 1)),
                     (false, J(_)) => ("j", (u + 1).to_string()),
@@ -776,9 +786,9 @@ fn segment_mutations_from_events() {
         assert_eq!(got, want, "row {r}");
         seg_indels += got.len();
     }
-    let counts = (inverted, v_aa, seg_indels, shifted);
-    eprintln!("aa changes beside a deletion without an nt change: {aa_without_nt}");
-    assert!(inverted > 20 && v_aa > 1000 && seg_indels > 300 && shifted > 50, "{counts:?}");
+    let counts = (inverted, v_aa, seg_indels, shifted, realigned);
+    eprintln!("(inverted D, V aa changes, segment indels, shifted, lists realigned off the events) {counts:?}");
+    assert!(inverted > 20 && v_aa > 1000 && seg_indels > 300 && shifted > 50 && realigned > 0, "{counts:?}");
 }
 
 /// A homopolymer indel generated right of its leftmost equivalent placement is reported at
@@ -864,9 +874,14 @@ fn aa_denominator_follows_left_normalized_deletions() {
     assert!(tested > 100 && moved > 5, "{tested} {moved}");
 }
 
-/// Rebuilding the V aa mutation list from the read and the normalized deletion placement gives truth's list.
+/// An independent left-normalizing aligner, driven only by the read, the origin map's segment span
+/// and the truth indel strings: the segment's read bases, in order, fill its germline positions,
+/// skipping the deleted ones and setting aside the inserted bases after each insertion's left
+/// base. Its nt list, counts, frequency and aa list must equal truth's for V and J on every row
+/// with an indel in that segment (rulings A3, A13, A15, A16).
 #[test]
-fn v_aa_mutations_from_normalized_alignment() {
+fn segment_mutations_from_normalized_alignment() {
+    use abstar_generate::Origin::{J, V};
     // standard genetic code, TCAG order
     const AA: &[u8; 64] = b"FFLLSSSSYY**CC*WLLLLPPPPHHQQRRRRIIIMTTTTNNKKSSRRVVVVAAAADDEEGGGG";
     let tr = |c: &[u8]| {
@@ -874,47 +889,114 @@ fn v_aa_mutations_from_normalized_alignment() {
         AA[16 * k(c[0]) + 4 * k(c[1]) + k(c[2])] as char
     };
     let b = igh();
-    let p = GenerateParams { indel_rate: 1.0, mutation: "uniform:0.05-0.25".parse().unwrap(), ..params(4000, 27) };
+    let p = GenerateParams {
+        indel_rate: 1.0,
+        indel_duplication: true,
+        mutation: "uniform:0.05-0.25".parse().unwrap(),
+        ..busy(4000, 27)
+    };
     let rows = one(&generate_in_memory(&b, &p).unwrap());
-    let mut tested = 0;
+    // [segment][deletion, insertion]: rows tested, rows whose truth nt list differs from the generated
+    // placement's (the events in germline numbering), rows mismatching the rebuild
+    let (mut tested, mut moved, mut bad) = ([[0; 2]; 2], [[0; 2]; 2], [[0; 2]; 2]);
     for r in 0..rows.num_rows() {
-        let dels = ls(&rows, "v_deletions", r);
-        if dels.is_empty() || col(&rows, "v_mutations_aa").is_null(r) {
-            continue;
-        }
         let sim = simulated(&b, &p, r);
         let gapped = sim.v.sequence_gapped.as_bytes();
         let gi: Vec<usize> = (0..gapped.len()).filter(|&g| gapped[g] != b'.').collect();
-        let g = sim.v.sequence().into_bytes();
-        let mut deleted = vec![false; g.len()];
-        for d in &dels {
-            let pos: usize = d[4..d.find(':').unwrap()].parse().unwrap();
-            let u = gi.iter().position(|&x| x + 1 == pos).unwrap();
-            (u..u + d.rsplit(':').next().unwrap().len()).for_each(|x| deleted[x] = true);
-        }
-        // the segment's read bases, in order, laid onto the germline positions not deleted
-        let mut bases = sim.origin.iter().enumerate().filter(|(_, o)| matches!(o, abstar_generate::Origin::V(_))).map(|(k, _)| sim.read[k]);
-        let first = sim.origin.iter().find_map(|o| if let abstar_generate::Origin::V(x) = o { gi.iter().position(|&y| y == *x) } else { None }).unwrap();
-        let mut aligned: Vec<Option<u8>> = vec![None; g.len()];
-        for u in (first..g.len()).filter(|&u| !deleted[u]) {
-            aligned[u] = bases.next();
-        }
-        let mut want = Vec::new();
-        for n in 1..=gapped.len() / 3 {
-            if gapped[3 * n - 3..3 * n].contains(&b'.') {
+        for (k, seg) in ["v", "j"].into_iter().enumerate() {
+            let (ins, dels) = (ls(&rows, &format!("{seg}_insertions"), r), ls(&rows, &format!("{seg}_deletions"), r));
+            if ins.is_empty() && dels.is_empty() {
                 continue;
             }
-            let u = gi.iter().position(|&x| x == 3 * n - 3).unwrap();
-            let Some(read3) = (u..u + 3).map(|x| aligned[x]).collect::<Option<Vec<u8>>>() else { continue };
-            let (from, to) = (tr(&g[u..u + 3]), tr(&read3));
-            if from != to {
-                want.push(format!("IMGT{n}:{from}>{to}"));
+            let g = if k == 0 { sim.v.sequence().into_bytes() } else { sim.j.sequence().into_bytes() };
+            let ungapped = |o: abstar_generate::Origin| match (k, o) {
+                (0, V(x)) => gi.iter().position(|&y| y == x),
+                (1, J(u)) => Some(u),
+                _ => None,
+            };
+            let label = |u: usize| if k == 0 { format!("IMGT{}", gi[u] + 1) } else { (u + 1).to_string() };
+            let at = |x: &str| {
+                let lab = &x[..x.find(':').unwrap()];
+                (0..g.len()).find(|&u| label(u) == lab).unwrap()
+            };
+            let mut deleted = vec![false; g.len()];
+            for d in &dels {
+                let u = at(d);
+                (u..u + d.rsplit(':').next().unwrap().len()).for_each(|x| deleted[x] = true);
+            }
+            // (germline base left of the insertion, inserted bases)
+            let inserted: Vec<(usize, Vec<u8>)> = ins.iter().map(|x| (at(x), x.rsplit(':').next().unwrap().as_bytes().to_vec())).collect();
+            let first = sim.origin.iter().position(|&o| ungapped(o).is_some()).unwrap();
+            let last = sim.origin.iter().rposition(|&o| ungapped(o).is_some()).unwrap();
+            let (mut aligned, mut ins_ok): (Vec<Option<u8>>, bool) = (vec![None; g.len()], true);
+            let (mut u, mut x) = (ungapped(sim.origin[first]).unwrap(), first);
+            while x <= last {
+                while deleted[u] {
+                    u += 1;
+                }
+                aligned[u] = Some(sim.read[x]);
+                x += 1;
+                if let Some((_, bases)) = inserted.iter().find(|y| y.0 == u) {
+                    ins_ok &= sim.read[x..x + bases.len()] == bases[..]; // the inserted bases are the read's
+                    x += bases.len();
+                }
+                u += 1;
+            }
+            let nt: Vec<String> = (0..g.len())
+                .filter_map(|u| aligned[u].filter(|x| !x.eq_ignore_ascii_case(&g[u])).map(|x| format!("{}:{}>{}", label(u), g[u] as char, x as char)))
+                .collect();
+            let n = aligned.iter().flatten().count();
+            // codons as (label, first ungapped base): V by IMGT codon, J from Trp/Phe118
+            let codons: Vec<(String, usize)> = if k == 0 {
+                (1..=gapped.len() / 3)
+                    .filter(|c| !gapped[3 * c - 3..3 * c].contains(&b'.'))
+                    .map(|c| (format!("IMGT{c}"), gi.iter().position(|&x| x == 3 * c - 3).unwrap()))
+                    .collect()
+            } else {
+                let s0 = sim.j.anchor.unwrap() % 3;
+                (s0..).step_by(3).take_while(|u| u + 3 <= g.len()).map(|u| (((u - s0) / 3 + 1).to_string(), u)).collect()
+            };
+            let (mut aa, mut nc) = (Vec::new(), 0);
+            for (lab, u) in codons {
+                let Some(read3) = (u..u + 3).map(|x| aligned[x]).collect::<Option<Vec<u8>>>() else { continue };
+                nc += 1;
+                let (from, to) = (tr(&g[u..u + 3]), tr(&read3));
+                if from != to {
+                    aa.push(format!("{lab}:{from}>{to}"));
+                }
+            }
+            // the generated placement's list: the net mutation events at the segment's bases
+            let t5 = sim.truncate_5;
+            let events: Vec<String> = (first..=last)
+                .filter_map(|i| {
+                    let u = ungapped(sim.origin[i])?;
+                    let hit = sim.mutations.iter().any(|m| m.pos == i + t5) && !sim.read[i].eq_ignore_ascii_case(&g[u]);
+                    hit.then(|| format!("{}:{}>{}", label(u), g[u] as char, sim.read[i] as char))
+                })
+                .collect();
+            let kind = usize::from(!ins.is_empty());
+            let got = ls(&rows, &format!("{seg}_mutations"), r);
+            tested[k][kind] += 1;
+            moved[k][kind] += usize::from(got != events);
+            let freq = f(&rows, &format!("{seg}_mutation_frequency"), r).unwrap();
+            let ok = ins_ok
+                && got == nt
+                && i(&rows, &format!("{seg}_mutation_count"), r) == Some(nt.len() as i64)
+                && (freq - nt.len() as f64 / n as f64).abs() < 1e-12
+                && ls(&rows, &format!("{seg}_mutations_aa"), r) == aa
+                && i(&rows, &format!("{seg}_mutation_count_aa"), r) == Some(aa.len() as i64)
+                && f(&rows, &format!("{seg}_mutation_frequency_aa"), r) == (nc > 0).then(|| aa.len() as f64 / nc as f64);
+            if !ok {
+                if bad[k][kind] < 3 {
+                    eprintln!("{seg} row {r} {ins:?} {dels:?}: truth {got:?}, rebuilt {nt:?}");
+                }
+                bad[k][kind] += 1;
             }
         }
-        assert_eq!(ls(&rows, "v_mutations_aa", r), want, "row {r}");
-        tested += 1;
     }
-    assert!(tested > 150, "{tested}");
+    eprintln!("[V, J] x [deletion, insertion] rows: tested {tested:?}, truth differs from the events {moved:?}, mismatching the rebuild {bad:?}");
+    assert_eq!(bad, [[0; 2]; 2]);
+    assert!(tested.iter().flatten().all(|&x| x > 50) && moved[0].iter().all(|&x| x > 5), "{tested:?} {moved:?}");
 }
 
 /// The constant region's germline span is truth too, so its mutation fields can be graded.
