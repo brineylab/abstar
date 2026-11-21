@@ -163,3 +163,68 @@ def test_grade_round_trip():
             assert r["accuracy"] == 1.0, r
     bad = g.filter((pl.col("accuracy") < 1) & ~pl.col("field").is_in(list(boundary)))
     assert bad.height == 0, bad
+
+
+def _pos(x):
+    return int(x.split(":")[0].removeprefix("IMGT"))
+
+
+def test_alternative_valid_cuts_match_generator_counts():
+    """An annotator cutting V earlier / J later (a valid cut) scores 100% on counts and frequencies, aa included."""
+    from abstar._grade import _alleles
+
+    db = _alleles("human")
+    truth = abstar.generate(2500, "IGH", seed=4, preset="bnab")
+    truth = truth.filter(~pl.col("has_indel") & ~pl.col("unrecoverable_v") & ~pl.col("unrecoverable_j") & pl.col("v_mutations").is_not_null() & pl.col("j_mutations").is_not_null())
+
+    def vfields(r, end_cut):
+        gapped = db[r["v_call"]][0]
+        m = [i + 1 for i, ch in enumerate(gapped) if ch != "."]
+        ue = r["v_germline_end"] - (r["v_sequence_end"] - end_cut)
+        lo, hi = m[r["v_germline_start"] - 1], m[ue - 1]
+        codons = [n for n in range(1, len(gapped) // 3 + 1) if 3 * n - 2 >= lo and 3 * n <= hi and "." not in gapped[3 * n - 3 : 3 * n]]
+        nt = [x for x in r["v_mutations"] if _pos(x) <= hi]
+        aa = [x for x in r["v_mutations_aa"] if _pos(x) in codons]
+        return {"v_sequence_end": end_cut, "v_germline_end": ue, "v_mutations": nt, "v_mutations_aa": aa, "v_mutation_count": len(nt),
+                "v_mutation_count_aa": len(aa), "v_mutation_frequency": len(nt) / (ue - r["v_germline_start"] + 1),
+                "v_mutation_frequency_aa": len(aa) / len(codons) if codons else None}
+
+    def jfields(r, start_cut):
+        s0 = db[r["j_call"]][1] % 3
+        gs = r["j_germline_start"] + (start_cut - r["j_sequence_start"])
+        ge = r["j_germline_end"]
+        codons = [n for n in range(1, ge) if s0 + 3 * n - 2 >= gs and s0 + 3 * n <= ge]
+        nt = [x for x in r["j_mutations"] if _pos(x) >= gs]
+        aa = [x for x in r["j_mutations_aa"] if _pos(x) in codons]
+        return {"j_sequence_start": start_cut, "j_germline_start": gs, "j_mutations": nt, "j_mutations_aa": aa, "j_mutation_count": len(nt),
+                "j_mutation_count_aa": len(aa), "j_mutation_frequency": len(nt) / (ge - gs + 1),
+                "j_mutation_frequency_aa": len(aa) / len(codons) if codons else None}
+
+    rows = []
+    for r in truth.iter_rows(named=True):
+        # the formulas must reproduce the generator's own values at the true cut
+        for f, cut, k in ((vfields, r["v_sequence_end"], "v"), (jfields, r["j_sequence_start"], "j")):
+            same = f(r, cut)
+            for key, val in same.items():
+                if key.startswith(k) and "frequency" in key and val is not None:
+                    assert val == pytest.approx(r[key]), (r["sequence_id"], key)
+                elif key.startswith(k) and "count" in key:
+                    assert val == r[key], (r["sequence_id"], key)
+        v_alt = [x for x in r["v_sequence_end_valid"] if x < r["v_sequence_end"]]
+        j_alt = [x for x in r["j_sequence_start_valid"] if x > r["j_sequence_start"]]
+        if v_alt and j_alt:
+            rows.append({"sequence_id": r["sequence_id"], "v_call": r["v_call"], "j_call": r["j_call"], "v_germline_start": r["v_germline_start"],
+                         "j_germline_end": r["j_germline_end"], "v_insertions": [], "v_deletions": [], "j_insertions": [], "j_deletions": [],
+                         **vfields(r, min(v_alt)), **jfields(r, max(j_alt))})
+    assert len(rows) >= 10
+    g = abstar.grade(truth, pl.DataFrame(rows)).filter(pl.col("subset") == "all")
+    for seg in "vj":
+        for p in ("mutations", "mutations_aa", "mutation_count", "mutation_count_aa", "mutation_frequency", "mutation_frequency_aa"):
+            r = _row(g, f"{seg}_{p}")
+            assert r["n"] >= 10 and r["accuracy"] == 1.0, (seg, p, r)
+
+
+def test_missing_cut_column_reports_absent():
+    calls = pl.DataFrame({"sequence_id": ["a", "b", "c"], "v_call": ["IGHV1-18*01"] * 3, "v_germline_start": [1] * 3,
+                          "v_germline_end": [10] * 3, "v_mutations": [["IMGT3:A>C"], [], []]})
+    assert _row(abstar.grade(_truth(), calls), "v_mutations")["n"] == 0

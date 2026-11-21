@@ -32,17 +32,13 @@ def _null_eq(t, c):
     return t is None and c is None
 
 
-def _gapped_maps(germline_db):
-    """V allele name -> IMGT position of each ungapped base (index 0 is base 1)."""
+def _alleles(germline_db):
+    """Allele name -> (gapped sequence, anchor or None)."""
     from . import germline
 
     path = germline.resolve(germline_db)[0] / "alleles.tsv"
     with open(path, newline="") as f:
-        return {
-            r["name"]: [i + 1 for i, ch in enumerate(r["sequence_gapped"]) if ch != "."]
-            for r in csv.DictReader(f, delimiter="\t")
-            if r["segment"] == "V"
-        }
+        return {r["name"]: (r["sequence_gapped"], int(r["anchor"]) if r["anchor"] else None) for r in csv.DictReader(f, delimiter="\t")}
 
 
 def grade(truth: "pl.DataFrame", calls: "pl.DataFrame", germline_db: str = "human") -> "pl.DataFrame":
@@ -58,8 +54,9 @@ def grade(truth: "pl.DataFrame", calls: "pl.DataFrame", germline_db: str = "huma
     Rules worth knowing: an empty `<seg>_call_valid` makes only a null call correct;
     `gene_segment_mask` may differ from truth only at read positions the `_valid` boundary lists
     leave open, and the other masks are compared only where both gene masks agree; aa mutation
-    spans for D/J/C are conservative (a codon must lie inside the span for any frame offset),
-    since truth carries no frame offset.
+    codons count as the generator counts them: V non-gap IMGT codons wholly inside the span, D/J/C
+    codons in the generator's frames (J: anchor % 3, D: the V phase, C: continuing J), minus codons
+    with a deleted base.
     """
     import polars as pl
 
@@ -69,12 +66,17 @@ def grade(truth: "pl.DataFrame", calls: "pl.DataFrame", germline_db: str = "huma
         if r["sequence_id"] in crows:
             warnings.warn(f"duplicate sequence_id {r['sequence_id']!r} in calls; the last row is graded", stacklevel=2)
         crows[r["sequence_id"]] = r
-    gap = {}
+    allele_db = {}
 
-    def gmap(allele):
-        if not gap:
-            gap.update(_gapped_maps(germline_db))
-        return gap.get(allele)
+    def allele(name):
+        if not allele_db:
+            allele_db.update(_alleles(germline_db))
+        return allele_db.get(name)
+
+    def gmap(name):
+        """IMGT position of each ungapped base of a V allele (index 0 is base 1), or None."""
+        a = allele(name)
+        return None if a is None else [i + 1 for i, ch in enumerate(a[0]) if ch != "."]
 
     def ok(t, seg):  # recoverable
         return not t.get(f"unrecoverable_{seg}")
@@ -156,17 +158,58 @@ def grade(truth: "pl.DataFrame", calls: "pl.DataFrame", germline_db: str = "huma
             return all(a == b for a, b, x, y in zip(tm, cm, tg, cg) if x == y)
         return f
 
-    def mkspan(seg, allele, ulo, uhi):
-        """(ulo, uhi, lo, hi, nlo, nhi): ungapped span, nt filter span, codon filter span."""
+    def frame(t, seg):
+        """0-based germline index of the segment's codon 1 (the generator's frames), or None."""
         if seg == "v":
-            m = gmap(allele)
+            return None
+        if seg == "d":
+            try:
+                phase = (t["d_sequence_start"] - t["v_sequence_end"] + t["v_germline_end"] - 1) % 3
+                return (t["d_germline_start"] - 1 - phase) % 3
+            except TypeError:
+                return None
+        a = allele(t["j_call"]) if t.get("j_call") else None
+        if a is None or a[1] is None:
+            return None
+        return a[1] % 3 if seg == "j" else (a[1] - len(a[0].replace(".", ""))) % 3
+
+    def mkspan(seg, t, ulo, uhi):
+        """(ulo, uhi, lo, hi, nlo, nhi): ungapped span, nt filter span, codon filter span (codons wholly inside)."""
+        if seg == "v":
+            m = gmap(t["v_call"])
             if m is None or uhi > len(m):  # ponytail: allele missing from germline_db, V span left unrestricted
                 return ulo, uhi, 0, 10**9, 0, 10**9
             lo, hi = (m[ulo - 1], m[uhi - 1]) if ulo <= uhi else (1, 0)
             return ulo, uhi, lo, hi, _ceil3(lo + 2), hi // 3
-        return ulo, uhi, ulo, uhi, _ceil3(ulo + 2), (uhi - 2) // 3
+        s0 = frame(t, seg)
+        if s0 is None:  # no frame known: codons unrestricted
+            return ulo, uhi, ulo, uhi, 0, 10**9
+        return ulo, uhi, ulo, uhi, max(1, _ceil3(ulo - s0 + 2)), (uhi - s0) // 3
 
-    # (germline column, read column) of the ends whose cut is ambiguous; every other end must match truth.
+    def aa_denom(row, seg, t, sp):
+        """Codons counted for the aa frequency: those wholly inside the span, minus gap codons and codons with a deleted base."""
+        nlo, nhi = sp[4], sp[5]
+        if nhi >= 10**9:
+            return 10**9
+        codons = set(range(max(nlo, 1), nhi + 1))
+        if seg == "v":
+            gapped = allele(t["v_call"])[0]
+            codons = {n for n in codons if "." not in gapped[3 * n - 3 : 3 * n]}
+            m = gmap(t["v_call"])
+            inv = {p: u for u, p in enumerate(m, 1)}
+            for x in row["v_deletions"]:
+                u = inv.get(_pos(x))
+                for i in range(len(x.split(":")[2])) if u else ():
+                    if u - 1 + i < len(m):
+                        codons.discard(_ceil3(m[u - 1 + i]))
+        else:
+            s0 = frame(t, seg)
+            for x in row[f"{seg}_deletions"]:
+                for p in range(_pos(x), _pos(x) + len(x.split(":")[2])):
+                    codons.discard((p - s0 - 1) // 3 + 1)
+        return len(codons)
+
+    # read column of the ends whose cut is ambiguous; every other end must match truth.
     cuts = {"v": {"end": "v_sequence_end"}, "d": {"start": "d_sequence_start", "end": "d_sequence_end"}, "j": {"start": "j_sequence_start"}}
 
     def span_consistent(t, c, seg):
@@ -193,7 +236,7 @@ def grade(truth: "pl.DataFrame", calls: "pl.DataFrame", germline_db: str = "huma
         }[part]
         derived_part = part.startswith("mutation_")
 
-        def val(row, sp):
+        def val(row, sp, t):
             ulo, uhi, lo, hi, nlo, nhi = sp
             aa = part.endswith("_aa")
             muts = sorted(m for m in row[f"{seg}_{'mutations_aa' if aa else 'mutations'}"] if (nlo <= _pos(m) <= nhi if aa else lo <= _pos(m) <= hi))
@@ -204,7 +247,7 @@ def grade(truth: "pl.DataFrame", calls: "pl.DataFrame", germline_db: str = "huma
             if part.startswith("mutation_count"):
                 return len(muts)
             if aa:
-                denom = max(0, nhi - nlo + 1)
+                denom = aa_denom(row, seg, t, sp)
             else:
                 deleted = sum(len(x.split(":")[2]) for x in row[f"{seg}_deletions"] if lo <= _pos(x) <= hi)
                 denom = max(0, uhi - ulo + 1) - deleted
@@ -224,17 +267,16 @@ def grade(truth: "pl.DataFrame", calls: "pl.DataFrame", germline_db: str = "huma
                 return all(_null_eq(t[x], c.get(x)) for x in cols + g)
             if not span_consistent(t, c, seg):
                 return False
-            allele = t[f"{seg}_call"]
-            tspan, cspan = mkspan(seg, allele, t[g[0]], t[g[1]]), mkspan(seg, allele, c[g[0]], c[g[1]])
-            shared = mkspan(seg, allele, max(t[g[0]], c[g[0]]), min(t[g[1]], c[g[1]]))
+            tspan, cspan = mkspan(seg, t, t[g[0]], t[g[1]]), mkspan(seg, t, c[g[0]], c[g[1]])
+            shared = mkspan(seg, t, max(t[g[0]], c[g[0]]), min(t[g[1]], c[g[1]]))
             if not derived_part:
-                return eq(val(t, shared), val(c, shared))
+                return eq(val(t, shared, t), val(c, shared, t))
             field, reported = f"{seg}_{part}", c.get(f"{seg}_{part}")
             if tspan == cspan:  # identical spans: the reported value is compared with truth directly
-                return eq(reported, t[field] if t.get(field) is not None else val(t, tspan))
+                return eq(reported, t[field] if t.get(field) is not None else val(t, tspan, t))
             # differing (valid) spans: the reported value must match the annotator's own list over its own span,
             # and both lists must agree over the shared span
-            return eq(reported, val(c, cspan)) and eq(val(t, shared), val(c, shared))
+            return eq(reported, val(c, cspan, t)) and eq(val(t, shared, t), val(c, shared, t))
         return f
 
     fields: dict = {}
@@ -255,8 +297,9 @@ def grade(truth: "pl.DataFrame", calls: "pl.DataFrame", germline_db: str = "huma
             need = {f"{seg}_{p}", f"{seg}_germline_start", f"{seg}_germline_end", f"{seg}_call"}
             if p.startswith("mutation_"):
                 need.add(f"{seg}_mutations_aa" if p.endswith("_aa") else f"{seg}_mutations")
-            if p == "mutation_frequency":
+            if p in ("mutation_frequency", "mutation_frequency_aa"):
                 need.add(f"{seg}_deletions")
+            need |= {col for col in cuts.get(seg, {}).values()}
             fields[f"{seg}_{p}"] = (tuple(sorted(need)), mut_fn(seg, p))
 
     subsets = ["all"] + [f for f in _FLAGS if f in tcols]
