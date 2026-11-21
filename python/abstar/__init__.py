@@ -2,7 +2,7 @@ from importlib.metadata import version as _version
 
 __version__ = _version("abstar")
 
-__all__ = ["run", "RunSummary", "InputSummary", "AbstarError", "germline"]
+__all__ = ["run", "RunSummary", "InputSummary", "AbstarError", "germline", "generate"]
 
 
 def __getattr__(name):
@@ -15,8 +15,8 @@ def __getattr__(name):
         from .errors import AbstarError
 
         return AbstarError
-    if name == "germline":
+    if name in ("germline", "generate"):  # `generate` is a callable module
         import importlib
 
-        return importlib.import_module(".germline", __name__)
+        return importlib.import_module(f".{name}", __name__)
     raise AttributeError(f"module 'abstar' has no attribute {name!r}")

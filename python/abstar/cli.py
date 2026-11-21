@@ -18,6 +18,8 @@ app = typer.Typer(
 )
 germline_app = typer.Typer(help="Build, list and inspect germline databases.", no_args_is_help=True)
 app.add_typer(germline_app, name="germline")
+model_app = typer.Typer(help="List and inspect recombination models for abstar generate.", no_args_is_help=True)
+app.add_typer(model_app, name="model")
 
 
 def _version(value: bool) -> None:
@@ -176,12 +178,111 @@ def germline_info(
         print(f"  {w['allele']}: {w['message']}")
 
 
+def _gen_line(s) -> str:
+    return f"n={s.n} productive={s.productive} attempts={s.attempts} seed={s.seed}"
+
+
+@app.command()
+def generate(
+    n: Annotated[int, typer.Option("--n", help="Number of reads.")],
+    locus: Annotated[str, typer.Option("--locus", help="IGH, IGK, IGL, TRA or TRB with the built-in models.")],
+    output_dir: Annotated[Optional[Path], typer.Argument(help="Write files here; omit to stream FASTA to stdout.")] = None,
+    germline_db: Annotated[str, typer.Option("--germline-db", "-g", help="Database name or path.")] = "human",
+    model: Annotated[Optional[str], typer.Option("--model", help="Model name or path (default: <species>-<locus>).")] = None,
+    preset: Annotated[Optional[str], typer.Option("--preset", help="naive, memory, bnab or tcr; options override it.")] = None,
+    seed: Annotated[Optional[int], typer.Option("--seed", help="Random seed (default: drawn and recorded).")] = None,
+    mutation: Annotated[Optional[str], typer.Option("--mutation", help="V mutation frequency: X, uniform:LO-HI or beta:A,B.")] = None,
+    long_cdr3: Annotated[Optional[float], typer.Option("--long-cdr3", help="Per-junction weight of the long-tail N lengths.")] = None,
+    indels: Annotated[Optional[float], typer.Option("--indels", help="Per-read probability of one indel.")] = None,
+    frameshift_indels: Annotated[bool, typer.Option("--frameshift-indels", help="Allow indels that shift the frame.")] = False,
+    truncate_5p: Annotated[Optional[str], typer.Option("--truncate-5p", help="nt removed from the 5' end: X, uniform:LO-HI or beta:A,B.")] = None,
+    truncate_3p: Annotated[Optional[str], typer.Option("--truncate-3p", help="nt removed from the 3' end: X, uniform:LO-HI or beta:A,B.")] = None,
+    constant: Annotated[Optional[int], typer.Option("--constant", help="Append this many nt of constant region.")] = None,
+    productive_only: Annotated[bool, typer.Option("--productive-only", help="Keep only productive reads.")] = False,
+    shm_table: Annotated[Optional[Path], typer.Option("--shm-table", help="Directory of S5F CSVs to mutate with.")] = None,
+    name: Annotated[str, typer.Option("--name", help="Output file name stem.")] = "generated",
+    format: Annotated[Optional[list[str]], typer.Option("--format", help="Truth table: airr or parquet (repeatable; needs OUTPUT_DIR).")] = None,
+    threads: Annotated[Optional[int], typer.Option("--threads", help="Worker threads (>= 1).")] = None,
+    json_out: Annotated[bool, typer.Option("--json", help="Machine-readable output.")] = False,
+    quiet: Annotated[bool, typer.Option("--quiet", "-q", help="Suppress the summary.")] = False,
+) -> None:
+    """Simulate V(D)J reads with truth. Without OUTPUT_DIR, FASTA streams to stdout."""
+    if output_dir is None and format:
+        raise AbstarError("INVALID_ARGUMENT", "--format requires OUTPUT_DIR (without it only FASTA is written)")
+    options = {
+        "mutation": mutation, "long_cdr3_weight": long_cdr3, "indels": indels, "truncate_5p": truncate_5p,
+        "truncate_3p": truncate_3p, "constant": constant, "shm_table": None if shm_table is None else str(shm_table),
+        # flags only override a preset when given
+        "frameshift_indels": frameshift_indels or None, "productive_only": productive_only or None,
+    }
+    from . import generate as gen
+
+    kw = dict(germline_db=germline_db, model=model, preset=preset, seed=seed, threads=threads, **options)
+    if output_dir is not None:
+        s = gen.generate(n, locus, output_dir=output_dir, name=name, formats=format or ["airr"], **kw)
+        if json_out:
+            print(_json(s))
+        elif not quiet:
+            print(_gen_line(s))
+            for p in [s.fasta, *s.truth.values(), s.generate_json]:
+                print(f"  {p}")
+        for w in [] if quiet or json_out else s.warnings:
+            _err(f"warning: {w}")
+        return
+
+    from . import _core
+
+    db_path, model_path, params = gen._prepare(n, locus, germline_db, model, preset, seed, threads, options)
+    sys.stdout.flush()
+    sys.stderr.flush()
+    try:
+        s = gen._summary(_core.generate_fasta_to_stdout(db_path, model_path, params))
+    except _core.CoreError as e:
+        raise from_core(e) from None
+    finally:
+        # Rust wrote to fd 1 directly; a closed pipe must not raise at interpreter shutdown.
+        os.dup2(os.open(os.devnull, os.O_WRONLY), 1)
+    if json_out:
+        _err(_json(s))
+    elif not quiet:
+        _err("\n".join([_gen_line(s)] + [f"warning: {w}" for w in s.warnings]))
+
+
+@model_app.command("list")
+def model_list_cmd(json_out: Annotated[bool, typer.Option("--json", help="Machine-readable output.")] = False) -> None:
+    """List built-in and user recombination models."""
+    from .generate import list_models
+
+    ms = list_models()
+    if json_out:
+        print(json.dumps([asdict(m) for m in ms], default=str))
+    for m in [] if json_out else ms:
+        print(f"{m.name}\t{m.kind}\t{m.species}\t{m.locus}\t{m.path}")
+
+
+@model_app.command("info")
+def model_info_cmd(
+    name: Annotated[str, typer.Argument(help="Model name or path.")],
+    json_out: Annotated[bool, typer.Option("--json", help="Machine-readable output.")] = False,
+) -> None:
+    """Show details of one recombination model."""
+    from .generate import model_info
+
+    m = model_info(name)
+    if json_out:
+        print(_json(m))
+        return
+    print(f"{m.name} ({m.kind}): {m.path}\n{m.description}\nspecies: {m.species}\nlocus: {m.locus}\nsources:")
+    for src in m.sources:
+        print(f"  {src['used_for']}\n    {src['citation']}")
+
+
 @app.command()
 def manual(
     topic: Annotated[Optional[str], typer.Argument(help="Topic name; omit for the whole manual.")] = None,
-    subtopic: Annotated[Optional[str], typer.Argument(help="Field name (fields) or decision ID (decisions).")] = None,
+    subtopic: Annotated[Optional[str], typer.Argument(help="Field name (fields, truth-fields) or decision ID (decisions).")] = None,
 ) -> None:
-    """Print the manual as Markdown: abstar manual [TOPIC] [SUBTOPIC]. Topics: commands, run, germline, manual, examples, fields, conventions, ambiguity, errors, decisions, migration."""
+    """Print the manual as Markdown: abstar manual [TOPIC] [SUBTOPIC]. Topics: commands, run, germline, generate, manual, examples, fields, truth-fields, conventions, ambiguity, errors, decisions, migration."""
     from . import manual as _manual
 
     print(_manual.render(topic, subtopic))

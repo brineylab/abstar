@@ -58,6 +58,7 @@ name = "abstar_py"
 version = "1.0.0-dev.0"
 dependencies = [
  "abstar_annotate",
+ "abstar_generate",
  "abstar_germline",
  "pyo3",
  "pyo3-arrow",

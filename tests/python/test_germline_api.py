@@ -89,6 +89,7 @@ def test_error_table():
         "INPUT_NOT_FOUND": 2, "INPUT_UNREADABLE": 2, "INVALID_ARGUMENT": 2,
         "OUTPUT_NAME_CONFLICT": 2, "DATABASE_NOT_FOUND": 2, "DATABASE_INVALID": 2,
         "RECIPE_INVALID": 2, "DATABASE_EXISTS": 2, "BUILTIN_NAME_CONFLICT": 2,
+        "MODEL_NOT_FOUND": 2, "MODEL_INVALID": 2,
         "IO_ERROR": 1, "INTERNAL": 1, "STRICT_RECORD_FAILURE": 3,
     }
     assert all(isinstance(v[1], str) and v[1] for v in errors.ERROR_CODES.values())

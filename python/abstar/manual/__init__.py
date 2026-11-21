@@ -10,9 +10,11 @@ TOPICS: dict[str, str] = {
     "commands": "Every command and option",
     "run": "The run command",
     "germline": "The germline commands",
+    "generate": "Synthetic reads with truth: the generate and model commands, presets, grading, limits",
     "manual": "The manual command",
     "examples": "Common commands and Python API calls",
     "fields": "Output fields (fields NAME adds the decision record)",
+    "truth-fields": "abstar generate truth table fields (truth-fields NAME adds the decision record)",
     "conventions": "Coordinates, TSV encoding, record statuses, sequence IDs",
     "ambiguity": "The primary call and ties",
     "errors": "Error codes and exit codes",
@@ -91,10 +93,8 @@ def _decisions(sub: str | None) -> str:
     return files[key].read_text()
 
 
-def _fields(sub: str | None) -> str:
-    from .. import _core
-
-    doc = tomllib.loads(_core.fields_toml())
+def _fields(toml: str, sub: str | None) -> str:
+    doc = tomllib.loads(toml)
     fields = {f["name"]: f for f in doc["field"]}
     files = _decision_files()
     if sub is not None and sub not in fields:
@@ -128,14 +128,18 @@ def _errors() -> str:
 
 
 def _topic(name: str, sub: str | None) -> str:
-    if sub is not None and name not in ("fields", "decisions"):
+    if sub is not None and name not in ("fields", "truth-fields", "decisions"):
         raise AbstarError("INVALID_ARGUMENT", f"topic {name!r} takes no subtopic")
     if name == "commands":
         return _commands(None)
     if name in ("run", "germline", "manual"):
         return _commands(name)
-    if name == "fields":
-        return _fields(sub)
+    if name in ("fields", "truth-fields"):
+        from .. import _core
+
+        return _fields(_core.fields_toml() if name == "fields" else _core.truth_toml(), sub)
+    if name == "generate":
+        return (_TOPIC_DIR / "generate.md").read_text() + "\n" + _commands("generate") + "\n" + _commands("model")
     if name == "errors":
         return _errors()
     if name == "decisions":

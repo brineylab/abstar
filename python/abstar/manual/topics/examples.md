@@ -55,6 +55,19 @@ species = "human"
 v_fasta = ["novel_v.fasta"]  # also d_fasta, j_fasta, c_fasta, ogrdb_json
 ```
 
+## Synthetic reads with truth
+
+```sh
+abstar generate --n 1000 --locus IGH --seed 1 > reads.fasta    # FASTA on stdout, summary on stderr
+abstar generate bench/ --n 10000 --locus IGH --preset bnab --format airr --format parquet
+# -> bench/generated.fasta, bench/generated.truth.tsv/.parquet, bench/generate.json
+abstar generate bench/ --n 1000 --locus IGK --mutation uniform:0-0.1 --truncate-5p uniform:0-30 --productive-only
+abstar model list                    # built-in, then user recombination models
+abstar model info human-igh          # description and cited sources
+```
+
+`abstar manual generate` covers presets and grading; `abstar manual truth-fields` defines every truth column.
+
 ## The manual
 
 ```sh
@@ -88,4 +101,10 @@ except abstar.AbstarError as e:
 abstar.germline.list()
 abstar.germline.info("human")
 abstar.germline.build("donor.toml")
+
+truth = abstar.generate(1000, "IGH", seed=1)        # truth table as a Polars DataFrame
+s = abstar.generate(1000, "IGH", seed=1, preset="bnab", output_dir="bench/", formats=["airr", "parquet"])
+s.fasta, s.truth, s.generate_json                   # paths; s.seed, s.n, s.productive, s.attempts
+abstar.generate.list_models()
+abstar.generate.model_info("human-igh")
 ```
