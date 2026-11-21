@@ -1,118 +1,111 @@
 set	field	class	count	examples
 igh_bnab	cdr3	follows a V-end/J-start cut outside _valid	22	g0277 g0419 g0452
 igh_bnab	cdr3	junction differs: other	2	g1480 g2440
-igh_bnab	cdr3	annotator junction null: Cys104 beyond every valid V end (truth places it from origin)	1	g2482
 igh_bnab	cdr3	annotator junction null: other	1	g0816
-igh_bnab	d_call	D call: read scores the call above the true D (chance placement, A26) [high_mutation]	576	g0005 g0020 g0025
-igh_bnab	d_call	D call: ties the true D (read can't decide) [high_mutation]	148	g0002 g0031 g0050
+igh_bnab	cdr3	annotator junction null: Cys104 beyond every valid V end (truth places it from origin)	1	g2482
+igh_bnab	d_call	D call: read scores the call above the true D (chance placement, A26) [high_mutation]	619	g0005 g0020 g0025
+igh_bnab	d_call	D call: ties the true D (read can't decide) [high_mutation]	157	g0002 g0031 g0050
 igh_bnab	d_call	D call: read scores the call above the true D (chance placement, A26)	138	g0017 g0041 g0059
-igh_bnab	d_call	no J hit: heavy mutation	129	g0030 g0032 g0074
 igh_bnab	d_call	D call: ties the true D (read can't decide)	53	g0037 g0135 g0241
-igh_bnab	d_call	D called, but the read holds no D base (only null is correct, A11): chance placement over N [high_mutation]	44	g0052 g0053 g0113
-igh_bnab	d_call	D not called (true D best score <=6) [high_mutation]	18	g0172 g0926 g1006
+igh_bnab	d_call	D called, but the read holds no D base (only null is correct, A11): chance placement over N [high_mutation]	45	g0052 g0053 g0113
+igh_bnab	d_call	D not called (true D best score <=6) [high_mutation]	20	g0172 g0926 g1006
 igh_bnab	d_call	D called, but the read holds no D base (only null is correct, A11): chance placement over N	16	g0304 g0510 g0875
+igh_bnab	d_call	no J hit: heavy mutation	11	g0271 g0497 g0955
 igh_bnab	d_call	D call: true D scores higher (annotator D error) [high_mutation]	6	g0966 g1989 g2469
 igh_bnab	d_call	D not called (true D best score 7-9) [high_mutation]	4	g2133 g2462 g3910
-igh_bnab	d_call	D not called (true D best score >=10) [high_mutation]	3	g0055 g0567 g3707
 igh_bnab	d_call	D not called (true D best score <=6)	3	g0001 g1838 g4928
+igh_bnab	d_call	D not called (true D best score >=10) [high_mutation]	3	g0055 g0567 g3707
 igh_bnab	d_call	D call: true D scores higher (annotator D error)	2	g3552 g4825
-igh_bnab	d_sequence_end	D boundary: follows the D call miss [high_mutation]	695	g0002 g0005 g0020
+igh_bnab	d_sequence_end	D boundary: follows the D call miss [high_mutation]	743	g0002 g0005 g0020
 igh_bnab	d_sequence_end	D boundary: follows the D call miss	189	g0001 g0017 g0037
-igh_bnab	d_sequence_end	no J hit: heavy mutation	129	g0030 g0032 g0074
-igh_bnab	d_sequence_end	D boundary: right D, cut outside _valid [high_mutation]	79	g0065 g0079 g0139
+igh_bnab	d_sequence_end	D boundary: right D, cut outside _valid [high_mutation]	83	g0065 g0079 g0139
 igh_bnab	d_sequence_end	D boundary: right D, cut outside _valid	17	g0023 g0255 g0437
-igh_bnab	d_sequence_start	D boundary: follows the D call miss [high_mutation]	709	g0002 g0005 g0020
+igh_bnab	d_sequence_end	no J hit: heavy mutation	11	g0271 g0497 g0955
+igh_bnab	d_sequence_start	D boundary: follows the D call miss [high_mutation]	755	g0002 g0005 g0020
 igh_bnab	d_sequence_start	D boundary: follows the D call miss	180	g0001 g0017 g0037
-igh_bnab	d_sequence_start	no J hit: heavy mutation	129	g0030 g0032 g0074
-igh_bnab	d_sequence_start	D boundary: right D, cut outside _valid [high_mutation]	80	g0015 g0065 g0079
+igh_bnab	d_sequence_start	D boundary: right D, cut outside _valid [high_mutation]	84	g0015 g0065 g0079
 igh_bnab	d_sequence_start	D boundary: right D, cut outside _valid	22	g0023 g0220 g0255
-igh_bnab	j_call	no J hit: heavy mutation	203	g0032 g0074 g0100
-igh_bnab	j_call	j_call: ties the true allele (a tie the _valid set misses) [high_mutation]	35	g0020 g0177 g0297
-igh_bnab	j_call	j_call: read scores the call above the true allele [high_mutation]	29	g0045 g0953 g1048
+igh_bnab	d_sequence_start	no J hit: heavy mutation	11	g0271 g0497 g0955
+igh_bnab	j_call	j_call: ties the true allele (a tie the _valid set misses) [high_mutation]	49	g0020 g0032 g0177
+igh_bnab	j_call	j_call: read scores the call above the true allele [high_mutation]	39	g0045 g0718 g0805
 igh_bnab	j_call	j_call: null call [high_mutation]	22	g0362 g0526 g0567
+igh_bnab	j_call	no J hit: heavy mutation	14	g0100 g0191 g0271
 igh_bnab	j_call	j_call: true allele scores higher (annotator error) [high_mutation]	12	g0434 g0817 g0838
 igh_bnab	j_call	j_call: ties the true allele (a tie the _valid set misses)	3	g2670 g3191 g3761
 igh_bnab	j_call	j_call: read scores the call above the true allele	2	g1760 g3272
-igh_bnab	j_sequence_start	no J hit: heavy mutation	203	g0032 g0074 g0100
-igh_bnab	j_sequence_start	j_sequence_start: follows the j call miss	79	g0020 g0177 g0297
-igh_bnab	j_sequence_start	j_sequence_start: right allele, cut outside _valid	71	g0029 g0055 g0079
-igh_bnab	junction	no J hit: heavy mutation	169	g0180 g0185 g0191
-igh_bnab	junction	follows a V-end/J-start cut outside _valid	31	g0055 g0277 g0401
-igh_bnab	junction	follows a V/J call miss	24	g0330 g0526 g0567
+igh_bnab	j_sequence_start	j_sequence_start: follows the j call miss	94	g0020 g0177 g0297
+igh_bnab	j_sequence_start	j_sequence_start: right allele, cut outside _valid	77	g0029 g0055 g0079
+igh_bnab	j_sequence_start	no J hit: heavy mutation	14	g0100 g0191 g0271
+igh_bnab	junction	follows a V-end/J-start cut outside _valid	32	g0055 g0277 g0401
+igh_bnab	junction	follows a V/J call miss	26	g0327 g0330 g0526
+igh_bnab	junction	no J hit: heavy mutation	11	g0191 g0280 g0472
 igh_bnab	junction	junction differs: other	4	g1480 g2440 g3007
 igh_bnab	junction	annotator junction null: Cys104 beyond every valid V end (truth places it from origin)	1	g2482
 igh_bnab	junction	annotator junction null: other	1	g0816
-igh_bnab	productive	no J hit: heavy mutation	169	g0180 g0185 g0191
-igh_bnab	productive	follows a V-end/J-start cut outside _valid	30	g0055 g0277 g0401
-igh_bnab	productive	follows a V/J call miss	24	g0330 g0526 g0567
+igh_bnab	productive	follows a V-end/J-start cut outside _valid	31	g0055 g0277 g0401
+igh_bnab	productive	follows a V/J call miss	26	g0327 g0330 g0526
+igh_bnab	productive	no J hit: heavy mutation	11	g0191 g0280 g0472
 igh_bnab	productive	junction differs: other	5	g1480 g2440 g3007
-igh_bnab	productive	annotator junction null: other	1	g0816
 igh_bnab	productive	annotator junction null: Cys104 beyond every valid V end (truth places it from origin)	1	g2482
+igh_bnab	productive	annotator junction null: other	1	g0816
 igh_bnab	v_call	v_call: true allele scores higher (annotator error) [high_mutation]	31	g0184 g0593 g0739
 igh_bnab	v_call	v_call: null call [high_mutation]	18	g0526 g0567 g1089
 igh_bnab	v_call	v_call: ties the true allele (a tie the _valid set misses) [high_mutation]	8	g0094 g1015 g1046
 igh_bnab	v_call	v_call: read scores the call above the true allele [high_mutation]	2	g0454 g0632
 igh_bnab	v_call	v_call: true allele scores higher (annotator error)	2	g1789 g3149
-igh_bnab	v_sequence_end	v_sequence_end: right allele, cut outside _valid	64	g0008 g0055 g0185
+igh_bnab	v_sequence_end	v_sequence_end: right allele, cut outside _valid	65	g0008 g0055 g0330
 igh_bnab	v_sequence_end	v_sequence_end: follows the v call miss	33	g0454 g0526 g0567
-igh_bnab_c	cdr3	follows a V-end/J-start cut outside _valid	12	g0572 g1140 g1341
+igh_bnab_c	cdr3	follows a V-end/J-start cut outside _valid	13	g0572 g1140 g1341
 igh_bnab_c	cdr3	junction differs: other	4	g0612 g1534 g2158
-igh_bnab_c	d_call	D call: read scores the call above the true D (chance placement, A26) [high_mutation]	571	g0001 g0010 g0011
-igh_bnab_c	d_call	D call: ties the true D (read can't decide) [high_mutation]	165	g0004 g0044 g0068
-igh_bnab_c	d_call	no J hit: heavy mutation	127	g0020 g0066 g0102
+igh_bnab_c	d_call	D call: read scores the call above the true D (chance placement, A26) [high_mutation]	619	g0001 g0010 g0011
+igh_bnab_c	d_call	D call: ties the true D (read can't decide) [high_mutation]	176	g0004 g0044 g0068
 igh_bnab_c	d_call	D call: read scores the call above the true D (chance placement, A26)	109	g0115 g0129 g0131
-igh_bnab_c	d_call	D called, but the read holds no D base (only null is correct, A11): chance placement over N [high_mutation]	46	g0125 g0215 g0431
+igh_bnab_c	d_call	D called, but the read holds no D base (only null is correct, A11): chance placement over N [high_mutation]	50	g0125 g0215 g0431
 igh_bnab_c	d_call	D call: ties the true D (read can't decide)	34	g0398 g0415 g0644
-igh_bnab_c	d_call	D not called (true D best score <=6) [high_mutation]	17	g0052 g0235 g0897
-igh_bnab_c	d_call	D call: true D scores higher (annotator D error) [high_mutation]	12	g0027 g0194 g0281
+igh_bnab_c	d_call	D not called (true D best score <=6) [high_mutation]	18	g0052 g0235 g0897
+igh_bnab_c	d_call	D call: true D scores higher (annotator D error) [high_mutation]	14	g0027 g0194 g0281
 igh_bnab_c	d_call	D called, but the read holds no D base (only null is correct, A11): chance placement over N	12	g1149 g1151 g1459
+igh_bnab_c	d_call	no J hit: heavy mutation	8	g1738 g1961 g2102
 igh_bnab_c	d_call	D not called (true D best score <=6)	4	g2233 g2405 g3721
 igh_bnab_c	d_call	D not called (true D best score >=10) [high_mutation]	3	g0280 g0615 g1073
 igh_bnab_c	d_call	D not called (true D best score 7-9) [high_mutation]	2	g0814 g4602
 igh_bnab_c	d_call	D call: true D scores higher (annotator D error)	2	g1779 g4270
-igh_bnab_c	d_call	no J hit: >= 20 J nt, mutated below the floor	1	g3747
-igh_bnab_c	d_sequence_end	D boundary: follows the D call miss [high_mutation]	723	g0001 g0004 g0010
+igh_bnab_c	d_sequence_end	D boundary: follows the D call miss [high_mutation]	779	g0001 g0004 g0010
 igh_bnab_c	d_sequence_end	D boundary: follows the D call miss	139	g0115 g0129 g0146
-igh_bnab_c	d_sequence_end	no J hit: heavy mutation	127	g0020 g0066 g0102
-igh_bnab_c	d_sequence_end	D boundary: right D, cut outside _valid [high_mutation]	74	g0179 g0242 g0351
-igh_bnab_c	d_sequence_end	D boundary: right D, cut outside _valid	16	g0172 g0305 g0537
-igh_bnab_c	d_sequence_end	no J hit: >= 20 J nt, mutated below the floor	1	g3747
-igh_bnab_c	d_sequence_start	D boundary: follows the D call miss [high_mutation]	700	g0001 g0004 g0010
+igh_bnab_c	d_sequence_end	D boundary: right D, cut outside _valid [high_mutation]	83	g0179 g0185 g0242
+igh_bnab_c	d_sequence_end	D boundary: right D, cut outside _valid	17	g0172 g0305 g0537
+igh_bnab_c	d_sequence_end	no J hit: heavy mutation	8	g1738 g1961 g2102
+igh_bnab_c	d_sequence_start	D boundary: follows the D call miss [high_mutation]	756	g0001 g0004 g0010
 igh_bnab_c	d_sequence_start	D boundary: follows the D call miss	140	g0115 g0129 g0131
-igh_bnab_c	d_sequence_start	no J hit: heavy mutation	127	g0020 g0066 g0102
-igh_bnab_c	d_sequence_start	D boundary: right D, cut outside _valid [high_mutation]	73	g0179 g0242 g0351
-igh_bnab_c	d_sequence_start	D boundary: right D, cut outside _valid	16	g0172 g0230 g0305
-igh_bnab_c	d_sequence_start	no J hit: >= 20 J nt, mutated below the floor	1	g3747
-igh_bnab_c	j_call	no J hit: heavy mutation	215	g0020 g0036 g0050
-igh_bnab_c	j_call	j_call: read scores the call above the true allele [high_mutation]	43	g0029 g0071 g0181
-igh_bnab_c	j_call	j_call: ties the true allele (a tie the _valid set misses) [high_mutation]	29	g0074 g0107 g0155
+igh_bnab_c	d_sequence_start	D boundary: right D, cut outside _valid [high_mutation]	80	g0179 g0185 g0242
+igh_bnab_c	d_sequence_start	D boundary: right D, cut outside _valid	17	g0172 g0230 g0305
+igh_bnab_c	d_sequence_start	no J hit: heavy mutation	8	g1738 g1961 g2102
+igh_bnab_c	j_call	j_call: read scores the call above the true allele [high_mutation]	48	g0029 g0071 g0181
+igh_bnab_c	j_call	j_call: ties the true allele (a tie the _valid set misses) [high_mutation]	43	g0074 g0107 g0155
+igh_bnab_c	j_call	j_call: true allele scores higher (annotator error) [high_mutation]	14	g0194 g0308 g0832
 igh_bnab_c	j_call	j_call: null call [high_mutation]	13	g0280 g0288 g0459
-igh_bnab_c	j_call	j_call: true allele scores higher (annotator error) [high_mutation]	12	g0194 g0308 g0832
+igh_bnab_c	j_call	no J hit: heavy mutation	10	g0656 g1379 g1961
 igh_bnab_c	j_call	j_call: ties the true allele (a tie the _valid set misses)	6	g0295 g1017 g3009
 igh_bnab_c	j_call	j_call: read scores the call above the true allele	5	g2048 g2543 g2832
-igh_bnab_c	j_call	no J hit: >= 20 J nt, mutated below the floor	2	g0498 g3747
-igh_bnab_c	j_sequence_start	no J hit: heavy mutation	215	g0020 g0036 g0050
-igh_bnab_c	j_sequence_start	j_sequence_start: follows the j call miss	80	g0029 g0071 g0194
-igh_bnab_c	j_sequence_start	j_sequence_start: right allele, cut outside _valid	69	g0025 g0084 g0089
-igh_bnab_c	j_sequence_start	no J hit: >= 20 J nt, mutated below the floor	2	g0498 g3747
-igh_bnab_c	junction	no J hit: heavy mutation	175	g0020 g0050 g0065
-igh_bnab_c	junction	follows a V-end/J-start cut outside _valid	21	g0572 g0815 g1140
-igh_bnab_c	junction	follows a V/J call miss	18	g0194 g0280 g0288
+igh_bnab_c	j_sequence_start	j_sequence_start: follows the j call miss	90	g0029 g0071 g0194
+igh_bnab_c	j_sequence_start	j_sequence_start: right allele, cut outside _valid	74	g0025 g0084 g0089
+igh_bnab_c	j_sequence_start	no J hit: heavy mutation	10	g0656 g1379 g1961
+igh_bnab_c	junction	follows a V-end/J-start cut outside _valid	23	g0572 g0815 g0821
+igh_bnab_c	junction	follows a V/J call miss	21	g0194 g0280 g0288
+igh_bnab_c	junction	no J hit: heavy mutation	9	g0656 g1379 g1961
 igh_bnab_c	junction	junction differs: other	5	g0612 g1534 g2158
-igh_bnab_c	junction	no J hit: >= 20 J nt, mutated below the floor	2	g0498 g3747
-igh_bnab_c	junction	annotator junction null: other	1	g1708
-igh_bnab_c	productive	no J hit: heavy mutation	175	g0020 g0050 g0065
-igh_bnab_c	productive	follows a V-end/J-start cut outside _valid	20	g0572 g0815 g1140
-igh_bnab_c	productive	follows a V/J call miss	18	g0194 g0280 g0288
+igh_bnab_c	junction	annotator junction null: other	2	g1708 g3609
+igh_bnab_c	productive	follows a V-end/J-start cut outside _valid	22	g0572 g0815 g0821
+igh_bnab_c	productive	follows a V/J call miss	20	g0194 g0280 g0288
+igh_bnab_c	productive	no J hit: heavy mutation	9	g0656 g1379 g1961
 igh_bnab_c	productive	junction differs: other	7	g0612 g1534 g2158
-igh_bnab_c	productive	no J hit: >= 20 J nt, mutated below the floor	2	g0498 g3747
-igh_bnab_c	productive	annotator junction null: other	1	g1708
+igh_bnab_c	productive	annotator junction null: other	2	g1708 g3609
 igh_bnab_c	v_call	v_call: true allele scores higher (annotator error) [high_mutation]	26	g0209 g0309 g0324
 igh_bnab_c	v_call	v_call: null call [high_mutation]	12	g0280 g0288 g0459
 igh_bnab_c	v_call	v_call: ties the true allele (a tie the _valid set misses) [high_mutation]	8	g0181 g1314 g1355
-igh_bnab_c	v_call	v_call: true allele scores higher (annotator error)	3	g0707 g1972 g2977
 igh_bnab_c	v_call	v_call: read scores the call above the true allele [high_mutation]	3	g0693 g0860 g1294
-igh_bnab_c	v_sequence_end	v_sequence_end: right allele, cut outside _valid	56	g0172 g0194 g0233
+igh_bnab_c	v_call	v_call: true allele scores higher (annotator error)	3	g0707 g1972 g2977
+igh_bnab_c	v_sequence_end	v_sequence_end: right allele, cut outside _valid	50	g0065 g0172 g0194
 igh_bnab_c	v_sequence_end	v_sequence_end: follows the v call miss	24	g0280 g0288 g0324
 igh_indels	cdr3	follows a V-end/J-start cut outside _valid	21	g0502 g0727 g0994
 igh_indels	cdr3	annotator junction null: Cys104 beyond every valid V end (truth places it from origin)	3	g0728 g2170 g2726
@@ -124,32 +117,21 @@ igh_indels	d_call	D called, but the read holds no D base (only null is correct, 
 igh_indels	d_call	D not called (true D best score <=6)	12	g0271 g1377 g1870
 igh_indels	d_call	D call: true D scores higher (annotator D error)	4	g1149 g4130 g4744
 igh_indels	d_call	D not called (true D best score >=10)	1	g0069
-igh_indels	d_call	no J hit: < 20 J nt left, below the floor and the short-fragment rule (B1)	1	g1269
 igh_indels	d_call	D not called (true D best score 7-9)	1	g2577
-igh_indels	d_call	no J hit: >= 20 J nt, mutated below the floor	1	g3268
 igh_indels	d_sequence_end	D boundary: follows the D call miss	311	g0057 g0062 g0064
 igh_indels	d_sequence_end	D boundary: right D, cut outside _valid	33	g0030 g0249 g0633
-igh_indels	d_sequence_end	no J hit: >= 20 J nt, mutated below the floor	1	g3268
-igh_indels	d_sequence_end	no J hit: < 20 J nt left, below the floor and the short-fragment rule (B1)	1	g1269
 igh_indels	d_sequence_start	D boundary: follows the D call miss	305	g0062 g0064 g0069
 igh_indels	d_sequence_start	D boundary: right D, cut outside _valid	36	g0030 g0083 g0310
-igh_indels	d_sequence_start	no J hit: >= 20 J nt, mutated below the floor	1	g3268
-igh_indels	d_sequence_start	no J hit: < 20 J nt left, below the floor and the short-fragment rule (B1)	1	g1269
 igh_indels	j_call	j_call: ties the true allele (a tie the _valid set misses)	8	g0206 g2236 g2528
 igh_indels	j_call	j_call: read scores the call above the true allele	6	g0432 g0891 g1101
 igh_indels	j_call	j_call: true allele scores higher (annotator error)	4	g1983 g2844 g3374
-igh_indels	j_call	no J hit: >= 20 J nt, mutated below the floor	1	g3268
-igh_indels	j_call	no J hit: < 20 J nt left, below the floor and the short-fragment rule (B1)	1	g1269
 igh_indels	j_sequence_start	j_sequence_start: right allele, cut outside _valid	25	g0069 g0293 g0353
 igh_indels	j_sequence_start	j_sequence_start: follows the j call miss	13	g0206 g0432 g1101
-igh_indels	j_sequence_start	no J hit: < 20 J nt left, below the floor and the short-fragment rule (B1)	1	g1269
-igh_indels	j_sequence_start	no J hit: >= 20 J nt, mutated below the floor	1	g3268
 igh_indels	junction	follows a V-end/J-start cut outside _valid	22	g0069 g0502 g0727
 igh_indels	junction	follows a V/J call miss	7	g0752 g1461 g1983
-igh_indels	junction	annotator junction null: other	4	g0552 g2336 g3613
 igh_indels	junction	annotator junction null: Cys104 beyond every valid V end (truth places it from origin)	4	g0728 g2170 g2726
+igh_indels	junction	annotator junction null: other	4	g0552 g2336 g3613
 igh_indels	junction	truth junction null, annotator reports one	2	g0930 g2984
-igh_indels	junction	no J hit: < 20 J nt left, below the floor and the short-fragment rule (B1)	1	g1269
 igh_indels	junction	junction differs: other	1	g3777
 igh_indels	productive	follows a V-end/J-start cut outside _valid	1	g4920
 igh_indels	v_call	v_call: ties the true allele (a tie the _valid set misses)	11	g0642 g0647 g0752
@@ -190,23 +172,23 @@ igh_memory_c	cdr3	truth junction null, annotator reports one	1	g2733
 igh_memory_c	d_call	D call: read scores the call above the true D (chance placement, A26)	179	g0020 g0030 g0039
 igh_memory_c	d_call	D call: ties the true D (read can't decide)	84	g0103 g0170 g0173
 igh_memory_c	d_call	D called, but the read holds no D base (only null is correct, A11): chance placement over N	45	g0148 g0270 g0347
-igh_memory_c	d_call	D not called (true D best score <=6)	7	g0387 g1999 g2003
 igh_memory_c	d_call	D call: true D scores higher (annotator D error)	7	g0708 g0871 g0995
+igh_memory_c	d_call	D not called (true D best score <=6)	7	g0387 g1999 g2003
 igh_memory_c	d_call	D not called (true D best score 7-9)	1	g2428
 igh_memory_c	d_sequence_end	D boundary: follows the D call miss	293	g0020 g0030 g0039
 igh_memory_c	d_sequence_end	D boundary: right D, cut outside _valid	38	g0164 g0246 g0248
 igh_memory_c	d_sequence_start	D boundary: follows the D call miss	282	g0020 g0030 g0039
 igh_memory_c	d_sequence_start	D boundary: right D, cut outside _valid	37	g0164 g0246 g0248
 igh_memory_c	j_call	j_call: ties the true allele (a tie the _valid set misses)	7	g1187 g1657 g2215
-igh_memory_c	j_call	j_call: true allele scores higher (annotator error)	6	g0071 g0830 g1740
 igh_memory_c	j_call	j_call: read scores the call above the true allele	6	g0708 g2085 g2340
+igh_memory_c	j_call	j_call: true allele scores higher (annotator error)	6	g0071 g0830 g1740
 igh_memory_c	j_sequence_start	j_sequence_start: right allele, cut outside _valid	16	g0265 g0688 g0868
 igh_memory_c	j_sequence_start	j_sequence_start: follows the j call miss	14	g0071 g0708 g0830
 igh_memory_c	junction	follows a V-end/J-start cut outside _valid	8	g0468 g0688 g1434
 igh_memory_c	junction	annotator junction null: Cys104 beyond every valid V end (truth places it from origin)	5	g0509 g0627 g2844
+igh_memory_c	junction	annotator junction null: other	3	g2305 g2660 g3011
 igh_memory_c	junction	truth junction null, annotator reports one	3	g2733 g3849 g4564
 igh_memory_c	junction	follows a V/J call miss	3	g0071 g3815 g3934
-igh_memory_c	junction	annotator junction null: other	3	g2305 g2660 g3011
 igh_memory_c	junction	junction differs: other	1	g2821
 igh_memory_c	productive	follows a V-end/J-start cut outside _valid	1	g2791
 igh_memory_c	v_call	v_call: true allele scores higher (annotator error)	5	g0957 g1906 g3116
@@ -218,8 +200,8 @@ igh_naive	d_call	D call: read scores the call above the true D (chance placement
 igh_naive	d_call	D called, but the read holds no D base (only null is correct, A11): chance placement over N	43	g0256 g0328 g0368
 igh_naive	d_call	D call: ties the true D (read can't decide)	33	g0067 g0399 g0406
 igh_naive	d_call	D not called (true D best score <=6)	5	g1122 g2936 g2951
-igh_naive	d_call	D not called (true D best score 7-9)	2	g2358 g4978
 igh_naive	d_call	D call: true D scores higher (annotator D error)	2	g0458 g3580
+igh_naive	d_call	D not called (true D best score 7-9)	2	g2358 g4978
 igh_naive	d_sequence_end	D boundary: follows the D call miss	161	g0011 g0032 g0067
 igh_naive	d_sequence_end	D boundary: right D, cut outside _valid	26	g0133 g0211 g0699
 igh_naive	d_sequence_start	D boundary: follows the D call miss	168	g0011 g0067 g0146
@@ -232,44 +214,45 @@ igh_naive	j_sequence_start	j_sequence_start: follows the j call miss	6	g0640 g25
 igh_naive	junction	follows a V-end/J-start cut outside _valid	11	g0201 g0441 g0523
 igh_naive	v_call	v_call: ties the true allele (a tie the _valid set misses)	2	g2328 g4961
 igh_naive	v_sequence_end	v_sequence_end: right allele, cut outside _valid	3	g0523 g2748 g4352
-igh_truncated	cdr3	follows a V-end/J-start cut outside _valid	7	g1677 g2505 g2819
+igh_truncated	cdr3	follows a V-end/J-start cut outside _valid	10	g0544 g1278 g1677
 igh_truncated	cdr3	annotator junction null: Cys104 beyond every valid V end (truth places it from origin)	5	g1431 g1666 g3118
-igh_truncated	cdr3	truth junction null, annotator reports one	3	g1261 g1483 g2623
-igh_truncated	cdr3	annotator junction null: other	1	g3405
-igh_truncated	d_call	no J hit: < 20 J nt left, below the floor and the short-fragment rule (B1)	910	g0003 g0006 g0011
-igh_truncated	d_call	D call: read scores the call above the true D (chance placement, A26)	142	g0029 g0140 g0143
-igh_truncated	d_call	D call: ties the true D (read can't decide)	70	g0033 g0083 g0090
-igh_truncated	d_call	no J hit: >= 20 J nt, mutated below the floor	54	g0119 g0165 g0226
-igh_truncated	d_call	D called, but the read holds no D base (only null is correct, A11): chance placement over N	32	g0106 g0491 g0501
-igh_truncated	d_call	D not called (true D best score <=6)	8	g0518 g0629 g0747
+igh_truncated	cdr3	truth junction null, annotator reports one	4	g1261 g1483 g2623
+igh_truncated	cdr3	annotator junction null: other	2	g2208 g3405
+igh_truncated	d_call	no J hit: < 20 J nt left, below the floor and the short-fragment rule (B1)	554	g0003 g0011 g0012
+igh_truncated	d_call	D call: read scores the call above the true D (chance placement, A26)	152	g0029 g0140 g0143
+igh_truncated	d_call	D call: ties the true D (read can't decide)	73	g0033 g0083 g0090
+igh_truncated	d_call	D called, but the read holds no D base (only null is correct, A11): chance placement over N	35	g0106 g0491 g0501
+igh_truncated	d_call	D not called (true D best score <=6)	9	g0518 g0629 g0747
+igh_truncated	d_call	no J hit: >= 20 J nt, mutated below the floor	3	g0764 g1536 g1752
+igh_truncated	d_call	D not called (true D best score >=10)	2	g1025 g1467
 igh_truncated	d_call	D call: true D scores higher (annotator D error)	2	g3111 g3364
-igh_truncated	d_sequence_end	no J hit: < 20 J nt left, below the floor and the short-fragment rule (B1)	910	g0003 g0006 g0011
-igh_truncated	d_sequence_end	D boundary: follows the D call miss	215	g0029 g0033 g0083
-igh_truncated	d_sequence_end	no J hit: >= 20 J nt, mutated below the floor	54	g0119 g0165 g0226
-igh_truncated	d_sequence_end	D boundary: right D, cut outside _valid	23	g0278 g0672 g0971
-igh_truncated	d_sequence_start	no J hit: < 20 J nt left, below the floor and the short-fragment rule (B1)	910	g0003 g0006 g0011
-igh_truncated	d_sequence_start	D boundary: follows the D call miss	220	g0029 g0033 g0083
-igh_truncated	d_sequence_start	no J hit: >= 20 J nt, mutated below the floor	54	g0119 g0165 g0226
-igh_truncated	d_sequence_start	D boundary: right D, cut outside _valid	23	g0278 g0672 g1199
-igh_truncated	j_call	no J hit: < 20 J nt left, below the floor and the short-fragment rule (B1)	881	g0003 g0006 g0011
-igh_truncated	j_call	no J hit: >= 20 J nt, mutated below the floor	55	g0119 g0165 g0226
-igh_truncated	j_call	j_call: ties the true allele (a tie the _valid set misses)	5	g0390 g0550 g1921
-igh_truncated	j_call	j_call: read scores the call above the true allele	3	g0640 g2153 g2166
-igh_truncated	j_call	j_call: true allele scores higher (annotator error)	2	g1425 g4243
-igh_truncated	j_sequence_start	no J hit: < 20 J nt left, below the floor and the short-fragment rule (B1)	881	g0003 g0006 g0011
-igh_truncated	j_sequence_start	no J hit: >= 20 J nt, mutated below the floor	55	g0119 g0165 g0226
-igh_truncated	j_sequence_start	j_sequence_start: right allele, cut outside _valid	17	g0638 g0746 g1677
-igh_truncated	j_sequence_start	j_sequence_start: follows the j call miss	8	g0390 g0640 g1425
-igh_truncated	junction	no J hit: < 20 J nt left, below the floor and the short-fragment rule (B1)	232	g0006 g0014 g0056
-igh_truncated	junction	no J hit: >= 20 J nt, mutated below the floor	22	g0119 g0226 g0241
-igh_truncated	junction	follows a V-end/J-start cut outside _valid	7	g0638 g1677 g2505
+igh_truncated	d_sequence_end	no J hit: < 20 J nt left, below the floor and the short-fragment rule (B1)	554	g0003 g0011 g0012
+igh_truncated	d_sequence_end	D boundary: follows the D call miss	233	g0029 g0033 g0083
+igh_truncated	d_sequence_end	D boundary: right D, cut outside _valid	28	g0063 g0278 g0672
+igh_truncated	d_sequence_end	no J hit: >= 20 J nt, mutated below the floor	3	g0764 g1536 g1752
+igh_truncated	d_sequence_start	no J hit: < 20 J nt left, below the floor and the short-fragment rule (B1)	554	g0003 g0011 g0012
+igh_truncated	d_sequence_start	D boundary: follows the D call miss	237	g0029 g0033 g0083
+igh_truncated	d_sequence_start	D boundary: right D, cut outside _valid	26	g0063 g0278 g0672
+igh_truncated	d_sequence_start	no J hit: >= 20 J nt, mutated below the floor	3	g0764 g1536 g1752
+igh_truncated	j_call	no J hit: < 20 J nt left, below the floor and the short-fragment rule (B1)	507	g0003 g0011 g0020
+igh_truncated	j_call	j_call: read scores the call above the true allele	15	g0640 g1025 g1355
+igh_truncated	j_call	j_call: ties the true allele (a tie the _valid set misses)	10	g0390 g0427 g0550
+igh_truncated	j_call	j_call: true allele scores higher (annotator error)	7	g0875 g1065 g1425
+igh_truncated	j_call	no J hit: >= 20 J nt, mutated below the floor	3	g0764 g1536 g1752
+igh_truncated	j_sequence_start	no J hit: < 20 J nt left, below the floor and the short-fragment rule (B1)	507	g0003 g0011 g0020
+igh_truncated	j_sequence_start	j_sequence_start: follows the j call miss	29	g0390 g0640 g0875
+igh_truncated	j_sequence_start	j_sequence_start: right allele, cut outside _valid	24	g0544 g0638 g0746
+igh_truncated	j_sequence_start	no J hit: >= 20 J nt, mutated below the floor	3	g0764 g1536 g1752
+igh_truncated	junction	no J hit: < 20 J nt left, below the floor and the short-fragment rule (B1)	37	g0127 g0139 g0527
+igh_truncated	junction	follows a V/J call miss	11	g0875 g1065 g1355
+igh_truncated	junction	follows a V-end/J-start cut outside _valid	11	g0638 g1278 g1677
 igh_truncated	junction	annotator junction null: Cys104 beyond every valid V end (truth places it from origin)	5	g1431 g1666 g3118
-igh_truncated	junction	truth junction null, annotator reports one	1	g1261
-igh_truncated	junction	annotator junction null: other	1	g3405
-igh_truncated	productive	no J hit: < 20 J nt left, below the floor and the short-fragment rule (B1)	11	g0332 g1567 g1991
+igh_truncated	junction	truth junction null, annotator reports one	4	g1261 g2386 g4529
+igh_truncated	junction	annotator junction null: other	2	g2208 g3405
+igh_truncated	productive	no J hit: < 20 J nt left, below the floor and the short-fragment rule (B1)	3	g3047 g3949 g4457
 igh_truncated	v_call	v_call: true allele scores higher (annotator error)	5	g0615 g1406 g2351
 igh_truncated	v_call	v_call: ties the true allele (a tie the _valid set misses)	1	g2577
-igh_truncated	v_sequence_end	v_sequence_end: right allele, cut outside _valid	38	g0070 g0119 g0322
+igh_truncated	v_sequence_end	v_sequence_end: right allele, cut outside _valid	26	g0322 g0348 g0431
 igh_truncated	v_sequence_end	v_sequence_end: follows the v call miss	3	g1406 g4444 g4649
 igk	cdr3	annotator junction null: other	2	g2286 g3871
 igk	cdr3	follows a V-end/J-start cut outside _valid	1	g1143
@@ -289,17 +272,17 @@ igl	j_sequence_start	j_sequence_start: right allele, cut outside _valid	1	g1677
 igl	junction	annotator junction null: other	2	g0964 g3858
 igl	v_call	v_call: ties the true allele (a tie the _valid set misses)	5	g0820 g1677 g2854
 igl	v_sequence_end	v_sequence_end: follows the v call miss	1	g1677
-tra	cdr3	follows a V-end/J-start cut outside _valid	2	g2692 g2878
+tra	cdr3	follows a V-end/J-start cut outside _valid	3	g0440 g2692 g2878
 tra	cdr3	annotator junction null: other	1	g0877
 tra	j_call	j_call: true allele scores higher (annotator error)	1	g3446
-tra	j_sequence_start	j_sequence_start: right allele, cut outside _valid	2	g0711 g2692
+tra	j_sequence_start	j_sequence_start: right allele, cut outside _valid	3	g0440 g0711 g2692
 tra	j_sequence_start	j_sequence_start: follows the j call miss	1	g3446
-tra	junction	follows a V-end/J-start cut outside _valid	2	g2692 g2878
+tra	junction	follows a V-end/J-start cut outside _valid	3	g0440 g2692 g2878
 tra	junction	annotator junction null: other	1	g0877
 tra	junction	follows a V/J call miss	1	g3446
 tra	v_call	v_call: read scores the call above the true allele	1	g0711
-tra	v_sequence_end	v_sequence_end: follows the v call miss	1	g0711
 tra	v_sequence_end	v_sequence_end: right allele, cut outside _valid	1	g2878
+tra	v_sequence_end	v_sequence_end: follows the v call miss	1	g0711
 trb	cdr3	follows a V-end/J-start cut outside _valid	2	g0441 g2418
 trb	cdr3	annotator junction null: other	1	g3206
 trb	d_call	D called, but the read holds no D base (only null is correct, A11): chance placement over N	162	g0054 g0099 g0118

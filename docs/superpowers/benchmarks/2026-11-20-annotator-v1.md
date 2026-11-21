@@ -1,20 +1,77 @@
 # Annotator v1 benchmark: new abstar vs IgBLAST vs legacy abstar
 
-Date run: 2026-11-21 (the file name keeps the plan's date); refreshed the same day after the fix wave and its review round (§0), and again after the final-review fix wave (next section). The annotator is branch `rewrite` after the round-1 fixes (see §8). Machine: AMD Ryzen AI Max+ 395, 16 cores / 32 threads, Linux. All three tools ran with 32 threads.
+Date run: 2026-11-21 (the file name keeps the plan's date); refreshed the same day after the fix wave and its review round (§0), after the final-review fix wave, and again after Wave 2 (next section). New-abstar numbers throughout are after Wave 2 unless a section says otherwise. The annotator is branch `rewrite` after the round-1 fixes (see §8). Machine: AMD Ryzen AI Max+ 395, 16 cores / 32 threads, Linux. All three tools ran with 32 threads.
 
-**Summary.** On generator truth, new abstar ties or beats both other tools on most primary fields. It is far ahead on boundaries and on the junction wherever truth defines one. After the fix wave, three gaps remain, all with measured causes:
+**Summary.** On generator truth, new abstar ties or beats both other tools on most primary fields. It is far ahead on boundaries and on the junction wherever truth defines one. After Wave 2, three gaps remain, all with measured causes:
 
-1. **3′-truncated reads.** J fragments shorter than about 15 nt, or mutated ones, still get no call (J 80.9% vs IgBLAST 91.1%). The short-fragment rule is held back by the random-tail null.
-2. **bnab junction.** New abstar finds no J under heavy mutation (junction 94.5% vs legacy 97.5%).
-3. **TRB D.** The D call is now close to IgBLAST (91.9% vs 92.8%).
+1. **3′-truncated reads.** J fragments under 10 nt still mostly get no call. J is 89.1% against IgBLAST's 91.1% (80.9% before Wave 2). The truncated junction is now 98.6%, against IgBLAST's 82.0%.
+2. **bnab J allele.** Under heavy mutation the J allele is often ambiguous (J 97.1%, against IgBLAST's 88.4% and legacy's 93.6%). The bnab junction now leads both tools: 98.2%, against legacy's 97.5% (94.5% before Wave 2).
+3. **TRB D.** The D call is close to IgBLAST (91.9% vs 92.8%).
 
 IGL J now leads both tools (99.8%).
 
-**Constant region.** Since the final-review fix wave the benchmark grades C: three sets carry 60 nt of C, and the real-data comparison has a C row. New abstar's C call is 100% on IGH memory and IGK with C, and agrees with legacy on 99.6% of real reads (33.7% before the fix wave, when C was read one base off). On bnab with C it is 94.6% against legacy's 97.9%, because a C call needs a J call (next section).
+**Constant region.** Since the final-review fix wave the benchmark grades C: three sets carry 60 nt of C, and the real-data comparison has a C row. New abstar's C call is 100% on IGH memory and IGK with C, and agrees with legacy on 99.6% of real reads (33.7% before the fix wave, when C was read one base off). On bnab with C it is 99.1% against legacy's 97.9%. It was 94.6% before Wave 2, because a C call needs a J call.
 
 The 99.5% target holds for new abstar on IGK, IGL, TRA (except FWR3) and the non-D fields of IGH naive. It does not hold on D in any set with a D segment, or on the bnab, indel, truncated or TRB D-related fields.
 
-On real data, new abstar agrees with the legacy baseline on 99.5% of V alleles (99.9% counting ties) and 99.1% of J alleles (99.6%). D agrees on 94.2% of reads, counting reads where both leave D null. The D figure is lower than before the fix wave because new abstar now abstains on chance-level D calls that legacy makes. Every disagreement class is explained below.
+On real data, new abstar agrees with the legacy baseline on 99.5% of V alleles (99.9% counting ties) and 99.1% of J alleles (99.6%); Wave 2 gave J calls to 3 of the 4 reads that had none, all agreeing with legacy. D agrees on 94.2% of reads, counting reads where both leave D null. The D figure is lower than before the fix wave because new abstar now abstains on chance-level D calls that legacy makes. Every disagreement class is explained below.
+
+## Wave 2 (2026-11-21)
+
+Three changes followed user rulings. Only the first moves benchmark numbers.
+
+**1. J calling accepts weaker and shorter evidence** (record 0029, Wave 2 amendment). J is searched only after a V call, so a read without a V cannot get a J. The settings were chosen by generated-truth accuracy. The random-tail null is reported for information and no longer gates the choice; this supersedes B1's "+2 per 100k" bound. The J floor of 30 on the cut score is unchanged. Below it:
+
+- **Weak J (new).** Every J allele of the locus is realigned with mismatch −1 instead of −3. The best cut that holds its allele's Trp/Phe118 codon and implies a 6–180-nt junction is called if it scores at least 16. Heavily mutated full-length J segments are called this way; the −3 alignment cut them short.
+- **Short 3′ fragment (B1, amended).** The fragment is called when its matches minus mismatches reach 10 (IG), 11 (TRB) or 12 (TRA). B1 needed an exact 12/13/14 nt plus 4 nt per mismatch, with at most 2 mismatches.
+
+New abstar, subset `all`, before → after Wave 2 (5,000 reads per set; bold is a gain):
+
+| set | `j_call` | `j_sequence_start` | `junction` | `d_call` | `v_sequence_end` | `c_call` |
+|---|---|---|---|---|---|---|
+| igh_bnab | 93.63 → **97.06** | 92.65 → **96.15** | 94.50 → **98.21** | 68.57 → **70.31** | 97.76 → 97.74 |  |
+| igh_bnab_c | 93.23 → **97.10** | 92.37 → **96.37** | 94.73 → **98.58** | 69.31 → **70.81** | 98.17 → **98.31** | 94.62 → **99.14** |
+| igh_truncated | 80.91 → **89.06** | 80.61 → **88.64** | 94.46 → **98.55** | 74.89 → **82.89** | 99.16 → **99.41** |  |
+| igh_indels | 99.60 → **99.64** | 99.20 → **99.24** | 99.15 → **99.17** | 92.76 → **92.81** | 99.57 |  |
+| tra | 99.98 | 99.94 → 99.92 | 99.92 → 99.90 | 100.00 | 99.96 |  |
+
+igh_naive, igh_memory, igh_memory_c, igk, igk_c, igl and trb are unchanged on every field.
+
+- **No `all` cell of `j_call`, `j_sequence_start`, `junction`, `junction_aa`, `cdr3`, `fwr4`, `productive`, `vj_in_frame` or `d_call` fell by more than 0.1 pp.**
+  - The largest falls are on fields graded only where the J allele is truth's, so each newly right J adds a graded read:
+    - igh_truncated `fwr4` 99.94 → 99.84: 332 more reads right, 4 more wrong;
+    - igh_truncated `cdr3` 99.55 → 99.46;
+    - igh_bnab_c `fwr4` 99.34 → 99.25: 98 more right, 4 more wrong; the J alignment runs into C, a class that already had 22 reads.
+  - Real one-read losses:
+    - **tra g0440.** Before, B1 called its exact 47-nt TRAJ8\*01 tail. Now the weak J takes it first, and the re-cut on the picked allele places a 4-nt insertion that moves the J start past Phe118, so its junction is null.
+    - **One bnab read.** Its new J lets the joint V/D/J step (record 0030) pull the V end back.
+- **J by J nt left on igh_truncated** (< 10 / 10–14 / 15–19 / ≥ 20): 0.0 / 31.7 / 70.4 / 98.2 → 7.2 / 73.2 / 96.3 / 99.6. IgBLAST: 39.3 / 78.8 / 91.6 / 98.9.
+- **Reads truncated before J** (the watch case). Of the 54 igh_truncated reads whose truth holds no J base, 1 now gets a J (0 before). Junctions reported where truth has none went from 1 to 4.
+- **Junction shortfalls.** No-J-hit junction misses fell from 169 to 11 on igh_bnab, from 175 to 9 on igh_bnab_c and from 254 to 37 on igh_truncated (shortfalls TSV).
+- **Random-tail null** (`scripts/benchmark/short_j_null.py`; per 100k reads, 250-nt / 1–150-nt tails after the full V), for information:
+
+  | locus | before | after |
+  |---|---|---|
+  | IGH | 5 / 2 | 690 / 1,226 |
+  | IGK | 8 / 6 | 995 / 1,521 |
+  | IGL | 12 / 2 | 881 / 1,119 |
+  | TRA | 16 / 9 | 6,073 / 8,038 |
+  | TRB | 6 / 3 | 2,293 / 2,675 |
+
+  Most of these come from the weak J. Its junction bound halves the 250-nt rate (IGH 1,678 without it) at no cost on any benchmark cell. The full sweep and the per-rule nulls are in record 0029.
+- **Real corpus.** Three reads that had no J (c30155, c30367, c36768) are now annotated. Their J call, junction and C call all agree with legacy: J same allele 49,542 → 49,545, junction identical 49,141 → 49,144, C same allele 49,800 → 49,803. No other read changed.
+- **Speed.** Old and new builds were timed alternately, 3 runs each, 32 threads, on the same machine. Median wall time:
+  - the 12 generated sets (60,000 reads): 3.77 → 3.80 s (+0.7%);
+  - the corpus: 2.90 → 2.92 s (+0.8%).
+
+  The benchmark run itself measured 12,676 → 12,363 reads/s on the nine original sets (−2.5%), on a machine with other load (§6).
+- **Accuracy gate.** The floors were regenerated: 507 rose and 178 fell, all on igh_bnab and igh_bnab_c.
+  - 136 of the 178 hold more correct reads than before. Their n grew because more reads have the right J (and so the right D) allele and are now graded: J and D mutation fields, `fwr4`, `cdr3` and masks.
+  - The other 42 are igh_bnab_c V-end and V mutation cells on `all` and subsets. They all trace to one read, g0785: its new J (junction now right) lets the joint step pull its V end from 292 back to 276.
+
+**2. The D rule matches the amended spec** (commit `2ed76b5`). The spec's D call rule now states the B3 margin of 6 that the annotator already used (§0), not a 5-nt minimum. No code changed, so no D number moved.
+
+**3. Macaque removed; IMGT-gapped databases required** (commits `b1afeaa`, `c960d29`; record 0036). The built-in macaque database is gone: `-g macaque` now fails with "database not found". Building or loading any database whose V alleles lack IMGT gaps (or where fewer than 95% of a species' V alleles carry TGT/TGC at IMGT 309–312) is refused. No benchmark set used macaque, so no number moved.
 
 ## Final-review fix wave (2026-11-21)
 
@@ -79,6 +136,7 @@ J call on igh_truncated by J nt left:
 |---|---|---|---|---|
 | new abstar, before | 0.0 | 2.4 | 61.2 | 98.2 |
 | new abstar, after B1 | 0.0 | 31.7 | 70.4 | 98.2 |
+| new abstar, after Wave 2 | 7.2 | 73.2 | 96.3 | 99.6 |
 | IgBLAST | 39.3 | 78.8 | 91.6 | 98.9 |
 | legacy | 0.7 | 11.9 | 68.6 | 92.4 |
 
@@ -99,9 +157,9 @@ Each cell is **new / IgBLAST / legacy**; bold is the best when the tools differ.
 |---|---|---|---|---|---|---|---|---|---|---|
 | igh_naive | 100.0 / 100.0 / 100.0 | 96.2 / **96.8** / 95.6 | 99.8 / **99.9** / **99.9** | **99.9** / 99.8 / 99.7 | **96.1** / 92.9 / 94.6 | **96.3** / 93.3 / 94.4 | **99.6** / 96.6 / 98.6 | **99.8** / 97.3 / 97.3 | **99.8** / 97.3 / 97.3 | **100.0** / 99.1 / **100.0** |
 | igh_memory | 99.9 / 99.9 / **100.0** | **93.3** / 90.6 / 91.0 | 99.6 / 99.7 / **99.8** | **99.9** / **99.9** / 98.7 | **93.5** / 80.2 / 91.1 | **93.2** / 78.9 / 90.2 | **99.2** / 84.0 / 96.5 | **99.4** / 97.6 / 97.6 | **99.5** / 97.7 / 97.7 | **100.0** / 98.8 / 99.8 |
-| igh_bnab | 98.6 / **99.2** / 96.5 | **68.6** / 54.4 / 62.7 | **93.6** / 88.4 / **93.6** | 97.8 / **99.1** / 80.5 | **69.1** / 43.1 / 61.9 | **69.4** / 41.7 / 61.7 | **92.7** / 56.4 / 80.0 | 94.5 / 91.7 / **97.5** | 99.2 / 97.4 / **99.6** | 94.5 / 95.7 / **97.5** |
-| igh_indels | **99.7** / 99.6 / 98.9 | **92.8** / 90.0 / 90.9 | 99.6 / 99.6 / **99.8** | **99.6** / 98.9 / 97.5 | **92.9** / 79.4 / 91.0 | **92.8** / 78.8 / 90.1 | **99.2** / 84.0 / 95.9 | **99.2** / 96.1 / 96.8 | **99.4** / 96.4 / 96.9 | **100.0** / 98.6 / 99.7 |
-| igh_truncated | **99.9** / **99.9** / 98.4 | 74.9 / **90.8** / 69.0 | 80.9 / **91.1** / 74.8 | 99.2 / **99.7** / 73.4 | 75.1 / **79.5** / 68.6 | 75.2 / **77.9** / 68.0 | **80.6** / 77.7 / 72.1 | **94.5** / 82.0 / 90.5 | **99.6** / 95.3 / 95.7 | **99.8** / 96.0 / 75.1 |
+| igh_bnab | 98.6 / **99.2** / 96.5 | **70.3** / 54.4 / 62.7 | **97.1** / 88.4 / 93.6 | 97.7 / **99.1** / 80.5 | **71.0** / 43.1 / 61.9 | **71.2** / 41.7 / 61.7 | **96.2** / 56.4 / 80.0 | **98.2** / 91.7 / 97.5 | 99.2 / 97.4 / **99.6** | **98.2** / 95.7 / 97.5 |
+| igh_indels | **99.7** / 99.6 / 98.9 | **92.8** / 90.0 / 90.9 | 99.6 / 99.6 / **99.8** | **99.6** / 98.9 / 97.5 | **93.0** / 79.4 / 91.0 | **92.9** / 78.8 / 90.1 | **99.2** / 84.0 / 95.9 | **99.2** / 96.1 / 96.8 | **99.4** / 96.4 / 96.9 | **100.0** / 98.6 / 99.7 |
+| igh_truncated | **99.9** / **99.9** / 98.4 | 82.9 / **90.8** / 69.0 | 89.1 / **91.1** / 74.8 | 99.4 / **99.7** / 73.4 | **83.1** / 79.5 / 68.6 | **83.1** / 77.9 / 68.0 | **88.6** / 77.7 / 72.1 | **98.6** / 82.0 / 90.5 | **99.5** / 95.3 / 95.7 | **99.9** / 96.0 / 75.1 |
 | igk | 100.0 / 100.0 / 100.0 | 100.0 / 100.0 / 100.0 | 100.0 / 100.0 / 100.0 | **100.0** / 99.5 / 99.5 | 100.0 / 100.0 / 100.0 | 100.0 / 100.0 / 100.0 | **100.0** / 97.9 / 99.4 | 99.9 / **100.0** / **100.0** | 99.9 / **100.0** / **100.0** | 100.0 / 100.0 / 100.0 |
 | igl | 99.9 / 99.8 / **100.0** | 100.0 / 100.0 / 100.0 | **99.8** / 99.7 / 99.5 | **100.0** / 99.4 / 99.6 | 100.0 / 100.0 / 100.0 | 100.0 / 100.0 / 100.0 | **99.8** / 97.6 / 99.1 | 100.0 / 100.0 / 100.0 | 100.0 / 100.0 / 100.0 | 100.0 / 100.0 / 100.0 |
 | tra | **100.0** / 99.7 / 99.9 | 100.0 / 100.0 / 100.0 | 100.0 / 100.0 / 100.0 | **100.0** / 99.2 / 99.2 | 100.0 / 100.0 / 100.0 | 100.0 / 100.0 / 100.0 | **99.9** / 96.1 / 99.0 | **99.9** / 97.5 / 97.5 | **99.9** / 97.5 / 97.5 | **100.0** / 98.4 / 99.0 |
@@ -113,21 +171,21 @@ How to read the table:
   - New abstar is graded on 78 fields (86 on the C sets, which add the eight C mutation fields).
   - Legacy is graded on 54 (60 on the C sets). It has no `_length` fields, no D/J mutation fields and no mutation frequencies; its C mutation fields are graded on the C sets.
   - IgBLAST is graded on 40: calls, boundaries, junction, regions and productivity. It has no mutation strings, no masks and no `_length`.
-- **Regions (`cdr3`, `fwr*`) and masks** are graded only on reads where that tool's alleles are right, so their n differs by tool. The masks need the V, D and J alleles all right, which on igh_bnab leaves 1,487 of 5,000 reads for new abstar (1,288 for legacy): its bnab mask accuracies describe that easier ~30% of the set, not the whole, and are not comparable across tools.
+- **Regions (`cdr3`, `fwr*`) and masks** are graded only on reads where that tool's alleles are right, so their n differs by tool. The masks need the V, D and J alleles all right, which on igh_bnab leaves 1,515 of 5,000 reads for new abstar (1,288 for legacy): its bnab mask accuracies describe that easier ~30% of the set, not the whole, and are not comparable across tools.
 - **IgBLAST and legacy junctions.** Both report a junction on reads where the anchor codon was trimmed away. Truth and new abstar leave the junction null there (record 0032). This costs both tools 136 reads on igh_naive and 125 on tra (all of their junction misses there).
 
 ### Pooled by difficulty subset (all sets, % correct, new / IgBLAST / legacy)
 
 | subset | n (v_call) | v_call | d_call | j_call | junction |
 |---|---|---|---|---|---|
-| high_mutation | 3183 | 98.1 / 98.9 / 95.4 | 63.6 / 48.4 / 57.6 | 91.5 / 85.5 / 91.8 | 92.6 / 89.0 / 96.8 |
-| long_cdr3 | 6689 | 99.6 / 99.8 / 99.1 | 92.7 / 89.1 / 89.6 | 98.3 / 97.7 / 98.1 | 98.4 / 98.5 / 98.9 |
-| has_indel | 2877 | 99.2 / 99.0 / 97.0 | 90.3 / 85.9 / 87.5 | 98.4 / 98.0 / 98.7 | 97.5 / 94.0 / 95.9 |
-| truncated_5p | 4838 | 99.9 / 99.9 / 98.4 | 74.8 / 90.8 / 69.0 | 80.9 / 91.1 / 74.7 | 94.5 / 82.0 / 90.4 |
-| truncated_3p | 4816 | 99.9 / 99.9 / 98.4 | 74.6 / 90.7 / 68.7 | 80.7 / 91.0 / 74.4 | 94.4 / 81.8 / 90.4 |
-| ambiguous_v | 2394 | 99.3 / 99.4 / 98.1 | 77.9 / 79.4 / 72.6 | 90.8 / 92.4 / 89.5 | 95.1 / 88.6 / 93.9 |
-| ambiguous_d | 8015 | 99.6 / 99.7 / 98.7 | 81.3 / 80.4 / 78.0 | 95.4 / 95.5 / 94.6 | 97.7 / 94.0 / 96.6 |
-| ambiguous_j | 1786 | 99.0 / 99.5 / 98.5 | 65.0 / 76.5 / 64.2 | 83.3 / 85.9 / 85.0 | 93.2 / 88.5 / 91.4 |
+| high_mutation | 3183 | 98.1 / 98.9 / 95.4 | 66.0 / 48.4 / 57.6 | 96.2 / 85.5 / 91.8 | 97.7 / 89.0 / 96.8 |
+| long_cdr3 | 6689 | 99.6 / 99.8 / 99.1 | 93.5 / 89.1 / 89.6 | 99.3 / 97.7 / 98.1 | 99.5 / 98.5 / 98.9 |
+| has_indel | 2877 | 99.2 / 99.0 / 97.0 | 90.7 / 85.9 / 87.5 | 99.2 / 98.0 / 98.7 | 98.2 / 94.0 / 95.9 |
+| truncated_5p | 4838 | 99.9 / 99.9 / 98.4 | 82.9 / 90.8 / 69.0 | 89.0 / 91.1 / 74.7 | 98.5 / 82.0 / 90.4 |
+| truncated_3p | 4816 | 99.9 / 99.9 / 98.4 | 82.7 / 90.7 / 68.7 | 88.9 / 91.0 / 74.4 | 98.5 / 81.8 / 90.4 |
+| ambiguous_v | 2394 | 99.3 / 99.4 / 98.1 | 81.5 / 79.4 / 72.6 | 95.3 / 92.4 / 89.5 | 98.2 / 88.6 / 93.9 |
+| ambiguous_d | 8015 | 99.6 / 99.7 / 98.7 | 82.6 / 80.4 / 78.0 | 97.5 / 95.5 / 94.6 | 99.2 / 94.0 / 96.6 |
+| ambiguous_j | 1786 | 99.0 / 99.5 / 98.5 | 69.3 / 76.5 / 64.2 | 87.6 / 85.9 / 85.0 | 96.6 / 88.5 / 91.4 |
 
 ## 2. Full tables (committed alongside this report)
 
@@ -151,6 +209,7 @@ A (tool, field) is convention-only when at least 90% of the tool's misses on it,
 | IgBLAST | `junction_aa`, `cdr3_aa` | nt junction or CDR3 identical, aa one trailing residue longer: IgBLAST translates the partial codon of out-of-frame junctions (`…CLTS` vs `…CLTSG`). Counted over aa misses whose nt field is right. | 9,599 / 9,600; 9,627 / 9,628 |
 | IgBLAST, legacy, new | `fwr1`, `fwr1_start`, `fwr1_aa` | FWR1 starts after truth's V start with the same end: the V 5′ alignment drops mutated first bases. Truth has no valid list for the V start. 100% on igh_naive for all three. For new abstar this is not an output convention but its own V 5′ limit (the A28 extension stops short, record 0029); excluding these cells takes them out of its denominator. | IgBLAST 3,716 / 3,737; legacy 4,091 / 4,137; new 131 / 131 |
 | legacy | `fwr4`, `fwr4_end`, `fwr4_aa` | FWR4 ends before truth's J end with the same start: mutated last J bases are trimmed (memory −1/−2 nt; 100% on naive) | 3,592 / 3,636 (`fwr4_end`); 96.4% (`fwr4`), 94.7% (`_aa`) |
+| new | `fwr4_end` | Same rule. Since Wave 2 it has 51 misses (47 before, under the 50-miss minimum), 47 of them a mutated J 3′ end that the alignment trims. As with FWR1 this is new abstar's own J 3′ limit, not an output convention; the bar takes it out of the adjusted counts. | 47 / 51 |
 
 Candidates that did not pass stay in the tallies:
 - legacy `gene_segment_mask_aa`: in 81% of its misses the nt mask is graded right, so it is mostly a codon-labeling convention, but below the bar;
@@ -163,19 +222,19 @@ Candidates that did not pass stay in the tallies:
 
 | tool | cells at target, all subsets | cells at target, subset `all` |
 |---|---|---|
-| new abstar | 2,132 of 3,311 → 2,042 of 3,182 | 515 of 678 → 494 of 651 |
+| new abstar | 2,090 of 3,311 → 1,963 of 3,139 | 502 of 678 → 473 of 642 |
 | IgBLAST | 825 of 1,732 → 767 of 1,387 | 183 of 360 → 168 of 288 |
 | legacy | 935 of 2,335 → 836 of 2,077 | 223 of 486 → 195 of 432 |
 
-Legacy's raw count fell from 1,078 after B5, because stripping the tag grades its region fields on the tagged reads too.
+Legacy's raw count fell from 1,078 after B5, because stripping the tag grades its region fields on the tagged reads too. New abstar's raw count was 2,132 (515 on `all`) before Wave 2. The 42 cells that fell below the target are mostly igh_truncated region, mask and J-mutation cells, which now grade more reads, with more of them right (for example `fwr4` 3,526 of 3,528 → 3,858 of 3,864).
 
 **Head to head.** These counts use cells with n ≥ 30 that both tools grade.
 
 A field that is convention-only for either tool in a pair is left out of that pair's adjusted count.
 
-- **vs IgBLAST:** new abstar is ≥ IgBLAST in 1,103 of 1,276 shared cells (86.4%) without convention-only fields. Raw it is 1,418 of 1,592 (89.1%); it was 1,413 before the final-review fix wave and 1,369 before the B fix wave. It is more than 0.5 pp behind in 78 cells (79 raw; 124 before the B fix wave).
-- **vs legacy:** new abstar is ≥ legacy in 1,747 of 1,908 (91.6%) without convention-only fields. Raw it is 1,974 of 2,145 (92.0%), 1,960 before the final-review fix wave and 1,910 before the B fix wave. It is more than 0.5 pp behind in 55 (57 before the final-review fix wave, 115 before the B fix wave).
-- **All 12 sets (with C)**, as in the tallies TSV: vs IgBLAST 1,443 of 1,724 adjusted (1,870 of 2,152 raw), 106 behind; vs legacy 2,382 of 2,658 adjusted (2,691 of 2,979 raw), 107 behind. The C sets repeat their base sets' gaps (igh_bnab_c behaves like igh_bnab) and add legacy's C mutation misses.
+- **vs IgBLAST:** new abstar is ≥ IgBLAST in 1,131 of 1,276 shared cells (88.6%) without convention-only fields. Raw it is 1,446 of 1,592 (90.8%). Earlier raw counts: 1,418 before Wave 2, 1,413 before the final-review fix wave, 1,369 before the B fix wave. It is more than 0.5 pp behind in 49 cells (50 raw; 79 before Wave 2; 124 before the B fix wave).
+- **vs legacy:** new abstar is ≥ legacy in 1,778 of 1,908 (93.2%) without convention-only fields. Raw it is 2,005 of 2,145 (93.5%). Earlier raw counts: 1,974 before Wave 2, 1,960 before the final-review fix wave, 1,910 before the B fix wave. It is more than 0.5 pp behind in 27 (55 before Wave 2, 57 before the final-review fix wave, 115 before the B fix wave).
+- **All 12 sets (with C)**, as in the tallies TSV: vs IgBLAST 1,492 of 1,724 adjusted (1,919 of 2,152 raw), 64 behind (106 before Wave 2); vs legacy 2,448 of 2,658 adjusted (2,757 of 2,979 raw), 38 behind (107 before Wave 2). The C sets repeat their base sets' gaps (igh_bnab_c behaves like igh_bnab) and add legacy's C mutation misses.
 
 Raw and adjusted tallies are in `2026-11-20-annotator-v1-tallies.tsv`.
 
@@ -184,9 +243,8 @@ The `all`-subset fields where new abstar still trails by more than 0.5 pp are li
 | set | field | new | IgBLAST | legacy |
 |---|---|---|---|---|
 | igh_naive | d_call | 96.2 | 96.8 | |
-| igh_bnab | v_call / v_sequence_end | 98.6 / 97.8 | 99.2 / 99.1 | |
-| igh_bnab | junction / productive / vj_in_frame | 94.5 / 94.5 / 94.6 | – / 95.7 / 95.7 | 97.5 / 97.5 / 97.9 |
-| igh_truncated | d_call, d boundaries, j_call, v_sequence_end | 74.9, 75.1/75.2, 80.9, 99.2 | 90.8, 79.5/77.9, 91.1, 99.7 | |
+| igh_bnab | v_call / v_sequence_end | 98.6 / 97.7 | 99.2 / 99.1 | |
+| igh_truncated | d_call, j_call | 82.9, 89.1 | 90.8, 91.1 | |
 | trb | d_call | 91.9 | 92.8 | |
 
 The fix wave closed several of the earlier gaps:
@@ -194,6 +252,8 @@ The fix wave closed several of the earlier gaps:
 - bnab FWR3 (99.0 vs IgBLAST 99.3, legacy 97.8) and bnab CDR3 (99.2 vs legacy 99.6) are now within 0.5 pp.
 - IGL J leads both tools.
 - TRB D boundaries now lead IgBLAST.
+
+Wave 2 closed three more: bnab junction, productive and vj_in_frame (now 98.2 / 98.2 / 98.3, ahead of legacy); truncated D boundaries (83.1 / 83.1, ahead of IgBLAST); and truncated V end (99.4, within 0.5 pp).
 
 ## 3. New-abstar shortfalls, classified
 
@@ -203,14 +263,14 @@ Each failing (read, field) is placed in one class by `run_benchmark.py::shortfal
 
 | class | sets (n reads) | verdict | examples |
 |---|---|---|---|
-| **No J hit, < 20 J nt left: below both the J floor and B1's short-fragment rule.** These fragments are under 12 nt (13 for TRA), or are mutated. Another 55 reads have 20–25 J nt with 2–9 mutations. J accuracy by J nt left is in §0's table. These reads cause most remaining truncated-set D misses (910) and junction misses (232 + 22). | igh_truncated (881 + 55) | **Annotator limit, bounded by the null.** A shorter or looser rule raises the random-tail false-J rate (record 0029: 10 nt would give TRA 234 per 100k on 1–150-nt tails). Below about 10 nt the call is close to a guess, so part of this is genuine ambiguity. | g0003, g0006, g0011 |
-| **No J hit, heavy mutation** | igh_bnab (203) | **Known annotator limit** (bnab heavy-mutation J). With the junction projection fixed, this is the main reason new trails legacy on bnab junction (169 reads). | g0032, g0074, g0100 |
+| **No J hit, < 20 J nt left: below the J floor, the weak J and the short-fragment rule.** After Wave 2 these are mostly fragments under 10 nt (matches minus mismatches below 10), plus 3 reads with 20+ J nt (was 55). J accuracy by J nt left is in the Wave 2 section. These reads cause most remaining truncated-set D misses (554, was 910) and junction misses (37, was 254). | igh_truncated (507 + 3; was 881 + 55) | **Annotator limit.** Since Wave 2 the rule is chosen by truth accuracy, not the null. A looser rule (score 9, or an unguarded weak J) gains J calls here but adds wrong-offset fragments, whose `fwr4`/`cdr3` errors break the 0.1-pp cell bound (record 0029). Below about 10 nt the call is close to a guess, so part of this is genuine ambiguity. | g0003, g0011, g0020 |
+| **No J hit, heavy mutation** | igh_bnab (14; was 203), igh_bnab_c (10; was 215) | **Known annotator limit**, mostly closed by the weak J (Wave 2). 11 bnab junction misses remain (was 169). | g0100, g0191, g0271 |
 | **D called on a read that holds no D base.** Truth's `d_call_valid` is empty, so only a null call is correct (A11). The call is a chance placement over N. | trb 162 (was 567), igh_bnab 60, igh_indels 48, igh_naive 43, igh_memory 33, igh_truncated 32 | **Annotator limit**, reduced by B3 | trb g0054, g0099, g0118 |
 | **D not called, true D present** | trb 144 + 8 (true D best score ≤ 6 / 7–9), bnab 28, indels 12, memory 9, truncated 8, naive 5 | Mostly **genuine ambiguity**: true D runs of ≤ 6 matching nt that B3's margin no longer calls. This is the trade-off for the class above. | trb g0007, g0123, g0127 |
 | **D call scores above the true D in the read.** A chance D in N/P bases beats a short or mutated true D. | igh_bnab 714 (576 high_mutation), igh_indels 189, igh_memory 163, igh_truncated 142, igh_naive 104, trb 73 | **Genuine ambiguity** (A26: truth is origin-based) | igh_naive g0011, g0032, g0146 |
 | **D call ties the true D** | igh_bnab 201, igh_memory 113, igh_indels 93, igh_truncated 70, igh_naive 33, trb 13 | **Genuine ambiguity.** Tie-breaking differs from the generator's draw. | igh_memory g0032, g0134, g0187 |
 | **D call: true D scores higher** | 3–6 per set | **Annotator D error** (small) | trb g1785, g3418 |
-| **J call ties or outscores the true allele; truth's `_valid` misses it** | bnab 67, memory 16, indels 14, igl 9, truncated 8, naive 4 | **Truth-definition limit** (the J tie-coverage miss in the ledger). The IGLJ2/IGLJ3 ties (56 reads before) were fixed by B4. | igl g0535, g1387 |
+| **J call ties or outscores the true allele; truth's `_valid` misses it** | bnab 93 (69 by the same count before Wave 2: the weak J calls more heavily mutated J segments, whose allele the read often cannot decide), memory 16, indels 14, igl 9, truncated 25 (was 8), naive 4 | **Truth-definition limit** (the J tie-coverage miss in the ledger). The IGLJ2/IGLJ3 ties (56 reads before) were fixed by B4. | igl g0535, g1387 |
 | **V/J call: true allele scores higher** | bnab V 31, J 12; memory V 3, J 3; indels V 3, J 4; truncated V 5 | **Annotator error.** Almost all are heavy mutation, the known bnab V/J limit. | bnab g0184, g0593, g0739 |
 | **V/J cut outside `_valid` with the right allele** | J start: naive 14, memory 22, indels 25, truncated 17, bnab 71, trb 14. V end: trb 26, indels 18, truncated 38, bnab 64 | **Truth-definition limit** (A27 valid-cut) in naive, memory and TCR; heavy-mutation cuts in bnab. On TRB, B3's no-D configuration adds a few V-end/J-start moves into what truth calls D. | naive g0201, g0441; trb g0173 |
 | **Junction null: Cys104 beyond every valid V end, and the projected codon is not TGT/TGC** | memory 5, truncated 5, indels 4, bnab 1 | **Convention** (record 0032 as amended by B2): a mutated anchor codon is not projected, because without the Cys check about 126 naive reads would wrongly get a junction | memory g0800, g2357 |
@@ -252,7 +312,7 @@ Every legacy call absent from abstar's DB was a tagged name, and every one was g
 
 **Corpus.** `legacy/test_data/bcr_corpus/` holds 50,000 real BCR reads. `baseline.parquet` is legacy abstar 0.8.0's committed output: 49,999 rows plus one expected failure, ordinal 11457.
 
-**Setup.** New abstar (after the fix wave), IgBLAST and a fresh legacy run were joined on `corpus_ordinal`. The fresh legacy run reproduces the baseline's V, D and J calls on all 49,999 rows, so the baseline is current legacy behavior.
+**Setup.** New abstar (after Wave 2), IgBLAST and a fresh legacy run were joined on `corpus_ordinal`. The fresh legacy run reproduces the baseline's V, D and J calls on all 49,999 rows, so the baseline is current legacy behavior.
 
 **Read evidence.** Same gapless scoring as §3, comparing new's allele with the baseline's allele. The species tag is stripped on both sides; 2,111 D calls agree only after stripping.
 
@@ -273,15 +333,15 @@ Every legacy call absent from abstar's DB was a tagged name, and every one was g
 | same gene, other allele | 11 | 2 new, 3 legacy, 6 tie | Same indel mechanism (IGLV1-44\*01 vs \*02, IGHV3-21\*01 vs \*07) | 2758, 6934 |
 | only new called | 1 | | Ordinal 11457, legacy's expected failure (JunctionAnchorError). New abstar annotates it: IGHV4-39\*08 / IGHJ4\*02, junction CAKHRAPLVTGPADFDSW. | 11457 |
 
-### J (50,000 reads): 99.08% same allele (was 98.93%), 99.59% counting tie overlap
+### J (50,000 reads): 99.09% same allele (98.93% before the fix wave, 99.08% before Wave 2), 99.60% counting tie overlap
 
 | class | count | read evidence | explanation | example ordinals |
 |---|---|---|---|---|
-| same allele | 49,542 | | | |
+| same allele | 49,545 (was 49,542) | | | |
 | tie overlap | 255 | 149 favor new, 96 tie, 10 favor legacy | Legacy lists both alleles (mostly IGLJ2\*01,IGLJ3\*02); new picks the better-matching one in 149 | 132, 530, 426 |
 | different gene | 188 (was 268) | 114 favor new, 67 tie, 7 favor legacy | **New better:** IGHJ4\*02/IGHJ5\*02 (69) and others, where the read matches new's allele by 1+ more bases. **Ties:** 48 of 67 are IGLJ2\*01/IGLJ3\*02, identical over the aligned J and not in each other's tie list (J tie-coverage limit). B4 removed 85 of these. | new better 581, 728, 1339; ties 887, 1206; legacy better 4538, 7417 |
 | same gene, other allele | 10 | 4 tie, 5 legacy, 1 new | IGHJ6\*02 vs \*03, IGKJ2\*01 vs \*04 | 28437, 3358 |
-| one null | 5 | | 4 are new no_j_hit (J fragments too short or mutated even for B1); 1 is ordinal 11457, legacy's expected failure | 30155, 30367, 36217 |
+| one null | 2 (was 5) | | 1 is new no_j_hit (36217); 1 is ordinal 11457, legacy's expected failure. Wave 2 called 30155, 30367 and 36768, all as legacy does. | 36217, 11457 |
 
 ### D (50,000 reads): 94.2% agree (13,667 same allele + 33,411 both null; was 95.0%)
 
@@ -297,19 +357,19 @@ Every legacy call absent from abstar's DB was a tagged name, and every one was g
 
 | class | count | read evidence | explanation |
 |---|---|---|---|
-| same allele | 49,800 (was 16,874) | | |
+| same allele | 49,803 (was 16,874; 49,800 before Wave 2) | | |
 | tie overlap | 86 | 86 tie | Short C prefixes that IGHG1–4 or IGHA1/2 share; the read cannot decide |
-| only legacy called | 26 | | New's evidence gate (identity < 0.8): an indel inside C, or a J end more than 3 nt off, defeats the gapless comparison. Legacy aligns C with gaps. |
+| only legacy called | 23 (was 26) | | New's evidence gate (identity < 0.8): an indel inside C, or a J end more than 3 nt off, defeats the gapless comparison. Legacy aligns C with gaps. |
 | only new called | 18 | | Reads legacy leaves without C |
 | both null | 70 | | |
 
 The fresh legacy run reproduces the baseline's C call on all 49,912 rows that have one. The before → after classes are in the final-review section above.
 
-### Junction (amino acid): 98.28% identical (49,141)
+### Junction (amino acid): 98.29% identical (49,144; 49,141 before Wave 2)
 
 | class | count | explanation | example ordinals |
 |---|---|---|---|
-| only legacy has a junction | 809 (was 826) | 805 are new `junction_undefined`; 4 are no_j_hit. In 802 the J alignment starts after the Trp/Phe118 codon's first base. | |
+| only legacy has a junction | 806 (826 before the fix wave, 809 before Wave 2) | 805 are new `junction_undefined`; 1 is no_j_hit. In 802 the J alignment starts after the Trp/Phe118 codon's first base. | |
 | …legacy flags it nonproductive, junction does not end in W/F | 653 | The anchor codon is not in the J alignment. Legacy projects the J frame and reports a junction, then flags it nonproductive; new abstar leaves it null (record 0032 convention). | 47 (CQQYGSSP), 134 |
 | …junction ends in W/F | 149 | Legacy places the J start where W/F is included, e.g. ordinal 956: legacy J from germline 10, new from germline 39 on a repetitive IGHJ6 5′ end. **Annotator J-start limit** (the J start outside `_valid` class). | 380, 531, 956, 1264 |
 | …V alignment stops before Cys104 | 3 | Projected codon not TGT/TGC (B2's rule); 4 of the 7 such reads before the fix wave now have a junction | 5074 |
@@ -321,7 +381,7 @@ The fresh legacy run reproduces the baseline's C call on all 49,912 rows that ha
 **Cross-check with IgBLAST** (same germline DB as new abstar). New vs IgBLAST:
 
 - V same allele 49,769, plus 216 tie overlap.
-- J same allele 49,400 (was 49,268), plus 276 tie overlap.
+- J same allele 49,403 (49,268 before the fix wave, 49,400 before Wave 2), plus 276 tie overlap.
 - D same allele 13,274 and both-null 33,775. IgBLAST alone calls a D on 616 reads, new alone on 126.
 
 IgBLAST vs the legacy baseline:
@@ -333,15 +393,15 @@ IgBLAST vs the legacy baseline:
 
 | input | new abstar | IgBLAST | legacy abstar |
 |---|---|---|---|
-| generated, 9 sets × 5,000 = 45,000 reads | 3.55 s (12,700 reads/s) | 21.9 s (2,050 reads/s) | 49.2 s (910 reads/s) |
-| real corpus, 50,000 BCR reads | 2.88 s (17,400 reads/s) | 25.0 s (2,000 reads/s) | 28.7 s (1,740 reads/s) |
+| generated, 9 sets × 5,000 = 45,000 reads | 3.64 s (12,400 reads/s) | 21.9 s (2,050 reads/s) | 49.2 s (910 reads/s) |
+| real corpus, 50,000 BCR reads | 2.94 s (17,000 reads/s) | 25.0 s (2,000 reads/s) | 28.7 s (1,740 reads/s) |
 
-**Against the spec's targets** (informational: the spec names a 10-core M-series laptop, this is a 16-core AMD machine): ≥ 10k sequences/s is met here on every set but bnab (7,500–8,300 reads/s) and on the real corpus; a single sequence takes 107 ms end to end (`abstar run` on a one-read FASTA, median of 7, including Python start-up), within the ≤ 300 ms target.
+**Against the spec's targets** (informational: the spec names a 10-core M-series laptop, this is a 16-core AMD machine): ≥ 10k sequences/s is met here on every set but bnab (7,200–8,000 reads/s) and on the real corpus; a single sequence takes 107 ms end to end (`abstar run` on a one-read FASTA, median of 7, including Python start-up), within the ≤ 300 ms target.
 
 Per-set times are in the speed TSV. Notes on the measurements:
 
-- New abstar was re-timed after the final-review fix wave, on an otherwise idle machine; IgBLAST and legacy times on the nine original sets are from the first run (same inputs and machine). The C sets' times for all three tools are in the speed TSV.
-- New abstar runs 0.3–0.6 s per 5,000-read set. bnab is the slowest at 8,200 reads/s.
+- New abstar was re-timed after Wave 2, with other jobs running on the machine (load average 6–9); IgBLAST and legacy times on the nine original sets are from the first run (same inputs and machine). The C sets' times for all three tools are in the speed TSV. Before Wave 2 these rows read 3.55 s and 2.88 s. Timed alternately, the old and new builds differ by under 1% (Wave 2 section).
+- New abstar runs 0.3–0.7 s per 5,000-read set. bnab is the slowest at 8,000 reads/s (7,200 with C).
 - Legacy's per-set time includes about 1.3 s of Python import.
 - New abstar ran with `--threads 32`, IgBLAST with `-num_threads 32`, and legacy with `--mmseqs_threads 32 --n_processes 32`.
 
@@ -353,7 +413,7 @@ Mouse: annotated; no generator validation; no mouse real-data corpus in the repo
 
 | component | version / source |
 |---|---|
-| new abstar | 1.0.0.dev0, `rewrite`: the final-review fix wave on 7f27996, release build in `.venv` (Python 3.12.14, polars 2.1.0) |
+| new abstar | 1.0.0.dev0, `rewrite`: Wave 2 (J rule, record 0029) on c960d29, release build in `.venv` (Python 3.12.14, polars 2.1.0) |
 | IgBLAST | igblastn 1.22.0 (bioconda), makeblastdb 2.17.0+ |
 | legacy abstar | 0.9.0, installed from a temporary copy of `legacy/` (`legacy/` is untouched); abutils 0.6.1 with its bundled MMseqs2 (commit 7e28409); Python 3.12.16 |
 | MMseqs2 (env) | 19.ab57c (bioconda; installed per the brief, though legacy uses abutils' bundled binary) |
@@ -402,7 +462,7 @@ Commands:
 scripts/benchmark/setup_env.sh
 MAKEBLASTDB=~/micromamba/envs/abstar-bench/bin/makeblastdb .venv/bin/python scripts/benchmark/make_igblast_db.py WORK/igblast_db
 .venv/bin/python scripts/benchmark/run_benchmark.py --work WORK --igblast-db WORK/igblast_db [--out docs/superpowers/benchmarks --overwrite]
-.venv/bin/python scripts/benchmark/short_j_null.py   # B1 null and truncated J buckets
+.venv/bin/python scripts/benchmark/short_j_null.py   # random-tail J null (information only) and truncated J buckets
 ```
 
 `run_benchmark.py` keeps the raw outputs and timings in WORK. A rerun regrades without rerunning the tools; deleting a tool's output directory reruns that tool. Tables go to WORK/tables unless `--out` is given, and existing tables are only replaced with `--overwrite`. It also asserts that its per-read failure extraction matches `abstar.grade`'s counts for every primary field.
@@ -412,4 +472,6 @@ MAKEBLASTDB=~/micromamba/envs/abstar-bench/bin/makeblastdb .venv/bin/python scri
 - The read-evidence score is gapless, so it is approximate on reads with indels. This matters mainly for the real-data V conflicts, 28 of 31 of which involve an indel.
 - Only IGH has truncation, indel and bnab subsets; IGK, IGL, TRA and TRB are single preset sets.
 - C is graded on three sets with 60 nt of C (IGH memory, IGH bnab, IGK). Until the final-review fix wave the benchmark had no C in its truth sets, so every `c_call` row only measured that no C was called, and no C mutation field was graded. IgBLAST runs without a C database and is not graded on C. Generated C is never mutated, so C mutation accuracy on real reads (sequencing errors, indels in C) is measured only through the real-data agreement.
-- Macaque is deferred (#137), and TRA/TRD pairing is out of scope.
+- The random-tail false-J rate is not part of any score. Since Wave 2, J settings are chosen by truth accuracy, and a V followed by random bases gets a J on 0.7–1.5% of IG reads and 6–8% of TRA reads (Wave 2 section). The generated sets hold no reads with a V and junk where J should be, so the benchmark does not charge for this.
+- The `fwr4`, `cdr3` and mask cells are graded only on reads whose alleles are right, so a change that calls more J alleles right can lower these cells while more reads are right (Wave 2: igh_truncated `fwr4` −0.10 pp with 332 more reads right).
+- The built-in macaque database was removed in Wave 2, and databases without IMGT gaps are refused (record 0036). Its re-addition from IMGT-gapped sources is #137. TRA/TRD pairing is out of scope.

@@ -21,15 +21,15 @@ legacy	gene_segment_mask_aa	aa mask codon labels; nt mask graded right	30522	239
 legacy	nongermline_mask	mask cut at the 3' end, or truth has no junction	5730	367	0.064	false
 legacy	nongermline_mask_aa	mask cut at the 3' end, or truth has no junction	7240	663	0.0916	false
 new	cdr3_aa	same nt, one extra/missing trailing residue (partial codon translated)	2	0	0.0	false
-new	cdr_mask	mask cut at the 3' end, or truth has no junction	233	37	0.1588	false
-new	cdr_mask_aa	mask cut at the 3' end, or truth has no junction	225	35	0.1556	false
-new	fwr1	FWR1 starts after truth's V start, same end	227	218	0.9604	true
-new	fwr1_aa	FWR1 starts after truth's V start, same end	227	218	0.9604	true
-new	fwr1_start	FWR1 starts after truth's V start, same end	218	218	1.0	true
-new	fwr4	FWR4 ends before truth's J end, same start	127	46	0.3622	false
-new	fwr4_aa	FWR4 ends before truth's J end, same start	157	37	0.2357	false
-new	fwr4_end	FWR4 ends before truth's J end, same start	47	46	0.9787	false
-new	gene_segment_mask	mask cut at the 3' end, or truth has no junction	374	2	0.0053	false
-new	gene_segment_mask_aa	aa mask codon labels; nt mask graded right	358	0	0.0	false
-new	nongermline_mask	mask cut at the 3' end, or truth has no junction	350	0	0.0	false
-new	nongermline_mask_aa	mask cut at the 3' end, or truth has no junction	279	4	0.0143	false
+new	cdr_mask	mask cut at the 3' end, or truth has no junction	242	39	0.1612	false
+new	cdr_mask_aa	mask cut at the 3' end, or truth has no junction	234	37	0.1581	false
+new	fwr1	FWR1 starts after truth's V start, same end	235	225	0.9574	true
+new	fwr1_aa	FWR1 starts after truth's V start, same end	235	225	0.9574	true
+new	fwr1_start	FWR1 starts after truth's V start, same end	225	225	1.0	true
+new	fwr4	FWR4 ends before truth's J end, same start	138	47	0.3406	false
+new	fwr4_aa	FWR4 ends before truth's J end, same start	195	38	0.1949	false
+new	fwr4_end	FWR4 ends before truth's J end, same start	51	47	0.9216	true
+new	gene_segment_mask	mask cut at the 3' end, or truth has no junction	381	2	0.0052	false
+new	gene_segment_mask_aa	aa mask codon labels; nt mask graded right	364	0	0.0	false
+new	nongermline_mask	mask cut at the 3' end, or truth has no junction	360	0	0.0	false
+new	nongermline_mask_aa	mask cut at the 3' end, or truth has no junction	287	4	0.0139	false

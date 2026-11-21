@@ -1,11 +1,11 @@
 tally	tool	convention_only_removed	cells	count	all_subset_cells	all_subset_count	behind_over_half_pp
-at target (>= 99.5%)	new	false	4577	2805	928	694	
+at target (>= 99.5%)	new	false	4577	2770	928	684	
 at target (>= 99.5%)	igblast	false	2332	1086	480	245	
 at target (>= 99.5%)	legacy	false	3235	1250	666	306	
-new vs igblast (n >= 30)	new	false	2152	1870	480	418	107
-new vs legacy (n >= 30)	new	false	2979	2691	666	582	107
-at target (>= 99.5%)	new	true	4403	2691	892	667	
+new vs igblast (n >= 30)	new	false	2152	1919	480	426	65
+new vs legacy (n >= 30)	new	false	2979	2757	666	591	38
+at target (>= 99.5%)	new	true	4345	2609	880	646	
 at target (>= 99.5%)	igblast	true	1867	1018	384	227	
 at target (>= 99.5%)	legacy	true	2887	1133	594	272	
-new vs igblast (n >= 30)	new	true	1724	1443	384	322	106
-new vs legacy (n >= 30)	new	true	2658	2382	594	520	107
+new vs igblast (n >= 30)	new	true	1724	1492	384	330	64
+new vs legacy (n >= 30)	new	true	2658	2448	594	529	38
