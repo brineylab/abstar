@@ -279,7 +279,9 @@ impl<'a> Simulator<'a> {
             .collect()
     }
 
-    pub fn simulate(&self, rng: &mut impl Rng) -> Simulated {
+    /// One read. Under `productive_only`, a rearrangement that is already unproductive
+    /// before SHM comes back unmutated (and so unproductive) for the caller to reject.
+    pub fn simulate<R: Rng>(&self, rng: &mut R) -> Simulated {
         let (b, m, p) = (self.bound, &self.bound.model, self.params);
         let trim = |t: &crate::TrimSet, gene: &str, rng: &mut _| draw(t.genes.get(gene).unwrap_or(&t.default), rng);
 
@@ -359,13 +361,40 @@ impl<'a> Simulator<'a> {
             _ => Some(i),
         };
         let kept = |i: usize| after(i).is_some_and(|x| (truncate_5..n - truncate_3).contains(&x));
+        // bases of a placed insertion: a copy of its neighbours in `s` under
+        // `indel_duplication` (upstream when there are enough), else `None` for random bases
+        let dup = |s: &[u8]| match placed {
+            Some((IndelKind::Ins, r, l)) if p.indel_duplication && r >= l => Some(s[r - l..r].to_vec()),
+            Some((IndelKind::Ins, r, l)) if p.indel_duplication && r + l <= s.len() => Some(s[r..r + l].to_vec()),
+            _ => None,
+        };
+        let random = |l: usize, rng: &mut R| (0..l).map(|_| BASES[rng.random_range(0..4)]).collect::<Vec<u8>>();
+
+        // productive_only (record 0024): a rearrangement that is unproductive after the indel
+        // and truncation but before SHM is returned unmutated, so the caller's productivity
+        // check rejects it; mutation must not repair it (a repair tilts the realized mutation
+        // distribution upward). Random insertion bases are drawn here so the check sees them.
+        let germ = seq.clone();
+        let mut random_ins = None;
+        let mut pre_shm_productive = true;
+        if p.productive_only {
+            let (mut s2, mut o2) = (germ.clone(), org.clone());
+            if let Some((kind, r, len)) = placed {
+                if kind == IndelKind::Ins && dup(&germ).is_none() {
+                    random_ins = Some(random(len, rng));
+                }
+                let bases = dup(&germ).or(random_ins.clone()).unwrap_or_default();
+                self.apply_indel(kind, r, len, bases, &mut s2, &germ, &mut o2);
+            }
+            let t = truncate_5..n - truncate_3;
+            pre_shm_productive = productivity(&s2[t.clone()], &o2[t], &v, &j).productive;
+        }
 
         // mutate the V(D)J bases that reach the final read; `germ` keeps the unmutated sequence
-        let germ = seq.clone();
         let mut mutations = Vec::new();
         let mut warnings = Vec::new();
         let target = p.mutation.sample(rng).clamp(0.0, 1.0);
-        if let (Some(model), true) = (self.shm(), target > 0.0) {
+        if let (Some(model), true, true) = (self.shm(), target > 0.0, pre_shm_productive) {
             let mutable: Vec<bool> = (0..vdj_len).map(kept).collect();
             let v_pos: Vec<usize> = (0..vdj_len).filter(|&i| mutable[i] && matches!(org[i], Origin::V(_))).collect();
             // productive_only: purifying selection against stop codons in the V frame and
@@ -397,7 +426,11 @@ impl<'a> Simulator<'a> {
 
         let mut indels = Vec::new();
         if let Some((kind, r, len)) = placed {
-            indels.push(self.apply_indel(kind, r, len, &mut seq, &germ, &mut org, rng));
+            let bases = match kind {
+                IndelKind::Ins => dup(&seq).or(random_ins).unwrap_or_else(|| random(len, rng)),
+                IndelKind::Del => Vec::new(),
+            };
+            indels.push(self.apply_indel(kind, r, len, bases, &mut seq, &germ, &mut org));
             mutations.retain_mut(|x| after(x.pos).map(|y| x.pos = y).is_some());
         }
 
@@ -467,19 +500,19 @@ impl<'a> Simulator<'a> {
         (!at.is_empty()).then(|| (kind, at[pick(&weights, rng)], len))
     }
 
-    /// Applies a placed indel to the (mutated) `seq`; equivalence is computed on `germ`.
+    /// Applies a placed indel to the (mutated) `seq`, inserting `bases` for an insertion;
+    /// equivalence is computed on `germ`.
     #[allow(clippy::too_many_arguments)]
     fn apply_indel(
         &self,
         kind: IndelKind,
         r: usize,
         len: usize,
+        bases: Vec<u8>,
         seq: &mut Vec<u8>,
         germ: &[u8],
         org: &mut Vec<Origin>,
-        rng: &mut impl Rng,
     ) -> Indel {
-        let p = self.params;
         let germline_pos = match org[r] {
             Origin::J(u) => u,
             _ => r,
@@ -499,14 +532,6 @@ impl<'a> Simulator<'a> {
                 germ[r..r + len].to_vec()
             }
             IndelKind::Ins => {
-                // duplication copies the neighbouring bases, upstream when there are enough
-                let bases: Vec<u8> = if p.indel_duplication && r >= len {
-                    seq[r - len..r].to_vec()
-                } else if p.indel_duplication && r + len <= seq.len() {
-                    seq[r..r + len].to_vec()
-                } else {
-                    (0..len).map(|_| BASES[rng.random_range(0..4)]).collect()
-                };
                 let mut x = bases.clone();
                 while lo > 0 && germ[lo - 1] == x[len - 1] {
                     x.rotate_right(1);

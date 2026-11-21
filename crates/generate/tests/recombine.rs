@@ -272,7 +272,7 @@ fn spec_parsing() {
     assert_eq!(preset("tcr").unwrap().mutation, Spec::Fixed(0.0));
     assert_eq!(preset("memory").unwrap().mutation, Spec::Uniform(0.02, 0.12));
     let b = preset("bnab").unwrap();
-    assert_eq!((b.mutation, b.indel_rate), (Spec::Uniform(0.15, 0.35), 0.108));
+    assert_eq!((b.mutation, b.indel_rate, b.productive_only), (Spec::Uniform(0.15, 0.35), 0.110, true));
     assert!(b.long_cdr3_weight > 0.0);
     let e = preset("bnAb2").unwrap_err();
     assert_eq!(e.code(), "INVALID_ARGUMENT");
@@ -378,6 +378,22 @@ fn mutation_targets_final_read_divergence() {
         assert!(f >= 0.2 - 0.5 / nv && f < 0.2 + 2.0 / nv, "seed {seed}: {f}");
         assert!(s.mutations.iter().all(|m| m.pos >= 60 && m.pos < 60 + s.read.len()));
     }
+}
+
+/// productive_only: SHM never repairs an unproductive rearrangement (record 0024). Without
+/// indels, selection blocks every new stop and anchor break, so a read is mutated exactly
+/// when it is productive.
+#[test]
+fn productive_only_does_not_repair() {
+    let (h, p) = (igh(), GenerateParams { mutation: Spec::Fixed(0.2), productive_only: true, ..naive() });
+    let mut productive = 0;
+    for seed in 0..300 {
+        let s = sim(&h, &p, seed);
+        let ok = productivity(&s.read, &s.origin, &s.v, &s.j).productive;
+        assert_eq!(!s.mutations.is_empty(), ok, "seed {seed}");
+        productive += usize::from(ok);
+    }
+    assert!(productive > 30 && productive < 270, "{productive}");
 }
 
 #[test]

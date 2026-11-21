@@ -31,20 +31,20 @@ A model that does not fit the database (less than 90 % of its V, D or J mass map
 
 `--preset` sets starting parameters; any option given explicitly overrides the preset's value.
 
-| Preset | Mutation | Long CDR3 weight | Indels |
-|---|---|---|---|
-| (none), `naive`, `tcr` | 0 | 0 | 0 |
-| `memory` | `uniform:0.02-0.12` | 0 | 0 |
-| `bnab` | `uniform:0.15-0.35` | 0.05 | 0.108 |
+| Preset | Mutation | Long CDR3 weight | Indels | Productive only |
+|---|---|---|---|---|
+| (none), `naive`, `tcr` | 0 | 0 | 0 | no |
+| `memory` | `uniform:0.02-0.12` | 0 | 0 | no |
+| `bnab` | `uniform:0.15-0.35` | 0.08 | 0.110 | yes |
 
-`bnab`'s long-CDR3 weight draws each junction's N length from the IGH model's long tail (20-60 nt) with probability 0.05. It is meant to be used with `--productive-only`. On `human-igh`, that gives about 29% of productive reads with CDRH3 ≥ 24 aa, 2.4% with ≥ 35 aa and 10% with an indel, at about 4 attempts per read.
+`bnab`'s long-CDR3 weight draws each junction's N length from the IGH model's long tail (20-60 nt) with probability 0.08. On `human-igh` it gives about 28% of reads with CDRH3 ≥ 24 aa, 2.4% with ≥ 35 aa and 10% with an indel, at about 6 attempts per read. These numbers are for productive output, which `bnab` turns on; `--no-productive-only` turns it off.
 
 ## Options
 
 - `--mutation`, `--truncate-5p`, `--truncate-3p` take a number or a distribution drawn per read: `fixed:X`, `uniform:LO-HI`, `beta:A,B`. Mutation is the realized V divergence (0-1); truncations are nucleotides cut from each end of the read.
 - `--long-cdr3` is the per-junction probability of drawing the N length from the model's long tail. `--indels` is the per-read probability of one indel (`--frameshift-indels` allows lengths that shift the frame).
 - `--constant INT` appends that many nucleotides of a constant region (Python: `isotype_weights` weights the C genes).
-- `--productive-only` keeps only productive reads; `attempts` in the summary counts the reads simulated. It also turns on selection during mutation, as in real antibodies (decision 0024). A substitution is rejected and redrawn if it would create an in-frame stop codon, or make the Cys104 or Trp/Phe118 codon non-conserved. Without it, mutation is neutral.
+- `--productive-only` keeps only productive reads; `attempts` in the summary counts the reads simulated. It also turns on selection during mutation, as in real antibodies (decision 0024). A rearrangement must be productive before it is mutated (mutation never repairs one), and a substitution is rejected and redrawn if it would create an in-frame stop codon, or make the Cys104 or Trp/Phe118 codon non-conserved. Without it, mutation is neutral.
 - Mutation uses abstar's built-in motif model (decision 0024). `--shm-table DIR` uses S5F tables instead (`Mutability.csv`, `Substitution.csv`), which you download yourself; abstar does not bundle them.
 - Mutating with a model whose `shm_model` is `none` (the TCR models) is `INVALID_ARGUMENT`. To mutate TCRs for testing, pass `shm_model="motif"` from Python, or `--shm-table`.
 

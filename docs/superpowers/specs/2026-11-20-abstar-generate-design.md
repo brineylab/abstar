@@ -196,10 +196,15 @@ alleles lack anchors (see below).
   - Synonymous changes within those sets are allowed.
   - A rejected draw does not count toward the target; the realized-divergence
     stopping rule and the safety cap still apply.
-  - Frame and junction failures still resample the whole read.
+  - Mutation never repairs a read. The rearrangement (after the indel and
+    truncation, before mutation) must already be productive: in-frame
+    junction, no stop codon in the V frame from V start to J end, conserved
+    Cys104 and Trp/Phe118 codons, and both anchors in the read. Otherwise the
+    whole read is resampled before it is mutated. Letting SHM remove a stop
+    would favour the more mutated reads and skew the mutation distribution.
   - Why: at `bnab` divergence nearly every neutral read has a stop, and most
     lose an anchor codon. Filtering neutral reads needed ~220 attempts per
-    read and aborted large runs; with selection it needs ~4. Real mutated
+    read and aborted large runs; with selection it needs ~6. Real mutated
     antibodies are productive because selection removes such reads
     (record 0024).
 
@@ -244,8 +249,8 @@ alleles lack anchors (see below).
 ## Presets
 
 Named parameter bundles for common benchmark settings, for example `naive`,
-`memory`, `bnab` and `tcr`. `bnab` is meant for productive output
-(`--productive-only`) and means:
+`memory`, `bnab` and `tcr`. `bnab` produces productive output (it turns on
+`productive_only`; `--no-productive-only` turns it off) and means:
 
 - mutation drawn from 15–35%;
 - the long-tail N lengths enabled, tuned so that for IGH at least 25% of

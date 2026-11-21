@@ -251,8 +251,8 @@ fn productive_read(s: &Simulator, seed: u64, i: usize) -> (Simulated, usize) {
         .unwrap_or_else(|| panic!("read {i}: no productive read in 1000 attempts"))
 }
 
-/// The bnab targets hold on productive output (`--preset bnab --productive-only`), the
-/// preset's intended use: real bnAbs are productive. Denominator: productive reads.
+/// The bnab targets hold on productive output (`productive_only`, which the bnab preset
+/// sets): real bnAbs are productive. Denominator: productive reads.
 #[test]
 #[ignore = "release only: cargo test -p abstar_generate --release --test validation -- --include-ignored"]
 fn bnab_targets() {
@@ -295,10 +295,65 @@ fn bnab_targets() {
     assert!((indel - 0.10).abs() <= 0.01, "has_indel {indel}");
 }
 
-/// `--preset bnab --productive-only` through the pipeline: no read hits the attempt limit,
-/// and attempts per read stay near 1 / (in-frame junction rate) ≈ 3.1, since selection
-/// keeps mutation from adding stops or breaking the anchor codons. Measured 3.98; the rest
-/// is stops in N/D and inserted bases.
+/// Kolmogorov-Smirnov distance between realized V mutation frequencies `(f, nV)` and
+/// `uniform:lo-hi`. Mutation hits only V bases in the final read, so realized divergence is
+/// round(T × nV) / nV with T the drawn target; the reference CDF is the mixture over reads of
+/// P(round(T × nV_i) ≤ x × nV_i), which carries the 1/nV discreteness. Evaluated on a 1e-4
+/// grid offset from round values.
+fn mutation_ks(reads: &[(f64, usize)], lo: f64, hi: f64) -> f64 {
+    let n = reads.len() as f64;
+    let mut f: Vec<f64> = reads.iter().map(|r| r.0).collect();
+    f.sort_by(f64::total_cmp);
+    let model = |x: f64| {
+        let p = |m: f64| ((((x * m).floor() + 0.5) / m - lo) / (hi - lo)).clamp(0.0, 1.0);
+        reads.iter().map(|&(_, m)| p(m as f64)).sum::<f64>() / n
+    };
+    let steps = ((hi - lo + 0.02) / 1e-4) as usize;
+    (0..steps)
+        .into_par_iter()
+        .map(|t| {
+            let x = lo - 0.01 + (t as f64 + 0.5) * 1e-4;
+            (f.partition_point(|&v| v <= x) as f64 / n - model(x)).abs()
+        })
+        .reduce(|| 0.0, f64::max)
+}
+
+/// Realized V mutation frequency follows the requested distribution, with and without
+/// `productive_only`: selection may block a substitution but never chooses which reads
+/// survive by how mutated they are (record 0024). bnab settings (indels, long CDRH3s).
+#[test]
+#[ignore = "release only: cargo test -p abstar_generate --release --test validation -- --include-ignored"]
+fn mutation_frequency_distribution() {
+    let b = bound("human-igh");
+    let mut failed = vec![];
+    for productive_only in [false, true] {
+        let p = GenerateParams { n: 20_000, seed: 2027, productive_only, ..preset("bnab").unwrap() };
+        assert_eq!(p.mutation.to_string(), "uniform:0.15-0.35");
+        let s = Simulator::new(&b, &p).unwrap();
+        let reads: Vec<(f64, usize)> = (0..p.n)
+            .into_par_iter()
+            .map(|i| {
+                let r = if productive_only { productive_read(&s, p.seed, i).0 } else { sim(&s, p.seed, i) };
+                let nv = r.origin.iter().filter(|o| matches!(o, abstar_generate::Origin::V(_))).count();
+                (r.v_mutation_frequency, nv)
+            })
+            .collect();
+        let d = mutation_ks(&reads, 0.15, 0.35);
+        let crit = 1.63 / (p.n as f64).sqrt(); // p = 0.01
+        let mean = reads.iter().map(|r| r.0).sum::<f64>() / p.n as f64;
+        eprintln!("productive_only {productive_only}: KS D {d:.4} (1% critical {crit:.4}), mean {mean:.4}");
+        if d >= crit {
+            failed.push((productive_only, d));
+        }
+    }
+    assert!(failed.is_empty(), "realized mutation distribution differs from the request: {failed:?}");
+}
+
+/// `--preset bnab` (productive_only) through the pipeline: no read hits the attempt limit,
+/// and attempts per read stay near 1 / (productive rate of the unmutated rearrangement):
+/// about 1/3 of junctions are in frame, and stops in N/D and inserted bases reject more,
+/// since SHM may not repair them (record 0024). Selection keeps mutation from adding stops
+/// or breaking the anchor codons, so few reads are rejected after SHM. Measured 6.1.
 #[test]
 #[ignore = "release only: cargo test -p abstar_generate --release --test validation -- --include-ignored"]
 fn bnab_productive_only_attempts() {
@@ -317,7 +372,7 @@ fn bnab_productive_only_attempts() {
     let mean = sum.attempts as f64 / sum.n as f64;
     eprintln!("bnab productive_only: {} reads, mean attempts {mean:.2}; warnings {:?}", sum.n, sum.warnings);
     assert_eq!((sum.n, sum.productive), (5_000, 5_000));
-    assert!(mean < 4.5, "mean attempts {mean}");
+    assert!(mean < 7.0, "mean attempts {mean}");
 }
 
 #[test]

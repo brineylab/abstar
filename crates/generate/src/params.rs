@@ -132,15 +132,16 @@ pub fn preset(name: &str) -> Result<GenerateParams, GenerateError> {
         "memory" => GenerateParams { mutation: Spec::Uniform(0.02, 0.12), ..base },
         "bnab" => GenerateParams {
             mutation: Spec::Uniform(0.15, 0.35),
-            // Tuned on productive output (`productive_only`, the preset's intended use), over
+            // Tuned on productive output (`productive_only`, the preset's default), over
             // productive human-igh reads (tests/validation.rs `bnab_targets`, 50,000 reads,
             // seed 2026). long_cdr3_weight: smallest round weight with margin for ≥ 25% CDRH3
-            // ≥ 24 aa and ≥ 2% ≥ 35 aa; 0.05 gives 29.0% / 2.38% (6 SE above 2%); 0 gives
-            // 24.1% / 0.45%, 0.045 gives 28.4% / 2.19% (3 SE). indel_rate: 0.108 centers
-            // has_indel at 10.0% of productive reads (0.10 gave 9.25%: indel reads are less
-            // often productive).
-            long_cdr3_weight: 0.05,
-            indel_rate: 0.108,
+            // ≥ 24 aa and ≥ 2% ≥ 35 aa; 0.08 gives 28.0% / 2.43% (7 SE above 2%); 0 gives
+            // 21.6% / 0.34%, 0.07 gives 27.2% / 2.18% (3 SE). indel_rate: 0.110 centers
+            // has_indel at 10.0% of productive reads (0.108 gave 9.87%: indel reads are less
+            // often productive). Mean 6.1 attempts per read.
+            long_cdr3_weight: 0.08,
+            indel_rate: 0.110,
+            productive_only: true,
             ..base
         },
         _ => {
