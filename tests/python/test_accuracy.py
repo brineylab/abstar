@@ -1,6 +1,7 @@
 """Accuracy gate: generate fixed-seed sets, annotate, grade against truth, hold each cell to a floor.
 
 `ABSTAR_WRITE_FLOORS=1` rewrites data/accuracy_floors.toml as measured - 0.5 pp (capped at the 99.5% target).
+Cells graded on fewer than `MIN_N` reads are reported but carry no floor.
 """
 import os
 import tomllib
@@ -11,7 +12,7 @@ import pytest
 
 import abstar
 
-N, TARGET = 2000, 0.995
+N, TARGET, MIN_N = 2000, 0.995, 5
 FLOORS = Path(__file__).parent / "data" / "accuracy_floors.toml"
 SETS = {  # name: (locus, generate options)
     "igh_naive": ("IGH", {"preset": "naive"}),
@@ -21,6 +22,10 @@ SETS = {  # name: (locus, generate options)
     "igl": ("IGL", {"preset": "naive"}),
     "tra": ("TRA", {"preset": "tcr"}),
     "trb": ("TRB", {"preset": "tcr"}),
+    # with 60 nt of constant region, so C calls and C mutation fields are graded
+    "igh_memory_c": ("IGH", {"preset": "memory", "constant": 60}),
+    "igh_bnab_c": ("IGH", {"preset": "bnab", "productive_only": True, "constant": 60}),
+    "igk_c": ("IGK", {"preset": "naive", "constant": 60}),
 }
 
 
@@ -48,7 +53,7 @@ def test_accuracy_floors(measured):
         lines = []
         for s, cells in measured.items():
             lines.append(f"[{s}]")
-            lines += [f'"{k}" = {max(0.0, min(TARGET, a - 0.005)):.4f}' for k, (a, _) in cells.items()]
+            lines += [f'"{k}" = {max(0.0, min(TARGET, a - 0.005)):.4f}' for k, (a, n) in cells.items() if n >= MIN_N]
             lines.append("")
         FLOORS.write_text("\n".join(lines))
     floors = tomllib.loads(FLOORS.read_text())
@@ -59,8 +64,12 @@ def test_accuracy_floors(measured):
             fl = floors.get(s, {}).get(k)
             if a < TARGET or os.environ.get("ABSTAR_FULL_TABLE"):
                 print(f"{s:<11} {k:<44} {n:>5} {a:>9.4f} {TARGET:>7.3f} {fl or 0:>7.4f}{' <target' if a < TARGET else ''}")
-            if fl is None or a < fl:
+            if n >= MIN_N and (fl is None or a < fl):
                 bad.append(f"{s} {k}: {a:.4f} < floor {fl}")
+    # every floor still has its cell, and every cell graded on MIN_N reads or more has a floor
+    want = {(s, k) for s, cells in measured.items() for k, (_, n) in cells.items() if n >= MIN_N}
+    have = {(s, k) for s, cells in floors.items() for k in cells}
+    bad += [f"{s} {k}: floor without a measured cell" for s, k in sorted(have - want)]
     n_below = sum(a < TARGET for c in measured.values() for a, _ in c.values())
     print(f"{n_below} of {sum(len(c) for c in measured.values())} cells below the {TARGET} target")
     assert not bad, "\n".join(bad)
@@ -73,3 +82,4 @@ def test_airr_validates_2000_reads(tmp_path):
     out = tmp_path / "out"
     abstar.run(fa, out)
     assert airr.validate_rearrangement(str(out / "reads.tsv")) is True
+    assert sum(1 for _ in airr.read_rearrangement(str(out / "reads.tsv"))) == N

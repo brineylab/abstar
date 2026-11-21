@@ -31,15 +31,18 @@ jobs:
       - name: Generator validation (release)
         if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
         run: cargo test -p abstar_generate --release --test validation -- --include-ignored
+      # x86_64 only: AVX2 and NEON may break alignment ties differently, and the floors are measured on x86_64
       - name: Accuracy gate and AIRR validation (release)
         if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
+        env:
+          ABSTAR_FULL_TABLE: "1"
         run: |
           . .venv/bin/activate
           python -m pytest tests/python/test_accuracy.py -q -s
       - name: Python tests
         run: |
           . .venv/bin/activate
-          python -m pytest -q
+          python -m pytest -q --ignore tests/python/test_accuracy.py
 
   wheels:
     runs-on: ${{ matrix.os }}
