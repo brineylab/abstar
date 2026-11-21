@@ -6,12 +6,12 @@ mod orient;
 mod ties;
 mod v;
 
-pub use orient::{orient, Oriented};
+pub use orient::{orient, reverse_complement, Oriented};
 pub use ties::primary_by_tiebreak;
 pub use v::{assign_v, VHit, MIN_V_SCORE};
 
-use crate::align::KmerIndex;
-use abstar_germline::{Allele, Segment};
+use crate::align::{KmerIndex, Scoring};
+use abstar_germline::{Allele, Locus, Segment};
 
 /// k-mer length of the prefilter indexes (record 0029).
 pub const K: usize = 7;
@@ -23,6 +23,7 @@ pub struct SegmentIndex {
     pub ids: Vec<usize>,
     pub seqs: Vec<Vec<u8>>,
     pub gapped: Vec<Vec<u8>>,
+    pub loci: Vec<Locus>,
     pub index: KmerIndex,
 }
 
@@ -32,6 +33,19 @@ impl SegmentIndex {
         let seqs: Vec<Vec<u8>> = ids.iter().map(|&i| alleles[i].sequence().to_ascii_uppercase().into_bytes()).collect();
         let gapped: Vec<Vec<u8>> = ids.iter().map(|&i| alleles[i].sequence_gapped.to_ascii_uppercase().into_bytes()).collect();
         let index = KmerIndex::new(&seqs.iter().map(|s| s.as_slice()).collect::<Vec<_>>(), K);
-        SegmentIndex { ids, seqs, gapped, index }
+        let loci = ids.iter().map(|&i| alleles[i].locus).collect();
+        SegmentIndex { ids, seqs, gapped, loci, index }
     }
+}
+
+/// Orients the read and assigns V (record 0029). When the chosen strand gives no V hit, the
+/// other strand is tried; a read and its reverse complement try the same strands in the same
+/// order. `None` means no V hit (`no_v_hit`).
+pub fn call_v(read: &[u8], alleles: &[Allele], v: &SegmentIndex, j: &SegmentIndex, scoring: &Scoring) -> Option<(Oriented, VHit)> {
+    let o = orient(read, &v.index, &j.index)?;
+    if let Some(h) = assign_v(&o, alleles, v, j, scoring) {
+        return Some((o, h));
+    }
+    let flipped = Oriented { seq: reverse_complement(&o.seq), rev_comp: !o.rev_comp };
+    assign_v(&flipped, alleles, v, j, scoring).map(|h| (flipped, h))
 }

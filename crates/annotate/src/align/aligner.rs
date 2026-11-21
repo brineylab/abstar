@@ -100,6 +100,73 @@ pub fn score_semiglobal(query: &[u8], germline: &[u8], s: &Scoring) -> (i32, usi
     super::scalar::score(query, germline, s)
 }
 
+/// Most aligned columns between the first and last gap of a group that `collapse_gap_pairs`
+/// replaces (record 0029).
+pub const MAX_PAIR_SPAN: usize = 40;
+
+/// Replaces each balanced group of gaps (consecutive gaps whose inserted and deleted lengths
+/// are equal, such as an equal-length insertion+deletion pair, with at most `MAX_PAIR_SPAN`
+/// aligned columns between the first and the last) by the gapless diagonal over the same
+/// stretch when that diagonal scores within one gap open of the group (ties go to the
+/// diagonal). Such groups are compensating artifacts of clustered mismatches, not indels.
+/// Groups are taken left to right, shortest first, until none qualifies. The score changes by
+/// the change in the ops' score, so an offset already in `aln.score` is kept.
+pub fn collapse_gap_pairs(aln: &Alignment, query: &[u8], germline: &[u8], s: &Scoring) -> Alignment {
+    let mut out = aln.clone();
+    'scan: loop {
+        let (mut qi, mut gi) = (out.q_start, out.g_start);
+        // (op index, query and germline position at the op's start) of each gap.
+        let mut gaps: Vec<(usize, usize, usize)> = Vec::new();
+        for (i, &(op, n)) in out.ops.iter().enumerate() {
+            if matches!(op, Op::Ins | Op::Del) {
+                gaps.push((i, qi, gi));
+            }
+            match op {
+                Op::Match | Op::Mismatch => (qi, gi) = (qi + n as usize, gi + n as usize),
+                Op::Ins => qi += n as usize,
+                Op::Del => gi += n as usize,
+            }
+        }
+        for (x, &(a, qa, ga)) in gaps.iter().enumerate() {
+            let (mut ins, mut del) = (0u32, 0u32);
+            for &(b, _, _) in &gaps[x..] {
+                match out.ops[b] {
+                    (Op::Ins, n) => ins += n,
+                    (_, n) => del += n,
+                }
+                let between: u32 = out.ops[a..=b].iter().filter(|o| matches!(o.0, Op::Match | Op::Mismatch)).map(|o| o.1).sum();
+                if between as usize > MAX_PAIR_SPAN {
+                    break;
+                }
+                if b == a || ins != del {
+                    continue;
+                }
+                let len = (ins + between) as usize;
+                let gapped = score_ops(&out.ops[a..=b], s);
+                let mut diag = Vec::new();
+                for i in 0..len {
+                    push(&mut diag, if is_match(query[qa + i], germline[ga + i]) { Op::Match } else { Op::Mismatch });
+                }
+                let diagonal = score_ops(&diag, s);
+                if diagonal < gapped + s.gap_open as i32 {
+                    continue;
+                }
+                let mut ops: Vec<(Op, u32)> = out.ops[..a].to_vec();
+                for &(op, n) in diag.iter().chain(&out.ops[b + 1..]) {
+                    match ops.last_mut() {
+                        Some((last, m)) if *last == op => *m += n,
+                        _ => ops.push((op, n)),
+                    }
+                }
+                out.score += diagonal - gapped;
+                out.ops = ops;
+                continue 'scan;
+            }
+        }
+        return out;
+    }
+}
+
 /// Moves each gap (left to right, the others fixed) to the placement of its kind and length with
 /// the fewest query-vs-germline mismatches over the aligned span, leftmost on ties. A placement
 /// needs an aligned base on each side and may not overlap another gap of its kind; its flanks are

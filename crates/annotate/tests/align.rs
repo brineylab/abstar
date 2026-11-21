@@ -467,3 +467,80 @@ fn place_gaps_matches_brute_force() {
         }
     }
 }
+
+/// Ops labelled Match/Mismatch from the sequences for a layout of (kind, length) runs, where a
+/// `Match` run means "aligned columns".
+fn labelled(layout: &[(Op, u32)], q: &[u8], g: &[u8]) -> Vec<(Op, u32)> {
+    let (mut qi, mut gi, mut ops) = (0, 0, Vec::<(Op, u32)>::new());
+    let push = |ops: &mut Vec<(Op, u32)>, op: Op, n: u32| match ops.last_mut() {
+        Some((l, m)) if *l == op => *m += n,
+        _ => ops.push((op, n)),
+    };
+    for &(op, n) in layout {
+        match op {
+            Op::Ins => {
+                push(&mut ops, Op::Ins, n);
+                qi += n as usize;
+            }
+            Op::Del => {
+                push(&mut ops, Op::Del, n);
+                gi += n as usize;
+            }
+            _ => {
+                for _ in 0..n {
+                    push(&mut ops, if q[qi] == g[gi] { Op::Match } else { Op::Mismatch }, 1);
+                    qi += 1;
+                    gi += 1;
+                }
+            }
+        }
+    }
+    ops
+}
+
+#[test]
+fn collapse_spurious_pair() {
+    // An insertion and a deletion of 3, 5 columns apart, on a read identical to the germline:
+    // the diagonal is all matches and replaces the pair.
+    let g = rand_seq(120, 41);
+    let ops = labelled(&[(Op::Match, 40), (Op::Ins, 3), (Op::Match, 5), (Op::Del, 3), (Op::Match, 72)], &g, &g);
+    let a = mk(0, 120, 0, 120, ops);
+    check(&a, &g, &g);
+    let c = collapse_gap_pairs(&a, &g, &g, &S);
+    check(&c, &g, &g);
+    assert_eq!(c.ops, vec![(Op::Match, 120)]);
+    assert_eq!(c.score, 240);
+    // Unbalanced or farther apart than MAX_PAIR_SPAN: kept.
+    let far = labelled(&[(Op::Match, 10), (Op::Ins, 3), (Op::Match, MAX_PAIR_SPAN as u32 + 1), (Op::Del, 3), (Op::Match, 120 - 14 - MAX_PAIR_SPAN as u32)], &g, &g);
+    let a = mk(0, 120, 0, 120, far);
+    assert_eq!(collapse_gap_pairs(&a, &g, &g, &S), a);
+}
+
+#[test]
+fn collapse_keeps_real_indels() {
+    // A real 9-nt deletion, and a real insertion+deletion pair whose diagonal is far worse.
+    let g = rand_seq(200, 43);
+    let q = cat(&[&g[..80], &g[89..]]);
+    let a = align_semiglobal(&q, &g, &S);
+    assert_eq!(gaps(&a), vec![(Op::Del, 9)]);
+    assert_eq!(collapse_gap_pairs(&a, &q, &g, &S), a);
+    let q = cat(&[&g[..60], b"ACGTAC", &g[60..90], &g[96..]]);
+    let a = align_semiglobal(&q, &g, &S);
+    assert_eq!(gaps(&a), vec![(Op::Ins, 6), (Op::Del, 6)]);
+    assert_eq!(collapse_gap_pairs(&a, &q, &g, &S), a);
+}
+
+#[test]
+fn diagonal_hits_count_one_band() {
+    // The source allele's k-mers all lie on one diagonal; a read of shuffled 20-mers of it
+    // shares as many k-mers but spread over many diagonals.
+    let a = rand_seq(300, 45);
+    let b = rand_seq(300, 46);
+    let index = KmerIndex::new(&[&a, &b], 7);
+    let d = index.diagonal_hits(&a, 8);
+    assert_eq!(d.iter().find(|h| h.0 == 0).unwrap().1, 294);
+    let shuffled: Vec<u8> = (0..15).rev().flat_map(|i| a[i * 20..i * 20 + 20].to_vec()).collect();
+    let plain = index.hits(&shuffled).iter().find(|h| h.0 == 0).unwrap().1;
+    let banded = index.diagonal_hits(&shuffled, 8).iter().find(|h| h.0 == 0).unwrap().1;
+    assert!(plain >= 15 * 14 && banded <= 2 * 14, "plain {plain} banded {banded}");
+}

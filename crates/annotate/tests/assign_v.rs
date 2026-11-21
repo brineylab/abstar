@@ -1,7 +1,7 @@
 //! Orientation and V assignment (record 0029) on the built-in human database.
 mod common;
 use abstar_annotate::align::{Op, Scoring};
-use abstar_annotate::assign::{assign_v, orient, primary_by_tiebreak, Oriented, SegmentIndex, VHit};
+use abstar_annotate::assign::{call_v, orient, primary_by_tiebreak, Oriented, SegmentIndex, VHit};
 use abstar_generate::Spec;
 use abstar_germline::{Allele, Functionality, Locus, Segment};
 use common::{generated, human_db, rand_seq, revcomp, Generated};
@@ -23,9 +23,7 @@ impl Ref {
         Ref { alleles, v, j }
     }
     fn call(&self, read: &[u8]) -> Option<(Oriented, VHit)> {
-        let o = orient(read, &self.v.index, &self.j.index)?;
-        let h = assign_v(&o, &self.alleles, &self.v, &Scoring::default())?;
-        Some((o, h))
+        call_v(read, &self.alleles, &self.v, &self.j, &Scoring::default())
     }
     fn idx(&self, name: &str) -> usize {
         self.alleles.iter().position(|a| a.name == name).unwrap_or_else(|| panic!("no allele {name}"))
@@ -133,36 +131,43 @@ fn primary_by_tiebreak_order() {
 
 #[test]
 fn reverse_complement_identical() {
-    // Review Focus 1: a read and its reverse complement give the same oriented read and V hit.
+    // Review Focus 1: a read and its reverse complement give the same oriented read and V hit,
+    // on memory reads with indels and on heavily mutated reads.
     let r = human();
-    let g = generated(7, "memory", 200, |p| p.indel_rate = 0.3);
-    let mut called = 0;
-    for i in 0..g.len() {
-        let s = g.sequence(i).as_bytes();
-        let fwd = r.call(s);
-        let rev = r.call(&revcomp(s));
-        match (fwd, rev) {
-            (Some((of, hf)), Some((or, hr))) => {
-                assert!(!of.rev_comp && or.rev_comp, "read {i}");
-                assert_eq!(of.seq, or.seq, "read {i}");
-                assert_eq!(hf, hr, "read {i}");
-                called += 1;
+    for g in [generated(7, "memory", 200, |p| p.indel_rate = 0.3), generated(8, "naive", 200, |p| p.mutation = Spec::Uniform(0.15, 0.35))] {
+        let mut called = 0;
+        for i in 0..g.len() {
+            let s = g.sequence(i).as_bytes();
+            match (r.call(s), r.call(&revcomp(s))) {
+                (Some((of, hf)), Some((or, hr))) => {
+                    assert_ne!(of.rev_comp, or.rev_comp, "read {i}");
+                    assert_eq!(of.seq, or.seq, "read {i}");
+                    assert_eq!(hf, hr, "read {i}");
+                    called += 1;
+                }
+                (None, None) => {}
+                _ => panic!("read {i}: one strand called, the other not"),
             }
-            (None, None) => {}
-            _ => panic!("read {i}: one strand called, the other not"),
         }
+        assert!(called >= g.len() * 95 / 100, "{called} of {} called", g.len());
     }
-    assert_eq!(called, g.len());
 }
 
 #[test]
-fn orientation_tie_goes_forward() {
+fn orientation_tie_by_content() {
+    // Equal k-mer evidence on both strands: the lexicographically smaller strand, for a read and
+    // for its reverse complement alike.
     let r = human();
     let v = ungapped(&r.alleles[r.idx("IGHV3-23*01")]);
-    let read = [&v[..], &revcomp(&v)].concat(); // its own reverse complement: equal evidence
-    let o = orient(&read, &r.v.index, &r.j.index).unwrap();
+    let palindrome = [&v[..], &revcomp(&v)].concat();
+    let o = orient(&palindrome, &r.v.index, &r.j.index).unwrap();
     assert!(!o.rev_comp);
-    assert_eq!(o.seq, read);
+    assert_eq!(o.seq, palindrome);
+    let read = [&v[..], b"TTTTTTTTTTGA", &revcomp(&v)].concat();
+    let (a, b) = (orient(&read, &r.v.index, &r.j.index).unwrap(), orient(&revcomp(&read), &r.v.index, &r.j.index).unwrap());
+    assert_eq!(a.seq, b.seq);
+    assert_ne!(a.rev_comp, b.rev_comp);
+    assert!(a.seq <= revcomp(&a.seq));
 }
 
 #[test]
@@ -254,11 +259,11 @@ fn recoverable(g: &Generated, i: usize) -> bool {
 }
 
 #[test]
-fn prefilter_never_drops_a_tie() {
-    // The tie set holds every allele of v_call_valid on recoverable reads (seed 1, 2,000 reads,
-    // mutation uniform 0-0.3). Record 0029: the read alone cannot always reproduce truth's
-    // origin-based sets (N bases matching a sibling's 3' tail, spurious compensating gaps at
-    // > 20% mutation), so the bound is 99%, and the exact rate is printed.
+fn v_ties_cover_valid_99pct_mutated() {
+    // The tie set holds every allele of v_call_valid on >= 99% of recoverable reads (seed 1,
+    // 2,000 reads, mutation uniform 0-0.3). Record 0029: the read alone cannot always reproduce
+    // truth's origin-based sets (N bases continuing a sibling's 3' tail, misplaced bases at high
+    // mutation), so the bound is 99%, and the exact rate is printed.
     let r = human();
     let g = generated(1, "naive", 2000, |p| p.mutation = Spec::Uniform(0.0, 0.3));
     let rows: Vec<usize> = (0..g.len()).filter(|&i| recoverable(&g, i)).collect();
@@ -305,4 +310,16 @@ fn v_call_accuracy_naive() {
         if cfg!(debug_assertions) { "debug" } else { "release" }
     );
     assert!(rate >= 0.99, "V call accuracy {rate}");
+}
+
+#[test]
+fn bnab_no_v_hit_rare() {
+    // Heavily mutated bnab-preset reads (seed 1, 2,000): no V hit on <= 0.5% of recoverable reads.
+    let r = human();
+    let g = generated(1, "bnab", 2000, |_| {});
+    let rows: Vec<usize> = (0..g.len()).filter(|&i| recoverable(&g, i)).collect();
+    let none = rows.par_iter().filter(|&&i| r.call(g.sequence(i).as_bytes()).is_none()).count();
+    let rate = none as f64 / rows.len() as f64;
+    println!("bnab no_v_hit: {none}/{} = {:.4}%", rows.len(), 100.0 * rate);
+    assert!(rate <= 0.005, "no V hit on {none} of {}", rows.len());
 }
