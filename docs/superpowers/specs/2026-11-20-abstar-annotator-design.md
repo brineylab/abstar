@@ -66,7 +66,12 @@ Mutation calls are made against each segment's **primary** call, so they are
 a single value like `v_call`.
 
 **Quality bars:**
-- **Accuracy (agreed with the user):**
+- **Accuracy (agreed with the user, as a target).** The user expects 99.5%
+  may be out of reach for some or all primary calls, possibly even V and J.
+  It is pursued as a target, not assumed. The benchmark report states the
+  achieved accuracy per field and subset, and explains each shortfall
+  (genuine ambiguity the truth sets don't capture vs annotator error). The
+  bar:
   - On `abstar generate` answer keys, every allele call, boundary, junction
     and mutation is correct on ≥ 99.5% of reads where the answer is
     recoverable. This is reported per difficulty subset: naive, heavily
@@ -98,9 +103,6 @@ a single value like `v_call`.
   (`lvdjc`) sequences, gapped-sequence variants, CDR3 V/N/D/J subdivisions,
   `complete_vdj`, aa identity fields. All are planned; each follows when
   needed.
-- **Inverted D calls.** D is searched in forward orientation only. Human
-  inverted D usage is rare, and AIRR has no field for it. This can be added
-  later behind an option.
 - **Antibody numbering schemes beyond IMGT** (Kabat, Chothia, etc.). Those
   belong to `abstar number`.
 - **Error correction of long or noisy reads.** As in the foundation, they
@@ -185,7 +187,15 @@ Each step records why it stopped when it can't continue. A record is then
    reported for the fields that don't need J.
 5. **Joint junction step** (loci with D: IGH, TRB, TRD; VJ loci skip D):
    - **Inputs:** the V tie set and J tie set, plus all D alleles of the locus
-     at every offset in the gap between them.
+     **in both orientations**, at every offset in the gap between them. An
+     inverted D match competes with forward matches on equal terms.
+   - **Inverted D output:**
+     - `d_inverted` (bool) is set when the primary D is used in reverse
+       complement.
+     - D coordinates and D mutation positions then refer to the
+       reverse-complemented allele. This is the same convention the
+       generator's truth uses (record 0025).
+     - AIRR has no inversion field, so `d_inverted` is an abstar extension.
    - **Scoring:** cut points (V end, D start, D end, J start) are scored by
      matches minus mismatches over germline-attributed bases (N and P score
      0).
@@ -343,7 +353,7 @@ affected fields are mutation calls/counts/frequencies, indels,
 - Mask encodings (legacy-compatible).
 - Region definitions and truncation behaviour.
 - Status and failure reasons.
-- Forward-only D.
+- D searched in both orientations; the `d_inverted` field and its coordinate convention.
 - Field naming policy (legacy names reused).
 
 ## Left to the builder
