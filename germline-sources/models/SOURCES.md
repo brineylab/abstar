@@ -3,7 +3,9 @@
 The five built-in models (`python/abstar/models/human-{igh,igk,igl,tra,trb}/model.toml`)
 are built from published, peer-reviewed summary distributions (decision 0027). Nothing here
 comes from IGoR or OLGA software or model files (GPL), and no GPL, AGPL or
-NonCommercial-licensed data is used. Every source below is CC BY 4.0.
+NonCommercial-licensed data is used. Every source below is under a Creative Commons
+Attribution license: CC BY 4.0, except Briney et al. 2012 (CC BY, version unstated by
+PLoS ONE at the time), which supplies no numbers.
 
 Rebuild the models with `python scripts/build_default_models.py`. It reads the digitized
 tables in `digitized/` and the built-in `human` germline database. The figure extractors
@@ -128,6 +130,8 @@ genes. *PLoS ONE* 7:e36750 (2012). doi:10.1371/journal.pone.0036750.
   - Dropped, not in the database: IGHV1-38-4, IGHV1-NL1, IGHV3-22, IGHV3-52, IGHV3-71,
     IGHV4-55, IGHV7-34-1.
   - Retained V mass: 0.921.
+  - IGHV3-NL1 has the largest share (about 0.08). This reflects IGoR's IMGT-era
+    assignment of reads to that gene in the original data, not a curation choice here.
 - **j_usage.** [IGoR] Supplementary Fig. 13, IGHJ panel.
 - **d_given_j.** [IGoR] Supplementary Fig. 4, P(D|J) for 27 IGHD genes × IGHJ1-6.
   - Dropped: IGHD4-11, which is identical to IGHD4-4 and absent from the database.
@@ -154,6 +158,15 @@ genes. *PLoS ONE* 7:e36750 (2012). doi:10.1371/journal.pone.0036750.
     | 0.5 | 0.732 | 0.301 |
 
     The targets (≥ 0.25 and ≥ 0.02) are reachable at small weights.
+- **Length caveat.** The `naive` preset (no long tail, mutation 0) gives a productive
+  CDRH3 mean of about 19.6 aa, with about 21 % of productive reads ≥ 24 aa. Measured
+  values: 19.66 aa and 20.7 % at n = 20,000, seed 0; an independent review measured
+  21.5 %.
+  - Selected naive repertoires are about 15-16 aa. The cause is IGoR's generative
+    insertion means of about 10.5 nt per junction, inferred from nonproductive reads
+    before selection.
+  - The `naive` preset is therefore pre-selection-like. At long-tail weight 0 it is
+    already near the `bnab` ≥ 24 aa target.
 
 ### human-trb
 
@@ -200,7 +213,17 @@ genes. *PLoS ONE* 7:e36750 (2012). doi:10.1371/journal.pone.0036750.
 - **insertions vj.** Fallback shape. A geometric distribution with the [Townsend] mean N
   addition, kappa 3.046 and lambda 3.321 nt, truncated where p < 1e-4 and renormalized.
 - **trim v_3, j_5.** Fallback surrogate: the IGH V 3′ and J 5′ deletion profiles from
-  [IGoR] Supplementary Fig. 13.
+  [IGoR] Supplementary Fig. 13, truncated to ≤ 6 nt and renormalized.
+  - **Why truncate.** Every IGKJ/IGLJ *01 allele has its F118 anchor at ungapped
+    index 7 (IGKJ2 at 8), while IGHJ anchors sit at 18 or later. The untruncated IGH J
+    profile has P(trim ≥ 8) ≈ 0.25.
+  - **Effect.** It deleted the anchor in about 23 % of IGK and 25 % of IGL reads (no
+    junction). After truncation, the no-junction rate is 0.000 for both at mutation 0,
+    measured on 20,000 reads. For comparison: IGH 0.036, TRA 0.035, TRB 0.020.
+    `crates/generate/tests/builtin_models.rs` asserts < 0.08.
+  - **Why the brief's truncated normal was not used.** No published light-chain trim
+    mean/SD was found. Collins & Watson 2018 (*Front Immunol* 9:2249, CC BY) state only
+    that light-chain exonuclease removal is small.
   - No open, peer-reviewed human light-chain trim distribution was found.
   - Foster et al. 1997 (*J Clin Invest*) and Farner et al. 1999 (*J Immunol*) report
     them, but they could not be retrieved, and Farner et al. is not open.
@@ -216,6 +239,10 @@ genes. *PLoS ONE* 7:e36750 (2012). doi:10.1371/journal.pone.0036750.
 | TRB | TRBV6-1 (IGoR reports it with TRBV6-2/6-3) |
 | TRA | none (fallback covers every gene) |
 
+- **Retained source mass.** `scripts/build_default_models.py` asserts that each segment
+  keeps ≥ 0.90 of its source mass after genes absent from the database are dropped.
+  Current values: IGH V 0.921, IGH D 0.998, TRB V 0.924, IGK V 0.996, all others 1.0.
+  IGH V and TRB V are the closest to the threshold.
 - Genes dropped from a source are listed above, and in each `model.toml` header comment.
   Every model binds to the built-in database without warnings
   (`crates/generate/tests/builtin_models.rs`).

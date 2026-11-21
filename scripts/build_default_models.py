@@ -56,6 +56,12 @@ LIGHT_E = {
 # gene is still generated rarely. Genes the paper calls likely pseudogenes get no floor.
 FLOOR = 0.001
 PSEUDO = {"IGLJ6", "IGLV3-12"}
+# Light-chain trims borrow the IGH profiles, truncated here: IGKJ/IGLJ anchors (F118 codon) sit
+# at ungapped index 7-8, so IGH-sized J deletions (P(>= 8) ~ 0.25) would delete them.
+LIGHT_MAX_TRIM = 6
+# Minimum source mass a model must keep after dropping genes absent from the database
+# (the same threshold bind applies, record 0023).
+MIN_RETAINED = 0.90
 
 
 def load(name):
@@ -81,9 +87,10 @@ def restrict(usage, genes, notes, what):
     """Keep genes in the database; record dropped genes and the source mass they carried."""
     usage = norm(usage)
     drop = sorted(g for g in usage if g not in genes)
+    kept = 1 - sum(usage[g] for g in drop)
+    assert kept >= MIN_RETAINED, f"{what}: only {kept:.4f} of source mass is in the database"
     if drop:
-        notes.append(f"{what}: dropped (not in database) {', '.join(drop)}; "
-                     f"{sum(usage[g] for g in drop):.4f} of source mass")
+        notes.append(f"{what}: dropped (not in database) {', '.join(drop)}; retained {kept:.4f} of source mass")
     return norm({g: p for g, p in usage.items() if g in genes})
 
 
@@ -278,7 +285,9 @@ def light(db, locus):
                     "100 donors); N length geometric with the Townsend et al. 2016 mean; trims and N "
                     "composition are IGH surrogates.",
         v=usage("V"), j=usage("J"),
-        trim={"v_3": s13["del_v3"], "j_5": s13["del_j5"]}, ins={"vj": geometric(n_mean)},
+        trim={k: {n: p for n, p in s13[src].items() if int(n) <= LIGHT_MAX_TRIM}
+              for k, src in (("v_3", "del_v3"), ("j_5", "del_j5"))},
+        ins={"vj": geometric(n_mean)},
         sources=[
             (MIKOCZIOVA, f"v_usage, j_usage: {fig} box-plot medians; duplicate 'E' genes split equally over "
                          f"the database copies; boxes at zero floored at {FLOOR}; likely pseudogenes "
@@ -286,7 +295,9 @@ def light(db, locus):
             (TOWNSEND, f"insertions vj (FALLBACK shape): geometric with mean {n_mean} nt "
                        f"({'kappa' if locus == 'IGK' else 'lambda'} mean N addition), truncated at p < 1e-4"),
             (IGOR, "trim v_3, j_5 (FALLBACK surrogate: IGH V 3' and J 5' deletion profiles from "
-                   "Supplementary Fig. 13; no open published light-chain trim distribution found)"),
+                   f"Supplementary Fig. 13, truncated to <= {LIGHT_MAX_TRIM} nt and renormalized so the "
+                   "J anchor (F118, ungapped index 7-8 in IGKJ/IGLJ) survives; no published light-chain "
+                   "trim mean/SD or distribution was found in open sources)"),
             (N_COMP[0], "n_markov (surrogate: IGH TdT composition)"),
         ],
     )

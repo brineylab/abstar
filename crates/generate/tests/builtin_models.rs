@@ -32,3 +32,29 @@ fn each_builtin_model_binds() {
         }
     }
 }
+
+/// Fraction of reads without a junction (e.g. the J anchor trimmed away) over 5,000 unmutated reads.
+fn no_junction_rate(name: &str) -> f64 {
+    use arrow_array::Array;
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../python/abstar");
+    let db = abstar_germline::load(&root.join("germline_dbs/human")).unwrap();
+    let b = bind(load_model(&root.join("models").join(name).join("model.toml")).unwrap(), &db).unwrap();
+    let mut p = abstar_generate::preset("naive").unwrap();
+    p.n = 5000;
+    let (mut n, mut none) = (0, 0);
+    for rb in abstar_generate::generate_in_memory(&b, &p).unwrap() {
+        let c = rb.column_by_name("junction_aa").unwrap();
+        n += c.len();
+        none += c.null_count();
+    }
+    none as f64 / n as f64
+}
+
+#[test]
+fn light_chain_trims_keep_the_junction() {
+    for name in ["human-igk", "human-igl"] {
+        let r = no_junction_rate(name);
+        eprintln!("{name}: no-junction rate {r:.4}");
+        assert!(r < 0.08, "{name}: {r}");
+    }
+}

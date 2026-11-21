@@ -31,9 +31,10 @@ Accepted (2026-11-20)
   - **IGK and IGL:**
     - Usage from Mikocziova et al. 2021 (naive repertoires, 100 donors).
     - N length is geometric with the Townsend et al. 2016 mean (fallback shape).
-    - The V/J trims are the IGH profiles, a fallback surrogate: no open, peer-reviewed light-chain trim distribution was found.
+    - The V/J trims are the IGH profiles truncated to ≤ 6 nt and renormalized, a fallback surrogate. No published light-chain trim mean/SD or distribution was found; Collins & Watson 2018 say only that removal is small.
+    - Truncation keeps the J F118 anchor, which is at ungapped index 7-8 in IGKJ/IGLJ. The full IGH J profile (P(≥ 8) ≈ 0.25) deleted it in about 23 % of IGK and 25 % of IGL reads. Truncated, the no-junction rate is 0.000 for both, against 0.02-0.04 for IGH/TRA/TRB, and a test asserts < 0.08.
     - N composition is borrowed from IGH.
-- **Fit to the database at build time.** Source genes absent from the database are dropped when the models are built and the rest renormalized, rather than left for `bind` to warn about on every run. The dropped genes and the source mass they carried are listed in SOURCES.md and in each file's header. Retained source mass is at least 0.92 for every segment. The built-in models bind without warnings.
+- **Fit to the database at build time.** Source genes absent from the database are dropped when the models are built and the rest renormalized, rather than left for `bind` to warn about on every run. The dropped genes and the source mass they carried are listed in SOURCES.md and in each file's header. Retained source mass is at least 0.92 for every segment (IGH V 0.921, TRB V 0.924), and the build script asserts ≥ 0.90. The built-in models bind without warnings.
 - **Generation-model distributions.** IGoR's distributions describe generation (pre-selection), inferred from nonproductive reads. We use them as published and do not reweight them toward productive repertoires.
 - **IGH long tail is engineered.** `insertions_long_tail` for VD and DJ is uniform over 20-60 nt. It is labelled as not literature-derived, with Briney et al. 2012 as the rationale. It is sized so the `bnab` preset's `long_cdr3_weight` can reach the CDRH3 targets: measured ≥ 24 aa / ≥ 35 aa fractions are 0.57 / 0.17 at weight 0.3.
 - **No D inversion.** `d_inversion` is 0 for IGH and TRB, as the spec requires.
@@ -50,7 +51,9 @@ Accepted (2026-11-20)
 
 ## Consequences
 
-- **Long CDR3s.** CDR3s are longer than in selected repertoires: mean CDRH3 is about 20 aa, and about 24 % are ≥ 24 aa with no long tail. This follows from the pre-selection distributions. Presets that need productive-like lengths must account for it.
+- **Long CDR3s.** With the `naive` preset (no long tail), productive CDRH3 mean is about 19.6 aa and about 21 % are ≥ 24 aa; selected naive repertoires are about 15-16 aa.
+  - The cause is IGoR's generative insertion means of about 10.5 nt per junction, from nonproductive (pre-selection) reads.
+  - `naive` is therefore pre-selection-like, and at long-tail weight 0 it is already near the `bnab` ≥ 24 aa fraction. Presets that need productive-like lengths must account for it.
 - **Uncovered genes.** Database genes that no source covers (e.g. IGHV4-31, IGLJ4/5) are never generated. SOURCES.md lists them.
 - **One N chain.** The format has one N Markov chain, so DJ N regions use the VD-strand composition, although Elhanati et al. show that DJ follows it on the opposite strand.
 - **Fallbacks.** TRA gene usage, light-chain trims, light-chain N length and the TR/light-chain N composition are fallbacks or surrogates. Replace them when better open data are found, with a superseding record.
