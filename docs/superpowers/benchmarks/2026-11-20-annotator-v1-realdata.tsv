@@ -70,8 +70,8 @@ new vs baseline	v	tie overlap	read favors new	9
 new vs baseline	v	different gene	read favors new	8
 new vs baseline	v	same gene, other allele	tie (read can't decide)	6
 new vs baseline	v	same gene, other allele	read favors baseline	3
-new vs baseline	v	different gene	tie (read can't decide)	2
 new vs baseline	v	same gene, other allele	read favors new	2
+new vs baseline	v	different gene	tie (read can't decide)	2
 new vs baseline	v	only tool called	one null	1
 new vs igblast	d	both null		33775
 new vs igblast	d	same allele		13274
