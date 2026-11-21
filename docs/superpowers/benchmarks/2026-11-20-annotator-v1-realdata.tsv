@@ -32,12 +32,12 @@ new vs baseline	c	only reference called	one null	23
 new vs baseline	c	only tool called	one null	18
 new vs baseline	d	both null		33411
 new vs baseline	d	same allele		11556
-new vs baseline	d	same allele (suffix stripped)		2111
+new vs baseline	d	same allele (suffix stripped)		2110
 new vs baseline	d	only reference called	one null (called D scores <=6)	972
 new vs baseline	d	tie overlap	tie (read can't decide)	804
 new vs baseline	d	different gene	read favors new	760
 new vs baseline	d	different gene	tie (read can't decide)	145
-new vs baseline	d	different gene	read favors baseline	132
+new vs baseline	d	different gene	read favors baseline	133
 new vs baseline	d	tie overlap	read favors new	57
 new vs baseline	d	tie overlap	read favors baseline	32
 new vs baseline	d	only reference called	one null (called D scores 7-9)	8
@@ -56,9 +56,9 @@ new vs baseline	j	same gene, other allele	tie (read can't decide)	4
 new vs baseline	j	same gene, other allele	read favors new	1
 new vs baseline	j	only tool called	one null	1
 new vs baseline	j	only reference called	one null	1
-new vs baseline	junction_aa	agree		49144
-new vs baseline	junction_aa	only baseline has a junction		806
-new vs baseline	junction_aa	differ: length		49
+new vs baseline	junction_aa	agree		49209
+new vs baseline	junction_aa	only baseline has a junction		740
+new vs baseline	junction_aa	differ: length		50
 new vs baseline	junction_aa	only new has a junction		1
 new vs baseline	locus	agree		49999
 new vs baseline	locus	None->IGH		1
@@ -70,13 +70,13 @@ new vs baseline	v	tie overlap	read favors new	9
 new vs baseline	v	different gene	read favors new	8
 new vs baseline	v	same gene, other allele	tie (read can't decide)	6
 new vs baseline	v	same gene, other allele	read favors baseline	3
-new vs baseline	v	same gene, other allele	read favors new	2
 new vs baseline	v	different gene	tie (read can't decide)	2
+new vs baseline	v	same gene, other allele	read favors new	2
 new vs baseline	v	only tool called	one null	1
 new vs igblast	d	both null		33775
 new vs igblast	d	same allele		13274
-new vs igblast	d	different gene		1128
-new vs igblast	d	tie overlap		1077
+new vs igblast	d	different gene		1129
+new vs igblast	d	tie overlap		1076
 new vs igblast	d	only reference called		616
 new vs igblast	d	only tool called		126
 new vs igblast	d	same gene, other allele		4
