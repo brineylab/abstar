@@ -145,11 +145,11 @@ fn with_v(id: &str, seq: &str, read: &Oriented, v: &VHit, alleles: &[Allele]) ->
 
 /// A read whose V allele isn't IMGT-gapped (`imgt_gapped`): the V call and its alignment only,
 /// `unassigned` / `macaque_not_imgt_gapped`. Regions, mutations and masks need IMGT numbering.
-pub fn v_only(id: &str, seq: &str, read: &Oriented, v: &VHit, alleles: &[Allele]) -> Record {
+pub fn v_only(id: &str, seq: &str, read: &Oriented, v: &VHit, alleles: &[Allele], s: &Scoring) -> Record {
     let mut r = with_v(id, seq, read, v, alleles);
     let segs = segments(read, v, None, None, alleles);
     (r.v_sequence_start, r.v_sequence_end, r.v_germline_start, r.v_germline_end, r.v_cigar, r.v_score, r.v_identity) =
-        span(&read.seq, segs[0].as_ref(), &Scoring::default());
+        span(&read.seq, segs[0].as_ref(), s);
     r.annotation_status = "unassigned".into();
     r.failure_reason = Some("macaque_not_imgt_gapped".into());
     r
@@ -158,6 +158,7 @@ pub fn v_only(id: &str, seq: &str, read: &Oriented, v: &VHit, alleles: &[Allele]
 /// The record of a read with a V call on an IMGT-gapped allele, and J (with its junction) and C
 /// when found. Status: `no_j_hit` without J, `junction_undefined` without a junction (an anchor
 /// missing or truncated), else `annotated`. Every field the calls support is filled either way.
+#[allow(clippy::too_many_arguments)]
 pub fn assemble(
     id: &str,
     seq: &str,
@@ -166,8 +167,9 @@ pub fn assemble(
     j: Option<(&JHit, &Junction)>,
     c: Option<&CHit>,
     alleles: &[Allele],
+    s: &Scoring,
 ) -> Record {
-    let (q, s) = (&read.seq, &Scoring::default());
+    let q = &read.seq;
     let mut r = with_v(id, seq, read, v, alleles);
     let d = j.and_then(|(_, jn)| jn.d.as_ref());
     if let Some(d) = d {

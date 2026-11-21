@@ -49,7 +49,7 @@ The generator's truth code is not a library dependency of the annotator (record 
 - Ties break toward the longest V, then the longest J, then the earliest D start, then the longest D.
 - Truth keeps every tied configuration, so for the primary combination these choices are in truth's lists whenever the primaries and their placements are truth's.
 
-**C.**
+**C.** (Superseded in part on 2026-11-21 by the final-review C note at the end of this record: placement window, J/C boundary, evidence gate. The bullets below keep the original rule.)
 - Each C allele of the J primary's locus is compared base for base with the read from the J alignment's end: `allele[u]` against read base `end + u`.
 - The tie set is the alleles with the fewest mismatches over all bases after J. As in truth, a base the allele does not cover, or a non-ACGT read base, is a mismatch. The primary is the record 0008 pick.
 - No C call when fewer than **10 nt** follow J.
@@ -58,7 +58,7 @@ The generator's truth code is not a library dependency of the annotator (record 
 **Interface.** `resolve_junction(read, v, j, alleles, d, locus_has_d)` and `assign_c(read, j, alleles, c)`.
 - One database allele slice replaces the brief's separate V, D and J (and C) slices, since every hit's indices address the database slice.
 - `d` and `c` are the D and C `SegmentIndex`, so uppercase sequences are prepared once per run, as for V and J.
-- `assign_c` takes no `Junction`, because the J end is not moved by the junction step.
+- `assign_c` takes no `Junction`, because the J end is not moved by the junction step. (2026-11-21: `assign_c(read, &mut j, alleles, c, scoring)` now runs before the junction step, since it can cut J's end; see the C note at the end.)
 
 ## Alternatives considered
 
@@ -114,3 +114,11 @@ Measured with the built-in `human` database (release build), with truth comparin
     - With no D, the no-D configuration can give the D's bases to V or J. On TRB, `v_sequence_end` fell from 99.56% to 99.44% and the V mutation fields from 99.80% to 99.51%. In one igh_memory gate read the J start moved 16 nt upstream onto IGHJ5\*02's 5′ end.
     - On the real BCR corpus, 829 reads lose a D call. Reads where only legacy calls a D rose from 182 to 980; in 972 of them legacy's D scores 6 or less against the read.
   - The margin of 6 is a constant of this decision.
+- **2026-11-21 (final review, ruling C1): C at the J/C boundary, with an evidence gate.**
+  - **Why.** Built-in C alleles begin with the J's last base, the codon the J and C exons share (IGHM\*01 `GGGAGTG…` after `…CTCAG`; IGHG1\*01, IGKC\*01, IGLC2\*02, TRBC and TRGC alike; TRAC and TRDC write that base as `N`). Real reads continue the J with C base 2. The rule above compared allele base 1 with the base after J, one base off: on the real BCR corpus (49,999 reads) the median `c_identity` was 0.29, the median `c_mutation_count` 106, and the C primary was in legacy's `c_call` set on 16,874 reads (33.7%). The generator appended the whole allele after the J, so truth and annotator agreed on a layout no real read has. And with no evidence gate, any tail of 10 nt or more got a C call (a random 40-nt tail: 300 of 300 reads; an adapter: IGHE\*01 at 41% identity).
+  - **Placement.** Every C allele of the J primary's locus is placed with its base 1 on each read position within **3** of J's last base. It is compared base for base over the read bases every placement covers, and the fewest mismatches wins (ties toward base 1 on J's last base, then the earlier placement).
+  - **Boundary.** C starts after base 1, which J supplies (`c_germline_start` 2), or at base 1 when that lies after J's end (`c_germline_start` 1). When C starts before J's alignment end (an indel or mutations near J's 3′ end let J reach into C), J is cut back to C's start and loses any trailing gap, so J and C never overlap. C runs before the junction step for this reason. The tie set is the alleles with the fewest mismatches over the C bases at that placement (as in truth, an uncovered or non-ACGT base is a mismatch), and the primary is the record 0008 pick.
+  - **Evidence gate.** No C call when fewer than **10** C bases remain or the primary's identity over them is below **0.8**. Null calibration: 12,000 generated reads (2,000 each of IGH naive, IGH memory, IGK, IGL, TRB and TRA, no 3′ truncation) with random tails of 10, 12, 15, 20, 30, 40, 60 or 100 nt, gate off. The best placement reached identity ≥ 0.6 on 368 reads, ≥ 0.7 on 49, ≥ 0.75 on 7, ≥ 0.8 on 5 (all with 10- or 12-nt tails: 0.25% and 0.13% of those) and ≥ 0.85 on none. On the real corpus 28 of 49,932 C-bearing reads fall below 0.8 (32 below 0.85); in those an indel inside C or a J end several bases off defeats the gapless comparison, and no C call is better than a wrong one.
+  - **C codon frame.** C codons start at C positions ≡ Trp/Phe118 anchor + 1 − J length (mod 3), 0-based, since C base 1 is the J's last base (before: ≡ anchor − J length). The generator does the same (records 0025, 0026).
+  - **Effect.** Real corpus: C primary in legacy's `c_call` set 16,874 → 49,800 of 49,999 reads (33.7% → 99.6%); 86 more have a tie set overlapping legacy's (short C prefixes shared by IGHG1–4 or IGHA1/2); median `c_identity` 0.29 → 1.00, median `c_mutation_count` 106 → 0; `c_germline_start` 2 on 49,898 reads, as legacy's is on 46,379 of its 49,912 C calls. On the generator's `constant` sets C is graded by the accuracy gate (`igh_memory_c`, `igh_bnab_c`, `igk_c`).
+  - The window of 3, the 0.8 identity and the 10-nt minimum are constants of this decision.

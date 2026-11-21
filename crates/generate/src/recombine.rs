@@ -346,10 +346,12 @@ impl<'a> Simulator<'a> {
         let c = (p.constant_len.is_some()).then(|| pick_from(&self.c, rng).clone());
         let mut c_len = 0;
         if let (Some(c), Some(n)) = (&c, p.constant_len) {
+            // The C allele's base 0 is the J's last base (the codon the J and C exons share), which
+            // the full J already supplies: C continues from base 1, as in real transcripts.
             let cs = c.sequence().into_bytes();
-            c_len = n.min(cs.len());
-            seq.extend(&cs[..c_len]);
-            org.extend((0..c_len).map(Origin::C));
+            c_len = n.min(cs.len() - 1);
+            seq.extend(&cs[1..1 + c_len]);
+            org.extend((1..1 + c_len).map(Origin::C));
         }
 
         // The indel placement and truncation are drawn before mutation, so mutation can
@@ -582,7 +584,7 @@ pub fn replay(s: &Simulated) -> Vec<u8> {
     out.extend(p_nt(&j, s.j_trim_5, false));
     out.extend(&j[s.j_trim_5.max(0) as usize..]);
     if let Some(c) = &s.c {
-        out.extend(&c.sequence().as_bytes()[..s.c_len]);
+        out.extend(&c.sequence().as_bytes()[1..1 + s.c_len]);
     }
     let mut ok = true;
     for i in &s.indels {

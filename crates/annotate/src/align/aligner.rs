@@ -100,6 +100,37 @@ pub fn score_semiglobal(query: &[u8], germline: &[u8], s: &Scoring) -> (i32, usi
     super::scalar::score(query, germline, s)
 }
 
+/// `aln` cut to its columns before query position `q_end` (no effect when it ends there or
+/// earlier), without a trailing gap. The score changes by the dropped ops' score under `s`.
+pub fn cut_query_end(aln: &Alignment, q_end: usize, s: &Scoring) -> Alignment {
+    let (mut ops, mut qi, mut gi) = (Vec::new(), aln.q_start, aln.g_start);
+    for &(op, n) in &aln.ops {
+        let take = match op {
+            Op::Del => n,
+            _ => (q_end.saturating_sub(qi) as u32).min(n),
+        };
+        if take == 0 || (op == Op::Del && qi >= q_end) {
+            break;
+        }
+        ops.push((op, take));
+        if op != Op::Del {
+            qi += take as usize;
+        }
+        if op != Op::Ins {
+            gi += take as usize;
+        }
+    }
+    while let Some(&(op @ (Op::Ins | Op::Del), n)) = ops.last() {
+        ops.pop();
+        match op {
+            Op::Ins => qi -= n as usize,
+            _ => gi -= n as usize,
+        }
+    }
+    let score = aln.score - score_ops(&aln.ops, s) + score_ops(&ops, s);
+    Alignment { score, q_start: aln.q_start, q_end: qi, g_start: aln.g_start, g_end: gi, ops }
+}
+
 /// Most aligned columns between the first and last gap of a group that `collapse_gap_pairs`
 /// replaces (record 0029).
 pub const MAX_PAIR_SPAN: usize = 40;

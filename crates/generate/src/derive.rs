@@ -139,7 +139,8 @@ pub(crate) fn fill(r: &mut TruthRecord, s: &Simulated) {
         let phase = (id as i64 - il as i64 + gl as i64).rem_euclid(3);
         (ud as i64 - phase).rem_euclid(3) as usize
     });
-    let c_frame = s.j.anchor.map(|b| (b as i64 - jlen as i64).rem_euclid(3) as usize);
+    // the C allele's base 0 is the J allele's last base (the codon the exons share; decision 0026)
+    let c_frame = s.j.anchor.map(|b| (b as i64 + 1 - jlen as i64).rem_euclid(3) as usize);
     let frames = [None, d_frame, s.j.anchor.map(|b| b % 3), c_frame];
 
     // the origin map as the segments' alignments read it (rulings A29, A33): each segment's read bases

@@ -57,6 +57,7 @@ The generator records the origin of every read base (`Origin`: a gapped V index,
 - When `d_inverted`, `Origin::D(i)`, `d_trim_5` and `d_trim_3` index the reverse-complemented D.
 - Trims are clamped to the segment's length, so a D can be trimmed to nothing (no D run).
 - The C prefix is appended before indels and truncation, and is never mutated.
+  - **2026-11-21 (final review, ruling C1):** it starts at the C allele's base 2 (1-based). Built-in C alleles begin with the J's last base, the codon the J and C exons share, and the full J already supplies it; real transcripts read the J and then C from base 2. Before, the allele was appended from base 1, which duplicated that base, so generated transcripts matched no real read and truth's `c_germline_start` was 1. `constant` still counts the appended C bases. The C allele set is unchanged: the fewest mismatches over the C-origin bases at their allele positions.
 
 **Known limit (#138).** V candidates are compared at their IMGT-gapped positions. A V allele whose gapping is shifted, such as human IGLV3-2\*03, is compared at the wrong positions. It is a candidate in the set but may be under-counted. Fixing #138 fixes the sets. Macaque is excluded until its V genes are gapped (#137).
 

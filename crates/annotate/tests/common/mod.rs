@@ -54,13 +54,13 @@ impl Ref {
         let (o, v) = self.call(read)?;
         assign_j(&o, &v, &self.alleles, &self.j, &Scoring::default())
     }
-    /// V, J, then the junction (a D searched when the V locus has D alleles) and C.
+    /// V, J, C (which may cut J's end), then the junction (a D searched when the V locus has D alleles).
     pub fn call_all(&self, read: &[u8]) -> Option<Calls> {
         let (o, v) = self.call(read)?;
-        let j = assign_j(&o, &v, &self.alleles, &self.j, &Scoring::default())?;
+        let mut j = assign_j(&o, &v, &self.alleles, &self.j, &Scoring::default())?;
+        let c = assign_c(&o, &mut j, &self.alleles, &self.c, &Scoring::default());
         let has_d = self.d.loci.contains(&self.alleles[v.primary].locus);
         let junction = resolve_junction(&o, &v, &j, &self.alleles, &self.d, has_d);
-        let c = assign_c(&o, &j, &self.alleles, &self.c);
         Some(Calls { read: o, v, j, junction, c })
     }
     pub fn idx(&self, name: &str) -> usize {

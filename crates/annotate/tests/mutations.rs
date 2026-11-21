@@ -52,12 +52,13 @@ impl Called {
 
 fn call(r: &Ref, read: &[u8]) -> Option<Called> {
     let (o, v) = r.call(read)?;
-    let j = assign_j(&o, &v, &r.alleles, &r.j, &Scoring::default()).map(|j| {
+    let mut j = assign_j(&o, &v, &r.alleles, &r.j, &Scoring::default());
+    let c = j.as_mut().and_then(|j| assign_c(&o, j, &r.alleles, &r.c, &Scoring::default()));
+    let j = j.map(|j| {
         let has_d = r.d.loci.contains(&r.alleles[v.primary].locus);
         let jn = resolve_junction(&o, &v, &j, &r.alleles, &r.d, has_d);
         (j, jn)
     });
-    let c = j.as_ref().and_then(|(j, _)| assign_c(&o, j, &r.alleles, &r.c));
     Some(Called { read: o, v, j, c })
 }
 

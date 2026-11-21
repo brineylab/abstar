@@ -41,7 +41,7 @@ pub fn segments(
         let a = up(d.primary);
         (gapless(d.start..d.end, d.g_start), if d.inverted { reverse_complement(&a) } else { a })
     });
-    [Some((vcols, up(v.primary))), d, j.map(|(jh, _)| (jcols, up(jh.primary))), c.map(|c| (gapless(c.start..c.end, 0), up(c.primary)))]
+    [Some((vcols, up(v.primary))), d, j.map(|(jh, _)| (jcols, up(jh.primary))), c.map(|c| (gapless(c.start..c.end, c.g_start), up(c.primary)))]
 }
 
 /// Per-segment mutations of a read (V, D, J, C; record 0033), from the same alignment the regions
@@ -65,7 +65,8 @@ pub fn mutations(read: &Oriented, v: &VHit, j: Option<(&JHit, &Junction)>, c: Op
     });
     let ja = j.map(|(jh, _)| &alleles[jh.primary]);
     let j_frame = ja.and_then(|a| a.anchor).map(|b| b % 3);
-    let c_frame = ja.and_then(|a| a.anchor.map(|b| (b as i64 - a.sequence().len() as i64).rem_euclid(3) as usize));
+    // C allele base 0 is the J allele's last base (the codon the exons share; record 0030)
+    let c_frame = ja.and_then(|a| a.anchor.map(|b| (b as i64 + 1 - a.sequence().len() as i64).rem_euclid(3) as usize));
     let frames = [None, d_frame, j_frame, c_frame];
     std::array::from_fn(|k| {
         let (cols, g) = segs[k].as_ref()?;

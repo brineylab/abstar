@@ -412,7 +412,8 @@ fn isotype_weights_choose_constant() {
     for seed in 0..20 {
         let s = sim(&igh(), &p, seed);
         assert_eq!(s.c.as_ref().unwrap().gene, "IGHG1");
-        let want: Vec<Origin> = (0..20).map(Origin::C).collect();
+        // C allele base 0 is the J's last base; the 20 appended bases are C 1-20
+        let want: Vec<Origin> = (1..21).map(Origin::C).collect();
         assert_eq!(s.origin[s.origin.len() - 20..], want[..]);
     }
 }

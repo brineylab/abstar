@@ -11,7 +11,7 @@ mod scalar;
 #[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
 mod simd;
 
-pub use aligner::{align_semiglobal, collapse_gap_pairs, place_gaps, score_semiglobal, MAX_PAIR_SPAN};
+pub use aligner::{align_semiglobal, collapse_gap_pairs, cut_query_end, place_gaps, score_semiglobal, MAX_PAIR_SPAN};
 pub use kmer::KmerIndex;
 
 /// One alignment column type. `Ins` = base in the query only; `Del` = base in the germline only.

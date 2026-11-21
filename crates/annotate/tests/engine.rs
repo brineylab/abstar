@@ -129,6 +129,32 @@ fn engine_end_to_end_igh() {
     assert_eq!(rc, r);
 }
 
+/// `igh_read` + IGHG1*01 2-61, as real transcripts show it (the C allele's base 1 is the J's last
+/// base), with one C substitution: the C fields in AIRR coordinates, the C codons in the J frame.
+#[test]
+fn engine_c_fields() {
+    let db = human();
+    let g1 = ungapped(db, "IGHG1*01");
+    assert_eq!(&g1[..12], "GCCTCCACCAAG");
+    let mut tail = g1[1..61].to_string().into_bytes();
+    tail[3] = b'A'; // allele base 5: C>A, codon 2 TCC>TAC (S>Y)
+    let read = igh_read() + std::str::from_utf8(&tail).unwrap();
+    let r = engine().annotate("r1", &read);
+    assert_eq!(r.c_gene.as_deref(), Some("IGHG1"));
+    assert!(r.c_call_ties.as_ref().unwrap().contains(&"IGHG1*01".to_string()));
+    // J keeps its last base; C is read 380-439 = allele 2-61
+    assert_eq!((r.j_sequence_end, r.j_germline_end), (Some(379), Some(48)));
+    assert_eq!((r.c_sequence_start, r.c_sequence_end, r.c_germline_start, r.c_germline_end), (Some(380), Some(439), Some(2), Some(61)));
+    assert_eq!(r.c_identity, Some(59.0 / 60.0));
+    assert_eq!((r.c_mutations.clone(), r.c_mutations_aa.clone()), (strs(&["5:C>A"]), strs(&["2:S>Y"])));
+    assert_eq!((r.c_mutation_count, r.c_mutation_count_aa), (Some(1), Some(1)));
+    assert_eq!((r.c_mutation_frequency, r.c_mutation_frequency_aa), (Some(1.0 / 60.0), Some(1.0 / 19.0)));
+    assert_eq!(r.sequence_vdjc, s(&read));
+    assert!(r.sequence_vdjc_aa.as_deref().unwrap().ends_with("WGQGTLVTVSSAYTKGPSVFPLAPSSKSTSG"), "{:?}", r.sequence_vdjc_aa);
+    // the masks stop at J's end
+    assert_eq!(r.gene_segment_mask.as_ref().map(|m| m.len()), Some(379));
+}
+
 #[test]
 fn no_j_hit_keeps_v_fields() {
     let read = [ungapped(human(), "IGHV1-2*02"), "CCGTATTACG".into()].concat();

@@ -1,11 +1,11 @@
 //! Joint junction resolution (record 0030), D in both orientations (record 0031) and C
 //! assignment on the built-in human database.
 mod common;
-use abstar_annotate::align::Scoring;
+use abstar_annotate::align::{Op, Scoring};
 use abstar_annotate::assign::{assign_c, assign_j, primary_by_tiebreak, resolve_junction};
 use abstar_generate::Spec;
 use abstar_germline::{Locus, Segment};
-use common::{generated, generated_inverting, human, revcomp, Calls, Generated, Ref};
+use common::{generated, generated_inverting, human, rand_seq, revcomp, Calls, Generated, Ref};
 use rayon::prelude::*;
 use std::collections::BTreeSet;
 use std::time::Instant;
@@ -97,30 +97,92 @@ fn vj_locus_has_no_d() {
     assert!(j.v_end >= v.len() && j.v_end <= j.j_start);
 }
 
+/// IGHV3-23*01 + N + IGHJ4*02: a VDJ that ends on the J's last base.
+fn igh_vdj(r: &Ref) -> Vec<u8> {
+    [&ungapped(r, "IGHV3-23*01")[..], b"GCGAAAGATCGGGGATATAGTAGTGGCTGGTAC", &ungapped(r, "IGHJ4*02")].concat()
+}
+
+/// A real-transcript-style read: the C allele's base 0 is the J's last base (the codon the exons
+/// share), so the read continues with C base 1 (record 0030, 2026-11-21 note).
 #[test]
 fn c_call_igg1() {
     let r = human();
     let g1 = ungapped(r, "IGHG1*01");
-    let vdj = [&ungapped(r, "IGHV3-23*01")[..], b"GCGAAAGATCGGGGATATAGTAGTGGCTGGTAC", &ungapped(r, "IGHJ4*02")].concat();
-    let read = [&vdj[..], &g1[..30]].concat();
+    let vdj = igh_vdj(r);
+    assert_eq!(vdj.last(), g1.first());
+    let read = [&vdj[..], &g1[1..31]].concat();
     let c = calls(r, &read);
     let h = c.c.expect("C call");
-    // IGH C alleles identical to IGHG1*01 over its first 30 nt.
+    // IGH C alleles identical to IGHG1*01 over bases 1-30.
     let expected: Vec<usize> = (0..r.alleles.len())
         .filter(|&i| {
             let a = &r.alleles[i];
-            a.segment == Segment::C && a.locus == Locus::IGH && a.sequence().as_bytes().get(..30) == Some(&g1[..30])
+            a.segment == Segment::C && a.locus == Locus::IGH && a.sequence().as_bytes().get(1..31) == Some(&g1[1..31])
         })
         .collect();
     assert!(r.names(&expected).contains("IGHG1*01") && expected.len() > 1, "{:?}", r.names(&expected));
     assert_eq!(r.names(&h.ties), r.names(&expected));
     assert_eq!(h.primary, primary_by_tiebreak(&expected, &r.alleles));
     assert_eq!(h.ties[0], h.primary);
-    assert_eq!((h.start, h.end, h.g_end), (vdj.len(), read.len(), 30));
-    // Fewer than 10 nt after J: no C call.
-    let c = calls(r, &[&vdj[..], &g1[..9]].concat());
-    assert!(assign_c(&c.read, &c.j, &r.alleles, &r.c).is_none());
-    assert!(calls(r, &[&vdj[..], &g1[..10]].concat()).c.is_some());
+    assert_eq!((h.start, h.end, h.g_start, h.g_end), (vdj.len(), read.len(), 1, 31));
+    // J keeps its last base
+    assert_eq!(c.j.aln.q_end, vdj.len());
+    // Fewer than 10 C bases: no C call.
+    let c = calls(r, &[&vdj[..], &g1[1..10]].concat());
+    assert!(assign_c(&c.read, &mut c.j.clone(), &r.alleles, &r.c, &Scoring::default()).is_none());
+    assert!(calls(r, &[&vdj[..], &g1[1..11]].concat()).c.is_some());
+}
+
+/// Every C start a read can show after a full J: the allele's base 0 on J's last base (real
+/// transcripts), right after it (the shared base duplicated), or a few bases later.
+#[test]
+fn c_placement_window() {
+    let r = human();
+    let (vdj, m) = (igh_vdj(r), ungapped(r, "IGHM*01"));
+    for (extra, tail, want) in [(&b""[..], &m[1..61], (0, 1)), (&b""[..], &m[..60], (0, 0)), (&b"AC"[..], &m[..60], (2, 0))] {
+        let read = [&vdj[..], extra, tail].concat();
+        let h = calls(r, &read).c.expect("C call");
+        assert_eq!(r.alleles[h.primary].gene, "IGHM");
+        assert_eq!((h.start - vdj.len(), h.g_start), want);
+        assert_eq!(h.end, read.len());
+    }
+}
+
+/// A mutated J 3' end does not move C: the C bases and their allele offset stay put.
+#[test]
+fn mutated_j_end_keeps_c() {
+    let r = human();
+    let (vdj, m) = (igh_vdj(r), ungapped(r, "IGHM*01"));
+    for k in [1, 2, 3] {
+        let mut v = vdj.clone();
+        let n = v.len();
+        for x in &mut v[n - k..] {
+            *x = other(*x);
+        }
+        let read = [&v[..], &m[1..61]].concat();
+        let c = calls(r, &read);
+        // J ends on its last base, without a trailing gap, even where its alignment reached into C
+        assert_eq!(c.j.aln.q_end, n, "k {k}");
+        assert!(matches!(c.j.aln.ops.last(), Some((Op::Match | Op::Mismatch, _))), "k {k}");
+        let h = c.c.expect("C call");
+        assert_eq!(r.alleles[h.primary].gene, "IGHM", "k {k}");
+        assert_eq!((h.start, h.end, h.g_start, h.g_end), (n, read.len(), 1, 61), "k {k}");
+    }
+}
+
+/// No evidence, no C: random tails and an adapter after J get no C call (record 0030's null).
+#[test]
+fn no_c_without_evidence() {
+    let r = human();
+    let vdj = igh_vdj(r);
+    let called = (0..300u64).filter(|&seed| calls(r, &[&vdj[..], &rand_seq(40, seed)].concat()).c.is_some()).count();
+    assert_eq!(called, 0);
+    // Illumina TruSeq adapter
+    let read = [&vdj[..], b"AGATCGGAAGAGCACACGTCTGAACTCCAGTCACATCTCGTATGCCGTCTTCTGCTTG"].concat();
+    assert!(calls(r, &read).c.is_none());
+    // C, then junk: the identity over the C bases decides
+    let g1 = ungapped(r, "IGHG1*01");
+    assert!(calls(r, &[&vdj[..], &g1[1..41], &rand_seq(8, 1)].concat()).c.is_some());
 }
 
 /// Recoverable reads: V, J and D are each absent or have the true allele in their valid set,

@@ -43,7 +43,7 @@ impl<'a> Engine<'a> {
 }
 
 impl Annotate for Engine<'_> {
-    /// Orient and V, J (V's locus), the junction with D, C, then the record (record 0035).
+    /// Orient and V, J (V's locus), C, the junction with D, then the record (record 0035).
     fn annotate(&self, id: &str, seq: &str) -> Record {
         if let Some(reason) = invalid_input(seq) {
             return failed(id, seq, "invalid_input", reason);
@@ -53,15 +53,17 @@ impl Annotate for Engine<'_> {
             return failed(id, seq, "unassigned", "no_v_hit");
         };
         if !imgt_gapped(&a[v.primary]) {
-            return v_only(id, seq, &read, &v, a);
+            return v_only(id, seq, &read, &v, a, s);
         }
-        let j = assign_j(&read, &v, a, &self.j, s).map(|j| {
+        let mut j = assign_j(&read, &v, a, &self.j, s);
+        // C first: it may cut J's end back (record 0030), and the junction step uses that end
+        let c = j.as_mut().and_then(|j| assign_c(&read, j, a, &self.c, s));
+        let j = j.map(|j| {
             let has_d = self.d.loci.contains(&a[v.primary].locus);
             let jn = resolve_junction(&read, &v, &j, a, &self.d, has_d);
             (j, jn)
         });
-        let c = j.as_ref().and_then(|(j, _)| assign_c(&read, j, a, &self.c));
-        assemble(id, seq, &read, &v, j.as_ref().map(|(j, jn)| (j, jn)), c.as_ref(), a)
+        assemble(id, seq, &read, &v, j.as_ref().map(|(j, jn)| (j, jn)), c.as_ref(), a, s)
     }
 }
 

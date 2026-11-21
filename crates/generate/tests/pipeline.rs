@@ -381,7 +381,8 @@ fn ungapped_v_has_null_v_fields() {
 }
 
 /// Every coordinate of one fully determined read: IGKV1-1*01 (311 nt, Cys104 at 289),
-/// `AAA`, IGKJ1*01 (38 nt, Phe118 at 8), the first 10 nt of IGKC*01; 5 nt cut from the 5' end.
+/// `AAA`, IGKJ1*01 (38 nt, Phe118 at 8), IGKC*01 2-11 (its base 1 is the J's last base, which
+/// the J supplies); 5 nt cut from the 5' end.
 #[test]
 fn hand_traced_row() {
     let b = igk_fixed(3);
@@ -394,7 +395,7 @@ fn hand_traced_row() {
     let a = sim_igk_alleles();
     let (v, j, c) = (a[0].sequence(), a[1].sequence(), a[2].sequence());
     assert_eq!((v.len(), j.len()), (311, 38));
-    let read = format!("{}AAA{}{}", &v[5..], j, &c[..10]);
+    let read = format!("{}AAA{}{}", &v[5..], j, &c[1..11]);
     assert_eq!(s(&rows, "sequence_id", 0).as_deref(), Some("g1"));
     assert_eq!(s(&rows, "sequence", 0), Some(read.clone()));
     assert_eq!(bl(&rows, "rev_comp", 0), Some(false));
@@ -422,6 +423,7 @@ fn hand_traced_row() {
     assert_eq!((get("j_sequence_start"), get("j_sequence_end")), (Some(310), Some(347)));
     assert_eq!((get("j_germline_start"), get("j_germline_end")), (Some(1), Some(38)));
     assert_eq!((get("c_sequence_start"), get("c_sequence_end")), (Some(348), Some(357)));
+    assert_eq!((get("c_germline_start"), get("c_germline_end")), (Some(2), Some(11)));
     assert_eq!(s(&rows, "np1", 0).as_deref(), Some("AAA"));
     assert_eq!(get("np1_length"), Some(3));
     assert_eq!((s(&rows, "np2", 0), get("np2_length")), (None, None));
@@ -537,12 +539,12 @@ fn region_truth_hand_traced() {
     assert_eq!(st("cdr3_aa").as_deref(), Some("QQYNSYPKWT"));
     assert_eq!(st("fwr4_aa").as_deref(), Some("FGQGTKVEIK"));
     assert!(aa.contains("CQQYNSYPKWTF"));
-    // V(D)J = read 1-347; the C codons (J's last base + C) translate to PNC
+    // V(D)J = read 1-347; the C codons (J's last base + C 2-9) translate to RTV, IGKC's start
     assert_eq!(st("sequence_vdj").as_deref(), Some(&read[..347]));
     assert_eq!(st("sequence_vdjc"), Some(read.clone()));
     assert_eq!(st("sequence_vdj_aa"), Some(aa.clone()));
-    assert_eq!(st("sequence_vdjc_aa"), Some(format!("{aa}PNC")));
-    assert_eq!(st("sequence_aa"), Some(format!("{aa}PNC")));
+    assert_eq!(st("sequence_vdjc_aa"), Some(format!("{aa}RTV")));
+    assert_eq!(st("sequence_aa"), Some(format!("{aa}RTV")));
     let rep = |c: &str, n: usize| c.repeat(n);
     let cdr = [rep("0", 70), rep("1", 24), rep("0", 51), rep("2", 24), rep("0", 117), rep("3", 30), rep("0", 31)];
     assert_eq!(st("cdr_mask"), Some(cdr.concat()));
@@ -553,7 +555,7 @@ fn region_truth_hand_traced() {
     // codons 102 (read 305-307) and 103 (308-310) hold the N bases
     assert_eq!(st("gene_segment_mask_aa"), Some([rep("V", 101), rep("N", 1), rep("J", 13)].concat()));
     assert_eq!(st("nongermline_mask_aa"), Some([rep("0", 101), rep("1", 2), rep("0", 12)].concat()));
-    // unmutated: empty lists, zero counts; no D; C codons are J-frame codons 3-5, 6-8 of C
+    // unmutated: empty lists, zero counts; no D; C codons are J-frame codons 4-6, 7-9 of C
     for seg in ["v", "j", "c"] {
         for k in ["mutations", "mutations_aa", "insertions", "deletions"] {
             assert_eq!(ls(&rows, &format!("{seg}_{k}"), 0), Vec::<String>::new(), "{seg}_{k}");
@@ -1078,7 +1080,8 @@ fn c_germline_coordinates() {
         let (a, z) = (i(&rows, "c_germline_start", r), i(&rows, "c_germline_end", r));
         assert_eq!(a.is_some(), i(&rows, "c_sequence_start", r).is_some());
         if let (Some(a), Some(z), Some(rs), Some(re)) = (a, z, i(&rows, "c_sequence_start", r), i(&rows, "c_sequence_end", r)) {
-            assert_eq!((a, z - a), (1, re - rs), "row {r}");
+            // C continues from allele base 2: base 1 is the J's last base, which the J supplies
+            assert_eq!((a, z - a), (2, re - rs), "row {r}");
             with_c += 1;
         }
     }
