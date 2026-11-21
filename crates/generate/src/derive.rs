@@ -271,28 +271,25 @@ pub(crate) fn fill(r: &mut TruthRecord, s: &Simulated) {
                     (s0..).step_by(3).take_while(|u| u + 3 <= g.len()).map(|u| (((u - s0) / 3 + 1).to_string(), u)).collect()
                 })
             };
-            // which germline positions count as aligned follows the left-normalized deletions (as the
-            // deletion strings do): the read bases keep their order and fill the positions not deleted
-            let aligned: Vec<bool> = if del_at[k].is_empty() {
-                at.iter().map(Option::is_some).collect()
+            // amino acids follow the left-normalized alignment, as the deletion strings do: the read bases
+            // keep their order and fill the germline positions that are not deleted
+            let at_aa = if del_at[k].is_empty() {
+                at.clone()
             } else {
                 let deleted = |u: usize| del_at[k].iter().any(|&(d, len)| (d..d + len).contains(&u));
-                let (first, n) = (at.iter().position(Option::is_some).expect("a base of the segment"), at.iter().flatten().count());
-                let mut ok = vec![false; g.len()];
-                for u in (first..g.len()).filter(|&u| !deleted(u)).take(n) {
-                    ok[u] = true;
+                let first = at.iter().position(Option::is_some).expect("a base of the segment");
+                let mut bases = at.iter().flatten();
+                let mut out = vec![None; g.len()];
+                for u in (first..g.len()).filter(|&u| !deleted(u)) {
+                    out[u] = bases.next().copied();
                 }
-                ok
+                out
             };
             let aa = codons.map(|cs| {
                 let (mut out, mut nc) = (Vec::new(), 0usize);
                 for (lab, u) in cs {
-                    if !(u..u + 3).all(|x| aligned[x]) {
-                        continue;
-                    }
+                    let Some(pos) = (u..u + 3).map(|x| at_aa[x]).collect::<Option<Vec<_>>>() else { continue };
                     nc += 1;
-                    // the amino acid comes from the generated placement
-                    let Some(pos) = (u..u + 3).map(|x| at[x]).collect::<Option<Vec<_>>>() else { continue };
                     let (from, to) = (translate(&g[u..u + 3]), translate(&pos.iter().map(|&i| read[i]).collect::<Vec<_>>()));
                     if from != to {
                         out.push(format!("{lab}:{from}>{to}"));

@@ -673,7 +673,7 @@ fn segment_mutations_from_events() {
         ..busy(2000, 22)
     };
     let rows = one(&generate_in_memory(&b, &p).unwrap());
-    let (mut inverted, mut v_aa, mut seg_indels, mut shifted) = (0, 0, 0, 0);
+    let (mut inverted, mut v_aa, mut seg_indels, mut shifted, mut aa_without_nt) = (0, 0, 0, 0, 0);
     for r in 0..rows.num_rows() {
         let sim = simulated(&b, &p, r);
         let t5 = sim.truncate_5;
@@ -714,10 +714,24 @@ fn segment_mutations_from_events() {
             }
         }
         assert_eq!(total, ls(&rows, "mutations", r).len(), "row {r}");
-        // each V aa change sits in an IMGT codon holding a V nt change
+        // each V aa change sits in an IMGT codon holding a V nt change, except next to a deletion: the
+        // left-normalized alignment can change a codon there with no substitution (decision 0026)
+        let gapped = sim.v.sequence_gapped.as_bytes();
+        let gi: Vec<usize> = (0..gapped.len()).filter(|&g| gapped[g] != b'.').collect();
+        let near_deletion: Vec<usize> = ls(&rows, "v_deletions", r)
+            .iter()
+            .flat_map(|d| {
+                let pos: usize = d[4..d.find(':').unwrap()].parse().unwrap();
+                let u = gi.iter().position(|&g| g + 1 == pos).unwrap();
+                (u..u + d.rsplit(':').next().unwrap().len()).map(|x| gi[x] / 3 + 1).collect::<Vec<_>>()
+            })
+            .collect();
         for m in ls(&rows, "v_mutations_aa", r) {
             let c: usize = m[4..m.find(':').unwrap()].parse().unwrap();
-            assert!(want[0].iter().any(|x| (3 * c - 2..=3 * c).contains(&x[4..x.find(':').unwrap()].parse().unwrap())), "{m}");
+            if !want[0].iter().any(|x| (3 * c - 2..=3 * c).contains(&x[4..x.find(':').unwrap()].parse().unwrap())) {
+                assert!(near_deletion.iter().any(|&n| n.abs_diff(c) <= 1), "{m}");
+                aa_without_nt += 1;
+            }
             v_aa += 1;
         }
         // the observable indel, in germline numbering of its segment
@@ -763,6 +777,7 @@ fn segment_mutations_from_events() {
         seg_indels += got.len();
     }
     let counts = (inverted, v_aa, seg_indels, shifted);
+    eprintln!("aa changes beside a deletion without an nt change: {aa_without_nt}");
     assert!(inverted > 20 && v_aa > 1000 && seg_indels > 300 && shifted > 50, "{counts:?}");
 }
 
@@ -847,6 +862,59 @@ fn aa_denominator_follows_left_normalized_deletions() {
         tested += 1;
     }
     assert!(tested > 100 && moved > 5, "{tested} {moved}");
+}
+
+/// Rebuilding the V aa mutation list from the read and the normalized deletion placement gives truth's list.
+#[test]
+fn v_aa_mutations_from_normalized_alignment() {
+    // standard genetic code, TCAG order
+    const AA: &[u8; 64] = b"FFLLSSSSYY**CC*WLLLLPPPPHHQQRRRRIIIMTTTTNNKKSSRRVVVVAAAADDEEGGGG";
+    let tr = |c: &[u8]| {
+        let k = |x: u8| "TCAG".find(x.to_ascii_uppercase() as char).unwrap();
+        AA[16 * k(c[0]) + 4 * k(c[1]) + k(c[2])] as char
+    };
+    let b = igh();
+    let p = GenerateParams { indel_rate: 1.0, mutation: "uniform:0.05-0.25".parse().unwrap(), ..params(4000, 27) };
+    let rows = one(&generate_in_memory(&b, &p).unwrap());
+    let mut tested = 0;
+    for r in 0..rows.num_rows() {
+        let dels = ls(&rows, "v_deletions", r);
+        if dels.is_empty() || col(&rows, "v_mutations_aa").is_null(r) {
+            continue;
+        }
+        let sim = simulated(&b, &p, r);
+        let gapped = sim.v.sequence_gapped.as_bytes();
+        let gi: Vec<usize> = (0..gapped.len()).filter(|&g| gapped[g] != b'.').collect();
+        let g = sim.v.sequence().into_bytes();
+        let mut deleted = vec![false; g.len()];
+        for d in &dels {
+            let pos: usize = d[4..d.find(':').unwrap()].parse().unwrap();
+            let u = gi.iter().position(|&x| x + 1 == pos).unwrap();
+            (u..u + d.rsplit(':').next().unwrap().len()).for_each(|x| deleted[x] = true);
+        }
+        // the segment's read bases, in order, laid onto the germline positions not deleted
+        let mut bases = sim.origin.iter().enumerate().filter(|(_, o)| matches!(o, abstar_generate::Origin::V(_))).map(|(k, _)| sim.read[k]);
+        let first = sim.origin.iter().find_map(|o| if let abstar_generate::Origin::V(x) = o { gi.iter().position(|&y| y == *x) } else { None }).unwrap();
+        let mut aligned: Vec<Option<u8>> = vec![None; g.len()];
+        for u in (first..g.len()).filter(|&u| !deleted[u]) {
+            aligned[u] = bases.next();
+        }
+        let mut want = Vec::new();
+        for n in 1..=gapped.len() / 3 {
+            if gapped[3 * n - 3..3 * n].contains(&b'.') {
+                continue;
+            }
+            let u = gi.iter().position(|&x| x == 3 * n - 3).unwrap();
+            let Some(read3) = (u..u + 3).map(|x| aligned[x]).collect::<Option<Vec<u8>>>() else { continue };
+            let (from, to) = (tr(&g[u..u + 3]), tr(&read3));
+            if from != to {
+                want.push(format!("IMGT{n}:{from}>{to}"));
+            }
+        }
+        assert_eq!(ls(&rows, "v_mutations_aa", r), want, "row {r}");
+        tested += 1;
+    }
+    assert!(tested > 150, "{tested}");
 }
 
 /// The constant region's germline span is truth too, so its mutation fields can be graded.
