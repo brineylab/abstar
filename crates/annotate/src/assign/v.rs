@@ -63,10 +63,13 @@ struct Projected {
     gapped: bool,
 }
 
-/// `aln` cut to its maximum-scoring contiguous stretch of columns under `s` (a gap run is one
-/// column): the read's V-derived bases. Among equal scores the longest stretch wins, then the
-/// leftmost. With `keep_end` (J) only the start is cut: the stretch ends at the last column,
-/// and among equal scores the shortest wins. The score becomes the kept ops' score.
+/// `aln` cut to its maximum-scoring contiguous stretch of columns (a gap run is one column): the
+/// read's V-derived bases. Columns score on a symmetric scale: a match `+s.matched`, a mismatch
+/// `-s.matched` (±2 under record 0029's scoring, not `s.mismatch`), a gap run its affine cost under
+/// `s`. Among equal scores the longest stretch wins, then the leftmost. With `keep_end` (J) only
+/// the start is cut: the stretch ends at the last column, and among equal scores the shortest
+/// wins. The score becomes that stretch's score on this scale (at least 0), so J's `MIN_SCORE`
+/// floor of 30 is on it too.
 pub(super) fn trim(aln: &Alignment, s: &Scoring, keep_end: bool) -> Alignment {
     let gap = |n: u32| s.gap_open as i32 + (n as i32 - 1) * s.gap_extend as i32;
     let mut cols: Vec<(Op, u32, i32)> = Vec::new();

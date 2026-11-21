@@ -535,37 +535,37 @@ decision = ""
 name = "np1"
 type = "string"
 nullable = true
-origin = "abstar"
+origin = "airr-optional"
 coordinates = ""
 description = "Bases between the V end and the D start (or the J start when there is no D): N and P nucleotides as they appear in the read. Null when either flanking segment is absent."
-decision = "0028"
+decision = ""
 
 [[field]]
 name = "np1_length"
 type = "int64"
 nullable = true
-origin = "abstar"
+origin = "airr-optional"
 coordinates = ""
 description = "Length of np1."
-decision = "0028"
+decision = ""
 
 [[field]]
 name = "np2"
 type = "string"
 nullable = true
-origin = "abstar"
+origin = "airr-optional"
 coordinates = ""
 description = "Bases between the D end and the J start, as they appear in the read. Null when D or J is absent."
-decision = "0028"
+decision = ""
 
 [[field]]
 name = "np2_length"
 type = "int64"
 nullable = true
-origin = "abstar"
+origin = "airr-optional"
 coordinates = ""
 description = "Length of np2."
-decision = "0028"
+decision = ""
 
 [[field]]
 name = "d_inverted"

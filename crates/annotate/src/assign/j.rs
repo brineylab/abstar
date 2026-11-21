@@ -23,8 +23,8 @@ const OVERLAP: usize = 10;
 /// The J alleles with the best `score_semiglobal` scores that are cut (`cut`); the best cut
 /// score projects (record 0029) ...
 const TOP: usize = 3;
-/// ... if its score is at least this; else there is no J hit, unless a short 3' fragment
-/// qualifies (below).
+/// ... if its score (on `trim`'s ±2 scale: +2 a match, −2 a mismatch) is at least this; else there
+/// is no J hit, unless a short 3' fragment qualifies (below).
 const MIN_SCORE: i32 = 30;
 /// The later-start count (ruling B4) applies when the projecting cut has at most this many
 /// mismatched or gapped bases.

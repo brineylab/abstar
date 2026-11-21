@@ -60,7 +60,7 @@ Diagnosis of the no-hit losses on bnab-preset reads (A22):
 - The cut also ends before any gap whose right flank reaches the protected zone. V has no indels there, so such a gap marks where V ended.
 - `place_gaps` then runs.
 - **5′ start extension** (added 2026-11-21, ruling A28). The cut drops mutated first V bases: a prefix with a negative score, which is a single mutated first base 30% of the time at 30% mutation. So the V start then extends along the alignment's first diagonal to the read's start or the allele's start, whichever comes first. The extension is taken when it is at most 20 bases long and either at most 3 bases long or matching the allele on at least a quarter of its bases (as often as random sequence would).
-  - A 5′ flank before the allele's start (leader, 5′ UTR, a primer upstream of IMGT 1) lies past the allele's start on the diagonal, so the extension cannot absorb it.
+  - A 5′ flank before the allele's start (leader, 5′ UTR, a primer upstream of IMGT 1) lies past the allele's start on the diagonal. The geometry protects it: the extension stops at the allele's start. The quarter-identity guard does not, since a leader matches the allele no worse than random sequence. When a deletion sits in the first ~5 V bases, though, the first diagonal is shifted by it and the extension can absorb 1–3 leader bases. (2026-11-21, final review: this bullet said the flank "lies past the allele's start on the diagonal, so the extension cannot absorb it".)
   - The extended bases are V-derived bases like the rest: they count in the tie set, as truth counts every V-origin base.
 - Each aligned read base takes the allele's IMGT gapped index; inserted bases take none.
 
@@ -115,6 +115,8 @@ Diagnosis of the no-hit losses on bnab-preset reads (A22):
   | 20 | 194 / 630 / 1207 | 6 | 92 |
   | 30 | 3 / 14 / 18 | 11 | 118 |
   | 40 | 0 / 1 / 0 | 62 | 254 |
+
+  The table was measured on an earlier build of the J step (before its final cut and refinement rules); the build these results describe gives no J hit on 7 reads at 0–30% and 107 on bnab at the floor of 30 (the J table under *Consequences*), not 11 and 118. (2026-11-21 label, final review.)
 
   Calls below 30 are mostly wrong: 4 of 10 at 0–30% mutation and 32 of 109 on bnab had the primary in `j_call_valid`. So 30 costs few correct calls and keeps random tails at about 10⁻⁴.
 

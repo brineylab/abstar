@@ -13,7 +13,7 @@ Every segment (V, D, J, C) gets substitution lists (nt and aa), insertion and de
 **One alignment per segment** (`derive::mutations`). Every field of a segment comes from the same alignment, the one the regions use (record 0032):
 - V and J: the aligner's alignment to the primary allele, cut at the junction step's V end and J start (record 0030). Its indels are already at the leftmost minimum-mismatch placement within the indel zone (`place_gaps`, rulings A17–A19). V includes its 5′ start extension (ruling A28): the extended bases are aligned V positions.
 - D: the junction step's gapless placement on the primary, on the reverse-complemented allele when the D is inverted (record 0031).
-- C: the gapless prefix comparison from J's end (`assign_c`), over the covered C bases only.
+- C: the gapless prefix comparison from J's end (`assign_c`), over the covered C bases only. (2026-11-21: from the placement `assign_c` chooses within 3 bases of J's end, record 0030's C note; C usually starts at allele position 2.)
 
 **Numbering.**
 - V nt: `IMGT{pos}:{ref}>{alt}`, `pos` the IMGT-gapped position. D, J, C nt: `{pos}:{ref}>{alt}`, `pos` 1-based in the allele as used. For an inverted D, that is the reverse-complemented allele, the same coordinates as `d_germline_start`/`d_germline_end`.
@@ -24,7 +24,7 @@ Every segment (V, D, J, C) gets substitution lists (nt and aa), insertion and de
 - V: IMGT codons (`IMGT{n}`, `n` the IMGT codon number). Codons that hold an IMGT gap are skipped.
 - D: the V reading frame. The codon phase of the D's first base is counted from the read's last V base and its IMGT position. D codon 1 starts at the first D germline position in that phase.
 - J: the frame set by Trp/Phe118. Codon 1 starts at `anchor % 3`.
-- C: the J frame continued past the J allele's end, `(anchor − len(J)) mod 3`.
+- C: the J frame continued past the J allele's end, `(anchor + 1 − len(J)) mod 3`, because C allele base 1 is the J's last base. (2026-11-21, ruling C1: it was `(anchor − len(J)) mod 3`, one base off.)
 - A codon counts only when its three germline bases are all aligned. A codon with a deleted or unaligned base is not counted. It is listed as `{n}:{ref aa}>{alt aa}` when the translations differ. A deletion edge can change an amino acid without a nt substitution (ruling A15).
 - The aa list is null when the segment has no frame: a J allele without an anchor, and C after it.
 
@@ -68,3 +68,5 @@ The aa lists, indel lists, counts and frequencies agree within 1 point of the nt
 - C is graded on 215 of 2,000 reads: 40 nt rarely separate C alleles, so the C primary is the true allele only there.
 
 `mutation_accuracy_memory` asserts at least 99% nt-list agreement for each segment on the memory set.
+- **2026-11-21 (final review): `N` read bases are substitutions.** As the numbering rule says, an `N` in the read against a germline base is listed (`{pos}:A>N`) and counted in `S_mutation_count` and `S_mutation_frequency`, as in legacy abstar. So a read with ambiguous base calls has inflated mutation counts; filter on the read's `N` content, or subtract the `>N` entries, to count somatic mutations only. Behavior unchanged; recorded here because it is easy to miss.
+- **2026-11-21 (ruling C1): mutated last J bases.** J's end is now cut back to the C start when C is called (record 0030's C note), so the 1-nt insertion that let J reach into C bases (bullet above) no longer survives on reads with C.

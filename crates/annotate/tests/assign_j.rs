@@ -65,15 +65,20 @@ fn short_j_sibling_tie() {
 
 #[test]
 fn j_from_v_locus_only() {
-    // An IGK V followed by an IGH J: the J call comes from IGK, or there is none.
+    // An IGK V followed by an IGH J: only IGK J alleles are searched, and none of them fits.
     let r = human();
     let read = [&ungapped(r, "IGKV3-20*01")[..], NP, &ungapped(r, "IGHJ4*02")].concat();
     let (o, v) = r.call(&read).expect("V hit");
     assert_eq!(r.alleles[v.primary].locus, Locus::IGK);
-    if let Some(h) = assign_j(&o, &v, &r.alleles, &r.j, &Scoring::default()) {
-        let loci: BTreeSet<Locus> = h.ties.iter().map(|&i| r.alleles[i].locus).collect();
-        assert_eq!(loci, [Locus::IGK].into(), "{:?}", r.names(&h.ties));
-    }
+    let h = assign_j(&o, &v, &r.alleles, &r.j, &Scoring::default());
+    assert_eq!(h.map(|h| r.names(&h.ties)), None);
+    // An IGK J after it is called, from IGK.
+    let read = [&ungapped(r, "IGKV3-20*01")[..], NP, &ungapped(r, "IGKJ1*01")].concat();
+    let (o, v) = r.call(&read).expect("V hit");
+    let h = assign_j(&o, &v, &r.alleles, &r.j, &Scoring::default()).expect("J hit");
+    let loci: BTreeSet<Locus> = h.ties.iter().map(|&i| r.alleles[i].locus).collect();
+    assert_eq!(loci, [Locus::IGK].into(), "{:?}", r.names(&h.ties));
+    assert_eq!(r.alleles[h.primary].name, "IGKJ1*01");
 }
 
 #[test]

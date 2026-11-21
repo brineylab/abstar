@@ -110,8 +110,8 @@ fn truncated_into_cdr1() {
 
 #[test]
 fn truncated_into_cdr3() {
-    // The read ends 10 nt past V: no J hit, no junction (status `junction_undefined` in Task
-    // 10), CDR3 the covered part (ruling A4), sequence_vdj through the read end (ruling A8).
+    // The read ends 10 nt past V: no J hit (status `no_j_hit`, record 0035), no junction, CDR3
+    // the covered part (ruling A4), sequence_vdj through the read end (ruling A8).
     let r = human();
     let v = ungapped(r, IGHV);
     let read = [&v[..], b"CCGTATTACG"].concat();

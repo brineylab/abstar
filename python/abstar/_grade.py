@@ -150,7 +150,6 @@ def grade(truth: "pl.DataFrame", calls: "pl.DataFrame", germline_db: str = "huma
             if len(tm) != len(cm):
                 return False
             if col == gcol:  # differences are allowed only where a boundary is ambiguous
-                tg, cg = t[gcol], c.get(gcol)
                 amb, start = uncertain(t), t["v_sequence_start"]
                 step, off = (3, codon_phase(t) + 2) if aa else (1, 0)
                 return all(a == b or (start + step * i + off) in amb for i, (a, b) in enumerate(zip(tm, cm)))

@@ -237,7 +237,8 @@ alleles lack anchors (see below).
   rejected because it draws under one nucleotide), to imitate primer-based and
   partial reads. Recorded exactly.
 - **Constant region:** optionally append the first N bases of a constant
-  allele, chosen by isotype weights (for example IgM/IgG1/…/IgK). This gives
+  allele after its first base, which is the J's last base, as in real
+  transcripts (ruling C1, record 0025); the allele is chosen by isotype weights (for example IgM/IgG1/…/IgK). This gives
   `c_call` a truth to test against. Off by default.
 
 ## Productivity
@@ -316,8 +317,9 @@ The generator knows the origin of every read base, so it never aligns:
   coordinates. Positions affected by indels are skipped.
 - **J:** an ungapped comparison of the J-derived region against every J
   allele at every offset. This handles J alleles without an anchor.
-- **D:** an ungapped comparison of the D-derived region against every D (and,
-  where inversion is enabled, its reverse complement) at every offset.
+- **D:** an ungapped comparison of the D-derived region against every D and
+  its reverse complement at every offset, whatever the model's `d_inversion`
+  (ruling A24).
 - **C:** an ungapped prefix comparison.
 
 **Coverage rule.** A read base derived from a segment that a candidate allele

@@ -17,7 +17,7 @@ The annotator's steps (records 0029–0034) each stop when they cannot continue:
 | Empty sequence; a character outside `ACGTN` + IUPAC | `invalid_input` / `empty_sequence`, `invalid_characters` | identity only |
 | No V on either strand | `unassigned` / `no_v_hit` | identity only |
 | V allele not IMGT-gapped (see below) | `unassigned` / `macaque_not_imgt_gapped` | `rev_comp`, `locus`, the V call, ties, species, V coordinates, CIGAR, score, identity |
-| V found, no J | `unassigned` / `no_j_hit` | everything V supports: the V call and alignment, FWR1–FWR3 (and the partial CDR3, ruling A4), V mutations, `sequence_vdj` (to the read's end, ruling A8) and its masks |
+| V found, no J | `unassigned` / `no_j_hit` | everything V supports: the V call and alignment, FWR1–FWR3 (and the partial CDR3, ruling A4), V mutations, `sequence_vdj` (to the read's end, ruling A8), `gene_segment_mask` and `nongermline_mask` (and their `_aa` forms), and `cdr_mask` only when V reaches the Cys104 codon. With no J to end it, the V(D)J region runs to the read's end, so the partial CDR3, `cdr_mask` and `sequence_vdj` can include J or C bases the J step missed. (2026-11-21, final review: this cell ended "and its masks".) |
 | V and J found, junction undefined (an anchor missing or truncated) | `unassigned` / `junction_undefined` | every call and every region the read covers; `junction` null |
 | Everything | `annotated` / null | all |
 | A panic while annotating | `error` / `internal_error: <msg>` | identity only (record 0004) |
