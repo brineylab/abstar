@@ -13,7 +13,7 @@ mod translate;
 
 pub use alignment::{alignments, Alignments};
 pub use masks::{masks, Masks};
-pub use mutations::{mutations, SegmentMutations};
+pub use mutations::{mutations, segments, SegmentMutations};
 pub use productivity::{productivity, Productivity};
 pub use regions::{regions, Regions};
 pub use translate::{region_aa, translate};
@@ -25,7 +25,7 @@ use std::ops::Range;
 
 /// One alignment column: (read position, ungapped germline index). An inserted base has no
 /// germline index, a deleted base no read position.
-type Col = (Option<usize>, Option<usize>);
+pub type Col = (Option<usize>, Option<usize>);
 
 /// The columns of `aln` over read positions `span`. Positions of `span` outside the alignment
 /// continue its first or last diagonal, as the junction step extends V and J (record 0030). A

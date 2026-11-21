@@ -24,12 +24,14 @@ use abstar_germline::{Allele, Locus, Segment};
 /// k-mer length of the prefilter indexes (record 0029).
 pub const K: usize = 7;
 
-/// One segment's alleles, prepared once per run: their database indices, uppercase ungapped and
-/// IMGT-gapped sequences, and k-mer index (entry `i` is allele `ids[i]` throughout).
+/// One segment's alleles, prepared once per run: their database indices, uppercase ungapped
+/// sequences and their reverse complements, IMGT-gapped sequences, and k-mer index (entry `i` is
+/// allele `ids[i]` throughout).
 pub struct SegmentIndex {
     /// Database indices, ascending.
     pub ids: Vec<usize>,
     pub seqs: Vec<Vec<u8>>,
+    pub rc: Vec<Vec<u8>>,
     pub gapped: Vec<Vec<u8>>,
     pub loci: Vec<Locus>,
     pub index: KmerIndex,
@@ -37,12 +39,19 @@ pub struct SegmentIndex {
 
 impl SegmentIndex {
     pub fn new(alleles: &[Allele], segment: Segment) -> SegmentIndex {
-        let ids: Vec<usize> = (0..alleles.len()).filter(|&i| alleles[i].segment == segment).collect();
+        SegmentIndex::for_loci(alleles, segment, None)
+    }
+
+    /// `new` restricted to alleles of `loci` (all loci when `None`).
+    pub fn for_loci(alleles: &[Allele], segment: Segment, loci: Option<&[Locus]>) -> SegmentIndex {
+        let keep = |a: &Allele| a.segment == segment && loci.is_none_or(|l| l.contains(&a.locus));
+        let ids: Vec<usize> = (0..alleles.len()).filter(|&i| keep(&alleles[i])).collect();
         let seqs: Vec<Vec<u8>> = ids.iter().map(|&i| alleles[i].sequence().to_ascii_uppercase().into_bytes()).collect();
         let gapped: Vec<Vec<u8>> = ids.iter().map(|&i| alleles[i].sequence_gapped.to_ascii_uppercase().into_bytes()).collect();
         let index = KmerIndex::new(&seqs.iter().map(|s| s.as_slice()).collect::<Vec<_>>(), K);
         let loci = ids.iter().map(|&i| alleles[i].locus).collect();
-        SegmentIndex { ids, seqs, gapped, loci, index }
+        let rc = seqs.iter().map(|s| reverse_complement(s)).collect();
+        SegmentIndex { ids, seqs, rc, gapped, loci, index }
     }
 }
 

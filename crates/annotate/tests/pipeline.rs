@@ -76,7 +76,7 @@ fn messy_fasta_one_row_per_record() {
         if i == 3 {
             assert_eq!((x.2.as_str(), x.3.as_deref()), ("invalid_input", Some("empty_sequence")));
         } else {
-            assert_eq!((x.2.as_str(), x.3.as_deref()), ("unassigned", Some("engine_not_implemented")));
+            assert_eq!((x.2.as_str(), x.3.as_deref()), ("unassigned", Some("no_v_hit")));
         }
     }
 }
@@ -169,13 +169,16 @@ impl Annotate for Boom {
 #[test]
 fn engine_seam() {
     let d = db();
-    let engine = Engine::new(&d, &EngineOptions { threads: None }).unwrap();
+    let engine = Engine::new(&d, &EngineOptions::default()).unwrap();
     let inputs = [Input::File(data("empty.fasta")), recs().remove(0)];
     let a = run_in_memory(&inputs, &d, &opts()).unwrap();
     let b = run_in_memory_with(&inputs, &d, &opts(), &Stub(&d)).unwrap();
     let c = run_in_memory_with(&inputs, &d, &opts(), &engine).unwrap();
-    assert_eq!(a, b);
     assert_eq!(a, c);
+    // the injected stub runs through the same pipeline; only its failure reason differs
+    let reason = |x: &[arrow_array::RecordBatch]| x[0].column(arrow_schema().index_of("failure_reason").unwrap()).as_string::<i32>().value(0).to_string();
+    assert_eq!((a[0].num_rows(), b[0].num_rows()), (3, 3));
+    assert_eq!((reason(&a), reason(&b)), ("no_v_hit".to_string(), "engine_not_implemented".to_string()));
 }
 
 fn recs() -> Vec<Input> {
@@ -293,7 +296,7 @@ fn non_utf8_records_are_invalid_encoding() {
             ("caf\u{FFFD}", "ACGT", "invalid_input", Some("invalid_encoding")),
             ("caf\u{FFFD}", "ACGT", "invalid_input", Some("invalid_encoding")),
             ("ok", "AC\u{FFFD}GT", "invalid_input", Some("invalid_encoding")),
-            ("fine", "ACGT", "unassigned", Some("engine_not_implemented")),
+            ("fine", "ACGT", "unassigned", Some("no_v_hit")),
         ]
     );
 }

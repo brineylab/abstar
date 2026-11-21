@@ -357,8 +357,8 @@ type = "float64"
 nullable = true
 origin = "airr-optional"
 coordinates = ""
-description = "Alignment score of the V call. Null when there is no V alignment."
-decision = ""
+description = "Score of the reported V alignment (v_sequence_start to v_sequence_end, the columns v_identity and the V mutations use): +2 per match, -3 per mismatch (a non-ACGT base mismatches), -10 to open and -1 to extend a gap. Null when there is no V alignment."
+decision = "0035"
 
 [[field]]
 name = "v_identity"
@@ -411,8 +411,8 @@ type = "float64"
 nullable = true
 origin = "airr-optional"
 coordinates = ""
-description = "Alignment score of the D call. Null when there is no D alignment."
-decision = ""
+description = "Score of the reported D alignment (d_sequence_start to d_sequence_end, the columns d_identity and the D mutations use): +2 per match, -3 per mismatch (a non-ACGT base mismatches), -10 to open and -1 to extend a gap. Null when there is no D alignment."
+decision = "0035"
 
 [[field]]
 name = "d_identity"
@@ -465,8 +465,8 @@ type = "float64"
 nullable = true
 origin = "airr-optional"
 coordinates = ""
-description = "Alignment score of the J call. Null when there is no J alignment."
-decision = ""
+description = "Score of the reported J alignment (j_sequence_start to j_sequence_end, the columns j_identity and the J mutations use): +2 per match, -3 per mismatch (a non-ACGT base mismatches), -10 to open and -1 to extend a gap. Null when there is no J alignment."
+decision = "0035"
 
 [[field]]
 name = "j_identity"
@@ -519,8 +519,8 @@ type = "float64"
 nullable = true
 origin = "airr-optional"
 coordinates = ""
-description = "Alignment score of the constant region call. Null when there is no constant region alignment."
-decision = ""
+description = "Score of the reported constant region alignment (c_sequence_start to c_sequence_end, the columns c_identity and the constant region mutations use): +2 per match, -3 per mismatch (a non-ACGT base mismatches), -10 to open and -1 to extend a gap. Null when there is no constant region alignment."
+decision = "0035"
 
 [[field]]
 name = "c_identity"

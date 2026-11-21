@@ -8,5 +8,6 @@ pub mod engine;
 pub mod error;
 pub mod input;
 pub mod pipeline;
+pub mod record;
 pub mod runmeta;
 pub mod stub;

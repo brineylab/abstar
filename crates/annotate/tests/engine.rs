@@ -1,0 +1,267 @@
+//! The assembled annotator end to end (record 0035): `Engine::annotate` on hand-built reads with
+//! exact AIRR values, the status rules, the built-in macaque and mixed-species databases, and
+//! determinism through the run pipeline.
+mod common;
+use abstar_annotate::engine::{Annotate, Engine, EngineOptions};
+use abstar_annotate::input::Input;
+use abstar_annotate::pipeline::{run_to_writer, RunOptions};
+use abstar_germline::{Database, Locus, Segment};
+use abstar_generate::Spec;
+use common::{generated, human_db, package_root, rand_seq, revcomp};
+use std::sync::OnceLock;
+
+fn load(name: &str) -> Database {
+    abstar_germline::load(&package_root().join("germline_dbs").join(name)).unwrap()
+}
+
+fn human() -> &'static Database {
+    static D: OnceLock<Database> = OnceLock::new();
+    D.get_or_init(human_db)
+}
+
+fn engine() -> &'static Engine<'static> {
+    static E: OnceLock<Engine<'static>> = OnceLock::new();
+    E.get_or_init(|| Engine::new(human(), &EngineOptions::default()).unwrap())
+}
+
+fn ungapped(db: &Database, name: &str) -> String {
+    db.alleles.iter().find(|a| a.name == name).unwrap_or_else(|| panic!("no allele {name}")).sequence()
+}
+
+/// Ungapped index of IMGT position `p` (1-based) of a V allele.
+fn at_imgt(db: &Database, v: &str, p: usize) -> usize {
+    let a = db.alleles.iter().find(|a| a.name == v).unwrap();
+    let g = a.sequence_gapped.as_bytes();
+    assert_ne!(g[p - 1], b'.');
+    g[..p - 1].iter().filter(|&&b| b != b'.').count()
+}
+
+/// IGHV1-2*02 (A>G at IMGT 152) + CC + IGHD3-3*01 + GG + IGHJ4*02: in frame, productive.
+fn igh_read() -> String {
+    let db = human();
+    let mut v = ungapped(db, "IGHV1-2*02").into_bytes();
+    v[at_imgt(db, "IGHV1-2*02", 152)] = b'G';
+    [String::from_utf8(v).unwrap(), "CC".into(), ungapped(db, "IGHD3-3*01"), "GG".into(), ungapped(db, "IGHJ4*02")].concat()
+}
+
+fn s(x: &str) -> Option<String> {
+    Some(x.to_string())
+}
+
+fn strs(x: &[&str]) -> Option<Vec<String>> {
+    Some(x.iter().map(|s| s.to_string()).collect())
+}
+
+#[test]
+fn engine_end_to_end_igh() {
+    let read = igh_read();
+    assert_eq!(read.len(), 379);
+    let r = engine().annotate("r1", &read);
+    assert_eq!((r.annotation_status.as_str(), r.failure_reason.as_deref()), ("annotated", None));
+    assert_eq!((r.sequence_id.as_str(), r.sequence.as_str()), ("r1", read.as_str()));
+    assert_eq!((r.rev_comp, r.locus.as_deref()), (Some(false), Some("IGH")));
+    // calls
+    assert_eq!((r.v_call.as_deref(), r.v_gene.as_deref(), r.v_species.as_deref()), (Some("IGHV1-2*02"), Some("IGHV1-2"), Some("human")));
+    assert_eq!((r.d_call.as_deref(), r.d_gene.as_deref(), r.d_inverted), (Some("IGHD3-3*01"), Some("IGHD3-3"), Some(false)));
+    assert_eq!((r.j_call.as_deref(), r.j_gene.as_deref()), (Some("IGHJ4*02"), Some("IGHJ4")));
+    assert_eq!(r.c_call, None);
+    for (calls, species) in [(&r.v_call_ties, &r.v_species_ties), (&r.d_call_ties, &r.d_species_ties), (&r.j_call_ties, &r.j_species_ties)] {
+        let (calls, species) = (calls.as_ref().unwrap(), species.as_ref().unwrap());
+        assert_eq!(calls.len(), species.len());
+        assert!(species.iter().all(|s| s == "human"));
+    }
+    assert_eq!(r.v_call_ties.as_ref().unwrap()[0], "IGHV1-2*02");
+    assert_eq!(r.j_call_ties.as_ref().unwrap()[0], "IGHJ4*02");
+    // coordinates: AIRR 1-based closed
+    assert_eq!((r.v_sequence_start, r.v_sequence_end, r.v_germline_start, r.v_germline_end), (Some(1), Some(296), Some(1), Some(296)));
+    assert_eq!((r.d_sequence_start, r.d_sequence_end, r.d_germline_start, r.d_germline_end), (Some(299), Some(329), Some(1), Some(31)));
+    assert_eq!((r.j_sequence_start, r.j_sequence_end, r.j_germline_start, r.j_germline_end), (Some(332), Some(379), Some(1), Some(48)));
+    assert_eq!((r.v_cigar.as_deref(), r.d_cigar.as_deref(), r.j_cigar.as_deref()), (Some("296M83S"), Some("298S31M50S"), Some("331S48M")));
+    // scores: record 0029 scoring over the reported columns; identity = matches / aligned
+    assert_eq!((r.v_score, r.v_identity), (Some(295.0 * 2.0 - 3.0), Some(295.0 / 296.0)));
+    assert_eq!((r.d_score, r.d_identity, r.j_score, r.j_identity), (Some(62.0), Some(1.0), Some(96.0), Some(1.0)));
+    assert_eq!((r.np1.as_deref(), r.np1_length, r.np2.as_deref(), r.np2_length), (Some("CC"), Some(2), Some("GG"), Some(2)));
+    // junction and regions
+    assert_eq!(r.junction, s("TGTGCGAGAGACCGTATTACGATTTTTGGAGTGGTTATTATACCGGACTACTTTGACTACTGG"));
+    assert_eq!((r.junction_aa.as_deref(), r.junction_length), (Some("CARDRITIFGVVIIPDYFDYW"), Some(63)));
+    let regions = [
+        (&r.fwr1_start, &r.fwr1_end, &r.fwr1_aa, &r.fwr1_length, (1, 75), "QVQLVQSGAEVKKPGASVKVSCKAS"),
+        (&r.cdr1_start, &r.cdr1_end, &r.cdr1_aa, &r.cdr1_length, (76, 99), "GYTFTGYY"),
+        (&r.fwr2_start, &r.fwr2_end, &r.fwr2_aa, &r.fwr2_length, (100, 150), "MHWVRQAPGQGLGWMGW"),
+        (&r.cdr2_start, &r.cdr2_end, &r.cdr2_aa, &r.cdr2_length, (151, 174), "INPNSGGT"),
+        (&r.fwr3_start, &r.fwr3_end, &r.fwr3_aa, &r.fwr3_length, (175, 288), "NYAQKFQGRVTMTRDTSISTAYMELSRLRSDDTAVYYC"),
+        (&r.cdr3_start, &r.cdr3_end, &r.cdr3_aa, &r.cdr3_length, (289, 345), "ARDRITIFGVVIIPDYFDY"),
+        (&r.fwr4_start, &r.fwr4_end, &r.fwr4_aa, &r.fwr4_length, (346, 379), "WGQGTLVTVSS"),
+    ];
+    for (start, end, aa, len, (a, b), want) in regions {
+        assert_eq!((*start, *end, aa.as_deref(), *len), (Some(a), Some(b), Some(want), Some(want.len() as i64)));
+    }
+    assert_eq!(r.cdr3, s(&read[288..345]));
+    assert_eq!(r.fwr1, s(&read[..75]));
+    // productivity and assembled sequences
+    assert_eq!((r.productive, r.vj_in_frame, r.stop_codon), (Some(true), Some(true), Some(false)));
+    assert_eq!(r.sequence_vdj, s(&read));
+    assert_eq!((r.sequence_vdjc.as_deref(), r.sequence_vdjc_aa.as_deref()), (None, None));
+    let aa = "QVQLVQSGAEVKKPGASVKVSCKASGYTFTGYYMHWVRQAPGQGLGWMGWINPNSGGTNYAQKFQGRVTMTRDTSISTAYMELSRLRSDDTAVYYCARDRITIFGVVIIPDYFDYWGQGTLVTVSS";
+    assert_eq!((r.sequence_aa.as_deref(), r.sequence_vdj_aa.as_deref()), (Some(aa), Some(aa)));
+    assert_eq!(r.sequence_alignment_aa.as_deref().map(|x| x.replace('.', "")), Some(aa.to_string()));
+    assert_eq!(r.sequence_alignment.as_deref().map(|x| x.replace(['.', '-'], "")), Some(read.clone()));
+    // mutations
+    assert_eq!((r.v_mutations.clone(), r.v_mutations_aa.clone()), (strs(&["IMGT152:A>G"]), strs(&["IMGT51:E>G"])));
+    assert_eq!((r.v_mutation_count, r.v_mutation_count_aa, r.v_mutation_frequency), (Some(1), Some(1), Some(1.0 / 296.0)));
+    assert_eq!((r.v_insertions.clone(), r.v_deletions.clone()), (strs(&[]), strs(&[])));
+    assert_eq!((r.d_mutations.clone(), r.d_mutation_count, r.j_mutations.clone(), r.j_mutation_count), (strs(&[]), Some(0), strs(&[]), Some(0)));
+    assert_eq!((r.c_mutations.clone(), r.c_mutation_count), (None, None));
+    // masks
+    let cdr = ["0".repeat(75), "1".repeat(24), "0".repeat(51), "2".repeat(24), "0".repeat(114), "3".repeat(57), "0".repeat(34)].concat();
+    assert_eq!(r.cdr_mask, Some(cdr));
+    assert_eq!(r.gene_segment_mask, Some(["V".repeat(296), "NN".into(), "D".repeat(31), "NN".into(), "J".repeat(48)].concat()));
+    let mut ng = vec![b'0'; 379];
+    for i in [at_imgt(human(), "IGHV1-2*02", 152), 296, 297, 329, 330] {
+        ng[i] = b'1';
+    }
+    assert_eq!(r.nongermline_mask, Some(String::from_utf8(ng).unwrap()));
+    assert_eq!(r.cdr_mask_aa.as_ref().map(|m| m.len()), Some(aa.len()));
+    // a read and its reverse complement annotate identically apart from `sequence` and `rev_comp`
+    let mut rc = engine().annotate("r1", &String::from_utf8(revcomp(read.as_bytes())).unwrap());
+    assert_eq!(rc.rev_comp, Some(true));
+    (rc.sequence, rc.rev_comp) = (r.sequence.clone(), r.rev_comp);
+    assert_eq!(rc, r);
+}
+
+#[test]
+fn no_j_hit_keeps_v_fields() {
+    let read = [ungapped(human(), "IGHV1-2*02"), "CCGTATTACG".into()].concat();
+    let r = engine().annotate("r", &read);
+    assert_eq!((r.annotation_status.as_str(), r.failure_reason.as_deref()), ("unassigned", Some("no_j_hit")));
+    assert_eq!((r.v_call.as_deref(), r.v_species.as_deref(), r.rev_comp), (Some("IGHV1-2*02"), Some("human"), Some(false)));
+    assert!(r.v_call_ties.as_ref().is_some_and(|t| t[0] == "IGHV1-2*02"));
+    assert_eq!((r.v_sequence_start, r.v_sequence_end, r.v_germline_start, r.v_germline_end), (Some(1), Some(296), Some(1), Some(296)));
+    let got = [(r.fwr1_start, r.fwr1_end), (r.cdr1_start, r.cdr1_end), (r.fwr2_start, r.fwr2_end), (r.cdr2_start, r.cdr2_end), (r.fwr3_start, r.fwr3_end)];
+    assert_eq!(got, [(1, 75), (76, 99), (100, 150), (151, 174), (175, 288)].map(|(a, b)| (Some(a), Some(b))));
+    assert_eq!(r.fwr3_aa.as_deref(), Some("NYAQKFQGRVTMTRDTSISTAYMELSRLRSDDTAVYYC"));
+    assert_eq!((r.v_mutations.clone(), r.v_mutation_count), (strs(&[]), Some(0)));
+    assert_eq!((r.j_call.clone(), r.d_call.clone(), r.junction.clone(), r.junction_length), (None, None, None, None));
+    assert_eq!((r.j_sequence_start, r.j_mutations.clone(), r.np1.clone(), r.fwr4.clone()), (None, None, None, None));
+}
+
+#[test]
+fn junction_undefined_keeps_calls() {
+    // J truncated inside the Trp118 codon: V and J are called, the junction isn't
+    let j = ungapped(human(), "IGHJ4*02");
+    let read = [ungapped(human(), "IGHV1-2*02"), "CC".into(), ungapped(human(), "IGHD3-3*01"), "GG".into(), j[..16].to_string()].concat();
+    let r = engine().annotate("r", &read);
+    assert_eq!((r.annotation_status.as_str(), r.failure_reason.as_deref()), ("unassigned", Some("junction_undefined")));
+    assert_eq!((r.v_call.as_deref(), r.d_call.as_deref()), (Some("IGHV1-2*02"), Some("IGHD3-3*01")));
+    assert!(r.j_call.as_deref().is_some_and(|c| c.starts_with("IGHJ")));
+    // the regions the read covers: CDR3 whole, FWR4 its first two bases (ruling A4)
+    assert_eq!((r.junction.clone(), r.junction_length, r.fwr4.as_deref()), (None, None, Some("TG")));
+    assert_eq!((r.fwr3_start, r.fwr3_end, r.cdr3_start, r.cdr3_end), (Some(175), Some(288), Some(289), Some(345)));
+}
+
+#[test]
+fn unassignable_reads() {
+    let e = engine();
+    let status = |seq: &str| {
+        let r = e.annotate("x", seq);
+        (r.annotation_status, r.failure_reason)
+    };
+    let no_v = ("unassigned".to_string(), Some("no_v_hit".to_string()));
+    assert_eq!(status(&String::from_utf8(rand_seq(400, 7)).unwrap()), no_v);
+    assert_eq!(status("AGATCGGAAGAGCACACGTCTGAACTCCAGTCACAGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGT"), no_v);
+    assert_eq!(status("ACGT"), no_v);
+    assert_eq!(status(""), ("invalid_input".into(), Some("empty_sequence".into())));
+    assert_eq!(status("ACGTX"), ("invalid_input".into(), Some("invalid_characters".into())));
+    // N and IUPAC bases never crash
+    let mut read = igh_read().into_bytes();
+    for (i, b) in [(5, b'N'), (100, b'R'), (200, b'n'), (300, b'Y'), (350, b'N')] {
+        read[i] = b;
+    }
+    let r = e.annotate("n", std::str::from_utf8(&read).unwrap());
+    assert_eq!((r.annotation_status.as_str(), r.v_call.as_deref()), ("annotated", Some("IGHV1-2*02")));
+    // a TCR read against an IG-only database
+    let tcr = [ungapped(human(), "TRBV7-2*01"), "GGGACAGG".into(), ungapped(human(), "TRBJ2-1*01")].concat();
+    assert_eq!(e.annotate("t", &tcr).locus.as_deref(), Some("TRB"));
+    let mouse = load("c57bl6");
+    let ig_only = Engine::new(&mouse, &EngineOptions::default()).unwrap();
+    let r = ig_only.annotate("t", &tcr);
+    assert_eq!((r.annotation_status, r.failure_reason), no_v);
+}
+
+#[test]
+fn macaque_reports_status() {
+    let db = load("macaque");
+    let e = Engine::new(&db, &EngineOptions::default()).unwrap();
+    let v = db.alleles.iter().find(|a| a.name == "IGHV1-105*01").unwrap();
+    assert!(v.anchor.is_none(), "KIMDB gapping: no IMGT Cys104");
+    let j = db.alleles.iter().find(|a| a.segment == Segment::J && a.locus == Locus::IGH && a.anchor.is_some()).unwrap();
+    let read = [v.sequence(), "CCGTATTACGATTTTTGG".into(), j.sequence()].concat();
+    let r = e.annotate("m", &read);
+    assert_eq!((r.annotation_status.as_str(), r.failure_reason.as_deref()), ("unassigned", Some("macaque_not_imgt_gapped")));
+    assert!(r.v_call_ties.as_ref().unwrap().contains(&v.name), "{:?}", r.v_call_ties);
+    assert_eq!((r.v_species.as_deref(), r.locus.as_deref(), r.rev_comp), (Some("macaque"), Some("IGH"), Some(false)));
+    assert_eq!((r.v_sequence_start, r.v_germline_start), (Some(1), Some(1)));
+    assert!(r.v_identity.is_some() && r.v_score.is_some() && r.v_cigar.is_some());
+    // nothing that needs IMGT numbering
+    assert_eq!((r.fwr1.clone(), r.cdr3.clone(), r.junction.clone(), r.cdr_mask.clone()), (None, None, None, None));
+    assert_eq!((r.v_mutations.clone(), r.v_mutation_frequency, r.nongermline_mask.clone()), (None, None, None));
+}
+
+#[test]
+fn mixed_species_fields() {
+    let db = load("human+c57bl6");
+    let e = Engine::new(&db, &EngineOptions::default()).unwrap();
+    let find = |species: &str, seg: Segment| {
+        db.alleles.iter().find(|a| a.species == species && a.segment == seg && a.locus == Locus::IGH && a.anchor.is_some()).unwrap()
+    };
+    let hv = db.alleles.iter().find(|a| a.name == "IGHV1-2*02" && a.species == "human").unwrap();
+    for (v, j) in [(hv, find("human", Segment::J)), (find("mouse", Segment::V), find("mouse", Segment::J))] {
+        let read = [v.sequence(), "CCGTATTACGATTTTTGG".into(), j.sequence()].concat();
+        let r = e.annotate("x", &read);
+        assert_eq!(r.annotation_status, "annotated", "{}: {:?}", v.name, r.failure_reason);
+        assert!(v.id.contains('|'), "mixed database ids carry a species prefix: {}", v.id);
+        assert_eq!(r.v_species.as_deref(), Some(v.species.as_str()));
+        assert_eq!(r.j_species.as_deref(), Some(j.species.as_str()));
+        assert!(r.j_call_ties.as_ref().unwrap().contains(&j.name));
+        let (ties, species) = (r.v_call_ties.unwrap(), r.v_species_ties.unwrap());
+        assert!(ties.contains(&v.name), "{}: {ties:?}", v.id);
+        assert_eq!(r.v_call.as_ref(), Some(&ties[0]));
+        assert_eq!(ties.len(), species.len());
+        assert!(ties.iter().all(|t| !t.contains('|')), "{ties:?}");
+        assert!(species.iter().all(|s| *s == v.species), "{species:?}");
+    }
+}
+
+#[test]
+fn loci_option_restricts_the_search() {
+    let tcr = [ungapped(human(), "TRBV7-2*01"), "GGGACAGG".into(), ungapped(human(), "TRBJ2-1*01")].concat();
+    let ig = Engine::new(human(), &EngineOptions { loci: Some(vec![Locus::IGH, Locus::IGK, Locus::IGL]) }).unwrap();
+    assert_eq!(ig.annotate("t", &tcr).failure_reason.as_deref(), Some("no_v_hit"));
+    assert_eq!(ig.annotate("r", &igh_read()).annotation_status, "annotated");
+}
+
+#[test]
+fn deterministic_across_threads_and_batches() {
+    let g = generated(5, "memory", 300, |p| p.mutation = Spec::Uniform(0.0, 0.2));
+    let mut recs: Vec<(String, String)> = (0..g.len()).map(|i| (g.str("sequence_id", i).unwrap().to_string(), g.sequence(i).to_string())).collect();
+    // reverse complements, junk and invalid records in the same stream
+    for i in 0..50 {
+        recs.push((format!("rc{i}"), String::from_utf8(revcomp(g.sequence(i).as_bytes())).unwrap()));
+    }
+    recs.push(("junk".into(), String::from_utf8(rand_seq(300, 3)).unwrap()));
+    recs.push(("empty".into(), String::new()));
+    let inputs = [Input::Records(recs)];
+    let tsv = |threads, batch_size| {
+        let mut out = Vec::new();
+        let o = RunOptions { threads: Some(threads), batch_size, ..Default::default() };
+        let counts = run_to_writer(&inputs, human(), &o, &mut out).unwrap();
+        (out, counts)
+    };
+    let (a, ca) = tsv(1, 7);
+    let (b, cb) = tsv(4, 4096);
+    let (c, _) = tsv(3, 64);
+    assert_eq!(ca, cb);
+    assert!(a == b && b == c, "output depends on threads or batch size");
+    assert!(ca.annotated >= 330, "{ca:?}");
+    assert_eq!((ca.invalid_input, ca.error), (1, 0));
+}

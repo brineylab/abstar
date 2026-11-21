@@ -4,6 +4,7 @@ import sys
 from pathlib import Path
 
 from test_germline_api import recipe
+from test_run_api import IGH_READ
 
 ABSTAR = str(Path(sys.executable).parent / "abstar")
 FA = ">r1\nACGTACGTACGTACGT\n>r2\nGGGGTTTTAAAACCCC\n>r3\nACACACACGTGTGTGT\n"
@@ -20,6 +21,16 @@ def test_seq_to_stdout():
     assert len(lines) == 2 and lines[0].startswith("sequence_id\t")
     assert lines[1].split("\t")[0] == "1"
     assert "annotated" in p.stderr  # summary on stderr
+
+
+def test_seq_real_read_is_annotated():
+    p = abstar("run", "--seq", IGH_READ)
+    assert p.returncode == 0, p.stderr
+    head, row = (line.split("\t") for line in p.stdout.splitlines())
+    rec = dict(zip(head, row))
+    assert (rec["annotation_status"], rec["failure_reason"]) == ("annotated", "")
+    assert rec["v_call"].startswith("IGHV1-2") and rec["j_call"] == "IGHJ4*02"
+    assert (rec["rev_comp"], rec["productive"], rec["junction_aa"]) == ("F", "T", "CARDRITIFGVVIIPDYFDYW")
 
 
 def test_quiet_suppresses_summary():

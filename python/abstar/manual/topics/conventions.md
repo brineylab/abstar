@@ -21,13 +21,22 @@ Every input record produces exactly one output row. Records are never dropped, s
 | `annotation_status` | Meaning |
 |---|---|
 | `annotated` | The record was annotated. |
-| `unassigned` | The input is valid but biologically unassignable (for example, no V gene found). `failure_reason` says why. |
+| `unassigned` | The input is valid but could not be fully annotated. `failure_reason` says why (table below). |
 | `invalid_input` | The input is not a usable sequence: non-nucleotide characters (`invalid_characters`), empty (`empty_sequence`), or ID or sequence bytes that are not UTF-8 (`invalid_encoding`). |
 | `error` | An internal per-record error. `failure_reason` carries the message, for example `internal_error: <message>`. |
 
 `--strict` turns any `error` row into a fatal run error (exit 3, `STRICT_RECORD_FAILURE`). Fatal run errors (unreadable input, bad database, I/O failure) stop the run with the codes in `abstar manual errors`.
 
-Current state: the foundation ships a stub annotator. Until the real annotator lands, every valid record is reported as `unassigned` with `failure_reason` `engine_not_implemented`. The statuses above are the designed behaviour.
+`unassigned` records keep every field the annotator could establish (record 0035):
+
+| `failure_reason` | Meaning | Fields still filled |
+|---|---|---|
+| `no_v_hit` | No V gene on either strand (random sequence, adapters, a locus the database lacks). | none |
+| `no_j_hit` | A V gene but no J gene, for example a read that ends inside CDR3. | the V call, V coordinates, FWR1–FWR3 (and the partial CDR3), V mutations, `sequence_vdj` to the read's end, masks |
+| `junction_undefined` | V and J found, but a junction anchor (the Cys104 or Trp/Phe118 codon) is missing or truncated. | every call and every region the read covers; `junction` is null |
+| `macaque_not_imgt_gapped` | The V allele's gaps don't follow IMGT numbering (most built-in macaque IGH V genes, until #137; or a custom database without IMGT gaps). Regions, mutations and masks need IMGT numbering. | `rev_comp`, `locus`, the V call and its alignment |
+
+`annotated` records have a junction. Filtering on `annotation_status == "annotated"` keeps only fully annotated rearrangements.
 
 When writing to disk, `run.json` is written last, beside the outputs: its presence marks a finished run. It records parameters, abstar version, database name and content hash, AIRR schema version, and counts by status.
 

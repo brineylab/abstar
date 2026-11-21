@@ -1,5 +1,5 @@
 use super::ties::tiebreak_cmp;
-use super::{reverse_complement, JHit, Oriented, SegmentIndex, VHit};
+use super::{JHit, Oriented, SegmentIndex, VHit};
 use crate::align::{Alignment, Op};
 use abstar_germline::Allele;
 use std::cmp::Reverse;
@@ -186,7 +186,7 @@ pub fn resolve_junction(read: &Oriented, v: &VHit, j: &JHit, alleles: &[Allele],
         (0..=len).find(near).expect("best cut")..(0..=len).rfind(near).expect("best cut")
     };
 
-    let seqs: Vec<[Vec<u8>; 2]> = ks.iter().map(|&k| [d.seqs[k].clone(), reverse_complement(&d.seqs[k])]).collect();
+    let seqs: Vec<[&[u8]; 2]> = ks.iter().map(|&k| [&d.seqs[k][..], &d.rc[k][..]]).collect();
     let best_of = |g: &[u8]| placements(g.len(), zone(g.len())).map(|(s, w)| best_d(q, g, s, w, &pa, &sb)).max().unwrap_or(NEG);
     let scores: Vec<[i32; 2]> = seqs.iter().map(|[f, r]| [best_of(f), best_of(r)]).collect();
     let best = |o: usize| scores.iter().map(|s| s[o]).max().unwrap_or(NEG);
@@ -198,7 +198,7 @@ pub fn resolve_junction(read: &Oriented, v: &VHit, j: &JHit, alleles: &[Allele],
     }
     let mut ties: Vec<usize> = (0..ks.len()).filter(|&x| scores[x][o] == sd).collect();
     ties.sort_by(|&x, &y| tiebreak_cmp(&alleles[d.ids[ks[x]]], &alleles[d.ids[ks[y]]]).then(x.cmp(&y)));
-    let g = &seqs[ties[0]][o];
+    let g = seqs[ties[0]][o];
 
     // The primary's configurations reaching sd: (V end, J start, D start, D end, D offset).
     let mut pick: Option<(usize, usize, usize, usize, i64)> = None;

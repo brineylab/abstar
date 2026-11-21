@@ -27,7 +27,7 @@ pub struct SegmentMutations {
 /// Each segment's (V, D, J, C) alignment columns and germline as used: uppercase, the D
 /// reverse-complemented when inverted. V and J follow the junction's cuts (`Layout`), D and C
 /// are gapless.
-pub(super) fn segments(
+pub fn segments(
     read: &Oriented,
     v: &VHit,
     j: Option<(&JHit, &Junction)>,

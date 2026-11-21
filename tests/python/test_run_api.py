@@ -11,6 +11,13 @@ from abstar import _core
 from abstar.errors import AbstarError
 
 FIELDS = [f["name"] for f in tomllib.loads(_core.fields_toml())["field"]]
+# IGHV1-2*02 + CC + IGHD3-3*01 + GG + IGHJ4*02 (human): in frame, productive
+IGH_READ = (
+    "CAGGTGCAGCTGGTGCAGTCTGGGGCTGAGGTGAAGAAGCCTGGGGCCTCAGTGAAGGTCTCCTGCAAGGCTTCTGGATACACCTTCACCGGCTACTATATGCAC"
+    "TGGGTGCGACAGGCCCCTGGACAAGGGCTTGAGTGGATGGGATGGATCAACCCTAACAGTGGTGGCACAAACTATGCACAGAAGTTTCAGGGCAGGGTCACCATG"
+    "ACCAGGGACACGTCCATCAGCACAGCCTACATGGAGCTGAGCAGGCTGAGATCTGACGACACGGCCGTGTATTACTGTGCGAGAGACCGTATTACGATTTTTGGAG"
+    "TGGTTATTATACCGGACTACTTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG"
+)
 
 
 def _fa(path: Path, recs):
@@ -44,6 +51,17 @@ def test_single_sequence_dataframe():
     assert df["sequence_id"][0] == "1"
     assert df["annotation_status"][0] == "unassigned"
     assert df.columns == FIELDS
+
+
+def test_real_igh_read_is_annotated():
+    df = abstar.run([IGH_READ, IGH_READ[::-1].translate(str.maketrans("ACGT", "TGCA"))])
+    assert df["annotation_status"].to_list() == ["annotated", "annotated"]
+    assert df["failure_reason"].to_list() == [None, None]
+    assert df["rev_comp"].to_list() == [False, True]
+    assert all(v.startswith("IGHV1-2") for v in df["v_call"])
+    assert df["j_call"].to_list() == ["IGHJ4*02", "IGHJ4*02"]
+    assert df["junction_aa"].to_list() == ["CARDRITIFGVVIIPDYFDYW"] * 2
+    assert df["v_sequence_start"].to_list() == [1, 1] and df["productive"].to_list() == [True, True]
 
 
 def test_zero_inputs():
@@ -170,5 +188,5 @@ def test_latin1_header_is_invalid_encoding(tmp_path):
     fa.write_bytes(b">caf\xe9\nACGT\n>ok\nACGT\n")
     df = abstar.run(fa)
     assert df["sequence_id"].to_list() == ["caf�", "ok"]
-    assert df["failure_reason"].to_list() == ["invalid_encoding", "engine_not_implemented"]
+    assert df["failure_reason"].to_list() == ["invalid_encoding", "no_v_hit"]
     assert df["annotation_status"].to_list() == ["invalid_input", "unassigned"]

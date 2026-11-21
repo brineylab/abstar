@@ -140,6 +140,10 @@ fn tsv_safe(s: &mut String) {
     }
 }
 
+fn engine_options(opts: &RunOptions) -> EngineOptions {
+    EngineOptions { loci: opts.loci.clone() }
+}
+
 /// Runs one opened input; `counts` is updated as batches complete so callers keep partial counts on error.
 #[allow(clippy::too_many_arguments)]
 fn run_input(
@@ -245,7 +249,7 @@ pub fn run_to_files(
     meta: &RunMeta,
 ) -> Result<RunSummary, RunError> {
     validate(db, opts)?;
-    let engine = Engine::new(db, &EngineOptions { threads: opts.threads })?;
+    let engine = Engine::new(db, &engine_options(opts))?;
     run_to_files_with(inputs, output_dir, db, formats, opts, meta, &engine)
 }
 
@@ -258,7 +262,6 @@ fn run_to_files_with(
     meta: &RunMeta,
     ann: Annotator,
 ) -> Result<RunSummary, RunError> {
-    validate(db, opts)?;
     let mut formats = formats.to_vec();
     formats.sort_by_key(|f| fmt_name(*f));
     formats.dedup();
@@ -358,7 +361,7 @@ pub fn run_to_writer<W: Write>(
     out: W,
 ) -> Result<StatusCounts, RunError> {
     validate(db, opts)?;
-    let engine = Engine::new(db, &EngineOptions { threads: opts.threads })?;
+    let engine = Engine::new(db, &engine_options(opts))?;
     let pool = pool(opts)?;
     let pipe = |e: &std::io::Error| e.kind() == ErrorKind::BrokenPipe;
     let mut w = match TsvWriter::new(BufWriter::with_capacity(1 << 16, out)) {
@@ -391,8 +394,8 @@ pub fn run_to_writer<W: Write>(
 
 pub fn run_in_memory(inputs: &[Input], db: &Database, opts: &RunOptions) -> Result<Vec<RecordBatch>, RunError> {
     validate(db, opts)?;
-    let engine = Engine::new(db, &EngineOptions { threads: opts.threads })?;
-    run_in_memory_with(inputs, db, opts, &engine)
+    let engine = Engine::new(db, &engine_options(opts))?;
+    in_memory(inputs, opts, &engine)
 }
 
 /// Same as `run_in_memory` with an injected annotator (tests).
@@ -404,6 +407,10 @@ pub fn run_in_memory_with(
     ann: &dyn Annotate,
 ) -> Result<Vec<RecordBatch>, RunError> {
     validate(db, opts)?;
+    in_memory(inputs, opts, ann)
+}
+
+fn in_memory(inputs: &[Input], opts: &RunOptions, ann: Annotator) -> Result<Vec<RecordBatch>, RunError> {
     let pool = pool(opts)?;
     let mut out = vec![];
     for input in inputs {
