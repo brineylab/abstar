@@ -19,9 +19,25 @@ fn cat(parts: &[&[u8]]) -> Vec<u8> {
     parts.concat()
 }
 
-/// Ops, coordinates and score agree with each other and with the sequences.
+fn ops_score(ops: &[(Op, u32)]) -> i32 {
+    ops.iter()
+        .map(|&(op, n)| match op {
+            Op::Match => n as i32 * S.matched as i32,
+            Op::Mismatch => n as i32 * S.mismatch as i32,
+            _ => S.gap_open as i32 + (n as i32 - 1) * S.gap_extend as i32,
+        })
+        .sum()
+}
+
+/// An alignment scored from its ops.
+fn mk(q_start: usize, q_end: usize, g_start: usize, g_end: usize, ops: Vec<(Op, u32)>) -> Alignment {
+    Alignment { score: ops_score(&ops), q_start, q_end, g_start, g_end, ops }
+}
+
+/// Ops and coordinates agree with each other and with the sequences; the score is the ops' score
+/// plus any dropped terminal gaps' cost (so never above the ops' score).
 fn check(a: &Alignment, q: &[u8], g: &[u8]) {
-    let (mut qi, mut gi, mut score) = (a.q_start, a.g_start, 0i32);
+    let (mut qi, mut gi) = (a.q_start, a.g_start);
     for &(op, n) in &a.ops {
         let n = n as usize;
         assert!(n > 0);
@@ -31,24 +47,20 @@ fn check(a: &Alignment, q: &[u8], g: &[u8]) {
                     let m = q[qi + k] == g[gi + k] && b"ACGT".contains(&q[qi + k]);
                     assert_eq!(m, op == Op::Match, "op {op:?} at q{} g{}", qi + k, gi + k);
                 }
-                score += n as i32 * if op == Op::Match { S.matched } else { S.mismatch } as i32;
                 qi += n;
                 gi += n;
             }
-            Op::Ins => {
-                score += S.gap_open as i32 + (n as i32 - 1) * S.gap_extend as i32;
-                qi += n
-            }
-            Op::Del => {
-                score += S.gap_open as i32 + (n as i32 - 1) * S.gap_extend as i32;
-                gi += n
-            }
+            Op::Ins => qi += n,
+            Op::Del => gi += n,
         }
     }
     assert_eq!((qi, gi), (a.q_end, a.g_end));
-    assert_eq!(score, a.score);
+    assert!(a.score <= ops_score(&a.ops));
     for w in a.ops.windows(2) {
         assert_ne!(w[0].0, w[1].0, "adjacent ops of one kind are merged");
+    }
+    if let (Some(f), Some(l)) = (a.ops.first(), a.ops.last()) {
+        assert!(matches!(f.0, Op::Match | Op::Mismatch) && matches!(l.0, Op::Match | Op::Mismatch), "no terminal gaps");
     }
 }
 
@@ -218,7 +230,7 @@ fn cigar_format() {
     };
     assert_eq!(cigar(&a, 305), "5S290M3D10M");
     assert_eq!(cigar(&a, 310), "5S290M3D10M5S");
-    let b = Alignment { score: 0, q_start: 0, q_end: 12, g_start: 7, g_end: 17, ops: vec![(Op::Match, 5), (Op::Ins, 2), (Op::Match, 5)] };
+    let b = mk(0, 12, 7, 17, vec![(Op::Match, 5), (Op::Ins, 2), (Op::Match, 5)]);
     assert_eq!(cigar(&b, 12), "7N5M2I5M");
 }
 
@@ -251,13 +263,13 @@ fn place_gaps_homopolymer_leftmost() {
     // germline with an A homopolymer; read lacks one A. Start with the deletion on the last A.
     let g = b"CGTACGGTCAAAAAATCGGATCCA".to_vec();
     let q = cat(&[&g[..10], &g[11..]]); // any A of g[9..15] is equivalent
-    let a = Alignment { score: 0, q_start: 0, q_end: 23, g_start: 0, g_end: 24, ops: vec![(Op::Match, 14), (Op::Del, 1), (Op::Match, 9)] };
+    let a = mk(0, 23, 0, 24, vec![(Op::Match, 14), (Op::Del, 1), (Op::Match, 9)]);
     let p = place_gaps(&a, &q, &g, None, &S);
     check(&p, &q, &g);
     assert_eq!(p.ops, vec![(Op::Match, 9), (Op::Del, 1), (Op::Match, 14)]);
     // insertion of an extra A, placed at the end of the run, moves to its start
     let q = cat(&[&g[..15], b"A", &g[15..]]);
-    let a = Alignment { score: 0, q_start: 0, q_end: 25, g_start: 0, g_end: 24, ops: vec![(Op::Match, 15), (Op::Ins, 1), (Op::Match, 9)] };
+    let a = mk(0, 25, 0, 24, vec![(Op::Match, 15), (Op::Ins, 1), (Op::Match, 9)]);
     let p = place_gaps(&a, &q, &g, None, &S);
     check(&p, &q, &g);
     assert_eq!(p.ops, vec![(Op::Match, 9), (Op::Ins, 1), (Op::Match, 15)]);
@@ -269,7 +281,7 @@ fn place_gaps_mutation_moves_deletion_left() {
     // the deletion on C13 has a G12>C mismatch; deleting G12 (or the equal G11) removes it.
     let g = b"TTGATGATTATGGCATGAGCT".to_vec();
     let q = cat(&[&g[..12], b"C", &g[14..]]);
-    let a = Alignment { score: 0, q_start: 0, q_end: 20, g_start: 0, g_end: 21, ops: vec![(Op::Match, 12), (Op::Mismatch, 1), (Op::Del, 1), (Op::Match, 7)] };
+    let a = mk(0, 20, 0, 21, vec![(Op::Match, 12), (Op::Mismatch, 1), (Op::Del, 1), (Op::Match, 7)]);
     let p = place_gaps(&a, &q, &g, None, &S);
     check(&p, &q, &g);
     assert_eq!(p.ops, vec![(Op::Match, 11), (Op::Del, 1), (Op::Match, 9)]);
@@ -283,7 +295,7 @@ fn place_gaps_mutation_moves_deletion_left() {
 fn place_gaps_respects_protect() {
     let g = b"TTGATGATTATGGCATGAGCT".to_vec();
     let q = cat(&[&g[..12], b"C", &g[14..]]);
-    let a = Alignment { score: 0, q_start: 0, q_end: 20, g_start: 0, g_end: 21, ops: vec![(Op::Match, 12), (Op::Mismatch, 1), (Op::Del, 1), (Op::Match, 7)] };
+    let a = mk(0, 20, 0, 21, vec![(Op::Match, 12), (Op::Mismatch, 1), (Op::Del, 1), (Op::Match, 7)]);
     // flanks of a deletion at 11 are germline 10 and 12; 10 is protected, so 12 is the best left
     let p = place_gaps(&a, &q, &g, Some(0..11), &S);
     check(&p, &q, &g);
@@ -323,9 +335,16 @@ fn overlap_dp(q: &[u8], g: &[u8]) -> i32 {
 
 #[test]
 fn matches_scalar_dp() {
-    for t in 0..150u64 {
+    let mut dropped = 0;
+    for t in 0..240u64 {
         let v = rand_seq(150 + (t as usize % 200), 1000 + t);
-        let mut read = v[(t as usize * 7) % 60..].to_vec();
+        let cut = (t as usize * 7) % 60;
+        let mut read = match t % 4 {
+            0 => [rand_seq(t as usize % 40, 1500 + t), v[cut..].to_vec()].concat(), // 5' lead, 5' truncation
+            1 => v[..v.len() - 20 - cut].to_vec(),                                    // 3' germline truncation
+            2 => [&v[..v.len() / 2], &rand_seq(1 + t as usize % 30, 1700 + t)[..], &v[v.len() / 2..]].concat(), // insertion
+            _ => [&v[..90], &v[91 + t as usize % 13..]].concat(),                     // deletion
+        };
         let mut x = t;
         for b in read.iter_mut() {
             x = x.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
@@ -333,15 +352,35 @@ fn matches_scalar_dp() {
                 *b = b"ACGTN"[(x >> 40) as usize % 5]; // ~19% hit rate
             }
         }
-        if t % 3 == 0 {
-            read.drain(40..40 + (t as usize % 13));
+        if t % 8 == 1 {
+            // read ends inside the germline on junk: the optimum often ends in a trailing insertion
+            read.truncate(read.len() - 30);
+            read.extend(rand_seq(25, 1900 + t));
+        } else {
+            read.extend(rand_seq(t as usize % 50, 2000 + t));
         }
-        read.extend(rand_seq(t as usize % 50, 2000 + t));
         let a = align_semiglobal(&read, &v, &S);
         check(&a, &read, &v);
         let dp = overlap_dp(&read, &v);
+        // the documented rule: score is the overlap optimum; terminal gaps are dropped from the ops
         assert_eq!(a.score, dp, "case {t}");
+        let (score, q_end, g_end) = score_semiglobal(&read, &v, &S);
+        assert_eq!(score, dp, "case {t}");
+        if ops_score(&a.ops) == a.score {
+            assert_eq!((q_end, g_end), (a.q_end, a.g_end), "case {t}");
+        } else {
+            dropped += 1;
+        }
     }
+    assert!(dropped > 0, "covers a dropped terminal gap");
+}
+
+#[test]
+fn empty_when_nothing_aligns() {
+    let a = align_semiglobal(b"AAAAAAAA", b"CCCCCCCCCCCC", &S);
+    assert_eq!(a, Alignment { score: 0, q_start: 0, q_end: 0, g_start: 0, g_end: 0, ops: vec![] });
+    assert_eq!(score_semiglobal(b"AAAAAAAA", b"CCCCCCCCCCCC", &S), (0, 0, 0));
+    assert_eq!(align_semiglobal(b"", b"ACGT", &S).ops, vec![]);
 }
 
 /// Gap list (is insertion, start, length) of an alignment: insertions in query coordinates,
@@ -420,7 +459,7 @@ fn place_gaps_matches_brute_force() {
         let iq = ip - dl; // query position of the insertion
         // only gap positions matter to place_gaps, so the aligned runs need not be labelled exactly
         let ops = vec![(Op::Match, dp as u32), (Op::Del, dl as u32), (Op::Match, (iq - dp) as u32), (Op::Ins, il as u32), (Op::Match, (g.len() - ip) as u32)];
-        let a = Alignment { score: 0, q_start: 0, q_end: q.len(), g_start: 0, g_end: g.len(), ops };
+        let a = mk(0, q.len(), 0, g.len(), ops);
         for protect in [None, Some(0..30), Some(60..90)] {
             let p = place_gaps(&a, &q, &g, protect.clone(), &S);
             check(&p, &q, &g);

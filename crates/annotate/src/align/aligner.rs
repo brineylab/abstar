@@ -1,31 +1,7 @@
 use super::{Alignment, Op, Scoring};
-use block_aligner::cigar::{Cigar, Operation};
-use block_aligner::scan_block::{Block, PaddedBytes};
-use block_aligner::scores::{Gaps, Matrix, NucMatrix};
-use std::cell::RefCell;
 use std::ops::Range;
 
-// ponytail: block-aligner has no scalar backend; add one (or simd_sse2/simd_wasm) for other targets.
-#[cfg(not(any(target_arch = "x86_64", target_arch = "aarch64")))]
-compile_error!("the aligner needs x86_64 (AVX2) or aarch64 (NEON)");
-
-// Overlap alignment on block-aligner. It frees only the start of its reference (the read):
-// FREE_QUERY_START_GAPS with the germline as its query. Its FREE_QUERY_END_GAPS end search is
-// unusable in 0.5.1: the last-row maximum is a per-lane maximum over every row congruent to the
-// query length mod the SIMD width, so interior rows leak into the score and the end column is
-// wrong. Instead:
-// - the read is padded on both sides with PAD, which scores 0 against every base, so germline
-//   bases overhanging either read end are free;
-// - the germline gets K trailing SENT bases scoring +127 against everything, enough that the
-//   best cell of the whole matrix is on the last row, and X-drop mode (with no drop) reports
-//   that best cell exactly. The bonus is the same for every complete path, so it never changes
-//   which path wins.
-// PAD (`E`) and SENT (`H`) collide with no ACGTN or block-aligner's `Z` in NucMatrix's index bits.
-const PAD: u8 = b'E';
-const SENT: u8 = b'H';
-const BONUS: i8 = 127;
-
-fn norm(b: u8) -> u8 {
+pub(super) fn norm(b: u8) -> u8 {
     match b.to_ascii_uppercase() {
         c @ (b'A' | b'C' | b'G' | b'T') => c,
         _ => b'N',
@@ -33,19 +9,19 @@ fn norm(b: u8) -> u8 {
 }
 
 /// A non-ACGT query base never matches.
-fn is_match(q: u8, g: u8) -> bool {
+pub(super) fn is_match(q: u8, g: u8) -> bool {
     let q = q.to_ascii_uppercase();
     matches!(q, b'A' | b'C' | b'G' | b'T') && q == g.to_ascii_uppercase()
 }
 
-fn push(ops: &mut Vec<(Op, u32)>, op: Op) {
+pub(super) fn push(ops: &mut Vec<(Op, u32)>, op: Op) {
     match ops.last_mut() {
         Some((last, n)) if *last == op => *n += 1,
         _ => ops.push((op, 1)),
     }
 }
 
-fn score_ops(ops: &[(Op, u32)], s: &Scoring) -> i32 {
+pub(super) fn score_ops(ops: &[(Op, u32)], s: &Scoring) -> i32 {
     ops.iter()
         .map(|&(op, n)| {
             let n = n as i32;
@@ -58,143 +34,83 @@ fn score_ops(ops: &[(Op, u32)], s: &Scoring) -> i32 {
         .sum()
 }
 
-/// Per-thread buffers, grown on demand and reused across calls.
-struct Scratch {
-    block: Block<true, true, false, true, false>,
-    cap: (usize, usize, usize), // germline + sentinel length, padded read length, block size
-    g: PaddedBytes,
-    r: PaddedBytes,
-    gbuf: Vec<u8>,
-    rbuf: Vec<u8>,
-    cigar: Cigar,
-}
+/// Sentinel bonus of the SIMD backend (see `simd.rs`).
+pub(super) const BONUS: i8 = 127;
 
-impl Scratch {
-    fn new((g, r, b): (usize, usize, usize)) -> Scratch {
-        Scratch {
-            block: Block::new(g, r, b),
-            cap: (g, r, b),
-            g: PaddedBytes::new::<NucMatrix>(g, b),
-            r: PaddedBytes::new::<NucMatrix>(r, b),
-            gbuf: Vec::with_capacity(g),
-            rbuf: Vec::with_capacity(r),
-            cigar: Cigar::new(g, r),
-        }
-    }
-}
-
-thread_local! {
-    static SCRATCH: RefCell<Option<Scratch>> = const { RefCell::new(None) };
-}
-
-/// Semi-global affine-gap alignment: query (read) ends are free, and germline 5' and 3' ends
-/// are free (overlap alignment: it starts on the first base of one sequence and ends on the
-/// last base of one). Terminal gaps are dropped, so the alignment starts and ends on aligned
-/// bases. Gaps are then placed by `place_gaps` (no protected range), so ties never depend on the
-/// SIMD backend.
-pub fn align_semiglobal(query: &[u8], germline: &[u8], s: &Scoring) -> Alignment {
-    let empty = Alignment { score: 0, q_start: 0, q_end: 0, g_start: 0, g_end: 0, ops: vec![] };
-    if query.is_empty() || germline.is_empty() {
-        return empty;
-    }
-    let (gl, ql) = (germline.len(), query.len());
-    // K sentinels outscore the costliest way to reach the last row from any cell (deleting the
-    // rest of the germline), so the best cell is on it.
+/// The SIMD backend's sentinel count and block size for a germline of length `gl`. K sentinels
+/// outscore the costliest way to reach the last row from any cell (deleting the rest of the
+/// germline). A block taller than the germline covers every row, so the DP is exact; the size
+/// depends only on the germline length, so results never depend on buffer history. The scalar
+/// backend uses these to break ties as the SIMD backend does.
+pub(super) fn sim_dims(gl: usize, s: &Scoring) -> (usize, usize) {
     let worst = -(s.gap_open as i64) - (s.gap_extend as i64) * gl as i64;
     let k = (worst.max(0) / BONUS as i64 + 1) as usize;
-    // ponytail: pads by a whole germline on each side (~2x the DP width, ~140 us per 300-nt V on
-    // AVX2); pad only the overhang a caller allows if alignment time matters.
-    let (hl, rl) = (gl + k, ql + 2 * gl + k);
-    // A block taller than the germline covers every row, so the DP is exact. The size depends
-    // only on the germline length, so results never depend on buffer history.
-    let bs = (hl + 1).next_power_of_two().max(32);
-    let mut matrix = NucMatrix::new_simple(s.matched, s.mismatch);
-    for c in [b'A', b'C', b'G', b'T', b'N', PAD] {
-        matrix.set(PAD, c, 0);
-        matrix.set(SENT, c, BONUS);
+    (k, (gl + k + 1).next_power_of_two().max(32))
+}
+
+/// SIMD backend available on this CPU (std caches the CPUID probe).
+#[cfg(target_arch = "x86_64")]
+fn simd() -> bool {
+    std::arch::is_x86_feature_detected!("avx2")
+}
+
+#[cfg(target_arch = "aarch64")]
+fn simd() -> bool {
+    true
+}
+
+/// Overlap alignment before gap placement: `score` is the DP optimum, ops exclude terminal gaps.
+/// `None` when the optimum is <= 0.
+fn raw_align(query: &[u8], germline: &[u8], s: &Scoring) -> Option<Alignment> {
+    #[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
+    if simd() {
+        return super::simd::align(query, germline, s);
     }
-    matrix.set(b'N', b'N', s.mismatch);
-    let gaps = Gaps { open: s.gap_open, extend: s.gap_extend };
+    super::scalar::align(query, germline, s)
+}
 
-    let mut ops = Vec::new();
-    let (mut start, mut end, mut keep) = (None, (0, 0), 0);
-    SCRATCH.with_borrow_mut(|slot| {
-        let sc = match slot {
-            Some(sc) if sc.cap.0 >= hl && sc.cap.1 >= rl && sc.cap.2 >= bs => sc,
-            _ => {
-                let cap = slot.as_ref().map_or((hl, rl, bs), |o| (o.cap.0.max(hl), o.cap.1.max(rl), o.cap.2.max(bs)));
-                slot.insert(Scratch::new(cap))
-            }
-        };
-        sc.gbuf.clear();
-        sc.gbuf.extend(germline.iter().map(|&b| norm(b)));
-        sc.gbuf.resize(hl, SENT);
-        sc.rbuf.clear();
-        sc.rbuf.resize(gl, PAD);
-        sc.rbuf.extend(query.iter().map(|&b| norm(b)));
-        sc.rbuf.resize(rl, PAD);
-        sc.g.set_bytes::<NucMatrix>(&sc.gbuf, bs);
-        sc.r.set_bytes::<NucMatrix>(&sc.rbuf, bs);
-        sc.block.align(&sc.g, &sc.r, &matrix, gaps, bs..=bs, i32::MAX);
-        let res = sc.block.res();
-        debug_assert_eq!(res.query_idx, hl);
-        sc.block.trace().cigar(res.query_idx, res.reference_idx, &mut sc.cigar);
+/// Semi-global (overlap) affine-gap alignment: the query's (read's) ends are free and the
+/// germline's 5' and 3' ends are free; the alignment starts on the first base of one sequence and
+/// ends on the last base of one. Uses AVX2 (x86_64, detected at run time) or NEON (aarch64), and
+/// a scalar Gotoh aligner with the same semantics elsewhere.
+///
+/// Terminal gaps: the alignment is chosen with terminal gaps penalized like any gap, then they are
+/// dropped from `ops` and the coordinates, so it starts and ends on aligned bases. `score` is the
+/// DP optimum, so it is the ops' score plus the dropped gaps' cost (it equals the ops' score
+/// unless a terminal gap was dropped) and equals `score_semiglobal`'s score.
+///
+/// When the optimum is <= 0 (nothing aligns usefully) the result is empty: score 0, all
+/// coordinates 0, no ops. Gaps are placed by `place_gaps` (no protected range), so gap placement
+/// never depends on the backend.
+pub fn align_semiglobal(query: &[u8], germline: &[u8], s: &Scoring) -> Alignment {
+    match raw_align(query, germline, s) {
+        Some(aln) => place_gaps(&aln, query, germline, None, s),
+        None => Alignment { score: 0, q_start: 0, q_end: 0, g_start: 0, g_end: 0, ops: vec![] },
+    }
+}
 
-        // block-aligner's I = germline only (our Del), D = read only (our Ins).
-        let (mut i, mut j) = (res.query_idx, res.reference_idx);
-        for k in 0..sc.cigar.len() {
-            let o = sc.cigar.get(k);
-            if matches!(o.op, Operation::M | Operation::Eq | Operation::X | Operation::I) {
-                i -= o.len;
-            }
-            if matches!(o.op, Operation::M | Operation::Eq | Operation::X | Operation::D) {
-                j -= o.len;
-            }
-        }
-        let read = gl..gl + ql;
-        for k in 0..sc.cigar.len() {
-            let o = sc.cigar.get(k);
-            for _ in 0..o.len {
-                match o.op {
-                    Operation::I => {
-                        if start.is_some() {
-                            push(&mut ops, Op::Del);
-                        }
-                        i += 1;
-                    }
-                    Operation::D => {
-                        if start.is_some() && read.contains(&j) {
-                            push(&mut ops, Op::Ins);
-                        }
-                        j += 1;
-                    }
-                    _ => {
-                        if i < gl && read.contains(&j) {
-                            let q = j - gl;
-                            start.get_or_insert((q, i));
-                            push(&mut ops, if is_match(query[q], germline[i]) { Op::Match } else { Op::Mismatch });
-                            end = (q + 1, i + 1);
-                            keep = ops.len();
-                        }
-                        i += 1;
-                        j += 1;
-                    }
-                }
-            }
-        }
-    });
-    let Some((q_start, g_start)) = start else { return empty };
-    ops.truncate(keep);
-    let aln = Alignment { score: 0, q_start, q_end: end.0, g_start, g_end: end.1, ops };
-    place_gaps(&aln, query, germline, None, s)
+/// Score-only `align_semiglobal`: (score, q_end, g_end), without traceback. The score is
+/// `align_semiglobal`'s; the ends are the DP's end cell, equal to `align_semiglobal`'s unless it
+/// dropped a trailing gap. (0, 0, 0) when the optimum is <= 0.
+pub fn score_semiglobal(query: &[u8], germline: &[u8], s: &Scoring) -> (i32, usize, usize) {
+    #[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
+    if simd() {
+        return super::simd::score(query, germline, s);
+    }
+    super::scalar::score(query, germline, s)
 }
 
 /// Moves each gap (left to right, the others fixed) to the placement of its kind and length with
 /// the fewest query-vs-germline mismatches over the aligned span, leftmost on ties. A placement
-/// needs an aligned base on each side; its flanks are the germline positions of those two bases,
-/// and it is rejected if `[left flank, right flank]` intersects `protect` (germline coordinates).
-/// A gap with no allowed placement stays where it is. The span is unchanged; ops and score are
-/// rebuilt (the score with `s`).
+/// needs an aligned base on each side and may not overlap another gap of its kind; its flanks are
+/// the germline positions of those two bases, and it is rejected if `[left flank, right flank]`
+/// intersects `protect` (germline coordinates).
+/// A gap with no allowed placement stays where it is. The span is unchanged and the ops are
+/// rebuilt; the score changes by the change in the ops' score under `s`, so an offset already in
+/// `aln.score` (a dropped terminal gap's cost, see `align_semiglobal`) is kept.
+///
+/// Mismatches count every aligned pair that is not a match, so a read N against a germline N is a
+/// mismatch (the generator counts equal bytes as a match; this differs only if a germline has N).
 pub fn place_gaps(aln: &Alignment, query: &[u8], germline: &[u8], protect: Option<Range<usize>>, s: &Scoring) -> Alignment {
     // (is insertion, start, length): an insertion starts at a query position, a deletion at a
     // germline position.
@@ -309,5 +225,56 @@ pub fn place_gaps(aln: &Alignment, query: &[u8], germline: &[u8], protect: Optio
             }
         }
     }
-    Alignment { score: score_ops(&ops, s), q_start: aln.q_start, q_end: aln.q_end, g_start: aln.g_start, g_end: aln.g_end, ops }
+    let score = aln.score - score_ops(&aln.ops, s) + score_ops(&ops, s);
+    Alignment { score, q_start: aln.q_start, q_end: aln.q_end, g_start: aln.g_start, g_end: aln.g_end, ops }
+}
+
+#[cfg(all(test, any(target_arch = "x86_64", target_arch = "aarch64")))]
+mod tests {
+    use super::*;
+
+    fn rand_seq(n: usize, seed: u64) -> Vec<u8> {
+        let mut x = seed.wrapping_mul(0x9E37_79B9_7F4A_7C15) | 1;
+        (0..n)
+            .map(|_| {
+                x ^= x << 13;
+                x ^= x >> 7;
+                x ^= x << 17;
+                b"ACGT"[(x >> 33) as usize % 4]
+            })
+            .collect()
+    }
+
+    /// The scalar fallback gives the SIMD backend's alignments and scores.
+    #[test]
+    fn scalar_matches_simd() {
+        if !simd() {
+            return;
+        }
+        let s = Scoring::default();
+        for t in 0..300u64 {
+            let v = rand_seq(60 + (t as usize * 13) % 260, 5000 + t);
+            let cut = (t as usize * 7) % (v.len() / 2);
+            let mut read = match t % 4 {
+                0 => [rand_seq(t as usize % 40, 6000 + t), v[cut..].to_vec()].concat(), // 5' lead / truncation
+                1 => v[..v.len() - cut].to_vec(),                                          // 3' truncation
+                2 => [&v[..v.len() / 2], &rand_seq(1 + t as usize % 30, 7000 + t)[..], &v[v.len() / 2..]].concat(),
+                _ => [&v[..v.len() / 3], &v[v.len() / 3 + 1 + t as usize % 30..]].concat(),
+            };
+            let mut x = t;
+            for b in read.iter_mut() {
+                x = x.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+                if (x >> 60) < 2 + t % 3 {
+                    *b = b"ACGTN"[(x >> 40) as usize % 5];
+                }
+            }
+            read.extend(rand_seq(t as usize % 25, 8000 + t));
+            if t % 10 == 9 {
+                read = rand_seq(40 + t as usize % 50, 9000 + t); // unrelated
+            }
+            let place = |a: Option<Alignment>| a.map(|a| place_gaps(&a, &read, &v, None, &s));
+            assert_eq!(place(super::super::scalar::align(&read, &v, &s)), place(super::super::simd::align(&read, &v, &s)), "case {t}");
+            assert_eq!(super::super::scalar::score(&read, &v, &s), super::super::simd::score(&read, &v, &s), "case {t}");
+        }
+    }
 }

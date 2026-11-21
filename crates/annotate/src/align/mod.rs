@@ -4,8 +4,14 @@
 //! Coordinates are 0-based half-open. `query` is the (oriented) read, `germline` the allele.
 mod aligner;
 mod kmer;
+// The scalar backend is the fallback for x86_64 CPUs without AVX2 and other architectures;
+// aarch64 always has NEON.
+#[cfg_attr(target_arch = "aarch64", allow(dead_code))]
+mod scalar;
+#[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
+mod simd;
 
-pub use aligner::{align_semiglobal, place_gaps};
+pub use aligner::{align_semiglobal, place_gaps, score_semiglobal};
 pub use kmer::KmerIndex;
 
 /// One alignment column type. `Ins` = base in the query only; `Del` = base in the germline only.
@@ -49,6 +55,7 @@ impl Default for Scoring {
 /// AIRR CIGAR: leading `S` (query before the alignment), leading `N` (germline before it),
 /// `M` (match or mismatch), `I`, `D`, trailing `S` (query after it).
 pub fn cigar(a: &Alignment, query_len: usize) -> String {
+    debug_assert!(query_len >= a.q_end);
     let mut out = String::new();
     let mut push = |n: usize, c: char| {
         if n > 0 {
