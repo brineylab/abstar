@@ -63,7 +63,6 @@ pub(crate) fn fill(r: &mut TruthRecord, s: &Simulated) {
         C(u) => Some((3, u)),
         _ => None,
     };
-    let gbase = |x: Origin| seg_of(x).map(|(k, u)| germ[k].as_ref().expect("segment allele")[u]);
     let label = |k: usize, u: usize| if k == 0 { format!("IMGT{}", gi[u] + 1) } else { (u + 1).to_string() };
     // The Cys104 codon is the 3 read bases from the V anchor's first base, whatever their
     // origin (trimming may replace its tail with N bases); CDR3 runs from there to the J's
@@ -78,6 +77,8 @@ pub(crate) fn fill(r: &mut TruthRecord, s: &Simulated) {
     });
     let cdr3_known = cys.is_some() && s.j.anchor.is_some_and(|b| s.j_trim_5 <= b as i64);
 
+    // (first V base, mask end, first codon) when the masks are derived
+    let mut nongermline_span = None;
     if let (true, Some(i0)) = (gapped, o.iter().position(|x| matches!(x, V(_)))) {
         let V(g0) = o[i0] else { unreachable!() };
         // the annotated span: first V base to the last base that is not a dangling insertion
@@ -147,8 +148,6 @@ pub(crate) fn fill(r: &mut TruthRecord, s: &Simulated) {
                     Inserted => seg[seg.len() - 1],
                 });
             }
-            let ng: Vec<u8> =
-                (i0..m).map(|i| if gbase(o[i]).is_some_and(|g| g.eq_ignore_ascii_case(&read[i])) { b'0' } else { b'1' }).collect();
             let cdr: Option<Vec<u8>> = cdr3_known.then(|| {
                 (i0..m)
                     .map(|i| match reg[i] {
@@ -160,21 +159,12 @@ pub(crate) fn fill(r: &mut TruthRecord, s: &Simulated) {
                     .collect()
             });
             let third = |mask: &[u8]| text(&codons(m).map(|p| mask[p + 2 - i0]).collect::<Vec<_>>());
-            let ng_aa: Vec<u8> = codons(m)
-                .map(|p| {
-                    let g: Option<Vec<u8>> = (p..p + 3).map(|i| gbase(o[i])).collect();
-                    match g {
-                        Some(g) if translate(&g) == translate(&read[p..p + 3]) => b'0',
-                        _ => b'1',
-                    }
-                })
-                .collect();
             r.gene_segment_mask_aa = Some(third(&seg));
             r.cdr_mask_aa = cdr.as_deref().map(third);
             r.cdr_mask = cdr.map(|x| text(&x));
             r.gene_segment_mask = Some(text(&seg));
-            r.nongermline_mask = Some(text(&ng));
-            r.nongermline_mask_aa = Some(text(&ng_aa));
+            // the nongermline masks need the segments' alignments (below)
+            nongermline_span = Some((i0, m, f0));
         }
     } else if let Some(b) = s.j.anchor {
         // no V frame: FWR4 alone, phased by the J's Trp/Phe118 codon
@@ -227,6 +217,9 @@ pub(crate) fn fill(r: &mut TruthRecord, s: &Simulated) {
     let c_frame = s.j.anchor.map(|b| (b as i64 - jlen as i64).rem_euclid(3) as usize);
     let frames = [None, d_frame, s.j.anchor.map(|b| b % 3), c_frame];
 
+    // the germline base each read base is aligned to in its segment's alignment (none for N, P and
+    // inserted bases), which the nongermline masks use (ruling A29)
+    let mut aligned: Vec<Option<u8>> = vec![None; read.len()];
     let segs: Vec<Segment> = (0..4)
         .map(|k| {
             let none = (None, None, None, None, None, None, None, None);
@@ -282,6 +275,11 @@ pub(crate) fn fill(r: &mut TruthRecord, s: &Simulated) {
                 ids[j] = (ins, best.1, len);
             }
             let at = align(&ids);
+            for (u, i) in at.iter().enumerate() {
+                if let Some(&i) = i.as_ref() {
+                    aligned[i] = Some(g[u]);
+                }
+            }
             let (mut ins, mut del) = (Vec::new(), Vec::new());
             for &(is_ins, p, len) in &ids {
                 let Some((left, _)) = flanks(&at, (is_ins, p, len)) else { continue };
@@ -337,6 +335,21 @@ pub(crate) fn fill(r: &mut TruthRecord, s: &Simulated) {
         })
         .collect();
     let [v, d, j, c]: [Segment; 4] = segs.try_into().expect("4 segments");
+    // ruling A29: the nongermline masks follow the same alignment as the mutation lists, so a mask's
+    // mismatches and inserted bases sit where the lists' placement puts them
+    if let Some((i0, m, f0)) = nongermline_span {
+        let ng: Vec<u8> = (i0..m).map(|i| if aligned[i].is_some_and(|g| g.eq_ignore_ascii_case(&read[i])) { b'0' } else { b'1' }).collect();
+        let ng_aa: Vec<u8> = (f0..)
+            .step_by(3)
+            .take_while(|p| p + 3 <= m)
+            .map(|p| match (p..p + 3).map(|i| aligned[i]).collect::<Option<Vec<u8>>>() {
+                Some(g) if translate(&g) == translate(&read[p..p + 3]) => b'0',
+                _ => b'1',
+            })
+            .collect();
+        r.nongermline_mask = Some(text(&ng));
+        r.nongermline_mask_aa = Some(text(&ng_aa));
+    }
     // `v_identity` is 1 − `v_mutation_frequency` and `high_mutation` follows it (decision 0026), so
     // both use the V alignment too; its positions number the read's V bases
     if let (Some(n_mut), Some(freq)) = (v.4, v.6) {
@@ -409,5 +422,8 @@ mod tests {
         assert_eq!(r.v_deletions, Some(vec!["IMGT5:del:C".to_string()]));
         assert_eq!(r.v_insertions, Some(vec![]));
         assert_eq!((r.v_mutations, r.v_mutation_count, r.v_identity), (Some(vec![]), Some(0), Some(1.0)));
+        // the masks follow that alignment too (ruling A29): no base differs from the germline behind it
+        assert_eq!(r.nongermline_mask.as_deref(), Some("000000000000000"));
+        assert_eq!(r.nongermline_mask_aa.as_deref(), Some("00000"));
     }
 }

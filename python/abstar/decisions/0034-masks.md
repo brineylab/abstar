@@ -6,7 +6,7 @@ Accepted (2026-11-21)
 
 ## Context
 
-The six masks (`cdr_mask`, `gene_segment_mask`, `nongermline_mask` and their `_aa` forms) label each base or codon of the V(D)J region. The generator derives them from each base's origin (`crates/generate/src/derive.rs`, record 0026). The user ruled that masks cover the V(D)J region only (ruling A12). The grader compares `gene_segment_mask` with slack where the `_valid` cut lists leave a base's segment open. It compares the other masks where both gene masks agree (`python/abstar/_grade.py`). The annotator reimplements the rules on its own calls (record 0014).
+The six masks (`cdr_mask`, `gene_segment_mask`, `nongermline_mask` and their `_aa` forms) label each base or codon of the V(D)J region. The generator derives them from each base's origin (`crates/generate/src/derive.rs`, record 0026). The user ruled that masks cover the V(D)J region only (ruling A12). The grader compares `gene_segment_mask` with slack where the `_valid` cut lists leave a base's segment open. It compares the other masks where both nt gene masks agree, and the aa masks at codons whose three bases agree (`python/abstar/_grade.py`, ruling A30). The annotator reimplements the rules on its own calls (record 0014).
 
 ## Decision
 
@@ -31,16 +31,21 @@ The six masks (`cdr_mask`, `gene_segment_mask`, `nongermline_mask` and their `_a
 
 ## Consequences
 
-Measured in `tests/mutations.rs` by a Rust port of the grader's mask rule, on reads whose V, J (and D, when truth has one) calls are the true alleles. With truth's calls, V start, cuts and J end, all six masks equal truth's exactly: 334/334 naive reads and 120/120 at 0–30% mutation. On the indel and bnab sets, 266/281 and 17/18. Those misses are indel placements (below).
+**Amended 2026-11-21 (rulings A29, A30).**
+- Truth's nongermline masks now follow the same normalized indel placement as its mutation lists (record 0026 amendment). So on both sides one alignment per segment feeds the lists, counts, frequencies and masks.
+- The grader now compares the aa masks other than `gene_segment_mask_aa` only at codons whose three bases have the same `gene_segment_mask` label in truth and call. Boundary ambiguity stays graded by `gene_segment_mask` and the boundary fields. The tables below are measured after both changes.
+
+Measured in `tests/mutations.rs` by a Rust port of the grader's mask rule. The graded reads are those whose V, J (and D, when truth has one) calls are the true alleles. With truth's calls, V start, cuts and J end, all six masks equal truth's exactly on naive reads (334/334) and at 0–30% mutation (120/120). On the indel set it is 277/281 and on bnab 17/18; the remaining misses are indels the aligner represents differently from truth (record 0033).
 
 | Set (seed) | `cdr` | `gene_segment` | `nongermline` | `cdr_aa` | `gene_segment_aa` | `nongermline_aa` |
 |---|---|---|---|---|---|---|
-| memory + 40 nt C (12) | 98.11% | 99.39% | 99.46% | 98.24% | 99.53% | 82.62% |
-| naive (1) | 98.70% | 99.71% | 99.76% | 98.70% | 99.71% | 81.27% |
-| mutation 0–30% (1) | 96.85% | 98.52% | 98.24% | 97.13% | 98.98% | 82.98% |
-| memory + 20% indels (11) | 97.59% | 99.09% | 95.69% | 98.05% | 99.14% | 78.93% |
-| bnab (1) | 94.69% | 95.36% | 89.55% | 94.86% | 95.52% | 78.61% |
+| memory + 40 nt C (12) | 98.11% | 99.39% | 99.46% | 98.11% | 99.53% | 99.59% |
+| naive (1) | 98.70% | 99.71% | 99.76% | 98.70% | 99.71% | 99.82% |
+| mutation 0–30% (1) | 96.85% | 98.52% | 98.24% | 96.95% | 98.98% | 98.24% |
+| memory + 20% indels (11) | 97.59% | 99.09% | 98.91% | 98.05% | 99.14% | 99.05% |
+| bnab (1) | 94.69% | 95.36% | 92.54% | 94.86% | 95.52% | 93.20% |
 
-- **`nongermline_mask_aa` (about 80%)** is low because of the grading rule, not the derivation. Take a valid alternative cut that moves a boundary inside a codon but leaves its 3rd base's segment unchanged. Truth marks an N base there that matches the germline by chance as `1`. The annotator counts that base as V/D/J and marks the codon `0`. The grader compares that codon because the 3rd-base gene labels agree. With truth's cuts the codons agree exactly (above). Comparing aa masks only where all three bases' gene labels agree would grade the derivation.
-- **`cdr_mask`** misses are mostly length mismatches. They come from a different V start or J end, or a CDR3 known on one side only, when the junction step's valid cut decides an anchor (record 0032).
-- **`nongermline_mask` on indel reads.** Truth's masks follow the generated indel placement (its origin map). Its mutation lists follow the normalized placement (rulings A16, A17). On 36 of 577 indel reads (memory + 20% indels, seed 11), truth's V nongermline count differs from its own `v_mutation_count` plus inserted bases. The annotator's masks follow its one alignment, the one its mutation lists use. A follow-up ruling should move truth's masks to the normalized alignment, as ruling A16 did for nt lists.
+- **`cdr_mask` misses** are mostly length mismatches. They come from a different V start or J end, or from a CDR3 known on one side only, when the junction step's valid cut decides an anchor (record 0032).
+- **The other masks' misses** come from upstream calls: the V start, cuts outside the valid lists, D placement, and indel representation (record 0033).
+- **Before ruling A30,** `nongermline_mask_aa` agreed on only about 80% of reads. The cause was a valid cut inside a codon that left its 3rd base's segment unchanged: truth marked an N base that matched the germline by chance as `1`, the annotator counted it as V/D/J, and the grader compared that codon anyway.
+- **Before ruling A29,** `nongermline_mask` agreed on 95.69% of the indel set. Truth's masks followed the generated placement while its lists followed the normalized one.

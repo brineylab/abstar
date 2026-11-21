@@ -130,6 +130,18 @@ def test_aa_mask_phase():
     assert _row(wrong, "gene_segment_mask_aa")["correct"] == 0
 
 
+def test_aa_masks_compared_at_codons_with_agreeing_gene_labels():
+    # ruling A30: codon 3 (bases 7-9) is NNN in truth but VNN in the call (a valid cut inside it): its
+    # 3rd base agrees, its 1st does not, so nongermline_mask_aa is not compared there
+    truth = _mask_truth(gene_segment_mask=["VVVVVVNNN"], gene_segment_mask_aa=["VVN"], nongermline_mask_aa=["001"])
+
+    def calls(ng_aa):
+        return _mask_calls("VVVVVVVNN", "VVN").with_columns(pl.Series("nongermline_mask_aa", [ng_aa]))
+
+    assert _row(abstar.grade(truth, calls("000")), "nongermline_mask_aa")["correct"] == 1
+    assert _row(abstar.grade(truth, calls("100")), "nongermline_mask_aa")["correct"] == 0  # codon 1 agrees on labels
+
+
 def test_import_keeps_grade_callable():
     import abstar._grade  # noqa: F401
 

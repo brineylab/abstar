@@ -593,7 +593,9 @@ fn germline_base(s: &abstar_generate::Simulated, o: abstar_generate::Origin) -> 
     }
 }
 
-/// Every option on: masks agree with the origin map and have the right lengths.
+/// Every option on: masks agree with the origin map and have the right lengths. On reads with an
+/// indel, `nongermline_mask` follows the segments' alignments (ruling A29): its `1`s are the
+/// segments' substitutions plus the inserted, N and P bases.
 #[test]
 fn masks_consistent() {
     let b = igh();
@@ -639,6 +641,7 @@ fn masks_consistent() {
         let seg = s(&rows, "gene_segment_mask", r).unwrap().into_bytes();
         let ng = s(&rows, "nongermline_mask", r).unwrap().into_bytes();
         let mut prev = b'V';
+        let mut expected_ones = ["v", "d", "j"].iter().filter_map(|x| i(&rows, &format!("{x}_mutation_count"), r)).sum::<i64>() as usize;
         for k in 0..nt.len() {
             use abstar_generate::Origin::*;
             let o = sim.origin[off + k];
@@ -652,9 +655,13 @@ fn masks_consistent() {
             };
             prev = want;
             assert_eq!(seg[k], want, "row {r} base {k}: {o:?}");
-            let differs = germline_base(&sim, o).is_none_or(|g| g != sim.read[off + k]);
-            assert_eq!(ng[k], if differs { b'1' } else { b'0' }, "row {r} base {k}: {o:?}");
+            expected_ones += matches!(o, N1 | N2 | P | Inserted) as usize;
+            if sim.indels.is_empty() {
+                let differs = germline_base(&sim, o).is_none_or(|g| g != sim.read[off + k]);
+                assert_eq!(ng[k], if differs { b'1' } else { b'0' }, "row {r} base {k}: {o:?}");
+            }
         }
+        assert_eq!(ng.iter().filter(|&&x| x == b'1').count(), expected_ones, "row {r}");
         checked += 1;
     }
     assert!(checked > 1500 && empty > 0, "{checked} {empty}");

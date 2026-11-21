@@ -489,17 +489,23 @@ impl Grader<'_> {
         if tm.len() != cm.len() {
             return Some(false);
         }
-        let (tg, cg) = (self.t.str(gcol, i).unwrap_or(""), get(gcol).unwrap());
-        if tg.len() != tm.len() || cg.len() != cm.len() {
-            return Some(false);
-        }
-        let (tm, cm, tg, cg) = (tm.as_bytes(), cm.as_bytes(), tg.as_bytes(), cg.as_bytes());
+        let (tm, cm) = (tm.as_bytes(), cm.as_bytes());
         if col == gcol {
             let (amb, start) = (self.uncertain(i), self.t.int("v_sequence_start", i).unwrap());
             let (step, off) = if aa { (3, self.codon_phase(i) + 2) } else { (1, 0) };
             return Some((0..tm.len()).all(|k| tm[k] == cm[k] || amb.contains(&(start + step * k as i64 + off))));
         }
-        Some((0..tm.len()).all(|k| tg[k] != cg[k] || tm[k] == cm[k]))
+        // compared where both nt gene masks agree: per base, or at codons whose three bases agree (ruling A30)
+        let (tg, cg) = (self.t.str("gene_segment_mask", i).unwrap_or("").as_bytes(), m.segment.as_bytes());
+        if tg.len() != cg.len() || (!aa && tg.len() != tm.len()) {
+            return Some(false);
+        }
+        if !aa {
+            return Some((0..tm.len()).all(|k| tg[k] != cg[k] || tm[k] == cm[k]));
+        }
+        let p0 = self.codon_phase(i) as usize;
+        let labels = |g: &[u8], k: usize| g.get(p0 + 3 * k..(p0 + 3 * k + 3).min(g.len())).map(<[u8]>::to_vec);
+        Some((0..tm.len()).all(|k| labels(tg, k) != labels(cg, k) || tm[k] == cm[k]))
     }
     /// The annotator's mutation fields equal truth's exactly (spans included): the derivation
     /// given truth's cuts and calls. `None` unless the call and both germline spans match truth's.

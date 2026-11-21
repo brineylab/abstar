@@ -53,7 +53,8 @@ def grade(truth: "pl.DataFrame", calls: "pl.DataFrame", germline_db: str = "huma
 
     Rules worth knowing: an empty `<seg>_call_valid` makes only a null call correct;
     `gene_segment_mask` may differ from truth only at read positions the `_valid` boundary lists
-    leave open, and the other masks are compared only where both gene masks agree; aa mutation
+    leave open, and the other masks are compared only where both nt gene masks agree (aa masks at
+    codons whose three bases have the same gene label in both, ruling A30); aa mutation
     codons count as the generator counts them: V non-gap IMGT codons wholly inside the span, D/J/C
     codons in the generator's frames (J: anchor % 3, D: the V phase, C: continuing J), minus codons
     with a deleted base.
@@ -137,7 +138,8 @@ def grade(truth: "pl.DataFrame", calls: "pl.DataFrame", germline_db: str = "huma
         return (3 - (m[t["v_germline_start"] - 1] - 1) % 3) % 3
 
     def mask_fn(col):
-        gcol = "gene_segment_mask_aa" if col.endswith("_aa") else "gene_segment_mask"
+        aa = col.endswith("_aa")
+        gcol = "gene_segment_mask_aa" if aa else "gene_segment_mask"
 
         def f(t, c):
             if not all(ok(t, s) and same_allele(t, c, s) for s in mask_segs(t)):
@@ -147,15 +149,20 @@ def grade(truth: "pl.DataFrame", calls: "pl.DataFrame", germline_db: str = "huma
                 return tm == cm
             if len(tm) != len(cm):
                 return False
-            tg, cg = t[gcol], c.get(gcol)
-            if tg is None or cg is None or len(tg) != len(tm) or len(cg) != len(cm):
-                return False
             if col == gcol:  # differences are allowed only where a boundary is ambiguous
+                tg, cg = t[gcol], c.get(gcol)
                 amb, start = uncertain(t), t["v_sequence_start"]
-                aa = col.endswith("_aa")
                 step, off = (3, codon_phase(t) + 2) if aa else (1, 0)
                 return all(a == b or (start + step * i + off) in amb for i, (a, b) in enumerate(zip(tm, cm)))
-            return all(a == b for a, b, x, y in zip(tm, cm, tg, cg) if x == y)
+            # the other masks are compared where both nt gene masks agree: per base, or (aa masks) at codons
+            # whose three bases have the same gene label in both (ruling A30)
+            tg, cg = t["gene_segment_mask"], c.get("gene_segment_mask")
+            if tg is None or cg is None or len(tg) != len(cg) or (not aa and len(tg) != len(tm)):
+                return False
+            if not aa:
+                return all(a == b for a, b, x, y in zip(tm, cm, tg, cg) if x == y)
+            p0 = codon_phase(t)
+            return all(a == b for i, (a, b) in enumerate(zip(tm, cm)) if tg[p0 + 3 * i : p0 + 3 * i + 3] == cg[p0 + 3 * i : p0 + 3 * i + 3])
         return f
 
     def frame(t, seg):
@@ -290,8 +297,7 @@ def grade(truth: "pl.DataFrame", calls: "pl.DataFrame", germline_db: str = "huma
         for p in _REGION_PARTS:
             fields[r + p] = ((r + p,), region_fn(r + p, ("v", "j") if r in ("cdr3", "fwr4") else ("v",)))
     for col in _MASKS:
-        gcol = "gene_segment_mask_aa" if col.endswith("_aa") else "gene_segment_mask"
-        fields[col] = ((col, gcol), mask_fn(col))
+        fields[col] = ((col,) if col.startswith("gene_segment_mask") else (col, "gene_segment_mask"), mask_fn(col))
     for seg in "vdjc":
         for p in _MUT_PARTS:
             need = {f"{seg}_{p}", f"{seg}_germline_start", f"{seg}_germline_end", f"{seg}_call"}
