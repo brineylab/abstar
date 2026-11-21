@@ -56,13 +56,13 @@ Agreement with truth (`tests/derive.rs`, seeds as listed) is measured on reads w
 | Set | Graded reads | All regions | With truth's cuts | Junction | `productive` | `sequence_vdj` |
 |---|---|---|---|---|---|---|
 | naive, seed 1 | 1,986 | 98.29% | 100.00% (918/918) | 98.79% | 99.90% | 100.00% |
-| mutation 0–30%, seed 1 | 1,653 | 74.53% | 99.52% (413/415) | 96.73% | 99.88% | 77.92% |
-| memory + 20% indels, seed 11 | 2,788 | 87.41% | 98.95% (944/954) | 98.89% | 99.86% | 90.03% |
-| bnab, seed 1 | 1,301 | 60.11% | 99.35% (153/154) | 97.54% | 97.46% | 62.34% |
+| mutation 0–30%, seed 1 | 1,654 | 94.68% | 99.60% (492/494) | 96.74% | 100.00% | 99.03% |
+| memory + 20% indels, seed 11 | 2,788 | 96.59% | 98.77% (1,043/1,056) | 98.89% | 100.00% | 99.50% |
+| bnab, seed 1 | 1,301 | 93.01% | 98.66% (221/224) | 97.54% | 97.46% | 96.77% |
 | naive + 40 nt C, seed 2 | 1,985 | 98.24% | 100.00% (946/946) | 98.74% | 100.00% | 100.00% |
 | naive, truncated 0–120 nt 5′ and 0–60 nt 3′, seed 4 | 1,369 | 98.17% | 99.46% (732/736) | 99.27% | 99.93% | 100.00% |
 
 - **Valid cuts that change a region (about 1.7% of naive reads).** When the V is trimmed near Cys104, or the J near Trp/Phe118, a chance N match lets the read support another V end or J start. These cuts are valid under record 0025. When that cut decides whether the anchor base is in its segment, or where FWR3 ends, the annotator's regions and junction differ from truth's origin-based ones. Like ruling A26, this is a read-level limit. `region_accuracy_naive` asserts exact regions with truth's cuts (≥ 99.5%) and at least 98% overall.
-- **The V start (FWR1, `sequence_vdj`).** Mutated first bases are cut from the V alignment's 5′ end (record 0029's trim). FWR1 and `sequence_vdj` then start late, which accounts for most misses at 0–30% mutation and on bnab reads. Truth has no valid list for the V start.
+- **The V start (FWR1, `sequence_vdj`).** Record 0029's 5′ start extension (ruling A28) gives V back the mutated first bases its cut drops. Without it, FWR1 agreed on 78% of 0–30% reads and 62% of bnab reads; with it, 99.4% and 96.8%. The remaining V-start misses are reads whose extension is too long (over 20 bases) or too unlike the allele, mostly bnab. Truth has no valid list for the V start.
 - **Indel placement and the J end.** The remaining misses with truth's cuts are indels placed differently at a region boundary (memory + indels, bnab). There are also mutated last J bases cut from the J alignment's 3′ end, and J anchors trimmed away in reads that stop before J, which the read cannot show.
 - The `R_length` fields cite this record. `sequence_alignment` and `germline_alignment` are ungraded until truth defines them.

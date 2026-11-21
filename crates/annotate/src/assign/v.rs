@@ -43,6 +43,13 @@ const NEAR_V_SCORE: i32 = 20;
 /// Minimum V alignment score (`score_semiglobal`) for a V hit (record 0029).
 pub const MIN_V_SCORE: i32 = 50;
 
+/// The V's 5' end extends to the read's or the allele's start when that is at most this many
+/// bases away on the alignment's first diagonal (record 0029) ...
+const MAX_START_EXT: usize = 20;
+/// ... and the extension is at most this long or matches the allele on at least a quarter of
+/// its bases, as often as random sequence would.
+const FREE_START_EXT: usize = 3;
+
 /// The read against one V allele.
 struct Projected {
     /// The overlap alignment's DP score (`score_semiglobal`'s), for ranking alleles.
@@ -122,6 +129,33 @@ fn before_gap_in(aln: &Alignment, from: usize, s: &Scoring) -> Alignment {
     aln.clone()
 }
 
+/// `aln` extended 5' along its first diagonal to the read's or the allele's start, whichever
+/// comes first (record 0029): the trim cuts mutated first V bases, which reaching the read's or
+/// the allele's start shows are V. The extension is taken when it is at most `MAX_START_EXT`
+/// bases long and either at most `FREE_START_EXT` long or matching on a quarter of its bases.
+/// The score adds the new columns as `trim` scores them.
+fn extend_start(aln: Alignment, q: &[u8], g: &[u8], s: &Scoring) -> Alignment {
+    let k = aln.q_start.min(aln.g_start);
+    if k == 0 || k > MAX_START_EXT {
+        return aln;
+    }
+    let (q_start, g_start) = (aln.q_start - k, aln.g_start - k);
+    let hit = |x: usize| matches!(q[q_start + x], b'A' | b'C' | b'G' | b'T') && q[q_start + x] == g[g_start + x];
+    let cols: Vec<Op> = (0..k).map(|x| if hit(x) { Op::Match } else { Op::Mismatch }).collect();
+    if k > FREE_START_EXT && 4 * cols.iter().filter(|&&op| op == Op::Match).count() < k {
+        return aln;
+    }
+    let score = aln.score + cols.iter().map(|&op| if op == Op::Match { s.matched as i32 } else { -(s.matched as i32) }).sum::<i32>();
+    let mut ops: Vec<(Op, u32)> = Vec::new();
+    for (op, n) in cols.into_iter().map(|op| (op, 1)).chain(aln.ops.iter().copied()) {
+        match ops.last_mut() {
+            Some((last, m)) if *last == op => *m += n,
+            _ => ops.push((op, n)),
+        }
+    }
+    Alignment { score, q_start, g_start, ops, ..aln }
+}
+
 /// Aligns `q` to V allele `k` of `v`, collapses spurious insertion/deletion pairs, cuts the
 /// alignment to the read's V-derived bases (`trim`), places its gaps outside the CDR3 side of
 /// Cys104 (leftmost among equals), and projects the read onto the allele's IMGT gapped
@@ -134,7 +168,7 @@ fn project(q: &[u8], alleles: &[Allele], v: &SegmentIndex, k: usize, s: &Scoring
     if let Some(zone) = &protect {
         cut = before_gap_in(&cut, zone.start, s);
     }
-    let aln = place_gaps(&cut, q, g, protect, s);
+    let aln = extend_start(place_gaps(&cut, q, g, protect, s), q, g, s);
     // Ungapped allele index -> IMGT gapped index.
     let imgt_of: Vec<usize> = a.sequence_gapped.bytes().enumerate().filter(|&(_, b)| b != b'.').map(|(i, _)| i).collect();
     let mut imgt = vec![None; q.len()];

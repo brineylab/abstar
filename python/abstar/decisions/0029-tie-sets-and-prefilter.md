@@ -58,7 +58,11 @@ Diagnosis of the no-hit losses on bnab-preset reads (A22):
 - The best allele is aligned with `align_semiglobal`, and gap pairs are collapsed.
 - The alignment is cut to the read's V-derived bases: its maximum-scoring contiguous run of columns (Kadane; longest, then leftmost, among equals). The cut scores match +2, mismatch −2 and gaps as above. The symmetric mismatch avoids biasing the cut toward the aligned allele, and the gap costs keep a true indel near the V end inside the cut.
 - The cut also ends before any gap whose right flank reaches the protected zone. V has no indels there, so such a gap marks where V ended.
-- `place_gaps` then runs. Each aligned read base takes the allele's IMGT gapped index; inserted bases take none.
+- `place_gaps` then runs.
+- **5′ start extension** (added 2026-11-21, ruling A28). The cut drops mutated first V bases: a prefix with a negative score, which is a single mutated first base 30% of the time at 30% mutation. So the V start then extends along the alignment's first diagonal to the read's start or the allele's start, whichever comes first. The extension is taken when it is at most 20 bases long and either at most 3 bases long or matching the allele on at least a quarter of its bases (as often as random sequence would).
+  - A 5′ flank before the allele's start (leader, 5′ UTR, a primer upstream of IMGT 1) lies past the allele's start on the diagonal, so the extension cannot absorb it.
+  - The extended bases are V-derived bases like the rest: they count in the tie set, as truth counts every V-origin base.
+- Each aligned read base takes the allele's IMGT gapped index; inserted bases take none.
 
 **Refinement.** Refinement runs when the cut alignment has a gap, or when another allele has fewer mismatches than the projecting allele.
 - The (up to 3) fewest-mismatch alleles not yet scored are scored.
@@ -140,6 +144,24 @@ The J step costs about 71 µs per read.
 - J tie misses have the same cause as V's: the read cannot show where J starts. IGHJ alleles share their 3' 30–35 nt and differ in the 5' bases next to the N region. An N base that happens to match one allele's 5' tail counts for it, and a cut that starts late drops the J bases that separate siblings. At 0–30% mutation the J start agrees with truth on 46% of reads and is off by up to 10 nt either way.
 - On bnab reads, most of the loss is the floor: 107 reads (5.6%) score below 30 against a J mutated 15–35%. Among called reads, 97.9% have the primary in `j_call_valid`.
 
+**5′ start extension** (ruling A28). The table compares the cut alone with the extension, over reads whose V and J calls are the true alleles (`tests/derive.rs`). `v_sequence_start` is read position agreement with truth.
+
+| Set | `v_sequence_start` | FWR1 | `sequence_vdj` |
+|---|---|---|---|
+| naive, seed 1 | 100.00% → 100.00% | 100.00% → 100.00% | 100.00% → 100.00% |
+| mutation 0–30%, seed 1 | 78.22% → 99.40% | 78.22% → 99.40% | 77.92% → 99.03% |
+| memory + 20% indels, seed 11 | 90.21% → 99.68% | 89.92% → 99.28% | 90.03% → 99.50% |
+| bnab, seed 1 | 62.41% → 97.00% | 62.41% → 96.77% | 62.34% → 96.77% |
+
+- **Flanks** (`tests/assign_v.rs`, 0–60 random bases prepended, 0–30% mutation).
+  - Before a V that starts at the allele's start: no read's V starts inside the flank (0 of 1,742; the test allows 0.5%).
+  - Before a 5′-truncated V (0–60 nt cut), the worst case, the cut alone already keeps chance flank matches next to the V. It absorbs 1.4 flank bases per read (40% of reads); with the extension that is 3.4 (55%; the test allows a mean of 4).
+  - An unguarded 20-base extension would absorb 6.6 bases per read here. A 10-base one would absorb 3.0, but V starts would agree on only 93% of bnab reads.
+- **V calls**, over recoverable reads whose D and J are recoverable too (cut alone → extension):
+  - primary in `v_call_valid` changes within noise: 0–30% 99.62 → 99.69%, memory with 5′ truncation 99.39 → 99.49%, bnab 99.50 → 99.59%;
+  - `v_call_valid` ⊆ ties is also within noise: 0–30% 99.75 → 99.69%, memory with 5′ truncation 98.27 → 98.41%, bnab and memory + indels unchanged.
+  - One 0–30% read lost coverage: a spurious 3-nt gap near the 5′ end left the first diagonal shifted, and the extension followed it.
+
 Spurious gaps, measured as V alignments with a gap on indel-free reads, with `collapse_gap_pairs` off and on:
 
 | Set | Off | On |
@@ -153,4 +175,4 @@ On reads with a single true V indel where the primary is the true allele, the pl
 - **Junk-read cost.** No-hit input costs about 1.3 ms per read, both strands included.
 - **Typical cost:** 0.3 ms per naive read.
 - **Gapping limits.** An allele whose IMGT gapping is shifted (#138), or that lacks gaps (macaque, #137), is compared at the wrong positions, as in the truth sets.
-- **Constants.** Changing any constant here changes calls, so it needs a superseding record: k, scores, 90%, 3, 12, bin 8, 8 diagonal hits, J 30, near V 20, floor 50, the cut scores, the pair span of 40, or for J the 10-nt overlap, 3 cut alleles, the J floor of 30 and the J protect margin of 5.
+- **Constants.** Changing any constant here changes calls, so it needs a superseding record: k, scores, 90%, 3, 12, bin 8, 8 diagonal hits, J 30, near V 20, floor 50, the cut scores, the pair span of 40, the V start extension's 20 and 3 bases and quarter identity, or for J the 10-nt overlap, 3 cut alleles, the J floor of 30 and the J protect margin of 5.

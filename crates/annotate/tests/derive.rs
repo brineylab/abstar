@@ -227,6 +227,7 @@ struct Tally {
     stop_codon: usize,
     vdj: usize,
     vdjc: usize,
+    v_start: usize,
 }
 
 /// (nt, aa, 1-based start, 1-based end) of a region; empty regions have no start or end.
@@ -298,12 +299,13 @@ fn grade(label: &str, g: &Generated) -> (Tally, Vec<String>) {
         t.stop_codon += (Some(p.stop_codon) == g.bool("stop_codon", i)) as usize;
         t.vdj += (text(seq, Some(rg.vdj)).as_deref() == g.str("sequence_vdj", i)) as usize;
         t.vdjc += (text(seq, rg.vdjc).as_deref() == g.str("sequence_vdjc", i)) as usize;
+        t.v_start += (Some(c.v.aln.q_start as i64 + 1) == g.int("v_sequence_start", i)) as usize;
     }
     let pct = |x: usize| 100.0 * x as f64 / t.n.max(1) as f64;
     let per: Vec<String> = NAMES.iter().zip(t.regions).map(|(n, x)| format!("{n} {:.2}%", pct(x))).collect();
     println!(
         "derive {label}: {} of {} reads with the true V and J alleles; {}; all regions {:.2}% (with truth's V start, V end and J start {}/{} = {:.2}%); junction {:.2}% junction_aa {:.2}%; \
-         productive {:.2}% vj_in_frame {:.2}% stop_codon {:.2}%; sequence_vdj {:.2}% sequence_vdjc {:.2}%",
+         productive {:.2}% vj_in_frame {:.2}% stop_codon {:.2}%; sequence_vdj {:.2}% sequence_vdjc {:.2}%; v_sequence_start {:.2}%",
         t.n,
         g.len(),
         per.join(" "),
@@ -318,6 +320,7 @@ fn grade(label: &str, g: &Generated) -> (Tally, Vec<String>) {
         pct(t.stop_codon),
         pct(t.vdj),
         pct(t.vdjc),
+        pct(t.v_start),
     );
     (t, missed)
 }

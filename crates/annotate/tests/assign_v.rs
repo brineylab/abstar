@@ -294,3 +294,74 @@ fn bnab_no_v_hit_rare() {
     println!("bnab no_v_hit: {none}/{} = {:.4}%", rows.len(), 100.0 * rate);
     assert!(rate <= 0.005, "no V hit on {none} of {}", rows.len());
 }
+
+/// A base other than `b`.
+fn other(b: u8) -> u8 {
+    if b == b'A' { b'C' } else { b'A' }
+}
+
+#[test]
+fn v_start_extends_over_mutated_first_bases() {
+    // Record 0029: the trim cuts mutated first V bases; the V start extends back to the read's
+    // start (no leader) or to the allele's start (a leader before it).
+    let r = human();
+    let mut v = ungapped(&r.alleles[r.idx("IGHV3-23*01")]);
+    v[0] = other(v[0]);
+    v[1] = other(v[1]);
+    let vdj = [&v[..], NP_J, &ungapped(&r.alleles[r.idx("IGHJ4*02")])].concat();
+    let (_, h) = r.call(&vdj).expect("V hit");
+    assert_eq!((h.aln.q_start, h.aln.g_start), (0, 0));
+    assert_eq!(h.imgt[0], Some(0));
+    let leader = rand_seq(30, 9);
+    let (_, h) = r.call(&[&leader[..], &vdj].concat()).expect("V hit");
+    assert_eq!((h.aln.q_start, h.aln.g_start), (30, 0));
+}
+
+/// Reads of `g` with `flank(i)` random bases prepended, the true V allele called: (V start
+/// agreement, reads whose V starts inside the flank, flank bases absorbed, reads graded).
+fn flanked(g: &Generated, flank: impl Fn(usize) -> usize + Sync) -> (usize, usize, usize, usize) {
+    let r = human();
+    let rows: Vec<(bool, usize)> = (0..g.len())
+        .into_par_iter()
+        .filter_map(|i| {
+            let f = flank(i);
+            let read = [&rand_seq(f, 1000 + i as u64)[..], g.sequence(i).as_bytes()].concat();
+            let (o, h) = r.call(&read)?;
+            if o.rev_comp || Some(r.alleles[h.primary].name.as_str()) != g.str("v_call", i) {
+                return None;
+            }
+            let truth = f + g.int("v_sequence_start", i).unwrap() as usize - 1;
+            Some((h.aln.q_start == truth, f.saturating_sub(h.aln.q_start)))
+        })
+        .collect();
+    let crossed = rows.iter().filter(|x| x.1 > 0).count();
+    (rows.iter().filter(|x| x.0).count(), crossed, rows.iter().map(|x| x.1).sum(), rows.len())
+}
+
+#[test]
+fn v_start_extension_stays_out_of_flanks() {
+    // Record 0029. Leader-like flanks (0-60 random bases before a V that starts at the allele's
+    // start, as leader, 5' UTR or primers upstream of IMGT 1 are) sit past the allele's start on
+    // the diagonal, so the extension cannot reach them: at most 0.5% of reads may start inside.
+    // Flanks before a 5'-truncated V (0-60 nt cut) are the worst case: the trim alone already
+    // keeps chance flank matches next to the V on many of them (1.4 flank bases per read without
+    // the extension, 3.5 with it); printed, with the mean bases absorbed per read bounded at 4.
+    let f = |i: usize| (i * 37) % 61;
+    let pct = |x: usize, n: usize| 100.0 * x as f64 / n as f64;
+    let leader = generated(5, "naive", 2000, |p| p.mutation = Spec::Uniform(0.0, 0.3));
+    let (ok, crossed, bases, n) = flanked(&leader, f);
+    println!("V start, 0-60 nt flank before full V (0-30%): start {:.2}%, inside flank {crossed}/{n} = {:.2}% ({bases} bases)", pct(ok, n), pct(crossed, n));
+    assert!(n > 1500 && (crossed as f64) <= 0.005 * n as f64, "{crossed}/{n} V starts inside the flank");
+    let trunc = generated(6, "naive", 2000, |p| {
+        p.mutation = Spec::Uniform(0.0, 0.3);
+        p.truncate_5p = Spec::Uniform(0.0, 60.0);
+    });
+    let (ok, crossed, bases, n) = flanked(&trunc, f);
+    let mean = bases as f64 / n as f64;
+    println!(
+        "V start, 0-60 nt flank before 5'-truncated V (0-30%): start {:.2}%, inside flank {crossed}/{n} = {:.2}%, {mean:.2} flank bases absorbed per read",
+        pct(ok, n),
+        pct(crossed, n)
+    );
+    assert!(mean <= 4.0, "{mean} flank bases absorbed per read");
+}
