@@ -122,3 +122,11 @@ Measured with the built-in `human` database (release build), with truth comparin
   - **C codon frame.** C codons start at C positions ≡ Trp/Phe118 anchor + 1 − J length (mod 3), 0-based, since C base 1 is the J's last base (before: ≡ anchor − J length). The generator does the same (records 0025, 0026).
   - **Effect.** Real corpus: C primary in legacy's `c_call` set 16,874 → 49,800 of 49,999 reads (33.7% → 99.6%); 86 more have a tie set overlapping legacy's (short C prefixes shared by IGHG1–4 or IGHA1/2); median `c_identity` 0.29 → 1.00, median `c_mutation_count` 106 → 0; `c_germline_start` 2 on 49,898 reads, as legacy's is on 46,379 of its 49,912 C calls. On the generator's `constant` sets C is graded by the accuracy gate (`igh_memory_c`, `igh_bnab_c`, `igk_c`).
   - The window of 3, the 0.8 identity and the 10-nt minimum are constants of this decision.
+- **2026-11-21 (Wave 2, review fix round 1): J does not start past a held anchor.**
+  - **Rule.** When the J alignment holds its allele's Trp/Phe118 codon and the read has TGG, TTT or TTC there, the J start is capped at that codon's first base: the J score is `NEG` for later starts.
+  - **Why the read must confirm the codon.** Without that check, the cap also made junctions on real reads whose J alignment holds the anchor only through a spurious indel next to it (`29N6M3D25M` on IGHJ6). On the legacy corpus that gave 35 out-of-frame junctions a codon off legacy's. With the check, 65 corpus junctions became defined, all identical to legacy's, plus one that differs in length (ordinal 32471).
+  - **Why.** With a heavily mutated J 5′ end (record 0029's weak J), the best no-D or D configuration could start J past Trp118, which voids the junction (benchmark igh_bnab g0327, g2349, g2823).
+  - **Effect, with record 0029's fix-round changes, on the gate sets (2,000 reads per set).** Five reads changed.
+    - Four improved. In igl g1852 and igh_bnab_c g1724, J now starts at the anchor, so CDR3, FWR4 and the junction are right. In igh_bnab_c g0209 the J mutation fields are now right. igh_bnab g0818 changed but was graded wrong before and after.
+    - One lost (record 0029: igh_bnab_c g1091).
+  - **Pinned by** `j_start_never_passes_a_held_anchor` (tests/junction.rs, 10,000 bnab reads) and `mutated_j_start_cannot_pass_a_held_anchor` (tests/engine.rs, g0327).

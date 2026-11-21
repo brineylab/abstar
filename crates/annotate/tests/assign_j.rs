@@ -241,3 +241,32 @@ fn later_j_start_breaks_iglj2_iglj3_tie() {
     let h = r.call_j(&read).expect("J hit");
     assert_eq!(r.alleles[h.primary].name, "IGLJ2*01", "ties {:?}", r.names(&h.ties));
 }
+
+/// Benchmark igh_bnab_c g3609 (IGHV3-7*01, IGHJ4*02 mutated 18 of 45 nt, then 60 nt of C).
+const BNAB_C_G3609: &str = "GGGACTCACATGGTGAAATCTGGGGGAAGTTTAGTCCACACTGGTAACCCCCGGGGACCCGCCTCTGGCGTCTCTGATTTCACGACTAATTACGATTGGGTGAATTGGACTGGTCAGGGTCCAGGGACGGAGCTTGAGTGGGTGGTCACTATGATGTATGGAGGCAGTGAACAATATGAGGACTCTGGGCCGGGTCATTATACTAAGTCCAGCAGTCATGTCGCGAATTCAGTGTTTCCTCAGATGATCAATCTGAGAGGCAAGGACCCGCCACTGGCTCATTGTGGGCGAGTCCTAATAAAGGGAATGATACATGACATCCAACGTCCCCAGAAATCTCCTCATCTGATCCTTGAGTGGTGGACTCGTGCATCTCTGGTCACTGCCCCCTCCAGGAGTGCATCCGCCCCAACCCTTTTCCCCCTCGTCTCCTGTGAGAATTCCCCGTCGGATA";
+/// Benchmark tra g0440 (TRAV10*02, an exact 47-nt TRAJ8*01 tail from germline base 14).
+const TRA_G0440: &str = "AAAAACCAAGTGGAGCAGAGTCCTCAGTCCCTGATCATCCTGGAGGGAAAGAACTGCACTCTTCAATGCAATTATACAGTGAGCCCCTTCAGCAACTTAAGGTGGTATAAGCAAGATACGGGGAGAGGTCCTGTTTCCCTGACAATCATGACTTTCAGTGAGAACACAAAGTCGAACGGAAGATATACAGCAACTCTGGATGCAGACACAAAGCAAAGCTCTCTGCACATCACAGCCTCCCAGCTCAGCGATTCAGCCTCCTACATCTGTGTGGTGAGCGCTGGCTTCCCCTCAGAAACTTGTATTTGGAACTGGCACCCGACTTCTGGTCAGTCCAA";
+
+#[test]
+fn weak_j_guard_holds_after_the_record_0008_pick() {
+    // Wave 2, fix round 1: the weak J's cut held IGHJ4*02's Trp118, but the re-cut on the picked
+    // primary (IGHJ2*01) started past its anchor (366S25N28M60S), so the reported J had no anchor.
+    // The guard is now re-applied to the reported alignment; failing it, B1 is tried, then no J.
+    let r = human();
+    if let Some(h) = r.call_j(BNAB_C_G3609.as_bytes()) {
+        let w = r.alleles[h.primary].anchor.unwrap();
+        assert!(h.aln.g_start <= w && w + 3 <= h.aln.g_end, "{}: {:?}", r.alleles[h.primary].name, h.aln);
+    }
+}
+
+#[test]
+fn exact_3p_fragment_beats_a_weaker_weak_cut() {
+    // Wave 2, fix round 1: an exact 47-nt TRAJ8*01 tail (B1 score 47, 94 on the ±2 scale) is called
+    // over a weak cut scoring less, and is reported as the exact gapless fragment.
+    let r = human();
+    let read = TRA_G0440.as_bytes();
+    let h = r.call_j(read).expect("J hit");
+    assert_eq!(r.alleles[h.primary].name, "TRAJ8*01", "ties {:?}", r.names(&h.ties));
+    assert_eq!((h.aln.q_start, h.aln.q_end, h.aln.g_start, h.aln.g_end, h.mismatches), (291, 338, 13, 60, 0));
+    assert_eq!(h.aln.ops, vec![(Op::Match, 47)]);
+}

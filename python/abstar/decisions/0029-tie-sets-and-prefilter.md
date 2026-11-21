@@ -263,7 +263,12 @@ On reads with a single true V indel where the primary is the true allele, the pl
     | same, weak ≥ 20 | +25.03 | −0.070 bnab_c fwr4 | 96.88 / 98.01 | 96.77 / 98.27 | 88.42 / 98.10 | 3.1 / 70.0 / 95.9 / 99.7 |
     | weak ≥ 16 (−1) + old tail + floor 18 for read-end, gapless cuts inside J | +28.20 | −0.097 truncated fwr4 | 97.04 / 98.21 | 97.10 / 98.58 | 90.09 / 98.59 | 13.5 / 78.4 / 96.9 / 99.6 |
 
-    - The full 66-row sweep is in `.superpowers/sdd/2026-11-20-abstar-annotator/wave2-w2-report.md`. It also covers floor 6–26 with and without junction, read-end, gapless and order guards; weak thresholds 8–24; and tail rules 8–12 nt with 2–4 nt per mismatch.
+    - The sweep had 66 rows. Besides the rows above, it covered:
+      - **Floors 26 to 1 with no other change:** Σ +6.3 to +22.7, worst drop −0.11 to −0.69.
+      - **Floors 6–26 with junction, read-end, gapless and order guards:** Σ +16.1 to +32.3. Only "floor 18, gapless, read end inside J, after the weak J" stays within 0.1 pp.
+      - **Weak thresholds 8–24:** Σ +15.5 to +24.3. Only 16 or more stays within 0.1 pp.
+      - **Tail rules 9–12 nt with 2–4 nt per mismatch:** Σ +24.1 to +28.5. Rules with fewer nt than the chosen score-10 rule break the bound.
+      - **Weak J with mismatch −2, and without its guards:** worse on the worst drop.
     - **Why lowering the floor alone fails.** On bnab the −3 mismatch alignment of a heavily mutated J stops early, so lower floors mostly add wrong alleles or 1–18-nt cuts that miss Trp118: at floor 1, 229 bnab reads gain a J but only 50 gain the right junction.
     - **The binding cells are `fwr4` and `cdr3`.** They are graded only where the J allele is truth's, so each newly right J adds a graded read. On igh_truncated `fwr4`, correct reads rise from 3,526 to 3,858 while wrong ones rise from 2 to 6. The accuracy cell falls 0.099 pp, although 332 more reads are right. Every setting with more truncated calls than the chosen one (tail ≥ 9, the unguarded weak J, the floor-18 path) breaks the 0.1-pp bound through these cells.
     - **Choice.** The floor-18 path meets the bound and gains 1.05 pp more than the chosen rule, nearly all of it truncated J (90.09 vs 89.06%). It needs a third acceptance path with four guards, so the simpler rule is kept (the brief: prefer the simpler of similar settings).
@@ -281,3 +286,20 @@ On reads with a single true V indel where the primary is the true allele, the pl
 
     Most false calls come from the weak J. A random tail after a V gets a J on 0.7–1.5% of IG reads and up to 8% of TRA reads (61 TRAJ alleles). The requirement that the weak cut reach the J's or the read's 3′ end changed neither accuracy nor the null, so it is not used.
   - **New constants:** the weak J's mismatch −1 and score 16; the fragment score 5 + ⌈log4⌉ (+1 for TR). Removed: B1's 2-mismatch cap and 4 nt per mismatch.
+- **2026-11-21 (Wave 2, review fix round 1).** The review found that the weak J's guard was checked only on the projecting cut, and that the weak J pre-empted B1 even when B1 had a long exact match.
+  - **Guard on the reported alignment.** Each fallback's guard (weak J: score ≥ 16, Trp/Phe118 codon held, junction 6–180; B1: junction 6–180) is re-applied to the alignment reported after the record 0008 pick and re-cut. A candidate that fails is dropped, and the other fallback is tried. Example: bnab_c g3609's weak cut held IGHJ4\*02's Trp118, but its re-cut on the picked IGHJ2\*01 started past it; the read now has no J.
+  - **Order of the fallbacks.** Both candidates are computed. B1 goes first when its doubled score (the ±2 scale) is at least the weak cut's score; otherwise the weak J goes first.
+    - Example: tra g0440's exact 47-nt TRAJ8\*01 tail (B1 score 47, 94 on the ±2 scale) is called as that fragment again. Before this fix, the weak J stretched J's 5′ end through a 4-nt insertion and 18 mismatches, and the joint step then started J past Phe118.
+    - Preferring an anchor-holding weak J over an anchorless B1 fragment was tried. It lost 0.2 pp, so it is not used.
+  - **Weak prefilter.** The locus alleles are ranked by score-only `score_semiglobal` with the weak scoring, and only the best `WEAK_TOP` = 8 are cut.
+    - Top 8 matches cutting every allele on all 12 sets; top 3 cost 0.2 pp of summed J + junction.
+    - On 30,000 V + random 250-nt tails the run takes 2.29 s, against 2.34 s for Wave 2's every-allele cut.
+  - **Joint step (record 0030).** When the J alignment holds its Trp/Phe118 codon and the read has TGG, TTT or TTC there, J may not start after it.
+  - **Effect (Σ gain over the old rule; the 12 sets):** +27.15 → +27.83 pp, worst `all` drop −0.099 → −0.047 (igh_truncated `fwr4`, still dilution).
+    - igh_bnab J / junction: 97.06 / 98.21 → 97.09 / 98.25.
+    - igh_bnab_c: 97.10 / 98.58 → 97.12 / 98.69.
+    - igh_truncated: 89.06 / 98.55 → 89.20 / 98.70.
+    - The igh_bnab_c `fwr4` dilution (−0.097) shrinks to −0.009.
+  - **Null after the fix** (per 100k, 250-nt / 1–150-nt tails): IGH 673 / 1,214; IGK 987 / 1,515; IGL 871 / 1,105; TRA 5,430 / 6,281; TRB 2,243 / 2,579.
+  - **Accuracy-gate cost.** One read, igh_bnab_c g1091: its weak J was the wrong allele but bounded the right junction. Its reported re-cut now fails the guard, so it has no J, C or junction. That lowered 15 floors (C call, J start, junction, productive and vj_in_frame cells that hold it).
+  - **New constant:** `WEAK_TOP` = 8.

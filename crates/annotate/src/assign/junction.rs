@@ -115,6 +115,21 @@ fn j_scores(q: &[u8], g: &[u8], aln: &Alignment) -> Vec<i32> {
     b
 }
 
+/// The read position aligned to germline position `u` (a match or mismatch column of `aln`).
+fn read_pos(aln: &Alignment, u: usize) -> Option<usize> {
+    let (mut qi, mut gi) = (aln.q_start, aln.g_start);
+    for &(op, n) in &aln.ops {
+        let n = n as usize;
+        match op {
+            Op::Match | Op::Mismatch if (gi..gi + n).contains(&u) => return Some(qi + u - gi),
+            Op::Match | Op::Mismatch => (qi, gi) = (qi + n, gi + n),
+            Op::Ins => qi += n,
+            Op::Del => gi += n,
+        }
+    }
+    None
+}
+
 /// Every placement of a D of length `lg` overlapping read positions `zone`: (read position of
 /// the D's first base, the read positions it covers inside `zone`).
 fn placements(lg: usize, zone: Range<usize>) -> impl Iterator<Item = (i64, Range<usize>)> {
@@ -161,6 +176,14 @@ pub fn resolve_junction(read: &Oriented, v: &VHit, j: &JHit, alleles: &[Allele],
     let q = &read.seq;
     let len = q.len();
     let (mut pa, mut sb) = (v_scores(q, &upper(&alleles[v.primary]), &v.aln), j_scores(q, &upper(&alleles[j.primary]), &j.aln));
+    // When the J alignment holds its Trp/Phe118 codon and the read has TGG, TTT or TTC there, J
+    // may not start after it: a heavily mutated J 5' end would otherwise move the cut past the
+    // anchor and void the junction. A codon the read does not confirm is left alone, since a
+    // spurious J indel next to the anchor misplaces it (record 0030, Wave 2 fix round 1).
+    let w = alleles[j.primary].anchor.and_then(|w| read_pos(&j.aln, w));
+    if let Some(w) = w.filter(|&w| matches!(q.get(w..w + 3), Some(b"TGG" | b"TTT" | b"TTC"))) {
+        sb[w + 1..].iter_mut().for_each(|x| *x = NEG);
+    }
     // pa[c]: best V score with V end <= c, reached last at ea[c]; sb[c]: best J score with J
     // start >= c, reached first at tb[c]
     let (mut ea, mut tb): (Vec<usize>, Vec<usize>) = ((0..=len).collect(), (0..=len).collect());

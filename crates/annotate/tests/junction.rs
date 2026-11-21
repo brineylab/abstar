@@ -374,3 +374,39 @@ fn junction_accuracy_report() {
         grade(label, g);
     }
 }
+
+/// Read position aligned to germline base `u` in a match/mismatch column of `a`.
+fn read_pos(a: &abstar_annotate::align::Alignment, u: usize) -> Option<usize> {
+    let (mut qi, mut gi) = (a.q_start, a.g_start);
+    for &(op, n) in &a.ops {
+        let n = n as usize;
+        match op {
+            Op::Match | Op::Mismatch if (gi..gi + n).contains(&u) => return Some(qi + u - gi),
+            Op::Match | Op::Mismatch => (qi, gi) = (qi + n, gi + n),
+            Op::Ins => qi += n,
+            Op::Del => gi += n,
+        }
+    }
+    None
+}
+
+#[test]
+fn j_start_never_passes_a_held_anchor() {
+    // Wave 2, fix round 1: when the J alignment holds its Trp/Phe118 codon and the read has
+    // TGG/TTT/TTC there, the joint step may not start J after it (a heavily mutated J 5' end used to pull the cut past the anchor and void
+    // the junction: bnab g0327, g2349, g2823 in the benchmark).
+    let r = human();
+    let g = generated(3, "bnab", 10000, |_| {});
+    let bad: Vec<String> = (0..g.len())
+        .into_par_iter()
+        .filter_map(|i| {
+            let c = r.call_all(g.sequence(i).as_bytes())?;
+            let w = r.alleles[c.j.primary].anchor.and_then(|w| read_pos(&c.j.aln, w))?;
+            let read = g.sequence(i).as_bytes();
+            // only an anchor the read confirms (a misplaced one, after a spurious J indel, is not held)
+            let confirmed = matches!(read.get(w..w + 3), Some(b"TGG" | b"TTT" | b"TTC"));
+            (confirmed && c.junction.j_start > w).then(|| format!("read {i}: J start {} past anchor {w}", c.junction.j_start))
+        })
+        .collect();
+    assert!(bad.is_empty(), "{bad:?}");
+}

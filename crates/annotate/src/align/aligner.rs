@@ -349,8 +349,8 @@ mod tests {
         if !simd() {
             return;
         }
-        let s = Scoring::default();
-        for t in 0..300u64 {
+        // the default scoring and the weak-J scoring (mismatch −1, record 0029 Wave 2)
+        for (t, s) in (0..600u64).map(|t| (t % 300, if t < 300 { Scoring::default() } else { Scoring { mismatch: -1, ..Scoring::default() } })) {
             let v = rand_seq(60 + (t as usize * 13) % 260, 5000 + t);
             let cut = (t as usize * 7) % (v.len() / 2);
             let mut read = match t % 4 {
@@ -371,8 +371,8 @@ mod tests {
                 read = rand_seq(40 + t as usize % 50, 9000 + t); // unrelated
             }
             let place = |a: Option<Alignment>| a.map(|a| place_gaps(&a, &read, &v, None, &s));
-            assert_eq!(place(super::super::scalar::align(&read, &v, &s)), place(super::super::simd::align(&read, &v, &s)), "case {t}");
-            assert_eq!(super::super::scalar::score(&read, &v, &s), super::super::simd::score(&read, &v, &s), "case {t}");
+            assert_eq!(place(super::super::scalar::align(&read, &v, &s)), place(super::super::simd::align(&read, &v, &s)), "case {t} {s:?}");
+            assert_eq!(super::super::scalar::score(&read, &v, &s), super::super::simd::score(&read, &v, &s), "case {t} {s:?}");
         }
     }
 }

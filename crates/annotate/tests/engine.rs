@@ -348,3 +348,42 @@ fn d_margin() {
     let r = engine().annotate("r10", &read(&d[6..16]));
     assert!(r.d_call_ties.as_ref().is_some_and(|t| t.iter().any(|x| x == "IGHD3-3*01")), "{:?}", r.d_call_ties);
 }
+
+fn transition(b: u8) -> u8 {
+    match b {
+        b'A' => b'G',
+        b'G' => b'A',
+        b'C' => b'T',
+        _ => b'C',
+    }
+}
+
+#[test]
+fn weak_j_junction_ends_at_the_j_anchor() {
+    // Record 0029, Wave 2: a full-length IGHJ1*01 with 20 of 52 bases mutated (Trp118 codon kept)
+    // is called on the weak-J path, and the junction runs from the V's Cys104 to the end of the J's
+    // Trp118 codon at its true read position.
+    let db = human();
+    let (v, j) = (ungapped(db, "IGHV3-23*01"), ungapped(db, "IGHJ1*01").into_bytes());
+    let anchor = |name: &str| db.alleles.iter().find(|a| a.name == name).unwrap().anchor.unwrap();
+    let (va, w) = (anchor("IGHV3-23*01"), anchor("IGHJ1*01"));
+    let m: Vec<u8> = j.iter().enumerate().map(|(i, &b)| if i % 5 % 2 == 1 && !(w..w + 3).contains(&i) { transition(b) } else { b }).collect();
+    let np = "GCGAAAGATCGGGGATATAGTAGTGGCTGGTAC";
+    let read = [v.as_str(), np, std::str::from_utf8(&m).unwrap()].concat();
+    let r = engine().annotate("weak", &read);
+    assert_eq!(r.j_call.as_deref(), Some("IGHJ1*01"));
+    let end = v.len() + np.len() + w + 3;
+    assert_eq!(&read[end - 3..end], "TGG");
+    assert_eq!(r.junction.as_deref(), Some(&read[va..end]));
+}
+
+#[test]
+fn mutated_j_start_cannot_pass_a_held_anchor() {
+    // Wave 2, fix round 1: benchmark igh_bnab g0327 (IGHJ4*02 mutated at its 5' end). Its J
+    // alignment holds Trp118, but the joint step used to start J at germline 31, past the anchor,
+    // leaving no junction. J now starts no later than the anchor and the junction is truth's.
+    let read = "GCGGTACAACTCGTGGAGTCCAGGGCAGGAGTCCTATGTCCTGGGGGGTCCCCGCGACACTCCTATTCCGTCTCCAGAGACGCAGCAGATGATTGTGACCTGAGGTCGGTCCGCCAACTTGGAGGGACAGGGTCACTGTGGGTCTCTCGTCGCTCTTCGAACCGTGGGAGTGTAGGCTATGGCGATTCCGAAAATAATCACTTCAATATCCTCAGAGACAATTCCAAGACCTCTCTGGGTCTGCGGATGGTCAGTCCGAGAGTCGAAACAACCGCCGCATTTAACTGTGAGAGAGAGAAGTATTGGGTGACCACTTATTGGCGACGCATACTACCAAAGGGTCTCGATTGTTGGAGCCAACAGAACCTGGTCACCGCCCCCGTCG";
+    let r = engine().annotate("g0327", read);
+    assert_eq!(r.annotation_status, "annotated", "{:?}", r.failure_reason);
+    assert_eq!(r.junction.as_deref(), Some("TGTGAGAGAGAGAAGTATTGGGTGACCACTTATTGGCGACGCATACTACCAAAGGGTCTCGATTGTTGG"));
+}

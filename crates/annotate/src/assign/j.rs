@@ -26,11 +26,15 @@ const TOP: usize = 3;
 /// ... if its score (on `trim`'s ±2 scale: +2 a match, −2 a mismatch) is at least this; else a
 /// weak J (below) or a short 3' fragment (`tail_aln`) may project, or there is no J hit.
 const MIN_SCORE: i32 = 30;
-/// Weak J (record 0029, Wave 2): below `MIN_SCORE`, every locus J allele is realigned with this
-/// mismatch score, so a heavily mutated J is not cut short, ...
+/// Weak J (record 0029, Wave 2): below `MIN_SCORE`, the locus J alleles are ranked again by
+/// `score_semiglobal` with this mismatch score and the `WEAK_TOP` best are cut with it, so a
+/// heavily mutated J is not cut short, ...
 const WEAK_MISMATCH: i8 = -1;
-/// ... and the best cut that holds the allele's Trp/Phe118 codon projects if it scores at least
-/// this (on `trim`'s ±2 scale).
+/// 8 matches cutting every allele on the 12 benchmark sets; 3 cost 0.2 pp of summed J + junction
+/// accuracy (Wave 2 fix round 1).
+const WEAK_TOP: usize = 8;
+/// ... and the best cut that holds the allele's Trp/Phe118 codon is a candidate if it scores at
+/// least this (on `trim`'s ±2 scale).
 const WEAK_MIN_SCORE: i32 = 16;
 /// The later-start count (ruling B4) applies when the projecting cut has at most this many
 /// mismatched or gapped bases.
@@ -138,12 +142,15 @@ fn counts(p: &[(usize, u8)], j: &SegmentIndex, ks: &[usize]) -> Vec<(usize, u32)
 ///    from `OVERLAP` bases before the V alignment's end.
 /// 2. The `TOP` best are aligned, spurious gap pairs are collapsed, and each alignment's 5' end
 ///    is cut to the read's J-derived bases (the 3' end is the J's or the read's). The best cut
-///    score projects. Below `MIN_SCORE`, every locus J allele is cut again from an alignment
-///    with `WEAK_MISMATCH`, and the best cut holding its allele's Trp/Phe118 codon projects if
-///    it scores `WEAK_MIN_SCORE` (a heavily mutated J). Failing that, the best gapless
-///    alignment of the read's 3' end to any locus J allele projects if its matches minus
-///    mismatches reach `short_min` (ruling B1). Either needs an implied junction of
-///    6–`MAX_JUNCTION` nt; otherwise there is no J hit (`None`).
+///    score projects. Below `MIN_SCORE` there are two candidates, each needing an implied
+///    junction of 6–`MAX_JUNCTION` nt: the weak J (the best `WEAK_MISMATCH` cut of the
+///    `WEAK_TOP` alleles by that scoring that holds its allele's Trp/Phe118 codon and scores
+///    `WEAK_MIN_SCORE`; a heavily mutated J), and the B1 fragment (the best gapless alignment
+///    of the read's 3' end to any locus J allele whose matches minus mismatches reach
+///    `short_min`). The fragment goes first when its doubled score is at least the weak cut's
+///    (both on the ±2 scale); the other is the fallback. A candidate whose reported alignment
+///    (after the pick in step 3) fails its guard is dropped; with none left there is no J
+///    hit (`None`).
 /// 3. Every J allele of the locus is counted for mismatches over those bases at its best shift
 ///    (truth's sliding rule: an uncovered base is a mismatch); when the projecting cut has at most
 ///    `LATE_MAX_MM` differences, only bases from the latest start among the top cuts with its
@@ -160,7 +167,6 @@ pub fn assign_j(read: &Oriented, v: &VHit, alleles: &[Allele], j: &SegmentIndex,
     ranked.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
     let top: Vec<(usize, Alignment)> = ranked.iter().take(TOP).map(|&(k, _)| (k, cut(q, alleles, j, k, scoring))).collect();
     let best = |c: &mut dyn Iterator<Item = (usize, Alignment)>| c.reduce(|a, b| if b.1.score > a.1.score { b } else { a });
-    let mut found = best(&mut top.iter().cloned()).filter(|(_, a)| a.score >= MIN_SCORE);
     // the junction a cut of allele k implies: Cys104 on V's last diagonal to Trp/Phe118's end, on
     // the cut's first diagonal; without both anchors it cannot be bounded, so no call
     let bounded = |k: usize, a: &Alignment| {
@@ -169,62 +175,90 @@ pub fn assign_j(read: &Oriented, v: &VHit, alleles: &[Allele], j: &SegmentIndex,
         let w = (from + a.q_start) as i64 + ja as i64 - a.g_start as i64;
         (6..=MAX_JUNCTION).contains(&(w + 3 - cys))
     };
+    let holds_anchor = |k: usize, a: &Alignment| alleles[j.ids[k]].anchor.is_some_and(|w| a.g_start <= w && w + 3 <= a.g_end);
     let weak_s = Scoring { mismatch: WEAK_MISMATCH, ..*scoring };
-    let weak = found.is_none();
-    if weak {
-        // a heavily mutated J whose cut holds its Trp/Phe118 codon
-        let holds_anchor = |k: usize, a: &Alignment| alleles[j.ids[k]].anchor.is_some_and(|w| a.g_start <= w && w + 3 <= a.g_end);
-        let cuts = ks.iter().map(|&k| (k, cut(q, alleles, j, k, &weak_s)));
-        found = best(&mut cuts.filter(|(k, a)| a.score >= WEAK_MIN_SCORE && holds_anchor(*k, a) && bounded(*k, a)));
-    }
-    let s = if weak { &weak_s } else { scoring };
-    let tail = found.is_none();
-    let (mut k, mut aln) = match found {
-        Some(b) => b,
-        None => {
-            // a short J fragment at the read's 3' end (ruling B1)
-            let (k, (bs, a)) = ks
-                .iter()
-                .filter_map(|&k| tail_aln(q, &j.seqs[k], scoring).map(|t| (k, t)))
-                .reduce(|a, b| if b.1 .0 > a.1 .0 { b } else { a })?;
-            if bs < short_min(j, &ks, locus) || !bounded(k, &a) {
-                return None;
-            }
-            (k, a)
-        }
+    // what a non-strong call must satisfy, on the projecting cut and again on the reported one
+    let guard = |path: Path, k: usize, a: &Alignment| match path {
+        Path::Strong => true,
+        Path::Weak => a.score >= WEAK_MIN_SCORE && holds_anchor(k, a) && bounded(k, a),
+        Path::Tail => bounded(k, a),
     };
-    let recut = |k: usize| if tail { tail_aln(q, &j.seqs[k], scoring).map_or_else(|| cut(q, alleles, j, k, scoring), |t| t.1) } else { cut(q, alleles, j, k, s) };
-    // Among the top cuts with the best score, count from the latest start: N bases that match a
-    // sibling's 5' end don't decide the allele (ruling B4). Not on mutated J, whose 5' bases
-    // still separate siblings.
-    let cut_mm: u32 = aln.ops.iter().filter(|o| o.0 != Op::Match).map(|o| o.1).sum();
-    let late = if weak || cut_mm > LATE_MAX_MM {
-        0
-    } else {
-        top.iter().filter(|(_, a)| a.score == aln.score).map(|(_, a)| a.q_start).max().unwrap_or(0)
-    };
-    // the later start only narrows the counted bases; it never leaves none
-    let count = |aln: &Alignment| {
-        let p = match pairs_from(aln, q, late) {
-            p if p.is_empty() => pairs_from(aln, q, 0),
-            p => p,
+    let finish = |path: Path, mut k: usize, mut aln: Alignment| -> Option<JHit> {
+        let recut = |k: usize| match path {
+            Path::Strong => cut(q, alleles, j, k, scoring),
+            Path::Weak => cut(q, alleles, j, k, &weak_s),
+            Path::Tail => tail_aln(q, &j.seqs[k], scoring).map_or_else(|| cut(q, alleles, j, k, scoring), |t| t.1),
         };
-        counts(&p, j, &ks)
+        // Among the top cuts with the best score, count from the latest start: N bases that match
+        // a sibling's 5' end don't decide the allele (ruling B4). Not on mutated J, whose 5'
+        // bases still separate siblings.
+        let cut_mm: u32 = aln.ops.iter().filter(|o| o.0 != Op::Match).map(|o| o.1).sum();
+        let late = if path != Path::Strong || cut_mm > LATE_MAX_MM {
+            0
+        } else {
+            top.iter().filter(|(_, a)| a.score == aln.score).map(|(_, a)| a.q_start).max().unwrap_or(0)
+        };
+        // the later start only narrows the counted bases; it never leaves none
+        let count = |aln: &Alignment| {
+            let p = match pairs_from(aln, q, late) {
+                p if p.is_empty() => pairs_from(aln, q, 0),
+                p => p,
+            };
+            counts(&p, j, &ks)
+        };
+        let mut c = count(&aln);
+        let pick = primary_by_tiebreak(&fewest(&c).0, alleles);
+        if pick != j.ids[k] {
+            k = j.ids.binary_search(&pick).expect("tie is a J allele");
+            aln = recut(k);
+            c = count(&aln);
+        }
+        let (mut ties, mismatches) = fewest(&c);
+        ties.sort_by(|&x, &y| tiebreak_cmp(&alleles[x], &alleles[y]).then(x.cmp(&y)));
+        let primary = ties[0];
+        if primary != j.ids[k] {
+            k = j.ids.binary_search(&primary).expect("tie is a J allele");
+            aln = recut(k);
+        }
+        // the reported alignment is the primary's re-cut: it must still pass the path's guard
+        if !guard(path, k, &aln) {
+            return None;
+        }
+        aln.q_start += from;
+        aln.q_end += from;
+        Some(JHit { primary, ties, aln, mismatches })
     };
-    let mut c = count(&aln);
-    let pick = primary_by_tiebreak(&fewest(&c).0, alleles);
-    if pick != j.ids[k] {
-        k = j.ids.binary_search(&pick).expect("tie is a J allele");
-        aln = recut(k);
-        c = count(&aln);
+
+    if let Some((k, a)) = best(&mut top.iter().cloned()).filter(|(_, a)| a.score >= MIN_SCORE) {
+        return finish(Path::Strong, k, a);
     }
-    let (mut ties, mismatches) = fewest(&c);
-    ties.sort_by(|&x, &y| tiebreak_cmp(&alleles[x], &alleles[y]).then(x.cmp(&y)));
-    let primary = ties[0];
-    if primary != j.ids[k] {
-        aln = recut(j.ids.binary_search(&primary).expect("tie is a J allele"));
-    }
-    aln.q_start += from;
-    aln.q_end += from;
-    Some(JHit { primary, ties, aln, mismatches })
+    // Weak J: a heavily mutated J, realigned with `WEAK_MISMATCH`; the `WEAK_TOP` alleles by
+    // that alignment's score are cut.
+    let mut wr: Vec<(usize, i32)> = ks.iter().map(|&k| (k, score_semiglobal(q, &j.seqs[k], &weak_s).0)).collect();
+    wr.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
+    let weak = best(&mut wr.iter().take(WEAK_TOP).map(|&(k, _)| (k, cut(q, alleles, j, k, &weak_s))).filter(|(k, a)| guard(Path::Weak, *k, a)));
+    // Short J fragment at the read's 3' end (ruling B1).
+    let tail = ks
+        .iter()
+        .filter_map(|&k| tail_aln(q, &j.seqs[k], scoring).map(|t| (k, t)))
+        .reduce(|a, b| if b.1 .0 > a.1 .0 { b } else { a })
+        .filter(|(k, (bs, a))| *bs >= short_min(j, &ks, locus) && bounded(*k, a));
+    // The better-supported candidate goes first, on the ±2 scale (a fragment's matches minus
+    // mismatches, doubled); the other is the fallback when the first fails its guard after the
+    // record 0008 pick.
+    let tail_first = match (&weak, &tail) {
+        (Some((_, w)), Some((_, (bs, _)))) => 2 * bs >= w.score,
+        _ => true,
+    };
+    let weak = weak.map(|(k, a)| (Path::Weak, k, a));
+    let tail = tail.map(|(k, (_, a))| (Path::Tail, k, a));
+    let order = if tail_first { [tail, weak] } else { [weak, tail] };
+    order.into_iter().flatten().find_map(|(path, k, a)| finish(path, k, a))
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Path {
+    Strong,
+    Weak,
+    Tail,
 }
