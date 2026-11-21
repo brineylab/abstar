@@ -233,8 +233,9 @@ alleles lack anchors (see below).
 ## Truncation and constant region
 
 - **Truncation:** optional 5' and 3' trimming of the finished read, drawn from
-  user-set distributions, to imitate primer-based and partial reads. Recorded
-  exactly.
+  user-set distributions (a number, `fixed:N` or `uniform:LO-HI`; `beta` is
+  rejected because it draws under one nucleotide), to imitate primer-based and
+  partial reads. Recorded exactly.
 - **Constant region:** optionally append the first N bases of a constant
   allele, chosen by isotype weights (for example IgM/IgG1/…/IgK). This gives
   `c_call` a truth to test against. Off by default.
@@ -392,7 +393,7 @@ coverage as `fields.toml`.
 abstar generate [OUTPUT_DIR] --n INT --locus TEXT [--germline-db/-g TEXT=human]
                 [--model TEXT] [--preset TEXT] [--seed INT]
                 [--mutation SPEC] [--indels FLOAT] [--truncate SPEC]
-                [--constant] [--productive-only] [--format airr|parquet]...
+                [--constant] [--productive-only/--no-productive-only] [--format airr|parquet]...
                 [--threads INT] [--json] [--quiet/-q]
 abstar model list|info|import-igor        # top-level, like `abstar germline` (an optional OUTPUT_DIR on a group would swallow a subcommand name)
 ```
@@ -410,7 +411,9 @@ abstar.model.list() / abstar.model.info(name_or_path) / abstar.model.resolve(nam
 - `--model` defaults to the built-in model for the database's species and the
   locus.
 - `--seed` is optional. When absent, a seed is drawn and recorded in
-  `generate.json`, so every run can be reproduced.
+  `generate.json`, so every run can be reproduced. When FASTA streams to
+  stdout there is no `generate.json`, so the seed is printed to stderr
+  (`seed: N`) even with `-q`.
 - Output is identical for a given seed regardless of thread count.
 
 ## Validation of the generator itself

@@ -195,10 +195,10 @@ def generate(
     long_cdr3: Annotated[Optional[float], typer.Option("--long-cdr3", help="Per-junction weight of the long-tail N lengths.")] = None,
     indels: Annotated[Optional[float], typer.Option("--indels", help="Per-read probability of one indel.")] = None,
     frameshift_indels: Annotated[bool, typer.Option("--frameshift-indels", help="Allow indels that shift the frame.")] = False,
-    truncate_5p: Annotated[Optional[str], typer.Option("--truncate-5p", help="nt removed from the 5' end: X, uniform:LO-HI or beta:A,B.")] = None,
-    truncate_3p: Annotated[Optional[str], typer.Option("--truncate-3p", help="nt removed from the 3' end: X, uniform:LO-HI or beta:A,B.")] = None,
+    truncate_5p: Annotated[Optional[str], typer.Option("--truncate-5p", help="nt removed from the 5' end: N or uniform:LO-HI.")] = None,
+    truncate_3p: Annotated[Optional[str], typer.Option("--truncate-3p", help="nt removed from the 3' end: N or uniform:LO-HI.")] = None,
     constant: Annotated[Optional[int], typer.Option("--constant", help="Append this many nt of constant region.")] = None,
-    productive_only: Annotated[bool, typer.Option("--productive-only", help="Keep only productive reads.")] = False,
+    productive_only: Annotated[Optional[bool], typer.Option("--productive-only/--no-productive-only", help="Keep only productive reads (default: the preset's; bnab turns it on).", show_default=False)] = None,
     shm_table: Annotated[Optional[Path], typer.Option("--shm-table", help="Directory of S5F CSVs to mutate with.")] = None,
     name: Annotated[str, typer.Option("--name", help="Output file name stem.")] = "generated",
     format: Annotated[Optional[list[str]], typer.Option("--format", help="Truth table: airr or parquet (repeatable; needs OUTPUT_DIR).")] = None,
@@ -209,11 +209,13 @@ def generate(
     """Simulate V(D)J reads with truth. Without OUTPUT_DIR, FASTA streams to stdout."""
     if output_dir is None and format:
         raise AbstarError("INVALID_ARGUMENT", "--format requires OUTPUT_DIR (without it only FASTA is written)")
+    if threads is not None and threads < 1:
+        raise AbstarError("INVALID_ARGUMENT", f"--threads must be >= 1, got {threads}")
     options = {
         "mutation": mutation, "long_cdr3_weight": long_cdr3, "indels": indels, "truncate_5p": truncate_5p,
         "truncate_3p": truncate_3p, "constant": constant, "shm_table": None if shm_table is None else str(shm_table),
         # flags only override a preset when given
-        "frameshift_indels": frameshift_indels or None, "productive_only": productive_only or None,
+        "frameshift_indels": frameshift_indels or None, "productive_only": productive_only,
     }
     from . import _generate as gen
 
@@ -233,6 +235,8 @@ def generate(
     from . import _core
 
     db_path, model_path, params = gen._prepare(n, locus, germline_db, model, preset, seed, threads, options)
+    if seed is None and not json_out:
+        _err(f"seed: {params['seed']}")  # even with -q: a streamed run is reproducible only by its seed
     sys.stdout.flush()
     sys.stderr.flush()
     try:

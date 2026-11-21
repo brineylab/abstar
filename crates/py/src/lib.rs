@@ -211,7 +211,7 @@ fn run_in_memory(
 }
 
 fn gen_err(e: gen::GenerateError) -> PyErr {
-    err(e.code(), e)
+    err(e.code(), e.message())
 }
 
 fn opt<'py, T: FromPyObjectOwned<'py>>(key: &str, v: &Bound<'py, PyAny>) -> PyResult<T> {

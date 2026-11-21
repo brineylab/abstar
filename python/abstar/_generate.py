@@ -86,8 +86,9 @@ def generate(
     `mutation`, `long_cdr3_weight`, `indels`, `frameshift_indels`,
     `indel_duplication`, `truncate_5p`, `truncate_3p`, `constant` (nt of constant
     region, or None), `isotype_weights`, `productive_only`, `shm_table` (a
-    directory of S5F CSVs) and `shm_model`. `mutation` and the truncations take a
-    number or `fixed:X`, `uniform:LO-HI`, `beta:A,B`. Without `seed` one is
+    directory of S5F CSVs) and `shm_model`. `mutation` takes a number or `fixed:X`,
+    `uniform:LO-HI`, `beta:A,B`; the truncations (nt) a number, `fixed:N` or
+    `uniform:LO-HI`. Without `seed` one is
     drawn (and recorded in generate.json).
 
     With `output_dir=None` the truth table is returned as a Polars DataFrame.

@@ -68,6 +68,38 @@ def test_options_reach_the_generator(tmp_path):
 def test_shm_table_option(tmp_path):
     p = abstar("generate", "--n", 2, "--locus", "IGH", "--seed", 1, "--shm-table", tmp_path / "missing")
     assert p.returncode == 2 and p.stderr.startswith("error[INVALID_ARGUMENT]: "), p.stderr
+    assert "invalid argument:" not in p.stderr, p.stderr  # no doubled prefix (M3)
+
+
+def test_productive_only_follows_preset(tmp_path):
+    def productive_only(*args):
+        p = abstar("generate", tmp_path, "--n", 2, "--locus", "IGH", "--seed", 1, "-q", *args)
+        assert p.returncode == 0, p.stderr
+        return json.loads((tmp_path / "generate.json").read_text())["parameters"]["productive_only"]
+
+    assert productive_only("--preset", "bnab") is True
+    assert productive_only("--preset", "bnab", "--no-productive-only") is False
+    assert productive_only() is False
+    assert productive_only("--productive-only") is True
+
+
+def test_cli_argument_messages():
+    p = abstar("generate", "--n", 2, "--locus", "IGH", "--threads", 0)
+    assert p.returncode == 2 and p.stderr == "error[INVALID_ARGUMENT]: --threads must be >= 1, got 0\n", p.stderr
+    p = abstar("generate", "--n", 2, "--locus", "IGH", "--truncate-5p", "beta:2,5")
+    assert p.returncode == 2 and "truncate_5p: beta draws" in p.stderr, p.stderr
+    p = abstar("generate", "--n", 2, "--locus", "TRA", "--mutation", "0.1")
+    assert p.returncode == 2 and "--shm-table DIR" in p.stderr and "--shm-model" not in p.stderr, p.stderr
+    p = abstar("generate", "--n", 2, "--locus", "IGH", "--seed", 1, "--mutation", "uniform:1e-3-0.1")
+    assert p.returncode == 0, p.stderr
+
+
+def test_streamed_seed_is_reported():
+    p = abstar("generate", "--n", 2, "--locus", "IGH", "-q")
+    assert p.returncode == 0, p.stderr
+    seed = int(p.stderr.removeprefix("seed: "))
+    assert abstar("generate", "--n", 2, "--locus", "IGH", "-q", "--seed", seed).stdout == p.stdout
+    assert "seed: " not in abstar("generate", "--n", 2, "--locus", "IGH", "--json").stderr
 
 
 def test_errors():
@@ -91,6 +123,18 @@ def test_model_commands():
     assert json.loads(abstar("model", "info", "human-igk", "--json").stdout)["locus"] == "IGK"
     p = abstar("model", "info", "nope")
     assert p.returncode == 2 and p.stderr.startswith("error[MODEL_NOT_FOUND]: ")
+
+
+def test_model_list_survives_a_broken_user_model(abstar_home):
+    (abstar_home / "models" / "broken").mkdir(parents=True)
+    (abstar_home / "models" / "broken" / "model.toml").write_text("not = [toml")
+    p = abstar("model", "list")
+    assert p.returncode == 0, p.stderr
+    line = next(l for l in p.stdout.splitlines() if l.startswith("broken\t"))
+    assert "\tuser\t" in line and "invalid: MODEL_INVALID" in line, line
+    assert "human-igh\tbuiltin" in p.stdout
+    models = json.loads(abstar("model", "list", "--json").stdout)
+    assert [m["error"] is not None for m in models if m["name"] == "broken"] == [True]
 
 
 def test_manual_topics():

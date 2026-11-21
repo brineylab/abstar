@@ -15,6 +15,15 @@ pub enum GenerateError {
 }
 
 impl GenerateError {
+    /// The message without the Display prefix, for callers that show `code()` beside it.
+    pub fn message(&self) -> String {
+        match self {
+            Self::ModelNotFound(p) => format!("{} does not exist", p.display()),
+            Self::ModelInvalid(m) | Self::InvalidArgument(m) | Self::Internal(m) => m.clone(),
+            Self::Io(e) => e.to_string(),
+        }
+    }
+
     pub fn code(&self) -> &'static str {
         match self {
             Self::ModelNotFound(_) => "MODEL_NOT_FOUND",

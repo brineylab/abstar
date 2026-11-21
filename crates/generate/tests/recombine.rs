@@ -264,7 +264,11 @@ fn spec_parsing() {
     assert_eq!("fixed:0.1".parse::<Spec>().unwrap(), Spec::Fixed(0.1));
     assert_eq!("uniform:0.15-0.35".parse::<Spec>().unwrap(), Spec::Uniform(0.15, 0.35));
     assert_eq!("beta:2,10".parse::<Spec>().unwrap(), Spec::Beta(2.0, 10.0));
-    for bad in ["", "abc", "nan", "fixed:", "fixed:x", "uniform:0.1", "uniform:0.3-0.1", "beta:2", "beta:0,1", "gamma:1"] {
+    assert_eq!("uniform:1e-3-0.1".parse::<Spec>().unwrap(), Spec::Uniform(0.001, 0.1));
+    assert_eq!("uniform:1e-3-2E-2".parse::<Spec>().unwrap(), Spec::Uniform(0.001, 0.02));
+    assert_eq!("uniform:-0.1-0.2".parse::<Spec>().unwrap(), Spec::Uniform(-0.1, 0.2));
+    assert_eq!("uniform:1e-3-0.1".parse::<Spec>().unwrap().to_string().parse::<Spec>().unwrap(), Spec::Uniform(0.001, 0.1));
+    for bad in ["", "abc", "nan", "fixed:", "fixed:x", "uniform:0.1", "uniform:0.3-0.1", "uniform:1e-", "uniform:1-2-3", "beta:2", "beta:0,1", "gamma:1"] {
         let e = bad.parse::<Spec>().unwrap_err();
         assert_eq!(e.code(), "INVALID_ARGUMENT", "{bad}");
     }
@@ -353,7 +357,9 @@ fn mutation_needs_a_mutation_model() {
     let p = GenerateParams { mutation: Spec::Fixed(0.1), ..naive() };
     let e = Simulator::new(&raw, &p).err().unwrap();
     assert_eq!(e.code(), "INVALID_ARGUMENT");
-    assert!(e.to_string().contains("shm_model = \"motif\""), "{e}");
+    let msg = e.to_string();
+    assert!(msg.contains("shm_model = \"motif\"") && msg.contains("--shm-table DIR"), "{e}");
+    assert!(!msg.contains("--shm-model"), "{e}"); // the CLI has no such flag
     for preset_name in ["memory", "bnab"] {
         assert!(Simulator::new(&raw, &preset(preset_name).unwrap()).is_err(), "{preset_name}");
     }
@@ -430,6 +436,7 @@ fn simulator_rejects_bad_params() {
         GenerateParams { long_cdr3_weight: -0.1, ..naive() },
         GenerateParams { mutation: Spec::Fixed(1.5), ..naive() },
         GenerateParams { truncate_5p: Spec::Fixed(-1.0), ..naive() },
+        GenerateParams { truncate_3p: Spec::Beta(2.0, 5.0), ..naive() }, // draws in [0, 1] nt
         GenerateParams { shm_table: Some("/nonexistent/s5f".into()), mutation: Spec::Fixed(0.1), ..naive() },
     ];
     for p in bad {

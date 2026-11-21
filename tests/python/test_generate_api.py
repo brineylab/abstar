@@ -138,6 +138,18 @@ def test_user_model_may_not_shadow_builtin(abstar_home):
     assert _code(lambda: abstar.generate(3, "IGH", seed=1)) == "BUILTIN_NAME_CONFLICT"
 
 
+def test_bnab_is_productive_only():
+    df = abstar.generate(30, "IGH", seed=3, preset="bnab")
+    assert df["productive"].all()
+    assert not abstar.generate(30, "IGH", seed=3, preset="bnab", productive_only=False)["productive"].all()
+
+
+def test_core_error_message_has_no_doubled_prefix():
+    with pytest.raises(AbstarError) as e:
+        abstar.generate(5, "IGH", seed=1, mutation="weird:1")
+    assert e.value.message.startswith("bad distribution"), e.value.message
+
+
 def test_invalid_model_file(tmp_path):
     bad = tmp_path / "model.toml"
     bad.write_text("not = [toml")

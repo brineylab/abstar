@@ -13,7 +13,7 @@ df = abstar.generate(1000, "IGH", seed=1)                  # truth table as a Po
 s = abstar.generate(1000, "IGH", seed=1, output_dir="out") # GenerateSummary
 ```
 
-- Without `--seed`, a seed is drawn and printed in the summary (and recorded in `generate.json`). The same seed gives identical output at any thread count.
+- Without `--seed`, a seed is drawn and printed in the summary (and recorded in `generate.json`). When FASTA streams to stdout, it is also printed to stderr first as `seed: N`, even with `-q`. The same seed gives identical output at any thread count.
 - Rerunning into the same OUTPUT_DIR overwrites its files. `generate.json` is deleted first and written last, so a failed rerun cannot look finished.
 
 ## Models
@@ -23,7 +23,7 @@ A recombination model gives gene usage, P(D|J), trims, N lengths and composition
 - Built-in: `human-igh`, `human-igk`, `human-igl`, `human-tra`, `human-trb` (decision 0027). Their values come from published figures, cited in each model's sources (`abstar model info human-igh`).
 - User models: `~/.abstar/models/<name>/model.toml` (`$ABSTAR_HOME/models/`). A user model may not use a built-in name (`BUILTIN_NAME_CONFLICT`, decision 0010).
 - `--model` also takes a path to a `model.toml` or a directory holding one. The format is in decision 0023.
-- `abstar model list` and `abstar model info NAME` show them (Python: `abstar.model.list()`, `abstar.model.info(name)`).
+- `abstar model list` and `abstar model info NAME` show them (Python: `abstar.model.list()`, `abstar.model.info(name)`). A user model that fails to load is still listed, with its error.
 
 A model that does not fit the database (less than 90 % of its V, D or J mass maps to database alleles) is `MODEL_INVALID`. Genes it drops are listed as warnings.
 
@@ -41,12 +41,12 @@ A model that does not fit the database (less than 90 % of its V, D or J mass map
 
 ## Options
 
-- `--mutation`, `--truncate-5p`, `--truncate-3p` take a number or a distribution drawn per read: `fixed:X`, `uniform:LO-HI`, `beta:A,B`. Mutation is the realized V divergence (0-1); truncations are nucleotides cut from each end of the read.
+- `--mutation`, `--truncate-5p`, `--truncate-3p` take a number or a distribution drawn per read: `fixed:X`, `uniform:LO-HI` (`uniform:1e-3-0.1` works), or for mutation only `beta:A,B`. Mutation is the realized V divergence (0-1); truncations are nucleotides cut from each end of the read, so a beta draw (always under 1) is `INVALID_ARGUMENT` for them.
 - `--long-cdr3` is the per-junction probability of drawing the N length from the model's long tail. `--indels` is the per-read probability of one indel (`--frameshift-indels` allows lengths that shift the frame).
 - `--constant INT` appends that many nucleotides of a constant region (Python: `isotype_weights` weights the C genes).
-- `--productive-only` keeps only productive reads; `attempts` in the summary counts the reads simulated. It also turns on selection during mutation, as in real antibodies (decision 0024). A rearrangement must be productive before it is mutated (mutation never repairs one), and a substitution is rejected and redrawn if it would create an in-frame stop codon, or make the Cys104 or Trp/Phe118 codon non-conserved. Without it, mutation is neutral.
+- `--productive-only` keeps only productive reads (`--no-productive-only` turns off a preset's); `attempts` in the summary counts the reads simulated. It also turns on selection during mutation, as in real antibodies (decision 0024). A rearrangement must be productive before it is mutated (mutation never repairs one), and a substitution is rejected and redrawn if it would create an in-frame stop codon, or make the Cys104 or Trp/Phe118 codon non-conserved. Without it, mutation is neutral.
 - Mutation uses abstar's built-in motif model (decision 0024). `--shm-table DIR` uses S5F tables instead (`Mutability.csv`, `Substitution.csv`), which you download yourself; abstar does not bundle them.
-- Mutating with a model whose `shm_model` is `none` (the TCR models) is `INVALID_ARGUMENT`. To mutate TCRs for testing, pass `shm_model="motif"` from Python, or `--shm-table`.
+- Mutating with a model whose `shm_model` is `none` (the TCR models) is `INVALID_ARGUMENT`. To mutate TCRs for testing, pass `shm_model="motif"` from Python, use a model file with `shm_model = "motif"`, or pass `--shm-table DIR`.
 
 ## Grading against truth
 

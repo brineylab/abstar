@@ -212,6 +212,11 @@ impl<'a> Simulator<'a> {
             if t.range().0 < 0.0 {
                 return Err(invalid(format!("{name}: truncation cannot be negative")));
             }
+            if let crate::Spec::Beta(..) = t {
+                return Err(invalid(format!(
+                    "{name}: beta draws fall in [0, 1], under one nucleotide; use a number, fixed:N or uniform:LO-HI"
+                )));
+            }
         }
         let mutates = match p.shm_model.as_deref().unwrap_or(&bound.model.shm_model) {
             "motif" => true,
@@ -221,8 +226,9 @@ impl<'a> Simulator<'a> {
         let table = p.shm_table.as_deref().map(load_s5f_dir).transpose()?;
         if !mutates && table.is_none() && hi > 0.0 {
             return Err(invalid(format!(
-                "mutation up to {hi} was requested, but model '{}' does not mutate (shm_model = \"none\"); \
-                 set shm_model = \"motif\" or supply shm_table to mutate it",
+                "mutation up to {hi} was requested, but model '{}' does not mutate (shm_model = \"none\"). To \
+                 mutate it, pass shm_model=\"motif\" (Python), use a model file with shm_model = \"motif\", or \
+                 give S5F tables with --shm-table DIR (Python: shm_table)",
                 bound.model.name
             )));
         }

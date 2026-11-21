@@ -59,8 +59,11 @@ impl FromStr for Spec {
         match kind.trim() {
             "fixed" => Ok(Spec::Fixed(num(rest)?)),
             "uniform" => {
-                let (a, b) = rest.split_once('-').ok_or_else(bad)?;
-                let (a, b) = (num(a)?, num(b)?);
+                // the `-` between two numbers, so `1e-3-0.1` and `-0.1-0.2` parse
+                let (a, b) = rest
+                    .match_indices('-')
+                    .find_map(|(i, _)| Some((num(&rest[..i]).ok()?, num(&rest[i + 1..]).ok()?)))
+                    .ok_or_else(bad)?;
                 if a > b {
                     return Err(bad());
                 }
