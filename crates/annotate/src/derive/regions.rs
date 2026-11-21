@@ -32,6 +32,10 @@ pub struct Regions {
     pub vdj: (usize, usize),
     /// `sequence_vdjc`: `vdj` through C's end; `None` without C.
     pub vdjc: Option<(usize, usize)>,
+    /// Region index (0..7, FWR1..FWR4) of each read position, for the masks.
+    pub(crate) labels: Vec<Option<usize>>,
+    /// Both CDR3 ends are known (the masks' `cdr_mask` needs it).
+    pub(crate) cdr3_known: bool,
 }
 
 impl Regions {
@@ -117,5 +121,5 @@ pub fn regions(read: &Oriented, v: &VHit, j: Option<(&JHit, &Junction)>, c: Opti
         (Some(s), Some(e)) if s + 3 <= e && e + 3 <= len => Some((s, e + 3)),
         _ => None,
     };
-    Regions { fwr1, cdr1, fwr2, cdr2, fwr3, cdr3, fwr4, junction, frame, vdj: (i0, l.end), vdjc: c.map(|c| (i0, c.end)) }
+    Regions { fwr1, cdr1, fwr2, cdr2, fwr3, cdr3, fwr4, junction, frame, vdj: (i0, l.end), vdjc: c.map(|c| (i0, c.end)), labels: reg, cdr3_known }
 }

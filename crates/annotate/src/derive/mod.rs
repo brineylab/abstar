@@ -1,14 +1,19 @@
 //! IMGT regions, the junction, translation, alignment strings, productivity and the assembled
-//! sequences of an annotated read (record 0032), from its V, J, junction and C calls.
+//! sequences of an annotated read (record 0032), and its per-segment mutations (record 0033) and
+//! masks (record 0034), from its V, J, junction and C calls.
 //!
 //! Coordinates are 0-based half-open on the oriented read. Without a J call (`j` is `None`)
 //! V ends at its alignment's end and the V(D)J region runs to the read's end (ruling A8).
 mod alignment;
+mod masks;
+mod mutations;
 mod productivity;
 mod regions;
 mod translate;
 
 pub use alignment::{alignments, Alignments};
+pub use masks::{masks, Masks};
+pub use mutations::{mutations, SegmentMutations};
 pub use productivity::{productivity, Productivity};
 pub use regions::{regions, Regions};
 pub use translate::{region_aa, translate};

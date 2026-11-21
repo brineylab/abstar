@@ -960,8 +960,8 @@ type = "string"
 nullable = true
 origin = "abstar"
 coordinates = ""
-description = "Region of each base: 1, 2 or 3 in CDR1, CDR2 or CDR3, else 0 (framework). One character per base of sequence_vdj (the V(D)J region only: no constant region bases); null when sequence_vdj is null."
-decision = "0028"
+description = "Region of each base: 1, 2 or 3 in CDR1, CDR2 or CDR3, else 0 (framework). One character per base of sequence_vdj (the V(D)J region only: no constant region bases); null when sequence_vdj is null, or when cdr3's ends are unknown (the V keeps no Cys104 base, or the J allele has no anchor or starts past it)."
+decision = "0034"
 
 [[field]]
 name = "cdr_mask_aa"
@@ -970,7 +970,7 @@ nullable = true
 origin = "abstar"
 coordinates = ""
 description = "The cdr_mask character of each codon's 3rd base (a codon crossing a boundary belongs to the downstream region). One character per codon of sequence_vdj_aa (the V(D)J region only); null when the matching nt mask is null."
-decision = "0028"
+decision = "0034"
 
 [[field]]
 name = "gene_segment_mask"
@@ -979,7 +979,7 @@ nullable = true
 origin = "abstar"
 coordinates = ""
 description = "Origin of each base: V, N, D or J (P nucleotides count as N; an inserted base takes the segment it sits in). Constant region is not represented. One character per base of sequence_vdj (the V(D)J region only: no constant region bases); null when sequence_vdj is null."
-decision = "0028"
+decision = "0034"
 
 [[field]]
 name = "gene_segment_mask_aa"
@@ -988,7 +988,7 @@ nullable = true
 origin = "abstar"
 coordinates = ""
 description = "The gene_segment_mask character of each codon's 3rd base. One character per codon of sequence_vdj_aa (the V(D)J region only); null when the matching nt mask is null."
-decision = "0028"
+decision = "0034"
 
 [[field]]
 name = "nongermline_mask"
@@ -997,7 +997,7 @@ nullable = true
 origin = "abstar"
 coordinates = ""
 description = "1 for N and P nucleotides, inserted bases and bases that differ from the germline (mutations), else 0. One character per base of sequence_vdj (the V(D)J region only: no constant region bases); null when sequence_vdj is null."
-decision = "0028"
+decision = "0034"
 
 [[field]]
 name = "nongermline_mask_aa"
@@ -1006,7 +1006,7 @@ nullable = true
 origin = "abstar"
 coordinates = ""
 description = "1 when any base of the codon is N, P or inserted, or its amino acid differs from the germline translation, else 0. One character per codon of sequence_vdj_aa (the V(D)J region only); null when the matching nt mask is null."
-decision = "0028"
+decision = "0034"
 
 [[field]]
 name = "v_mutations"
@@ -1015,7 +1015,7 @@ nullable = true
 origin = "abstar"
 coordinates = "germline: IMGT-gapped nt position (aa: IMGT codon number)"
 description = "Substitutions in the V bases against the called allele, in germline order, as \"IMGT{pos}:REF>ALT\" (the IMGT-gapped position). Null when there is no V alignment."
-decision = "0028"
+decision = "0033"
 
 [[field]]
 name = "v_mutations_aa"
@@ -1024,7 +1024,7 @@ nullable = true
 origin = "abstar"
 coordinates = "germline: IMGT-gapped nt position (aa: IMGT codon number)"
 description = "Amino acid changes, as \"IMGT{aa_pos}:REF>ALT\" (codon number in the allele), over germline codons whose three bases are all aligned. Null when there is no V alignment."
-decision = "0028"
+decision = "0033"
 
 [[field]]
 name = "v_insertions"
@@ -1033,7 +1033,7 @@ nullable = true
 origin = "abstar"
 coordinates = "germline: IMGT-gapped nt position (aa: IMGT codon number)"
 description = "Insertions in V, as \"IMGT{pos}:ins:BASES\", POS the germline position the inserted bases follow; BASES are the inserted read bases. Placed where it minimizes read-vs-germline mismatches over the segment, leftmost on ties (rulings A17, A18); searched only where indels can occur (V at least 3 nt upstream of Cys104, J at least 3 nt downstream of Trp/Phe118, never in CDR3). The segment mutation lists, counts and frequencies come from this same alignment. Null when there is no V alignment."
-decision = "0028"
+decision = "0033"
 
 [[field]]
 name = "v_deletions"
@@ -1042,7 +1042,7 @@ nullable = true
 origin = "abstar"
 coordinates = "germline: IMGT-gapped nt position (aa: IMGT codon number)"
 description = "Deletions from V, as \"IMGT{pos}:del:BASES\", POS the first deleted germline position; BASES are the deleted germline bases. Placed where it minimizes read-vs-germline mismatches over the segment, leftmost on ties (rulings A17, A18); searched only where indels can occur (V at least 3 nt upstream of Cys104, J at least 3 nt downstream of Trp/Phe118, never in CDR3). The segment mutation lists, counts and frequencies come from this same alignment. Null when there is no V alignment."
-decision = "0028"
+decision = "0033"
 
 [[field]]
 name = "v_mutation_count"
@@ -1051,7 +1051,7 @@ nullable = true
 origin = "abstar"
 coordinates = ""
 description = "Length of v_mutations (indels are not substitutions). Null when v_mutations is null."
-decision = "0028"
+decision = "0033"
 
 [[field]]
 name = "v_mutation_count_aa"
@@ -1060,7 +1060,7 @@ nullable = true
 origin = "abstar"
 coordinates = ""
 description = "Length of v_mutations_aa. Null when v_mutations_aa is null."
-decision = "0028"
+decision = "0033"
 
 [[field]]
 name = "v_mutation_frequency"
@@ -1069,7 +1069,7 @@ nullable = true
 origin = "abstar"
 coordinates = ""
 description = "v_mutation_count divided by the aligned V germline positions, excluding deleted positions. Null when v_mutations is null."
-decision = "0028"
+decision = "0033"
 
 [[field]]
 name = "v_mutation_frequency_aa"
@@ -1078,7 +1078,7 @@ nullable = true
 origin = "abstar"
 coordinates = ""
 description = "v_mutation_count_aa divided by the germline codons counted for v_mutations_aa. Null when that is null or no codon is counted."
-decision = "0028"
+decision = "0033"
 
 [[field]]
 name = "d_mutations"
@@ -1087,7 +1087,7 @@ nullable = true
 origin = "abstar"
 coordinates = "germline: 1-based ungapped allele, as used (reverse-complemented when d_inverted)"
 description = "Substitutions in the D bases against the called allele, in germline order, as \"{pos}:REF>ALT\" (the 1-based position in the called allele as used). Null when there is no D alignment."
-decision = "0028"
+decision = "0033"
 
 [[field]]
 name = "d_mutations_aa"
@@ -1096,7 +1096,7 @@ nullable = true
 origin = "abstar"
 coordinates = "germline: 1-based ungapped allele, as used (reverse-complemented when d_inverted)"
 description = "Amino acid changes, as \"{codon_pos}:REF>ALT\" (codon number in the allele), over germline codons whose three bases are all aligned. Null when there is no D alignment."
-decision = "0028"
+decision = "0033"
 
 [[field]]
 name = "d_insertions"
@@ -1105,7 +1105,7 @@ nullable = true
 origin = "abstar"
 coordinates = "germline: 1-based ungapped allele, as used (reverse-complemented when d_inverted)"
 description = "Insertions in D, as \"{pos}:ins:BASES\", POS the germline position the inserted bases follow; BASES are the inserted read bases. Placed where it minimizes read-vs-germline mismatches over the segment, leftmost on ties (rulings A17, A18); searched only where indels can occur (V at least 3 nt upstream of Cys104, J at least 3 nt downstream of Trp/Phe118, never in CDR3). The segment mutation lists, counts and frequencies come from this same alignment. Null when there is no D alignment."
-decision = "0028"
+decision = "0033"
 
 [[field]]
 name = "d_deletions"
@@ -1114,7 +1114,7 @@ nullable = true
 origin = "abstar"
 coordinates = "germline: 1-based ungapped allele, as used (reverse-complemented when d_inverted)"
 description = "Deletions from D, as \"{pos}:del:BASES\", POS the first deleted germline position; BASES are the deleted germline bases. Placed where it minimizes read-vs-germline mismatches over the segment, leftmost on ties (rulings A17, A18); searched only where indels can occur (V at least 3 nt upstream of Cys104, J at least 3 nt downstream of Trp/Phe118, never in CDR3). The segment mutation lists, counts and frequencies come from this same alignment. Null when there is no D alignment."
-decision = "0028"
+decision = "0033"
 
 [[field]]
 name = "d_mutation_count"
@@ -1123,7 +1123,7 @@ nullable = true
 origin = "abstar"
 coordinates = ""
 description = "Length of d_mutations (indels are not substitutions). Null when d_mutations is null."
-decision = "0028"
+decision = "0033"
 
 [[field]]
 name = "d_mutation_count_aa"
@@ -1132,7 +1132,7 @@ nullable = true
 origin = "abstar"
 coordinates = ""
 description = "Length of d_mutations_aa. Null when d_mutations_aa is null."
-decision = "0028"
+decision = "0033"
 
 [[field]]
 name = "d_mutation_frequency"
@@ -1141,7 +1141,7 @@ nullable = true
 origin = "abstar"
 coordinates = ""
 description = "d_mutation_count divided by the aligned D germline positions, excluding deleted positions. Null when d_mutations is null."
-decision = "0028"
+decision = "0033"
 
 [[field]]
 name = "d_mutation_frequency_aa"
@@ -1150,7 +1150,7 @@ nullable = true
 origin = "abstar"
 coordinates = ""
 description = "d_mutation_count_aa divided by the germline codons counted for d_mutations_aa. Null when that is null or no codon is counted."
-decision = "0028"
+decision = "0033"
 
 [[field]]
 name = "j_mutations"
@@ -1159,7 +1159,7 @@ nullable = true
 origin = "abstar"
 coordinates = "germline: 1-based ungapped allele"
 description = "Substitutions in the J bases against the called allele, in germline order, as \"{pos}:REF>ALT\" (the 1-based position in the called allele). Null when there is no J alignment."
-decision = "0028"
+decision = "0033"
 
 [[field]]
 name = "j_mutations_aa"
@@ -1168,7 +1168,7 @@ nullable = true
 origin = "abstar"
 coordinates = "germline: 1-based ungapped allele"
 description = "Amino acid changes, as \"{codon_pos}:REF>ALT\" (codon number in the allele), over germline codons whose three bases are all aligned. Null when there is no J alignment."
-decision = "0028"
+decision = "0033"
 
 [[field]]
 name = "j_insertions"
@@ -1177,7 +1177,7 @@ nullable = true
 origin = "abstar"
 coordinates = "germline: 1-based ungapped allele"
 description = "Insertions in J, as \"{pos}:ins:BASES\", POS the germline position the inserted bases follow; BASES are the inserted read bases. Placed where it minimizes read-vs-germline mismatches over the segment, leftmost on ties (rulings A17, A18); searched only where indels can occur (V at least 3 nt upstream of Cys104, J at least 3 nt downstream of Trp/Phe118, never in CDR3). The segment mutation lists, counts and frequencies come from this same alignment. Null when there is no J alignment."
-decision = "0028"
+decision = "0033"
 
 [[field]]
 name = "j_deletions"
@@ -1186,7 +1186,7 @@ nullable = true
 origin = "abstar"
 coordinates = "germline: 1-based ungapped allele"
 description = "Deletions from J, as \"{pos}:del:BASES\", POS the first deleted germline position; BASES are the deleted germline bases. Placed where it minimizes read-vs-germline mismatches over the segment, leftmost on ties (rulings A17, A18); searched only where indels can occur (V at least 3 nt upstream of Cys104, J at least 3 nt downstream of Trp/Phe118, never in CDR3). The segment mutation lists, counts and frequencies come from this same alignment. Null when there is no J alignment."
-decision = "0028"
+decision = "0033"
 
 [[field]]
 name = "j_mutation_count"
@@ -1195,7 +1195,7 @@ nullable = true
 origin = "abstar"
 coordinates = ""
 description = "Length of j_mutations (indels are not substitutions). Null when j_mutations is null."
-decision = "0028"
+decision = "0033"
 
 [[field]]
 name = "j_mutation_count_aa"
@@ -1204,7 +1204,7 @@ nullable = true
 origin = "abstar"
 coordinates = ""
 description = "Length of j_mutations_aa. Null when j_mutations_aa is null."
-decision = "0028"
+decision = "0033"
 
 [[field]]
 name = "j_mutation_frequency"
@@ -1213,7 +1213,7 @@ nullable = true
 origin = "abstar"
 coordinates = ""
 description = "j_mutation_count divided by the aligned J germline positions, excluding deleted positions. Null when j_mutations is null."
-decision = "0028"
+decision = "0033"
 
 [[field]]
 name = "j_mutation_frequency_aa"
@@ -1222,7 +1222,7 @@ nullable = true
 origin = "abstar"
 coordinates = ""
 description = "j_mutation_count_aa divided by the germline codons counted for j_mutations_aa. Null when that is null or no codon is counted."
-decision = "0028"
+decision = "0033"
 
 [[field]]
 name = "c_mutations"
@@ -1231,7 +1231,7 @@ nullable = true
 origin = "abstar"
 coordinates = "germline: 1-based ungapped allele"
 description = "Substitutions in the constant region bases against the called allele, in germline order, as \"{pos}:REF>ALT\" (the 1-based position in the called allele). Null when there is no constant region alignment."
-decision = "0028"
+decision = "0033"
 
 [[field]]
 name = "c_mutations_aa"
@@ -1240,7 +1240,7 @@ nullable = true
 origin = "abstar"
 coordinates = "germline: 1-based ungapped allele"
 description = "Amino acid changes, as \"{codon_pos}:REF>ALT\" (codon number in the allele), over germline codons whose three bases are all aligned. Null when there is no constant region alignment."
-decision = "0028"
+decision = "0033"
 
 [[field]]
 name = "c_insertions"
@@ -1249,7 +1249,7 @@ nullable = true
 origin = "abstar"
 coordinates = "germline: 1-based ungapped allele"
 description = "Insertions in constant region, as \"{pos}:ins:BASES\", POS the germline position the inserted bases follow; BASES are the inserted read bases. Placed where it minimizes read-vs-germline mismatches over the segment, leftmost on ties (rulings A17, A18); searched only where indels can occur (V at least 3 nt upstream of Cys104, J at least 3 nt downstream of Trp/Phe118, never in CDR3). The segment mutation lists, counts and frequencies come from this same alignment. Null when there is no constant region alignment."
-decision = "0028"
+decision = "0033"
 
 [[field]]
 name = "c_deletions"
@@ -1258,7 +1258,7 @@ nullable = true
 origin = "abstar"
 coordinates = "germline: 1-based ungapped allele"
 description = "Deletions from constant region, as \"{pos}:del:BASES\", POS the first deleted germline position; BASES are the deleted germline bases. Placed where it minimizes read-vs-germline mismatches over the segment, leftmost on ties (rulings A17, A18); searched only where indels can occur (V at least 3 nt upstream of Cys104, J at least 3 nt downstream of Trp/Phe118, never in CDR3). The segment mutation lists, counts and frequencies come from this same alignment. Null when there is no constant region alignment."
-decision = "0028"
+decision = "0033"
 
 [[field]]
 name = "c_mutation_count"
@@ -1267,7 +1267,7 @@ nullable = true
 origin = "abstar"
 coordinates = ""
 description = "Length of c_mutations (indels are not substitutions). Null when c_mutations is null."
-decision = "0028"
+decision = "0033"
 
 [[field]]
 name = "c_mutation_count_aa"
@@ -1276,7 +1276,7 @@ nullable = true
 origin = "abstar"
 coordinates = ""
 description = "Length of c_mutations_aa. Null when c_mutations_aa is null."
-decision = "0028"
+decision = "0033"
 
 [[field]]
 name = "c_mutation_frequency"
@@ -1285,7 +1285,7 @@ nullable = true
 origin = "abstar"
 coordinates = ""
 description = "c_mutation_count divided by the aligned constant region germline positions, excluding deleted positions. Null when c_mutations is null."
-decision = "0028"
+decision = "0033"
 
 [[field]]
 name = "c_mutation_frequency_aa"
@@ -1294,7 +1294,7 @@ nullable = true
 origin = "abstar"
 coordinates = ""
 description = "c_mutation_count_aa divided by the germline codons counted for c_mutations_aa. Null when that is null or no codon is counted."
-decision = "0028"
+decision = "0033"
 
 [[field]]
 name = "annotation_status"

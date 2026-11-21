@@ -6,7 +6,7 @@ use abstar_annotate::assign::{assign_c, assign_j, call_v, resolve_junction, CHit
 use abstar_generate::{bind, generate_in_memory, load_model, preset, GenerateParams};
 use abstar_germline::Database;
 use abstar_germline::{Allele, Segment};
-use arrow_array::{Array, BooleanArray, Int64Array, ListArray, RecordBatch, StringArray};
+use arrow_array::{Array, BooleanArray, Float64Array, Int64Array, ListArray, RecordBatch, StringArray};
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
@@ -105,6 +105,22 @@ impl Generated {
         let v = a.value(i);
         let s = v.as_any().downcast_ref::<StringArray>().unwrap();
         (0..s.len()).map(|j| s.value(j).to_string()).collect()
+    }
+    pub fn float(&self, name: &str, i: usize) -> Option<f64> {
+        let a = self.col::<Float64Array>(name);
+        a.is_valid(i).then(|| a.value(i))
+    }
+    /// A list<string> cell; `None` when null.
+    pub fn opt_list(&self, name: &str, i: usize) -> Option<Vec<String>> {
+        self.col::<ListArray>(name).is_valid(i).then(|| self.list(name, i))
+    }
+    /// A list<int64> cell; empty when null.
+    pub fn ints(&self, name: &str, i: usize) -> Vec<i64> {
+        let a = self.col::<ListArray>(name);
+        if !a.is_valid(i) {
+            return Vec::new();
+        }
+        a.value(i).as_any().downcast_ref::<Int64Array>().unwrap().values().to_vec()
     }
     pub fn sequence(&self, i: usize) -> &str {
         self.str("sequence", i).unwrap()
