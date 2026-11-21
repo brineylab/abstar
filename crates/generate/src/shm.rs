@@ -219,6 +219,17 @@ pub(crate) fn pick(weights: &[f64], rng: &mut impl Rng) -> usize {
     weights.iter().position(|&w| w > 0.0 && { u -= w; u < 0.0 }).unwrap_or(last)
 }
 
+/// Whether `seq` with `to` at `pos` has a stop codon in the codon holding `pos`, for
+/// codons starting at indices ≡ `frame` (mod 3). A partial codon at either end never is.
+fn makes_stop(seq: &[u8], pos: usize, to: u8, frame: usize) -> bool {
+    let Some(c) = pos.checked_sub((pos + 3 - frame % 3) % 3) else { return false };
+    let Some(codon) = seq.get(c..c + 3) else { return false };
+    let mut codon = [codon[0], codon[1], codon[2]];
+    codon[pos - c] = to;
+    codon.make_ascii_uppercase();
+    matches!(&codon, b"TAA" | b"TAG" | b"TGA")
+}
+
 /// Mutates `seq` in place, one hit at a time, until the realized divergence of the
 /// `v_positions` from their original bases reaches `round(target_v_freq × v_positions.len())`.
 ///
@@ -226,7 +237,11 @@ pub(crate) fn pick(weights: &[f64], rng: &mut impl Rng) -> usize {
 ///   lowercase base is replaced by a lowercase base.
 /// - Positions are picked ∝ the mutability of their 5-mer, recomputed after every hit;
 ///   repeat hits and back-mutations are allowed.
-/// - Safety cap: at most 10 × target hits. A capped run returns with the V divergence
+/// - Stop-codon selection: with `stop_frame = Some(f)`, codons start at indices ≡ f (mod 3)
+///   of `seq`, and a drawn substitution that would leave a complete codon reading TAA, TAG
+///   or TGA is rejected: `seq` is unchanged, nothing is recorded, and a new position and
+///   base are drawn. `None` is neutral (no selection) and draws exactly as before.
+/// - Safety cap: at most 10 × target draws (hits plus rejected draws). A capped run returns with the V divergence
 ///   still below target; the caller, which records realized divergence anyway, detects
 ///   that and emits the warning (this function has no warning channel).
 ///
@@ -237,6 +252,7 @@ pub fn mutate(
     v_positions: &[usize],
     target_v_freq: f64,
     model: &ContextModel,
+    stop_frame: Option<usize>,
     rng: &mut impl Rng,
 ) -> Vec<Mutation> {
     assert_eq!(mutable.len(), seq.len(), "mutable mask length");
@@ -247,15 +263,19 @@ pub fn mutate(
     }
     let weight = |seq: &[u8], i: usize| if mutable[i] { model.at(seq, i).map_or(0.0, |(m, _)| m) } else { 0.0 };
     let mut weights: Vec<f64> = (0..seq.len()).map(|i| weight(seq, i)).collect();
-    let (mut hits, mut diverged) = (Vec::new(), 0);
+    let (mut hits, mut diverged, mut rejected) = (Vec::new(), 0, 0);
     // ponytail: O(len) scan per hit; a Fenwick tree if profiling ever shows it
-    while diverged < target && hits.len() < 10 * target && weights.iter().any(|&w| w > 0.0) {
+    while diverged < target && hits.len() + rejected < 10 * target && weights.iter().any(|&w| w > 0.0) {
         let pos = pick(&weights, rng);
         let (_, subs) = model.at(seq, pos).expect("positive weight implies an ACGT centre");
         let from = seq[pos];
         let mut to = BASES[pick(&subs, rng)];
         if from.is_ascii_lowercase() {
             to = to.to_ascii_lowercase();
+        }
+        if stop_frame.is_some_and(|f| makes_stop(seq, pos, to, f)) {
+            rejected += 1;
+            continue;
         }
         if let Some(o) = v_orig[pos] {
             diverged = diverged + usize::from(to != o) - usize::from(from != o);

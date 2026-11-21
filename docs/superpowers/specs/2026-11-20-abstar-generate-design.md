@@ -185,8 +185,19 @@ alleles lack anchors (see below).
   mutated like any other base. The constant region (if included) is not
   mutated.
 - **TCR:** no mutation by default; it can be set explicitly for testing.
-- **Neutral:** no selection, so stop codons can appear. Productivity is
-  labelled; see below.
+- **Neutral by default:** no selection, so stop codons can appear. Productivity
+  is labelled; see below.
+- **Stop-codon selection when `productive_only` is set:**
+  - A substitution that would create a stop codon in the V reading frame (V
+    start through J end, in the read's V phase) is rejected, and another
+    position and base are drawn. A rejected draw does not count toward the
+    target; the realized-divergence stopping rule and the safety cap still
+    apply.
+  - Frame and junction failures still resample the whole read.
+  - Why: at `bnab` divergence nearly every neutral read has a stop, so
+    filtering neutral reads needed ~220 attempts per read and aborted large
+    runs. Real mutated antibodies are productive because selection removes
+    stops (record 0024).
 
 ## Indels
 

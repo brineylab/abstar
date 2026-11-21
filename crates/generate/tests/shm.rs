@@ -62,7 +62,7 @@ fn realized_v_divergence_hits_target() {
     for (i, &target) in [0.0, 0.05, 0.20, 0.35, 0.50].iter().enumerate() {
         let mut seq = orig.clone();
         let mut rng = ChaCha8Rng::seed_from_u64(100 + i as u64);
-        let muts = mutate(&mut seq, &mutable, &v, target, motif_model(), &mut rng);
+        let muts = mutate(&mut seq, &mutable, &v, target, motif_model(), None, &mut rng);
         let frac = v_divergence(&orig, &seq, &v) as f64 / 300.0;
         assert!(frac >= target - 1e-12 && frac < target + 2.0 / 300.0, "target {target}: {frac}");
         assert_eq!(muts.is_empty(), target == 0.0);
@@ -89,7 +89,7 @@ fn hotspots_mutate_more() {
     let mut rng = ChaCha8Rng::seed_from_u64(42);
     for _ in 0..2000 {
         let mut seq = orig.clone();
-        for m in mutate(&mut seq, &mutable, &v, 0.05, motif_model(), &mut rng) {
+        for m in mutate(&mut seq, &mutable, &v, 0.05, motif_model(), None, &mut rng) {
             hits[m.pos] += 1;
         }
     }
@@ -105,7 +105,7 @@ fn non_mutable_positions_untouched() {
     let mutable: Vec<bool> = (0..330).map(|i| i % 3 != 0).collect();
     let mut seq = orig.clone();
     let mut rng = ChaCha8Rng::seed_from_u64(5);
-    let muts = mutate(&mut seq, &mutable, &v, 0.2, motif_model(), &mut rng);
+    let muts = mutate(&mut seq, &mutable, &v, 0.2, motif_model(), None, &mut rng);
     assert!(!muts.is_empty());
     assert!(muts.iter().all(|m| mutable[m.pos]));
     for i in (0..330).step_by(3) {
@@ -122,7 +122,7 @@ fn non_acgt_bases_untouched_and_case_kept() {
     let v: Vec<usize> = (0..300).collect();
     let mut seq = orig.clone();
     let mut rng = ChaCha8Rng::seed_from_u64(9);
-    let muts = mutate(&mut seq, &[true; 300], &v, 0.5, motif_model(), &mut rng);
+    let muts = mutate(&mut seq, &[true; 300], &v, 0.5, motif_model(), None, &mut rng);
     assert_eq!((seq[10], seq[20]), (b'N', b'R'));
     for (i, b) in seq.iter().enumerate() {
         assert_eq!(b.is_ascii_lowercase(), (100..200).contains(&i), "position {i}");
@@ -138,11 +138,11 @@ fn safety_cap_stops_unreachable_target() {
     let mutable: Vec<bool> = (0..330).map(|i| i >= 300).collect();
     let mut seq = orig.clone();
     let mut rng = ChaCha8Rng::seed_from_u64(4);
-    let muts = mutate(&mut seq, &mutable, &v, 0.1, motif_model(), &mut rng);
+    let muts = mutate(&mut seq, &mutable, &v, 0.1, motif_model(), None, &mut rng);
     assert_eq!(muts.len(), 10 * 30);
     assert_eq!(&seq[..300], &orig[..300]);
     // nothing mutable at all: stops at once
-    let muts = mutate(&mut seq, &[false; 330], &v, 0.1, motif_model(), &mut rng);
+    let muts = mutate(&mut seq, &[false; 330], &v, 0.1, motif_model(), None, &mut rng);
     assert!(muts.is_empty());
 }
 
@@ -153,7 +153,7 @@ fn deterministic_for_seed() {
     let mutable = vec![true; 360];
     let run = |seed: u64| {
         let mut seq = orig.clone();
-        let muts = mutate(&mut seq, &mutable, &v, 0.2, motif_model(), &mut ChaCha8Rng::seed_from_u64(seed));
+        let muts = mutate(&mut seq, &mutable, &v, 0.2, motif_model(), None, &mut ChaCha8Rng::seed_from_u64(seed));
         (seq, muts.iter().map(|m| (m.pos, m.from, m.to)).collect::<Vec<_>>())
     };
     assert_eq!(run(1), run(1));
@@ -214,4 +214,36 @@ fn s5f_dir_round_trip() {
     let e = load_s5f_dir(incomplete.path()).unwrap_err();
     assert_eq!(e.code(), "INVALID_ARGUMENT");
     assert!(e.to_string().contains("Substitution.csv"), "{e}");
+}
+
+#[test]
+fn stop_frame_never_creates_a_stop_and_reaches_target() {
+    let in_frame_stops = |s: &[u8], f: usize| {
+        s[f..].as_chunks::<3>().0.iter().filter(|c| matches!(&c.to_ascii_uppercase()[..], b"TAA" | b"TAG" | b"TGA")).count()
+    };
+    let (mut neutral_stops, mut rejected_any) = (0, false);
+    for seed in 0..50u64 {
+        let f = (seed % 3) as usize;
+        // 300 nt V + 60 nt junction, stop-free in frame f
+        let mut orig = random_seq(360, 1000 + seed);
+        for c in (f..358).step_by(3) {
+            if in_frame_stops(&orig[c..c + 3], 0) > 0 {
+                orig[c] = b'C';
+            }
+        }
+        let v: Vec<usize> = (0..300).collect();
+        let mutable = vec![true; 360];
+        let target = 0.15 + 0.2 * (seed as f64 / 50.0);
+        let mut seq = orig.clone();
+        let muts = mutate(&mut seq, &mutable, &v, target, motif_model(), Some(f), &mut ChaCha8Rng::seed_from_u64(seed));
+        assert_eq!(in_frame_stops(&seq, f), 0, "seed {seed}");
+        let frac = v_divergence(&orig, &seq, &v) as f64 / 300.0;
+        assert!(frac >= target - 0.5 / 300.0 && frac < target + 2.0 / 300.0, "seed {seed}: {frac} vs {target}");
+        // same draws without selection: diverge at the first rejected draw
+        let mut free = orig.clone();
+        let n = mutate(&mut free, &mutable, &v, target, motif_model(), None, &mut ChaCha8Rng::seed_from_u64(seed));
+        rejected_any |= n != muts;
+        neutral_stops += in_frame_stops(&free, f);
+    }
+    assert!(rejected_any && neutral_stops > 50, "selection never engaged: {neutral_stops} neutral stops");
 }

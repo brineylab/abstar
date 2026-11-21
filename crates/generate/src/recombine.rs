@@ -366,7 +366,16 @@ impl<'a> Simulator<'a> {
         if let (Some(model), true) = (self.shm(), target > 0.0) {
             let mutable: Vec<bool> = (0..vdj_len).map(kept).collect();
             let v_pos: Vec<usize> = (0..vdj_len).filter(|&i| mutable[i] && matches!(org[i], Origin::V(_))).collect();
-            mutations = mutate(&mut seq[..vdj_len], &mutable, &v_pos, target, model, rng);
+            // productive_only: purifying selection against stop codons in the V frame
+            // (record 0024). Codons are those of the pre-indel V(D)J, from V's IMGT phase; a
+            // codon an indel later changes is not covered, and a stop there resamples the read.
+            let stop_frame = p.productive_only.then(|| {
+                org.iter().enumerate().find_map(|(i, o)| match *o {
+                    Origin::V(g) => Some((i as i64 - g as i64).rem_euclid(3) as usize),
+                    _ => None,
+                })
+            });
+            mutations = mutate(&mut seq[..vdj_len], &mutable, &v_pos, target, model, stop_frame.flatten(), rng);
             let want = (target * v_pos.len() as f64).round() as usize;
             let got = v_pos.iter().filter(|&&i| seq[i] != germ[i]).count();
             if got < want {

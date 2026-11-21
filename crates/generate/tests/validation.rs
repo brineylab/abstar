@@ -6,7 +6,10 @@ mod common;
 use std::collections::{BTreeSet, HashMap};
 use std::path::Path;
 
-use abstar_generate::{bind, load_model, preset, productivity, replay, seed_for, truth, Bound, Dist, GenerateParams, Simulated, Simulator};
+use abstar_generate::{
+    bind, generate_to_files, load_model, preset, productivity, replay, seed_for, truth, Bound, Dist, GenerateMeta,
+    GenerateParams, Simulated, Simulator,
+};
 use common::oracle;
 use rand::SeedableRng;
 use rand_chacha::ChaCha8Rng;
@@ -238,22 +241,33 @@ fn distribution_recovery() {
     assert!((rate - 0.1).abs() <= 3.0 * se, "inversion rate {rate}");
 }
 
+/// Read `i` under `productive_only`, drawn as the pipeline draws it (attempt `j` is stream
+/// `i × 1000 + j`, at most 1000 attempts), and the number of attempts it took.
+fn productive_read(s: &Simulator, seed: u64, i: usize) -> (Simulated, usize) {
+    (0..1000)
+        .map(|j| s.simulate(&mut ChaCha8Rng::seed_from_u64(seed_for(seed, i as u64 * 1000 + j))))
+        .zip(1..)
+        .find(|(r, _)| productivity(&r.read, &r.origin, &r.v, &r.j).productive)
+        .unwrap_or_else(|| panic!("read {i}: no productive read in 1000 attempts"))
+}
+
+/// The bnab targets hold on productive output (`--preset bnab --productive-only`), the
+/// preset's intended use: real bnAbs are productive. Denominator: productive reads.
 #[test]
 #[ignore = "release only: cargo test -p abstar_generate --release --test validation -- --include-ignored"]
 fn bnab_targets() {
     let b = bound("human-igh");
-    let p = GenerateParams { n: 50_000, seed: 2026, ..preset("bnab").unwrap() };
+    let p = GenerateParams { n: 50_000, seed: 2026, productive_only: true, ..preset("bnab").unwrap() };
     let s = Simulator::new(&b, &p).unwrap();
-    // (V mutation frequency, V-derived base count, CDRH3 aa, productive, has_indel)
-    let reads: Vec<(f64, usize, Option<usize>, bool, bool)> = (0..p.n)
+    // (V mutation frequency, V-derived base count, CDRH3 aa, has_indel, attempts)
+    let reads: Vec<(f64, usize, usize, bool, usize)> = (0..p.n)
         .into_par_iter()
         .map(|i| {
-            let r = sim(&s, p.seed, i);
-            let pr = productivity(&r.read, &r.origin, &r.v, &r.j);
+            let (r, attempts) = productive_read(&s, p.seed, i);
+            let junction = productivity(&r.read, &r.origin, &r.v, &r.j).junction.unwrap();
             let nv = r.origin.iter().filter(|o| matches!(o, abstar_generate::Origin::V(_))).count();
-            // junction_aa drops a trailing partial codon; CDRH3 = junction_aa length − 2
-            let cdr3 = pr.junction.map(|j| j.len() / 3 - 2);
-            (r.v_mutation_frequency, nv, cdr3, pr.productive, !r.indels.is_empty())
+            // CDRH3 = junction_aa length − 2
+            (r.v_mutation_frequency, nv, junction.len() / 3 - 2, !r.indels.is_empty(), attempts)
         })
         .collect();
 
@@ -264,26 +278,41 @@ fn bnab_targets() {
         assert!(f >= lo - 1e-12 && f < hi, "read {i}: V mutation {f} outside [{lo}, {hi}) (nV {nv})");
     }
 
-    let frac = |rows: &[&(f64, usize, Option<usize>, bool, bool)], min: usize| {
-        rows.iter().filter(|r| r.2.unwrap() >= min).count() as f64 / rows.len() as f64
-    };
-    let junction: Vec<_> = reads.iter().filter(|r| r.2.is_some()).collect();
-    let productive: Vec<_> = junction.iter().copied().filter(|r| r.3).collect();
-    let (f24, f35) = (frac(&junction, 24), frac(&junction, 35));
+    let n = p.n as f64;
+    let frac = |min: usize| reads.iter().filter(|r| r.2 >= min).count() as f64 / n;
+    let (f24, f35) = (frac(24), frac(35));
+    let indel = reads.iter().filter(|r| r.3).count() as f64 / n;
+    let attempts = reads.iter().map(|r| r.4).sum::<usize>() as f64 / n;
     eprintln!(
-        "long_cdr3_weight {}: reads with a junction {}: CDRH3 >= 24 aa {f24:.4}, >= 35 aa {f35:.4}; \
-         productive {}: >= 24 {:.4}, >= 35 {:.4}",
-        p.long_cdr3_weight,
-        junction.len(),
-        productive.len(),
-        frac(&productive, 24),
-        frac(&productive, 35)
+        "long_cdr3_weight {}: productive reads {}: CDRH3 >= 24 aa {f24:.4}, >= 35 aa {f35:.4}; \
+         has_indel {indel:.4}; mean attempts {attempts:.2}",
+        p.long_cdr3_weight, p.n
     );
     assert!(f24 >= 0.25 && f35 >= 0.02, "CDRH3 >= 24 aa {f24}, >= 35 aa {f35}");
-
-    let indel = reads.iter().filter(|r| r.4).count() as f64 / p.n as f64;
-    eprintln!("has_indel {indel:.4}");
     assert!((indel - 0.10).abs() <= 0.01, "has_indel {indel}");
+}
+
+/// `--preset bnab --productive-only` through the pipeline: no read hits the attempt limit,
+/// and the attempts per read stay near 1 / (in-frame junction rate).
+#[test]
+#[ignore = "release only: cargo test -p abstar_generate --release --test validation -- --include-ignored"]
+fn bnab_productive_only_attempts() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../python/abstar");
+    let meta = GenerateMeta {
+        abstar_version: "test".into(),
+        germline_db: "human".into(),
+        db_path: root.join("germline_dbs/human"),
+        model_name: "human-igh".into(),
+        model_path: root.join("models/human-igh/model.toml"),
+        preset: Some("bnab".into()),
+    };
+    let p = GenerateParams { n: 5_000, seed: 3, productive_only: true, ..preset("bnab").unwrap() };
+    let dir = tempfile::tempdir().unwrap();
+    let sum = generate_to_files(&bound("human-igh"), &p, dir.path(), "bnab", &[], &meta).unwrap();
+    let mean = sum.attempts as f64 / sum.n as f64;
+    eprintln!("bnab productive_only: {} reads, mean attempts {mean:.2}; warnings {:?}", sum.n, sum.warnings);
+    assert_eq!((sum.n, sum.productive), (5_000, 5_000));
+    assert!(mean < 15.0, "mean attempts {mean}");
 }
 
 #[test]
@@ -303,8 +332,10 @@ fn event_replay_builtin() {
             shm_model: Some("motif".into()), // TCR models do not mutate by default
             ..preset("naive").unwrap()
         };
-        // half the reads with frameshifting and duplicated insertions, half without
-        let on = GenerateParams { frameshift_indels: true, indel_duplication: true, ..base.clone() };
+        // half the reads with frameshifting, duplicated insertions and stop-codon selection
+        // (productive_only), half without
+        let on =
+            GenerateParams { frameshift_indels: true, indel_duplication: true, productive_only: true, ..base.clone() };
         let sims = [Simulator::new(&b, &base).unwrap(), Simulator::new(&b, &on).unwrap()];
         let indels = (0..base.n)
             .into_par_iter()
@@ -348,3 +379,4 @@ fn oracle_agreement_builtin() {
         eprintln!("{name}: 2000 reads agree; {ambiguous} with an ambiguous or unrecoverable V call or V end");
     }
 }
+
