@@ -1,5 +1,5 @@
 //! The assembled annotator end to end (record 0035): `Engine::annotate` on hand-built reads with
-//! exact AIRR values, the status rules, the built-in macaque and mixed-species databases, and
+//! exact AIRR values, the status rules, the built-in mixed-species databases, and
 //! determinism through the run pipeline.
 mod common;
 use abstar_annotate::engine::{Annotate, Engine, EngineOptions};
@@ -228,25 +228,6 @@ fn unassignable_reads() {
     let ig_only = Engine::new(&mouse, &EngineOptions::default()).unwrap();
     let r = ig_only.annotate("t", &tcr);
     assert_eq!((r.annotation_status, r.failure_reason), no_v);
-}
-
-#[test]
-fn macaque_reports_status() {
-    let db = load("macaque");
-    let e = Engine::new(&db, &EngineOptions::default()).unwrap();
-    let v = db.alleles.iter().find(|a| a.name == "IGHV1-105*01").unwrap();
-    assert!(v.anchor.is_none(), "KIMDB gapping: no IMGT Cys104");
-    let j = db.alleles.iter().find(|a| a.segment == Segment::J && a.locus == Locus::IGH && a.anchor.is_some()).unwrap();
-    let read = [v.sequence(), "CCGTATTACGATTTTTGG".into(), j.sequence()].concat();
-    let r = e.annotate("m", &read);
-    assert_eq!((r.annotation_status.as_str(), r.failure_reason.as_deref()), ("unassigned", Some("macaque_not_imgt_gapped")));
-    assert!(r.v_call_ties.as_ref().unwrap().contains(&v.name), "{:?}", r.v_call_ties);
-    assert_eq!((r.v_species.as_deref(), r.locus.as_deref(), r.rev_comp), (Some("macaque"), Some("IGH"), Some(false)));
-    assert_eq!((r.v_sequence_start, r.v_germline_start), (Some(1), Some(1)));
-    assert!(r.v_identity.is_some() && r.v_score.is_some() && r.v_cigar.is_some());
-    // nothing that needs IMGT numbering
-    assert_eq!((r.fwr1.clone(), r.cdr3.clone(), r.junction.clone(), r.cdr_mask.clone()), (None, None, None, None));
-    assert_eq!((r.v_mutations.clone(), r.v_mutation_frequency, r.nongermline_mask.clone()), (None, None, None));
 }
 
 #[test]

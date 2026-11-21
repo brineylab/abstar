@@ -22,7 +22,7 @@ abstar run --seq CAGGTGCAGCTGGTGCAGTCTGGG
 abstar run --seq CAGGTGCAGCTGGTGCAGTCTGGG out/
 
 # Another database, only some loci, a fixed thread count
-abstar run reads.fasta out/ -g macaque --locus IGH --locus IGK --threads 8
+abstar run reads.fasta out/ -g c57bl6 --locus IGH --locus IGK --threads 8
 
 # Machine-readable summary; fail with exit 3 on any record error
 abstar run reads.fasta out/ --json --strict

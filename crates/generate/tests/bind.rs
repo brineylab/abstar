@@ -87,7 +87,7 @@ fn ungapped_v_candidates_rejected() {
     assert_eq!(e.code(), "MODEL_INVALID");
     let s = e.to_string();
     assert!(s.contains("2 of 4 V alleles"), "{e}");
-    assert!(s.contains("IGHV1-2*01") && s.contains("IGHV2-1*01") && s.contains("#137"), "{e}");
+    assert!(s.contains("IGHV1-2*01") && s.contains("IGHV2-1*01"), "{e}");
 }
 
 #[test]

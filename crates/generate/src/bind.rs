@@ -109,7 +109,7 @@ pub fn bind(model: Model, db: &Database) -> Result<Bound, GenerateError> {
         let ex: Vec<&str> = ungapped.iter().take(3).map(|a| a.id.as_str()).collect();
         return Err(GenerateError::ModelInvalid(format!(
             "{} of {} V alleles lack IMGT gaps in their gapped sequence (e.g. {}); the germline database \
-             needs IMGT-gapped V sequences to compute truth sets (macaque: see #137)",
+             needs IMGT-gapped V sequences to compute truth sets",
             ungapped.len(),
             candidates.v.len(),
             ex.join(", ")

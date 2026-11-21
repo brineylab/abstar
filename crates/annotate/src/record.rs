@@ -32,14 +32,6 @@ pub fn failed(id: &str, seq: &str, status: &str, reason: &str) -> Record {
     }
 }
 
-/// A V allele whose gapped sequence follows IMGT numbering. One without `.` gaps does not; nor,
-/// until #137 regaps them, does a macaque V allele without an anchor (KIMDB's gapping puts no
-/// Cys104 at IMGT 310–312).
-// ponytail: species-specific rule; drop the macaque clause once #137 regaps the macaque V genes.
-pub fn imgt_gapped(a: &Allele) -> bool {
-    a.sequence_gapped.contains('.') && !(a.species == "macaque" && a.anchor.is_none())
-}
-
 type Call = (Option<String>, Option<String>, Option<String>, Option<Vec<String>>, Option<Vec<String>>);
 
 /// `<seg>_call`, `_gene`, `_species`, `_call_ties`, `_species_ties` (plain names, record 0007).
@@ -140,18 +132,6 @@ fn with_v(id: &str, seq: &str, read: &Oriented, v: &VHit, alleles: &[Allele]) ->
         ..Default::default()
     };
     (r.v_call, r.v_gene, r.v_species, r.v_call_ties, r.v_species_ties) = call(alleles, v.primary, &v.ties);
-    r
-}
-
-/// A read whose V allele isn't IMGT-gapped (`imgt_gapped`): the V call and its alignment only,
-/// `unassigned` / `macaque_not_imgt_gapped`. Regions, mutations and masks need IMGT numbering.
-pub fn v_only(id: &str, seq: &str, read: &Oriented, v: &VHit, alleles: &[Allele], s: &Scoring) -> Record {
-    let mut r = with_v(id, seq, read, v, alleles);
-    let segs = segments(read, v, None, None, alleles);
-    (r.v_sequence_start, r.v_sequence_end, r.v_germline_start, r.v_germline_end, r.v_cigar, r.v_score, r.v_identity) =
-        span(&read.seq, segs[0].as_ref(), s);
-    r.annotation_status = "unassigned".into();
-    r.failure_reason = Some("macaque_not_imgt_gapped".into());
     r
 }
 

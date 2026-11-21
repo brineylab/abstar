@@ -20,6 +20,11 @@ fn allele(id: &str, locus: Locus, segment: Segment, seq: &str, anchor: Option<us
     }
 }
 
+/// A gapped V sequence with Cys104 (TGT) at gapped 309..312, then `tail`.
+fn cys_seq(tail: &str) -> String {
+    format!("A...{}TGT{tail}", "A".repeat(305))
+}
+
 fn db() -> Database {
     Database {
         manifest: Manifest {
@@ -46,7 +51,7 @@ fn db() -> Database {
             allele("J1", Locus::IGH, Segment::J, "ACGTACGT", Some(2)),
             allele("D1", Locus::IGH, Segment::D, "AC.GT", None),
             {
-                let mut v = allele("V1", Locus::IGH, Segment::V, "ACGTAC..GTAC", Some(3));
+                let mut v = allele("V1", Locus::IGH, Segment::V, &cys_seq("ACGTAC..GTAC"), Some(3));
                 v.usage = Some(0.25);
                 v.functionality = Functionality::Unknown;
                 v
@@ -243,12 +248,12 @@ fn iupac_ambiguity_codes_accepted_and_round_trip() {
     let t = tempfile::tempdir().unwrap();
     let dir = t.path().join("db");
     let mut d = db();
-    d.alleles.push(allele("V2", Locus::IGH, Segment::V, "ACGTS..sRYWKMBDHVnryswkmbdhv", Some(4)));
+    d.alleles.push(allele("V2", Locus::IGH, Segment::V, &cys_seq("ACGTS..sRYWKMBDHVnryswkmbdhv"), Some(4)));
     assert!(validate(&d.alleles).is_ok());
     write(&d, &dir, false).unwrap();
     let loaded = load(&dir).unwrap();
     let v2 = loaded.alleles.iter().find(|a| a.id == "V2").unwrap();
-    assert_eq!(v2.sequence_gapped, "ACGTS..sRYWKMBDHVnryswkmbdhv");
+    assert_eq!(v2.sequence_gapped, cys_seq("ACGTS..sRYWKMBDHVnryswkmbdhv"));
 }
 
 #[test]
@@ -273,4 +278,43 @@ fn load_errors_name_the_directory() {
     let e = load(&dir).unwrap_err();
     assert_eq!(e.code(), "DATABASE_INVALID");
     assert!(e.to_string().contains(&dir.display().to_string()), "{e}");
+}
+
+fn db_with_v(vs: Vec<Allele>) -> Database {
+    let mut d = db();
+    d.alleles = vs;
+    d
+}
+
+/// Gapped V whose gapped 309..312 is `codon`.
+fn gapped_v(id: &str, codon: &str) -> Allele {
+    allele(id, Locus::IGH, Segment::V, &cys_seq("ACGT").replace("TGT", codon), None)
+}
+
+#[test]
+fn ungapped_v_database_refused() {
+    let t = tempfile::tempdir().unwrap();
+    let d = db_with_v(vec![allele("V1", Locus::IGH, Segment::V, "ACGTACGT", None)]);
+    let e = write(&d, &t.path().join("db"), false).unwrap_err().to_string();
+    assert!(e.contains("database t") && e.contains("1 of 1") && e.contains("V1*01") && e.contains("IMGT-gapped"), "{e}");
+}
+
+#[test]
+fn gapped_v_database_needs_95_percent_cys104() {
+    let t = tempfile::tempdir().unwrap();
+    let mut vs: Vec<Allele> = (0..19).map(|i| gapped_v(&format!("V{i}"), "TGT")).collect();
+    vs.push(gapped_v("V19", "AAA"));
+    // 19 of 20 = 95%: accepted, and loads back
+    write(&db_with_v(vs.clone()), &t.path().join("ok"), false).unwrap();
+    load(&t.path().join("ok")).unwrap();
+    vs[18] = gapped_v("V18", "AAA");
+    let e = write(&db_with_v(vs), &t.path().join("bad"), false).unwrap_err().to_string();
+    assert!(e.contains("2 of 20") && e.contains("V18*01") && e.contains("V19*01"), "{e}");
+}
+
+#[test]
+fn database_without_v_alleles_skips_the_gap_check() {
+    let t = tempfile::tempdir().unwrap();
+    let d = db_with_v(vec![allele("J1", Locus::IGH, Segment::J, "ACGT", None)]);
+    write(&d, &t.path().join("db"), false).unwrap();
 }

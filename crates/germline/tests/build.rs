@@ -138,7 +138,10 @@ fn ogrdb_anchor_disagreement_warns_and_keeps_ogrdb() {
 #[test]
 fn missing_anchors_warn_once_per_allele() {
     let tmp = tempfile::tempdir().unwrap();
-    put(tmp.path(), "v.fasta", ">IGHV1-2*01\nCAGGTGCAGCTGGTGCAG\n");
+    // 19 anchored V alleles keep the database above the IMGT-gapped threshold; the 20th has no Cys104
+    let mut v: String = (0..19).map(|i| format!(">IGHV1-{i}*01\n{IGHV4_28_05_GAPPED}\n")).collect();
+    v += &format!(">IGHV1-99*01\n{}AAA{}\n", &IGHV4_28_05_GAPPED[..309], &IGHV4_28_05_GAPPED[312..]);
+    put(tmp.path(), "v.fasta", &v);
     put(tmp.path(), "j.fasta", ">IGHJ1*01\nACGTACGTACGTACGTACGT\n");
     let recipe = put(
         tmp.path(),
@@ -147,15 +150,15 @@ fn missing_anchors_warn_once_per_allele() {
     );
     let r = build(&recipe, &tmp.path().join("db"), &no_dbs(), &opts()).unwrap();
     assert_eq!(r.warnings.len(), 2, "{:?}", r.warnings);
-    let v = r.warnings.iter().find(|w| w.allele == "IGHV1-2*01").unwrap();
-    assert!(v.message.starts_with("V sequence is not IMGT-gapped"), "{}", v.message);
+    let v = r.warnings.iter().find(|w| w.allele == "IGHV1-99*01").unwrap();
+    assert!(v.message.contains("no Cys104"), "{}", v.message);
     let j = r.warnings.iter().find(|w| w.allele == "IGHJ1*01").unwrap();
     assert!(j.message.contains("motif"), "{}", j.message);
 }
 
 fn mixed_setup(dir: &Path, prefixes: &str) -> PathBuf {
-    put(dir, "human_v.fasta", ">IGHV1-2*01\nCAGGTGCAGCTGGTGCAGTCTGGG\n");
-    put(dir, "mouse_v.fasta", ">IGHV1-2*01\nGAGGTCCAGCTGCAACAGTCTGGA\n");
+    put(dir, "human_v.fasta", &format!(">IGHV1-2*01\n{IGHV4_28_05_GAPPED}\n"));
+    put(dir, "mouse_v.fasta", &format!(">IGHV1-2*01\n{IGHV4_28_05_GAPPED}\n"));
     put(
         dir,
         "r.toml",
@@ -210,8 +213,10 @@ fn keep_base(dir: &Path) -> PathBuf {
     put(
         dir,
         "v.fasta",
-        ">IGHV1-2*01\nCAGGTGCAGCTG\n>IGHV1-3*01\nCAGGTCCAGCTT\n>IGHV1-8*01\nCAGGTGCAGCTA\n\
-         >IGKV1-5*01\nGACATCCAGATG\n",
+        &format!(
+            ">IGHV1-2*01\n{g}\n>IGHV1-3*01\n{g}\n>IGHV1-8*01\n{g}\n>IGKV1-5*01\n{g}\n",
+            g = IGHV4_28_05_GAPPED
+        ),
     );
     put(
         dir,
@@ -298,7 +303,7 @@ fn fasta_header_imgt_style() {
     let tmp = tempfile::tempdir().unwrap();
     let recipe = one_v(
         tmp.path(),
-        ">X62106|IGHV1-2*01|Homo sapiens|(F)|V-REGION|...\nCAGGTGCAGCTG\n",
+        &format!(">X62106|IGHV1-2*01|Homo sapiens|(F)|V-REGION|...\n{IGHV4_28_05_GAPPED}\n"),
     );
     let out = tmp.path().join("db");
     build(&recipe, &out, &no_dbs(), &opts()).unwrap();
@@ -357,11 +362,17 @@ fn ungapped_v_gets_no_imgt_position_anchor() {
     // 312+ nt, ungapped, with TGT at offset 309: positions 310-312 are not IMGT positions here
     let v = format!("{}TGT{}", "A".repeat(309), "C".repeat(30));
     assert_eq!(find_v_anchor(&v), None);
+    // and a database of such alleles is refused outright
     let tmp = tempfile::tempdir().unwrap();
     let recipe = one_v(tmp.path(), &format!(">IGHV1-2*01\n{v}\n"));
-    let out = tmp.path().join("db");
-    let r = build(&recipe, &out, &no_dbs(), &opts()).unwrap();
-    assert_eq!(allele(&load(&out).unwrap(), "IGHV1-2*01").anchor, None);
-    assert_eq!(r.warnings.len(), 1, "{:?}", r.warnings);
-    assert!(r.warnings[0].message.starts_with("V sequence is not IMGT-gapped"), "{}", r.warnings[0].message);
+    let e = build(&recipe, &tmp.path().join("db"), &no_dbs(), &opts()).unwrap_err();
+    assert!(e.to_string().contains("not IMGT-gapped"), "{e}");
+}
+
+#[test]
+fn macaque_sources_refused_as_not_imgt_gapped() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../germline-sources");
+    let out = tempfile::tempdir().unwrap();
+    let e = build(&root.join("recipes/macaque.toml"), &out.path().join("db"), &no_dbs(), &opts()).unwrap_err().to_string();
+    assert!(e.contains("database macaque is not IMGT-gapped") && e.contains("IMGT-gapped V sequences are required"), "{e}");
 }

@@ -94,6 +94,8 @@ a single value like `v_call`.
 - **Macaque is deferred.** Until its V genes are regapped (#137), macaque reads
   report `unassigned` / `junction_undefined` (or partial annotation), stated
   in the manual. Regapping is not part of this project.
+  (2026-11-21, record 0036: macaque is no longer shipped. A database whose V
+  genes are not IMGT-gapped is refused at build and load; #137 regaps it.)
 - **TRA/TRD cross-locus rearrangements** (TRAV/DV with TRDJ) are deferred. J
   candidates are constrained to the V's locus.
 

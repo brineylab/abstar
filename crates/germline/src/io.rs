@@ -1,4 +1,4 @@
-use crate::{validate, Allele, Database, GermlineError, Manifest};
+use crate::{validate, validate::check_imgt_gapped, Allele, Database, GermlineError, Manifest};
 use sha2::{Digest, Sha256};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -108,6 +108,7 @@ fn load_dir(dir: &Path) -> Result<Database, GermlineError> {
         .map_err(|e| GermlineError::Invalid(format!("alleles.tsv: {e}")))?;
     let alleles = parse(text)?;
     validate(&alleles)?;
+    check_imgt_gapped(&manifest.name, &alleles)?;
     Ok(Database { manifest, alleles })
 }
 
@@ -128,6 +129,7 @@ pub fn write(db: &Database, dir: &Path, overwrite: bool) -> Result<(), GermlineE
         }
     }
     validate(&db.alleles)?; // never write a file load would reject
+    check_imgt_gapped(&db.manifest.name, &db.alleles)?;
     let staging = sibling(dir, "staging");
     let res = stage_and_swap(db, dir, &staging);
     if res.is_err() {

@@ -79,7 +79,7 @@ In the TSV truth, list columns are comma-joined strings; the Parquet truth keeps
 ## Known limits
 
 - V alleles are compared at their IMGT-gapped positions. A V allele with shifted gapping, such as human IGLV3-2\*03, is compared at the wrong positions and may be missing from or under-counted in truth sets (#138).
-- Macaque is rejected until its V genes are IMGT-gapped (#137). There are no built-in models for TRG, TRD or non-human species.
+- Macaque is not shipped until its V genes are IMGT-gapped (#137). There are no built-in models for TRG, TRD or non-human species.
 - The motif mutation model is a heuristic, not fit to data (decision 0024).
 - The light-chain trims and every TCR and light-chain N composition are fallbacks borrowed from IGH (decision 0027).
 - Models are generation (pre-selection) distributions; `--productive-only` filters reads but does not reweight genes toward a productive repertoire.

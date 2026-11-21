@@ -1,4 +1,4 @@
-use crate::{Allele, BuildWarning, GermlineError, Segment};
+use crate::{anchors::find_v_anchor, Allele, BuildWarning, GermlineError, Segment};
 use std::collections::HashSet;
 
 pub fn validate(alleles: &[Allele]) -> Result<Vec<BuildWarning>, GermlineError> {
@@ -41,4 +41,32 @@ pub fn validate(alleles: &[Allele]) -> Result<Vec<BuildWarning>, GermlineError> 
         }
     }
     Ok(warnings)
+}
+
+/// Share of V alleles that must carry Cys104 at IMGT 310-312 for a database to count as IMGT-gapped.
+const MIN_ANCHORED_V: f64 = 0.95;
+
+/// Refuses a database whose V alleles are not IMGT-gapped (record 0036). The rule is
+/// database-level: a few real alleles lack Cys104 (mutated or partial), most must not.
+pub(crate) fn check_imgt_gapped(name: &str, alleles: &[Allele]) -> Result<(), GermlineError> {
+    let v: Vec<&Allele> = alleles.iter().filter(|a| a.segment == Segment::V).collect();
+    let bad: Vec<&Allele> = v
+        .iter()
+        .copied()
+        .filter(|a| !a.sequence_gapped.contains('.') || find_v_anchor(&a.sequence_gapped).is_none())
+        .collect();
+    let ungapped = v.iter().any(|a| !a.sequence_gapped.contains('.'));
+    if v.is_empty() || (!ungapped && (v.len() - bad.len()) as f64 >= MIN_ANCHORED_V * v.len() as f64) {
+        return Ok(());
+    }
+    let ex: Vec<&str> = bad.iter().take(5).map(|a| a.name.as_str()).collect();
+    Err(GermlineError::Invalid(format!(
+        "database {name} is not IMGT-gapped: {} of {} V alleles lack IMGT gaps or Cys104 (TGT/TGC) at \
+         IMGT 310-312 (at least {:.0}% must have it, and every V allele needs gaps; e.g. {}); \
+         IMGT-gapped V sequences are required",
+        bad.len(),
+        v.len(),
+        MIN_ANCHORED_V * 100.0,
+        ex.join(", ")
+    )))
 }

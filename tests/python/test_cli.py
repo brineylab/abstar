@@ -171,11 +171,11 @@ def _donor(tmp_path):
     abstar("germline", "build", recipe(tmp_path, "base"))
     d = tmp_path / "donor"
     d.mkdir()
-    (d / "genotype.txt").write_text("IGHJ6*03\n")
-    (d / "v.fasta").write_text(">IGHV9-9*01\nCAGGTGCAGCTGGTGCAG\n")
+    (d / "genotype.txt").write_text("IGHJ6*03\nIGHJ9*01\n")
+    (d / "j.fasta").write_text(">IGHJ9*01\nACGTACGTACGTACGTACGT\n")
     (d / "donor.toml").write_text(
         'name = "donor"\nkeep = "genotype.txt"\n[[source]]\ndatabase = "base"\n'
-        '[[source]]\nspecies = "human"\nv_fasta = ["v.fasta"]\n'
+        '[[source]]\nspecies = "human"\nj_fasta = ["j.fasta"]\n'
     )
     return d / "donor.toml"
 
@@ -186,7 +186,7 @@ def test_build_human_output(tmp_path):
     lines = p.stdout.splitlines()
     assert "restricted: IGH/J" in lines
     assert "passed through: IGH/V, IGH/C" in lines
-    assert "warning: IGHV9-9*01: V sequence is not IMGT-gapped" in p.stderr
+    assert "warning: IGHJ9*01: no J Trp/Phe118 motif" in p.stderr
     assert "{" not in p.stderr
 
 
@@ -218,7 +218,7 @@ def test_info_shows_manifest(tmp_path):
     assert len(d["alleles_sha256"]) == 64 and d["provenance"] and d["warnings"]
     p = abstar("germline", "info", "donor")
     assert p.returncode == 0
-    for s in (d["built"], d["abstar_version"], d["alleles_sha256"], "provenance", "IGHV9-9*01: V sequence is not IMGT-gapped"):
+    for s in (d["built"], d["abstar_version"], d["alleles_sha256"], "provenance", "IGHJ9*01: no J Trp/Phe118 motif"):
         assert s in p.stdout, s
 
 

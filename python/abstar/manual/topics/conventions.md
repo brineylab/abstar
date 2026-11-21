@@ -34,7 +34,6 @@ Every input record produces exactly one output row. Records are never dropped, s
 | `no_v_hit` | No V gene on either strand (random sequence, adapters, a locus the database lacks). | none |
 | `no_j_hit` | A V gene but no J gene, for example a read that ends inside CDR3. | the V call, V coordinates, FWR1–FWR3 (and the partial CDR3), V mutations, `sequence_vdj` to the read's end, `gene_segment_mask` and `nongermline_mask`; `cdr_mask` only when V reaches the Cys104 codon. These regions run to the read's end, so the partial CDR3, `cdr_mask` and `sequence_vdj` can include J or C bases the J search missed. |
 | `junction_undefined` | V and J found, but a junction anchor (the Cys104 or Trp/Phe118 codon) is missing or truncated. | every call and every region the read covers; `junction` is null |
-| `macaque_not_imgt_gapped` | The V allele's gaps don't follow IMGT numbering (most built-in macaque IGH V genes, until #137; or a custom database without IMGT gaps). Regions, mutations and masks need IMGT numbering. | `rev_comp`, `locus`, the V call and its alignment |
 
 `annotated` records have a junction. Filtering on `annotation_status == "annotated"` keeps only fully annotated rearrangements.
 

@@ -2,7 +2,7 @@
 use crate::align::Scoring;
 use crate::assign::{assign_c, assign_j, call_v, resolve_junction, SegmentIndex};
 use crate::error::RunError;
-use crate::record::{assemble, failed, imgt_gapped, invalid_input, v_only};
+use crate::record::{assemble, failed, invalid_input};
 use crate::schema::Record;
 use crate::stub::annotate_stub;
 use abstar_germline::{Allele, Database, Locus, Segment};
@@ -52,9 +52,6 @@ impl Annotate for Engine<'_> {
         let Some((read, v)) = call_v(seq.as_bytes(), a, &self.v, &self.j, s) else {
             return failed(id, seq, "unassigned", "no_v_hit");
         };
-        if !imgt_gapped(&a[v.primary]) {
-            return v_only(id, seq, &read, &v, a, s);
-        }
         let mut j = assign_j(&read, &v, a, &self.j, s);
         // C first: it may cut J's end back (record 0030), and the junction step uses that end
         let c = j.as_mut().and_then(|j| assign_c(&read, j, a, &self.c, s));

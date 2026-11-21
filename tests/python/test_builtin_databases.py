@@ -6,14 +6,14 @@ from pathlib import Path
 import pytest
 
 from abstar import _core, germline
+from abstar.errors import AbstarError
 
 LEGACY = Path(__file__).parents[2] / "legacy" / "abstar" / "germline_dbs"
-DATABASES = ["balbc", "c57bl6", "human", "human+c57bl6", "macaque"]
+DATABASES = ["balbc", "c57bl6", "human", "human+c57bl6"]
 LEGACY_SOURCES = {
     "human": ["bcr/human", "tcr/human"],
     "c57bl6": ["bcr/c57bl6"],
     "balbc": ["bcr/balbc"],
-    "macaque": ["bcr/macaque"],
     "human+c57bl6": ["bcr/human+c57bl6"],
 }
 SUFFIX_SPECIES = {"homo_sapiens": "human", "mus_musculus": "mouse"}
@@ -45,7 +45,6 @@ def test_builtin_names():
         ("human", {"V": 588, "D": 37, "J": 109, "C": 124}),
         ("c57bl6", {"V": 196, "D": 8, "J": 22, "C": 35}),
         ("balbc", {"V": 265, "D": 10, "J": 22, "C": 35}),
-        ("macaque", {"V": 1071, "D": 52, "J": 28, "C": 46}),
         ("human+c57bl6", {"V": 538, "D": 39, "J": 45, "C": 138}),
     ],
 )
@@ -102,3 +101,8 @@ def test_builtins_load(db):
     s = _core.germline_summary(str(germline.info(db).path))
     assert s["name"] == db
     assert s["n_alleles"] == sum(s["counts"].values()) > 0
+
+
+def test_macaque_is_not_builtin():
+    with pytest.raises(AbstarError, match="no germline database 'macaque'"):
+        germline.resolve("macaque")
