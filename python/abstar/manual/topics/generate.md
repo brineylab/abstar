@@ -68,7 +68,7 @@ abstar.grade(truth, abstar.run("bench/generated.fasta"))
 ```
 
 Grading rules:
-- A segment's fields count only for reads where that segment is recoverable (`not unrecoverable_<seg>`). An empty `_valid` list (the segment left no base in the read) accepts only the true allele, or a null boundary.
+- A segment's fields count only for reads where that segment is recoverable (`not unrecoverable_<seg>`). An empty `_valid` list means the read holds no base of that segment, so only a null call (or null boundary) is correct; a null `d_call` is also correct when `d_call_null_valid` is T.
 - `junction`, `junction_aa`, `productive`, `vj_in_frame` and `stop_codon` are exact matches, scored on reads where V and J are recoverable.
 - Regions, masks, `<seg>_mutations*` and indels are scored only where the primary call equals the true allele (regions: V, plus J for CDR3 and FWR4; masks: every segment present).
 - Mutation and indel lists are compared after restricting both to the germline positions inside the intersection of the two `<seg>_germline_start`..`end` spans. Counts and frequencies are recomputed from the restricted lists. V positions are mapped through the IMGT gapping of `germline_db` (default `human`; pass `germline_db=` for another database).

@@ -49,7 +49,14 @@ def grade(truth: "pl.DataFrame", calls: "pl.DataFrame", germline_db: str = "huma
 
     Subsets are "all" plus each truth difficulty flag that is true for a row. A field absent
     from `calls` (or `truth`) is reported with n == 0. `germline_db` supplies the IMGT gapping
-    that V mutation positions need for the shared-span rule.
+    that V mutation positions need for the shared-span rule (a V allele missing from it leaves
+    the V span unrestricted).
+
+    Rules worth knowing: an empty `<seg>_call_valid` makes only a null call correct;
+    `gene_segment_mask` may differ from truth only at read positions the `_valid` boundary lists
+    leave open, and the other masks are compared only where both gene masks agree; aa mutation
+    spans for D/J/C are conservative (a codon must lie inside the span for any frame offset),
+    since truth carries no frame offset.
     """
     import polars as pl
 
@@ -72,12 +79,11 @@ def grade(truth: "pl.DataFrame", calls: "pl.DataFrame", germline_db: str = "huma
         def f(t, c):
             if not ok(t, seg):
                 return None
-            v = c.get(f"{seg}_call")
-            if v is None:
-                return bool(t.get("d_call_null_valid")) if seg == "d" else False
-            valid = t.get(f"{seg}_call_valid")
-            # An empty valid list means the segment left no base in the read; only the true allele is then known.
-            return v in valid if valid else v == t.get(f"{seg}_call")
+            v, valid = c.get(f"{seg}_call"), t.get(f"{seg}_call_valid")
+            if v is None and seg == "d" and t.get("d_call_null_valid"):
+                return True
+            # An empty valid set means the read holds no base of the segment: only a null call is correct.
+            return v is None if not valid else v in valid
         return f
 
     def boundary_fn(col, seg):

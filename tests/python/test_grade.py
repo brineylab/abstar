@@ -71,7 +71,14 @@ def test_subsets():
 
 def test_grade_round_trip():
     truth = abstar.generate(500, "IGH", seed=1)
-    g = abstar.grade(truth, truth).filter(pl.col("n") > 0)
+    # Truth carries the generative allele even when the read holds no base of the segment (empty
+    # _valid); there only a null call is correct, so those rows are nulled in the "calls".
+    calls = truth
+    for seg in "vdj":
+        empty = pl.col(f"{seg}_call_valid").list.len() == 0
+        print(f"{seg}: {truth.filter(empty).height} rows with an empty valid set excluded")
+        calls = calls.with_columns(pl.when(empty).then(None).otherwise(pl.col(f"{seg}_call")).alias(f"{seg}_call"))
+    g = abstar.grade(truth, calls).filter(pl.col("n") > 0)
     boundary = {"v_sequence_end", "d_sequence_start", "d_sequence_end", "j_sequence_start"}
     assert g.height > 100
     for r in g.filter(pl.col("subset") == "all").iter_rows(named=True):
