@@ -185,11 +185,40 @@ pub fn assign_j(read: &Oriented, v: &VHit, alleles: &[Allele], j: &SegmentIndex,
     let holds_anchor = |k: usize, a: &Alignment| alleles[j.ids[k]].anchor.is_some_and(|w| a.g_start <= w && w + 3 <= a.g_end);
     let weak_s = Scoring { mismatch: WEAK_MISMATCH, ..*scoring };
     // what a non-strong call must satisfy, on the projecting cut and again on the reported one
+    // A fallback's evidence must lie past V: its cut's score (±2 scale, gaps at their cost) over
+    // read bases after V's alignment end must reach the path's floor, so V's own 3' bases (the
+    // search starts `OVERLAP` before V's end) never call a J (Wave 3 fix round 1)
+    let past_v = |a: &Alignment| {
+        let (mut qi, mut sc) = (from + a.q_start, 0i32);
+        for &(op, n) in &a.ops {
+            let past = qi >= v.aln.q_end;
+            match op {
+                Op::Match | Op::Mismatch => {
+                    for x in 0..n as usize {
+                        if qi + x >= v.aln.q_end {
+                            sc += if op == Op::Match { 2 } else { -2 };
+                        }
+                    }
+                    qi += n as usize;
+                }
+                Op::Ins | Op::Del => {
+                    if past {
+                        sc += scoring.gap_open as i32 + (n as i32 - 1) * scoring.gap_extend as i32;
+                    }
+                    if op == Op::Ins {
+                        qi += n as usize;
+                    }
+                }
+            }
+        }
+        sc
+    };
+    let smin = short_min(j, &ks, locus);
     let guard = |path: Path, k: usize, a: &Alignment| match path {
         Path::Strong => true,
-        Path::Weak => a.score >= WEAK_MIN_SCORE && holds_anchor(k, a) && bounded(k, a),
-        Path::Tail => bounded(k, a),
-        Path::Low => a.score >= LOW_MIN_SCORE && a.ops.iter().all(|o| matches!(o.0, Op::Match | Op::Mismatch)) && bounded(k, a),
+        Path::Weak => a.score >= WEAK_MIN_SCORE && holds_anchor(k, a) && bounded(k, a) && past_v(a) >= WEAK_MIN_SCORE,
+        Path::Tail => bounded(k, a) && past_v(a) >= 2 * smin,
+        Path::Low => a.score >= LOW_MIN_SCORE && a.ops.iter().all(|o| matches!(o.0, Op::Match | Op::Mismatch)) && bounded(k, a) && past_v(a) >= LOW_MIN_SCORE,
     };
     let finish = |path: Path, mut k: usize, mut aln: Alignment| -> Option<JHit> {
         let recut = |k: usize| match path {
@@ -250,7 +279,7 @@ pub fn assign_j(read: &Oriented, v: &VHit, alleles: &[Allele], j: &SegmentIndex,
         .iter()
         .filter_map(|&k| tail_aln(q, &j.seqs[k], scoring).map(|t| (k, t)))
         .reduce(|a, b| if b.1 .0 > a.1 .0 { b } else { a })
-        .filter(|(k, (bs, a))| *bs >= short_min(j, &ks, locus) && bounded(*k, a));
+        .filter(|(k, (bs, a))| *bs >= smin && guard(Path::Tail, *k, a));
     // The better-supported candidate goes first, on the ±2 scale (a fragment's matches minus
     // mismatches, doubled); the other is the fallback when the first fails its guard after the
     // record 0008 pick.

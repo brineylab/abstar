@@ -126,7 +126,7 @@ New abstar, subset `all`, fix round 1 → Wave 3 (5,000 reads per set; bold is a
 - **The other nine sets are unchanged** on every listed field.
 - **Real losses.** The only ones are the igh_bnab_c reads above: 1–2 reads per cell, at most −0.047 pp, plus C call 4,956 → 4,954. In each, a B1 fragment at the new threshold now goes before the weak J.
 - **J by J nt left on igh_truncated** (< 10 / 10–14 / 15–19 / ≥ 20): 7.5 / 73.7 / 96.9 / 99.7 → 30.4 / 90.9 / 99.2 / 99.7. IgBLAST: 39.3 / 78.8 / 91.6 / 98.9.
-- **Reads truncated before J** (the watch case). 4 of the 54 igh_truncated reads whose truth holds no J base now get a J (1 after Wave 2). Junctions reported where truth has none went from 4 to 6. A read ending in N/D bases (the NP test read) still gets no J at any truncation point.
+- **Reads truncated before J** (the watch case). 4 of the 54 igh_truncated reads whose truth holds no J base now get a J (1 after Wave 2). Junctions reported where truth has none went from 4 to 6. At these thresholds the NP test read, which ends in N/D bases, got no J at any truncation point. With the low path (below), 6 of its 33 truncation points get one, those whose tail matches an IGH J 5′ end with at least 3 net matches.
 - **Reads with a J call but no junction** (12 sets plus corpus): 2,187 → 2,360. The rise is all in igh_truncated (622 → 791, short fragments ending before Trp118), plus igh_bnab 31 → 34 and igh_bnab_c 23 → 24.
 - **Random-tail null** (per 100k, 250-nt / 1–150-nt tails after the full V), accepted by the ruling:
 
@@ -188,6 +188,11 @@ New abstar, subset `all`, Wave 3 thresholds → with the low path. The other ele
   | TRB | 7,349 / 10,539 | 7,352 / 13,861 |
 
 - **Speed** (benchmark run): 3.54 s for the 9 generated sets (12,700 reads/s); 2.82 s for the corpus (17,700 reads/s).
+- **Review fix round 1 (same day).**
+  - **The leak.** The J search starts 10 nt before V's end, so a fallback could call a J from V's own 3′ bases. Over all 588 human V alleles with nothing after V, whole and cut back 1–12 nt, 178 + 2,983 reads got such a J (32 + 118 before the low path, from the weak J and B1). Those reads lost a V base and changed status.
+  - **The fix.** Each fallback's cut must now reach its floor on read bases past V's end alone: weak J 12, B1 2 × 8 (±2 scale), low path 6. Those V-only reads now get no J.
+  - **Effect on the benchmark.** No cell of the 12 sets or the gate moved, and no corpus read changed.
+  - **Random tails.** 309 of the 1,000 V + random 1–120-nt tails in `missing_j_is_none` get a J (314 before). Null per 100k (250 / 1–150-nt tails): IGH 2,132 / 28,885; IGK 2,958 / 37,423; IGL 4,070 / 31,091; TRA 13,777 / 35,329; TRB 7,185 / 13,439.
 
 ## Final-review fix wave (2026-11-21)
 

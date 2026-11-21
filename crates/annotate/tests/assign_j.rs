@@ -106,7 +106,7 @@ fn missing_j_is_none() {
     }
     assert_eq!(below, 27);
     // V followed by random bases of 1-120 nt. The random-tail rate is reported, not a bound: the
-    // user accepts false J calls on junk after a V (record 0029, Wave 3). 314 of these 1,000 get a
+    // user accepts false J calls on junk after a V (record 0029, Wave 3). 309 of these 1,000 get a
     // J (11 in Wave 2, 64 before the low path); the cap only catches a gross change.
     let called: Vec<String> = (0..1000u64)
         .into_par_iter()
@@ -215,14 +215,55 @@ fn low_path_calls_a_short_fragment() {
 
 #[test]
 fn short_fragment_needs_read_end_and_a_bounded_junction() {
-    // B1 is anchored at the read's 3' end, and the junction it implies must be at most 180 nt.
-    // The non-J bases after the fragment mismatch the J's continuation at every base, so the weak
-    // path cannot reach the Trp118 codon either. The low path's junction bound rejects both too.
+    // Case 1, rejected by score: a 12-nt J fragment followed by 10 bases that mismatch the J's
+    // continuation at every base. Every alignment runs to the read's or the J's end, so the cut
+    // carries those 10 mismatches: B1 needs the fragment at the read's end, the weak J cannot
+    // reach Trp118, and the low path's cut scores 24 - 20 = 4 < 6.
     let r = human();
     let (v, j) = (ungapped(r, "IGHV3-23*01"), ungapped(r, "IGHJ4*02"));
     let other: Vec<u8> = j[12..22].iter().map(|&b| transversion(b)).collect();
     assert!(r.call_j(&[&v[..], NP, &j[..12], &other].concat()).is_none(), "fragment not at the read end");
+    // Case 2, rejected by the junction bound alone: an exact 14-nt fragment at the read's end
+    // scores enough for B1 (14) and the low path (28), and is called after NP; after 200 random
+    // bases its implied junction is over 180 nt and every path refuses it.
+    assert!(r.call_j(&[&v[..], NP, &j[..14]].concat()).is_some(), "control: the fragment's score suffices");
     assert!(r.call_j(&[&v[..], &rand_seq(200, 3), &j[..14]].concat()).is_none(), "implied junction over 180 nt");
+}
+
+/// Benchmark igh_truncated g1554 (IGHV5-10-1*03, the read ends in N/D: no true J base).
+const TRUNC_G1554: &str = "AGGTGAAAGAGCCCGGGGAGTCTCTGAGGATCTCCTGTAAGGGTTCTGGATACAGCTTCACCAGCTACTGGATCCGGTGGGTGTGCCAGATGTCCGGGAAAGGCCTGGAGTGGATGGGGAGGATTGGTCCTAGTGACTCTTACACCAACTACAGCCCGTCCTTCCAAGGCCACGTCACCATCTCAGCTGACTAGTCAATCAGCACTGTCTACCTACAGTGGAGTAGCCTGAAGGCCTCGGACACCGCCATGTATCACTGTGTGAGAGGGATCCGATATAATTGGACCGACCTTTGGGGGGGGACCAG";
+
+#[test]
+fn low_path_needs_a_gapless_cut() {
+    // Record 0029, Wave 3: the low path takes only gapless cuts. This read's best normal cut is
+    // IGHJ5*02 `13M5I3M` (a chance match in N/D bases, truth has no J); without the gapless guard
+    // it would be called. Measured on igh_truncated, the guard changes 6 calls (3 right, 3 wrong).
+    let r = human();
+    assert!(r.call_j(TRUNC_G1554.as_bytes()).is_none());
+}
+
+#[test]
+fn v_only_reads_get_no_j() {
+    // Wave 3 fix round 1: the J search starts 10 nt before V's end, so a fallback could call a J
+    // from V's own 3' bases. Every fallback's evidence must now lie past V's end. Every human V
+    // allele, whole and cut back 1-12 nt, with nothing after it: no J (178 + 2,983 of these reads
+    // got one before the fix).
+    let r = human();
+    let reads: Vec<Vec<u8>> = r
+        .alleles
+        .iter()
+        .filter(|a| a.segment == Segment::V)
+        .flat_map(|a| {
+            let s = a.sequence().into_bytes();
+            (0..=12usize).filter(|&c| s.len() > c + 60).map(|c| s[..s.len() - c].to_vec()).collect::<Vec<_>>()
+        })
+        .collect();
+    assert!(reads.len() > 7000, "{}", reads.len());
+    let called: Vec<String> = reads
+        .par_iter()
+        .filter_map(|read| r.call_j(read).map(|h| format!("{} len {}: {} {:?}", r.alleles[r.call(read).unwrap().1.primary].name, read.len(), r.alleles[h.primary].name, h.aln)))
+        .collect();
+    assert!(called.is_empty(), "{} V-only reads got a J: {:?}", called.len(), &called[..called.len().min(5)]);
 }
 
 #[test]

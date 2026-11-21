@@ -385,8 +385,22 @@ On reads with a single true V indel where the primary is the true allele, the pl
   - **Tests.**
     - `missing_j_is_none` now pins the boundary: a read ending in N/D bases (V + every prefix of NP) gets a J exactly when its tail, laid on some IGH J allele's 5′ end, scores ≥ 6. 27 of the 33 prefixes stay below that and get no J.
     - `low_path_calls_a_short_fragment`: an exact 7-nt IGHJ4\*02 fragment, below B1, is called IGHJ4\*02 at its true position.
-    - The junction-bound rejection test covers the low path too.
+    - The rejection test refuses a fragment followed by non-J bases by score (the cut must run through them) and an exact fragment after 200 random bases by the junction bound alone (fix round 1 below).
     - The tail after V in the `no_j_hit` field tests is now `AACCAACCAA`, which matches no J at the floor. `CCGTATTACG` now gets IGHJ6\*02.
   - **Null and gate:** see the Wave 3 note in the benchmark report. Floors regenerated: 12 rose, none fell.
   - **New constant:** `LOW_MIN_SCORE` = 6.
+- **2026-11-21 (Wave 3, review fix round 1): fallback evidence must lie past V.**
+  - **The leak.** The J search starts `OVERLAP` = 10 nt before V's end, and no fallback required its cut to reach past V. Over all 588 human V alleles with nothing after V, a J was called on:
+    - 178 of 588 whole-V reads (32 before the low path);
+    - 2,983 of 7,056 reads cut back 1–12 nt (118 before).
+
+    Every one of those J starts inside the V alignment. The joint step then took a V base for J and changed the read's status, e.g. IGHV1-18\*01 minus 4 nt: `no_j_hit` with V `292M` became `junction_undefined` with V `291M1S` and J IGHJ2\*01 `291S14N1M`.
+  - **Fix.** Each fallback's cut must reach the path's floor counting only read bases past V's alignment end: score on the ±2 scale, gaps at their cost. The floors are weak J 12, B1 2 × `short_min`, low path 6.
+    - The check is part of each path's guard, so it holds on the projecting cut and on the alignment reported after the record 0008 pick. That is JHit's alignment; the joint V/D/J step can still move the J start afterwards.
+    - "The cut starts at or after V's end" measured the same on the 12 sets, the gate sets and the corpus. The score form was chosen as the more permissive.
+  - **Effect.** No J on any of those 7,644 V-only reads. No benchmark cell, gate cell or corpus read changed. 309 of `missing_j_is_none`'s 1,000 random tails get a J (314 before).
+  - **Tests.**
+    - `v_only_reads_get_no_j`: every human V allele, whole and cut back 1–12 nt, gets no J. It fails before the fix (3,161 calls).
+    - `low_path_needs_a_gapless_cut`: igh_truncated g1554, whose best cut is a gapped chance match `13M5I3M` in N/D bases (truth has no J), gets no J; without the gapless guard it would get IGHJ5\*02. On igh_truncated the guard changes 6 calls, 3 right and 3 wrong.
+    - `short_fragment_needs_read_end_and_a_bounded_junction` now separates its two cases. The first is refused by score. The second, an exact 14-nt fragment after 200 random bases, is refused by the junction bound alone: the same fragment after NP is called (control).
 
