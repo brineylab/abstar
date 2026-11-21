@@ -103,7 +103,8 @@ def _legacy_item(col, x):
 
 
 def load(tool, path, truth):
-    """Tool output -> frame with truth's column names and dtypes; calls reduced to their first allele."""
+    """Tool output -> frame with truth's column names and dtypes; calls reduced to their first allele (legacy's
+    `__homo_sapiens` tag stripped; `legacy_naming` reports the as-shipped effect)."""
     df = pl.read_csv(path, separator="\t", infer_schema_length=0, quote_char=None) if path.suffix == ".tsv" else pl.read_parquet(path)
     cols = [pl.col("sequence_id").cast(pl.String)]
     for c in df.columns:
@@ -114,6 +115,8 @@ def load(tool, path, truth):
             s = pl.when(s == "").then(None).otherwise(s)
         if c in CALLS:
             s = s.str.split(",").list.first()
+            if tool == "legacy":  # legacy's FASTA names carry a species tag it sometimes leaves on calls
+                s = s.str.replace(r"__.*$", "")
         elif dt == pl.List(pl.String) and df.schema[c] == pl.String:  # legacy '|'-joined lists
             seg_call = pl.col(f"{c[0]}_call")
             s = (pl.when(s.is_null() & seg_call.is_not_null()).then(pl.lit([], pl.List(pl.String)))
@@ -229,8 +232,8 @@ def shortfalls(name, truth, path, seqs):
             seg = f[0] if f[1] == "_" else None
             if c.get("failure_reason") == "no_j_hit" and f not in ("v_call", "v_sequence_end"):
                 jl = (t["j_sequence_end"] or 0) - (t["j_sequence_start"] or 1) + 1
-                cls = ("no J hit: J below the score floor (< 20 J nt left)" if jl < 20 else
-                       "no J hit: heavy mutation" if t["high_mutation"] else "no J hit: other")
+                cls = ("no J hit: < 20 J nt left, below the floor and the short-fragment rule (B1)" if jl < 20 else
+                       "no J hit: heavy mutation" if t["high_mutation"] else "no J hit: >= 20 J nt, mutated below the floor")
             elif seg == "d":
                 ve = [x for x in (t["v_sequence_end"], c.get("v_sequence_end")) if x]
                 js = [x for x in (t["j_sequence_start"], c.get("j_sequence_start")) if x]
