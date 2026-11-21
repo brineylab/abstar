@@ -198,36 +198,21 @@ pub(crate) fn fill(r: &mut TruthRecord, s: &Simulated) {
         }
     }
 
-    // per-segment indels at their leftmost equivalent placement (VCF-style, against the
-    // unmutated germline: the left end of `equiv`), kept where the base to their left is
-    // still of the same segment and in the read. Listed only with a read base on both sides.
-    // That placement fixes the segment's alignment (below); an insertion's bases are the read
-    // bases it sets aside there.
-    let (mut ins, mut del): ([Vec<String>; 4], [Vec<String>; 4]) = Default::default();
-    // (ungapped germline index, length) of each deletion, and (read index, length) of each
-    // insertion, at the left-normalized placement
-    let mut del_at: [Vec<(usize, usize)>; 4] = Default::default();
-    let mut ins_at: [Vec<(usize, usize)>; 4] = Default::default();
+    // per-segment indels with a read base on both sides, at their generated placement, left to right:
+    // (insertion?, read index of the first inserted base or ungapped germline index of the first
+    // deleted base, length). Truth moves each (below).
+    let mut placed: [Vec<(bool, usize, usize)>; 4] = Default::default();
     let t5 = s.truncate_5;
-    for x in &s.indels {
+    let mut events: Vec<_> = s.indels.iter().collect();
+    events.sort_by_key(|x| x.read_pos);
+    for x in events {
         let is_ins = x.kind == IndelKind::Ins;
         let after = x.read_pos + if is_ins { x.len } else { 0 }; // first base after it
         if x.read_pos <= t5 || after >= t5 + read.len() {
             continue;
         }
         let Some((k, _)) = seg_of(o[after - t5]) else { continue };
-        let first = t5 + o.iter().position(|&y| seg_of(y).is_some_and(|y| y.0 == k)).expect("segment base");
-        let shift = x.read_pos - x.equiv.0.max(first + 1);
-        let g = germ[k].as_ref().expect("segment allele");
-        if is_ins {
-            let i = x.read_pos - shift - t5;
-            ins_at[k].push((i, x.len));
-            ins[k].push(format!("{}:ins:{}", label(k, x.germline_pos - 1 - shift), text(&read[i..i + x.len])));
-        } else {
-            let u = x.germline_pos - shift;
-            del_at[k].push((u, x.len));
-            del[k].push(format!("{}:del:{}", label(k, u), text(&g[u..u + x.len])));
-        }
+        placed[k].push((is_ins, if is_ins { x.read_pos - t5 } else { x.germline_pos }, x.len));
     }
 
     // codon frames: V by IMGT codon; D by the V frame at the read's last V base; J by
@@ -246,19 +231,64 @@ pub(crate) fn fill(r: &mut TruthRecord, s: &Simulated) {
         .map(|k| {
             let none = (None, None, None, None, None, None, None, None);
             let Some(g) = germ[k].as_ref().filter(|_| k > 0 || gapped) else { return none };
-            // the segment's left-normalized alignment, which every mutation field uses (rulings A13, A15,
-            // A16): its read bases, from its first base to its last and minus the inserted bases at their
-            // normalized placement, keep their order and fill the germline positions from its first
-            // aligned one on, skipping those deleted at their normalized placement
+            // the segment's alignment, which every mutation field uses (rulings A13, A15, A16, A17): its
+            // read bases, from its first base to its last and minus the inserted bases, keep their order
+            // and fill the germline positions from its first aligned one on, skipping the deleted ones
             let span: Vec<(usize, usize)> =
                 o.iter().enumerate().filter_map(|(i, &x)| seg_of(x).filter(|y| y.0 == k).map(|y| (i, y.1))).collect();
             let (Some(&(i0, u0)), Some(&(i1, _))) = (span.first(), span.last()) else { return none };
-            let inserted = |i: usize| ins_at[k].iter().any(|&(a, len)| (a..a + len).contains(&i));
-            let deleted = |u: usize| del_at[k].iter().any(|&(d, len)| (d..d + len).contains(&u));
-            let mut bases = (i0..=i1).filter(|&i| !inserted(i));
-            let mut at = vec![None; g.len()];
-            for u in (u0..g.len()).filter(|&u| !deleted(u)) {
-                at[u] = bases.next();
+            let align = |ids: &[(bool, usize, usize)]| {
+                let inserted = |i: usize| ids.iter().any(|&(ins, a, len)| ins && (a..a + len).contains(&i));
+                let deleted = |u: usize| ids.iter().any(|&(ins, d, len)| !ins && (d..d + len).contains(&u));
+                let mut bases = (i0..=i1).filter(|&i| !inserted(i));
+                let mut at = vec![None; g.len()];
+                for u in (u0..g.len()).filter(|&u| !deleted(u)) {
+                    at[u] = bases.next();
+                }
+                at
+            };
+            // the aligned germline bases left and right of an indel
+            let flanks = |at: &[Option<usize>], (ins, p, len): (bool, usize, usize)| -> Option<(usize, usize)> {
+                if ins {
+                    let before = p.checked_sub(1)?;
+                    Some((at.iter().position(|&i| i == Some(before))?, at.iter().position(|&i| i == Some(p + len))?))
+                } else {
+                    (p > 0 && p + len < g.len() && at[p - 1].is_some() && at[p + len].is_some()).then(|| (p - 1, p + len))
+                }
+            };
+            let anchor = match k {
+                0 => s.v.anchor,
+                2 => s.j.anchor,
+                _ => None,
+            };
+            let clear = |(l, r): (usize, usize)| anchor.is_none_or(|c| r <= c || l >= c + 2);
+            let mismatches = |at: &[Option<usize>]| (0..g.len()).filter(|&u| at[u].is_some_and(|i| !read[i].eq_ignore_ascii_case(&g[u]))).count();
+            // ruling A17: each indel moves to the placement of its kind and length, between two aligned
+            // bases and clear of the Cys104 / Trp-Phe118 codon, with the fewest read-vs-germline
+            // mismatches over the segment, leftmost on ties; the segment's other indels stay fixed.
+            // ponytail: rebuilds the alignment per candidate, O(segment^2) per indel; prefix sums if it shows up
+            let mut ids = std::mem::take(&mut placed[k]);
+            for j in 0..ids.len() {
+                let (ins, p0, len) = ids[j];
+                let mut best = (usize::MAX, p0);
+                for p in 0..if ins { i1 } else { g.len() } {
+                    ids[j] = (ins, p, len);
+                    let at = align(&ids);
+                    if flanks(&at, ids[j]).is_some_and(clear) {
+                        best = best.min((mismatches(&at), p));
+                    }
+                }
+                ids[j] = (ins, best.1, len);
+            }
+            let at = align(&ids);
+            let (mut ins, mut del) = (Vec::new(), Vec::new());
+            for &(is_ins, p, len) in &ids {
+                let Some((left, _)) = flanks(&at, (is_ins, p, len)) else { continue };
+                if is_ins {
+                    ins.push(format!("{}:ins:{}", label(k, left), text(&read[p..p + len])));
+                } else {
+                    del.push(format!("{}:del:{}", label(k, p), text(&g[p..p + len])));
+                }
             }
             let n = at.iter().flatten().count();
             let muts: Vec<String> = (0..g.len())
@@ -296,8 +326,8 @@ pub(crate) fn fill(r: &mut TruthRecord, s: &Simulated) {
             (
                 Some(muts),
                 aa.as_ref().map(|a| a.0.clone()),
-                Some(std::mem::take(&mut ins[k])),
-                Some(std::mem::take(&mut del[k])),
+                Some(ins),
+                Some(del),
                 Some(count as i64),
                 aa.as_ref().map(|a| a.0.len() as i64),
                 Some(count as f64 / n as f64),
@@ -321,4 +351,62 @@ pub(crate) fn fill(r: &mut TruthRecord, s: &Simulated) {
     (r.j_mutation_count, r.j_mutation_count_aa, r.j_mutation_frequency, r.j_mutation_frequency_aa) = (j.4, j.5, j.6, j.7);
     (r.c_mutations, r.c_mutations_aa, r.c_insertions, r.c_deletions) = (c.0, c.1, c.2, c.3);
     (r.c_mutation_count, r.c_mutation_count_aa, r.c_mutation_frequency, r.c_mutation_frequency_aa) = (c.4, c.5, c.6, c.7);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{Indel, Mutation};
+    use abstar_germline::{Allele, Functionality, Locus, Segment};
+
+    fn allele(name: &str, segment: Segment, gapped: &str) -> Allele {
+        Allele {
+            id: name.into(),
+            name: name.into(),
+            gene: name.into(),
+            locus: Locus::IGH,
+            segment,
+            species: "human".into(),
+            functionality: Functionality::F,
+            sequence_gapped: gapped.into(),
+            anchor: None,
+            source: "test".into(),
+            usage: None,
+        }
+    }
+
+    /// Germline V `AAAACGTTTT`: the generator deletes the G (germline 6) and mutates the C before it
+    /// to G, so the read is `AAAAGTTTT`. Deleting the C instead aligns the read with no mismatch, so
+    /// truth places the deletion there and lists no mutation (ruling A17); VCF left-normalization
+    /// against the unmutated germline would have kept `IMGT6:del:G` plus `IMGT5:C>G`.
+    #[test]
+    fn deletion_placed_where_it_removes_a_mismatch() {
+        let s = Simulated {
+            read: b"AAAAGTTTTGGGACC".to_vec(),
+            origin: [0, 1, 2, 3, 4, 6, 7, 8, 9].map(Origin::V).into_iter().chain((0..6).map(Origin::J)).collect(),
+            v: allele("V", Segment::V, "AAAACGTTTT.."),
+            d: None,
+            d_inverted: false,
+            j: allele("J", Segment::J, "GGGACC"),
+            c: None,
+            c_len: 0,
+            v_trim_3: 0,
+            d_trim_5: 0,
+            d_trim_3: 0,
+            j_trim_5: 0,
+            np1: String::new(),
+            np2: String::new(),
+            mutations: vec![Mutation { pos: 4, from: b'C', to: b'G' }],
+            indels: vec![Indel { kind: IndelKind::Del, read_pos: 5, germline_pos: 5, len: 1, bases: "G".into(), equiv: (5, 5) }],
+            truncate_5: 0,
+            truncate_3: 0,
+            v_mutation_frequency: 1.0 / 9.0,
+            warnings: vec![],
+        };
+        let mut r = TruthRecord::default();
+        fill(&mut r, &s);
+        assert_eq!(r.v_deletions, Some(vec!["IMGT5:del:C".to_string()]));
+        assert_eq!(r.v_insertions, Some(vec![]));
+        assert_eq!((r.v_mutations, r.v_mutation_count, r.v_identity), (Some(vec![]), Some(0), Some(1.0)));
+    }
 }

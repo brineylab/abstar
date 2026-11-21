@@ -660,11 +660,12 @@ fn masks_consistent() {
     assert!(checked > 1500 && empty > 0, "{checked} {empty}");
 }
 
-/// Per-segment mutations are the recorded events in germline numbering, except between an indel's
-/// generated and normalized placements, where the normalized alignment renumbers (or re-reads) the
-/// bases (ruling A16; `segment_mutations_from_normalized_alignment` checks that window exactly);
-/// every aa change has an nt change in its codon; indels are the recorded indels at their normalized
-/// placement; frequencies use the segment's bases in the read as denominator.
+/// Per-segment mutations are the recorded events in germline numbering, except in each indel's
+/// realignment window: the germline positions between its generated placement and truth's (ruling
+/// A17), where truth's alignment renumbers or re-reads the read bases (`segment_fields_from_optimal_alignment`
+/// checks those exactly). Also: every aa change has an nt change in its codon; each segment indel is
+/// the recorded indel's kind and length in that segment (deleted bases from the germline); frequencies
+/// use the segment's bases in the read as denominator.
 #[test]
 fn segment_mutations_from_events() {
     use abstar_generate::{IndelKind, Origin::*};
@@ -698,25 +699,32 @@ fn segment_mutations_from_events() {
             };
             want[k].push(format!("{label}:{}>{}", from as char, to as char));
         }
-        // An indel's normalized placement realigns the segment's bases between it and the generated
-        // placement (ruling A16): there truth may differ from the events. The window, as labels: germline
-        // positions from the normalized placement's first base right of the indel's left base through the
-        // generated placement's last aligned or deleted base.
-        let label = |k: usize, u: usize| {
-            let gapped = sim.v.sequence_gapped.as_bytes();
-            if k == 0 { format!("IMGT{}", (0..gapped.len()).filter(|&g| gapped[g] != b'.').nth(u).unwrap() + 1) } else { (u + 1).to_string() }
+        // Truth's placement of an indel realigns the segment's bases between it and the generated
+        // placement (ruling A17): there truth may differ from the events. The window, as labels: for a
+        // deletion, germline positions from the leftmost first deleted base of the two placements
+        // through the rightmost one's last; for an insertion, those after the leftmost left base
+        // through the rightmost one.
+        let gi: Vec<usize> = sim.v.sequence_gapped.bytes().enumerate().filter(|c| c.1 != b'.').map(|c| c.0).collect();
+        let label = |k: usize, u: usize| if k == 0 { format!("IMGT{}", gi[u] + 1) } else { (u + 1).to_string() };
+        let unlabel = |k: usize, x: &str| {
+            let lab = &x[..x.find(':').unwrap()];
+            (0..).find(|&u| label(k, u) == lab).unwrap()
         };
         let mut window: [Vec<String>; 3] = Default::default();
+        let mut placed: Vec<(usize, String, usize)> = Vec::new(); // (segment, truth string, generated germline position)
         for x in &sim.indels {
             let ins = x.kind == IndelKind::Ins;
             let after = x.read_pos + if ins { x.len } else { 0 };
             if x.read_pos <= t5 || after >= t5 + sim.read.len() {
                 continue;
             }
-            let k = if matches!(sim.origin[after - t5], V(_)) { 0 } else { 2 };
-            let first = sim.origin.iter().position(|o| if k == 0 { matches!(o, V(_)) } else { matches!(o, J(_)) }).unwrap();
-            let shift = x.read_pos - x.equiv.0.max(t5 + first + 1);
-            window[k].extend((x.germline_pos - shift..x.germline_pos + if ins { 0 } else { x.len }).map(|u| label(k, u)));
+            let (k, seg) = if matches!(sim.origin[after - t5], V(_)) { (0, "v") } else { (2, "j") };
+            let truth = ls(&rows, &format!("{seg}_{}", if ins { "insertions" } else { "deletions" }), r);
+            assert_eq!(truth.len(), 1, "{seg} row {r}");
+            let (t, g) = (unlabel(k, &truth[0]), if ins { x.germline_pos - 1 } else { x.germline_pos });
+            let span = if ins { t.min(g) + 1..t.max(g) + 1 } else { t.min(g)..t.max(g) + x.len };
+            window[k].extend(span.map(|u| label(k, u)));
+            placed.push((k, truth[0].clone(), g));
         }
         let outside = |k: usize, l: &[String]| -> Vec<String> {
             l.iter().filter(|x| !window[k].iter().any(|w| x.starts_with(&format!("{w}:")))).cloned().collect()
@@ -748,7 +756,7 @@ fn segment_mutations_from_events() {
             assert!(truth[0].iter().any(|x| (3 * c - 2..=3 * c).contains(&x[4..x.find(':').unwrap()].parse().unwrap())), "{m} row {r}");
             v_aa += 1;
         }
-        // the observable indel, in germline numbering of its segment
+        // the observable indels: the recorded indel's kind and length, in its segment
         let mut got: Vec<String> = Vec::new();
         for seg in ["v", "d", "j", "c"] {
             if !col(&rows, &format!("{seg}_insertions")).is_null(r) {
@@ -756,34 +764,18 @@ fn segment_mutations_from_events() {
                 got.extend(ls(&rows, &format!("{seg}_deletions"), r).into_iter().map(|x| format!("{seg} {x}")));
             }
         }
-        let want: Vec<String> = sim
-            .indels
-            .iter()
-            .filter(|_| !ls(&rows, "indels", r).is_empty())
-            .map(|x| {
-                let ins = x.kind == IndelKind::Ins;
-                let after = x.read_pos - t5 + if ins { x.len } else { 0 };
-                let gapped = |u: usize| sim.v.sequence_gapped.bytes().enumerate().filter(|c| c.1 != b'.').nth(u).unwrap().0;
-                // leftmost equivalent placement whose left neighbour is in the read and segment
-                let is_v = matches!(sim.origin[after], V(_));
-                let first = sim.origin.iter().position(|o| if is_v { matches!(o, V(_)) } else { matches!(o, J(_)) });
-                let shift = x.read_pos - x.equiv.0.max(t5 + first.unwrap() + 1);
-                shifted += usize::from(shift > 0);
-                let germ = if is_v { sim.v.sequence() } else { sim.j.sequence() };
-                let u = if ins { x.germline_pos - 1 - shift } else { x.germline_pos - shift };
-                // an insertion's bases are the read bases the normalized placement sets aside (the generated
-                // bases rotated when no mutation lies between the placements)
-                let a = x.read_pos - shift - t5;
-                let bases = if ins { String::from_utf8(sim.read[a..a + x.len].to_vec()).unwrap() } else { germ[u..u + x.len].to_string() };
-                let (seg, pos) = match (is_v, sim.origin[after]) {
-                    (true, _) => ("v", format!("IMGT{}", gapped(u) + 1)),
-                    (false, J(_)) => ("j", (u + 1).to_string()),
-                    (_, o) => panic!("indel before {o:?}"),
-                };
-                format!("{seg} {pos}:{}:{bases}", if ins { "ins" } else { "del" })
-            })
-            .collect();
-        assert_eq!(got, want, "row {r}");
+        assert_eq!(got.len(), placed.len(), "row {r}");
+        assert_eq!(placed.is_empty(), ls(&rows, "indels", r).is_empty(), "row {r}");
+        for ((k, t, g), x) in placed.iter().zip(&sim.indels) {
+            let (kind, bases) = (t.split(':').nth(1).unwrap(), t.rsplit(':').next().unwrap());
+            assert_eq!((kind, bases.len()), (if x.kind == IndelKind::Ins { "ins" } else { "del" }, x.len), "row {r}");
+            if kind == "del" {
+                let germ = if *k == 0 { sim.v.sequence() } else { sim.j.sequence() };
+                let u = unlabel(*k, t);
+                assert_eq!(bases, &germ[u..u + x.len], "row {r}");
+            }
+            shifted += usize::from(unlabel(*k, t) != *g);
+        }
         seg_indels += got.len();
     }
     let counts = (inverted, v_aa, seg_indels, shifted, realigned);
@@ -792,7 +784,8 @@ fn segment_mutations_from_events() {
 }
 
 /// A homopolymer indel generated right of its leftmost equivalent placement is reported at
-/// the run's leftmost germline position (VCF-style left normalization).
+/// the run's leftmost germline position: without mutation, the placements along the run tie on
+/// mismatches and the leftmost wins (ruling A17).
 #[test]
 fn segment_indels_left_normalized() {
     use abstar_generate::{IndelKind, Origin::V};
@@ -832,10 +825,10 @@ fn segment_indels_left_normalized() {
     assert!(tested > 50, "{tested}");
 }
 
-/// The aa denominator drops the codons holding a deleted base at the left-normalized placement
-/// (the one the `v_deletions` strings give), not at the generated placement.
+/// The aa denominator drops the codons holding a deleted base at truth's placement (the one the
+/// `v_deletions` strings give, ruling A17), not at the generated placement.
 #[test]
-fn aa_denominator_follows_left_normalized_deletions() {
+fn aa_denominator_follows_truth_deletions() {
     use abstar_generate::IndelKind;
     let b = igh();
     let p = GenerateParams { indel_rate: 1.0, mutation: "uniform:0.05-0.2".parse().unwrap(), ..params(4000, 25) };
@@ -850,7 +843,7 @@ fn aa_denominator_follows_left_normalized_deletions() {
         let sim = simulated(&b, &p, r);
         let gapped = sim.v.sequence_gapped.as_bytes();
         let gi: Vec<usize> = (0..gapped.len()).filter(|&g| gapped[g] != b'.').collect();
-        // IMGT positions (1-based) of the normalized deleted bases
+        // IMGT positions (1-based) of truth's deleted bases
         let mut deleted = Vec::new();
         for d in &dels {
             let (pos, bases) = (d[4..d.find(':').unwrap()].parse::<usize>().unwrap(), d.rsplit(':').next().unwrap().len());
@@ -863,85 +856,123 @@ fn aa_denominator_follows_left_normalized_deletions() {
             .filter(|n| !deleted.iter().any(|&x| x.div_ceil(3) == *n))
             .count();
         assert!(den > 0 && (freq - count as f64 / den as f64).abs() < 1e-12, "row {r}: {freq} {count} {den}");
-        // the generated placement falls in other codons than the normalized one
+        // the generated placement falls in other codons than truth's
         if let Some(x) = sim.indels.iter().find(|x| x.kind == IndelKind::Del) {
             let generated: Vec<usize> = (x.germline_pos..x.germline_pos + x.len).map(|u| gi[u] / 3 + 1).collect();
-            let normalized: Vec<usize> = deleted.iter().map(|x| x.div_ceil(3)).collect();
-            moved += usize::from(generated != normalized);
+            let placed: Vec<usize> = deleted.iter().map(|x| x.div_ceil(3)).collect();
+            moved += usize::from(generated != placed);
         }
         tested += 1;
     }
     assert!(tested > 100 && moved > 5, "{tested} {moved}");
 }
 
-/// An independent left-normalizing aligner, driven only by the read, the origin map's segment span
-/// and the truth indel strings: the segment's read bases, in order, fill its germline positions,
-/// skipping the deleted ones and setting aside the inserted bases after each insertion's left
-/// base. Its nt list, counts, frequency and aa list must equal truth's for V and J on every row
-/// with an indel in that segment (rulings A3, A13, A15, A16).
-#[test]
-fn segment_mutations_from_normalized_alignment() {
-    use abstar_generate::Origin::{J, V};
+/// Read `i` of a run, drawn as the pipeline draws it: under `productive_only`, attempt `j` is
+/// stream `i × 1000 + j` and the first productive attempt is kept.
+fn drawn(b: &Bound, p: &GenerateParams, i: usize) -> abstar_generate::Simulated {
+    use rand::SeedableRng;
+    let sim = abstar_generate::Simulator::new(b, p).unwrap();
+    let draw = |k: u64| sim.simulate(&mut rand_chacha::ChaCha8Rng::seed_from_u64(seed_for(p.seed, k)));
+    if !p.productive_only {
+        return draw(i as u64);
+    }
+    (0..1000)
+        .map(|j| draw(i as u64 * 1000 + j))
+        .find(|s| abstar_generate::productivity(&s.read, &s.origin, &s.v, &s.j).productive)
+        .unwrap()
+}
+
+/// An independent optimal aligner (ruling A17), driven by the read, the germline, the origin map's
+/// segment span and the generated indel's kind and length (never by the truth indel strings): it
+/// scores every placement of that indel with a read base of the segment on both sides and clear of
+/// the Cys104 / Trp-Phe118 codon by its read-vs-germline mismatches over the segment, and keeps the
+/// fewest, leftmost on ties. From that alignment it rebuilds the segment's insertion and deletion
+/// strings, nt list, counts, frequency and aa list (and `v_identity`), which must equal truth's.
+/// Returns, for [V, J] x [deletion, insertion]: rows tested, rows whose placement differs from the
+/// VCF left-normalized one (ruling A3), rows mismatching truth.
+fn check_optimal_alignment(b: &Bound, p: &GenerateParams) -> [[[usize; 2]; 2]; 3] {
+    use abstar_generate::{IndelKind, Origin::*};
     // standard genetic code, TCAG order
     const AA: &[u8; 64] = b"FFLLSSSSYY**CC*WLLLLPPPPHHQQRRRRIIIMTTTTNNKKSSRRVVVVAAAADDEEGGGG";
     let tr = |c: &[u8]| {
         let k = |x: u8| "TCAG".find(x.to_ascii_uppercase() as char).unwrap();
         AA[16 * k(c[0]) + 4 * k(c[1]) + k(c[2])] as char
     };
-    let b = igh();
-    let p = GenerateParams {
-        indel_rate: 1.0,
-        indel_duplication: true,
-        mutation: "uniform:0.05-0.25".parse().unwrap(),
-        ..busy(4000, 27)
-    };
-    let rows = one(&generate_in_memory(&b, &p).unwrap());
-    // [segment][deletion, insertion]: rows tested, rows whose truth nt list differs from the generated
-    // placement's (the events in germline numbering), rows mismatching the rebuild
-    let (mut tested, mut moved, mut bad) = ([[0; 2]; 2], [[0; 2]; 2], [[0; 2]; 2]);
+    let rows = one(&generate_in_memory(b, p).unwrap());
+    let (mut tested, mut shifted, mut better, mut bad) = ([[0; 2]; 2], [[0; 2]; 2], [[0; 2]; 2], [[0; 2]; 2]);
     for r in 0..rows.num_rows() {
-        let sim = simulated(&b, &p, r);
+        let sim = drawn(b, p, r);
+        assert!(sim.indels.len() <= 1, "the generator places at most one indel per read");
+        let t5 = sim.truncate_5;
         let gapped = sim.v.sequence_gapped.as_bytes();
         let gi: Vec<usize> = (0..gapped.len()).filter(|&g| gapped[g] != b'.').collect();
         for (k, seg) in ["v", "j"].into_iter().enumerate() {
-            let (ins, dels) = (ls(&rows, &format!("{seg}_insertions"), r), ls(&rows, &format!("{seg}_deletions"), r));
-            if ins.is_empty() && dels.is_empty() {
-                continue;
-            }
-            let g = if k == 0 { sim.v.sequence().into_bytes() } else { sim.j.sequence().into_bytes() };
             let ungapped = |o: abstar_generate::Origin| match (k, o) {
                 (0, V(x)) => gi.iter().position(|&y| y == x),
                 (1, J(u)) => Some(u),
                 _ => None,
             };
-            let label = |u: usize| if k == 0 { format!("IMGT{}", gi[u] + 1) } else { (u + 1).to_string() };
-            let at = |x: &str| {
-                let lab = &x[..x.find(':').unwrap()];
-                (0..g.len()).find(|&u| label(u) == lab).unwrap()
+            // the generated indel, when it falls in this segment with a read base on both sides
+            let x = sim.indels.iter().find(|x| {
+                let after = x.read_pos + if x.kind == IndelKind::Ins { x.len } else { 0 };
+                x.read_pos > t5 && after < t5 + sim.read.len() && ungapped(sim.origin[after - t5]).is_some()
+            });
+            let (ins_got, dels_got) = (ls(&rows, &format!("{seg}_insertions"), r), ls(&rows, &format!("{seg}_deletions"), r));
+            let Some(x) = x else {
+                assert!(ins_got.is_empty() && dels_got.is_empty(), "{seg} row {r}");
+                continue;
             };
-            let mut deleted = vec![false; g.len()];
-            for d in &dels {
-                let u = at(d);
-                (u..u + d.rsplit(':').next().unwrap().len()).for_each(|x| deleted[x] = true);
-            }
-            // (germline base left of the insertion, inserted bases)
-            let inserted: Vec<(usize, Vec<u8>)> = ins.iter().map(|x| (at(x), x.rsplit(':').next().unwrap().as_bytes().to_vec())).collect();
+            let (ins, len) = (x.kind == IndelKind::Ins, x.len);
+            let g = if k == 0 { sim.v.sequence().into_bytes() } else { sim.j.sequence().into_bytes() };
+            let label = |u: usize| if k == 0 { format!("IMGT{}", gi[u] + 1) } else { (u + 1).to_string() };
             let first = sim.origin.iter().position(|&o| ungapped(o).is_some()).unwrap();
             let last = sim.origin.iter().rposition(|&o| ungapped(o).is_some()).unwrap();
-            let (mut aligned, mut ins_ok): (Vec<Option<u8>>, bool) = (vec![None; g.len()], true);
-            let (mut u, mut x) = (ungapped(sim.origin[first]).unwrap(), first);
-            while x <= last {
-                while deleted[u] {
-                    u += 1;
+            let u0 = ungapped(sim.origin[first]).unwrap();
+            // the germline position of read base `i` with the indel at `q` (an insertion's first read
+            // base, or a deletion's first germline base)
+            let pos = |q: usize, i: usize| -> Option<usize> {
+                let u = u0 + i - first;
+                match ins {
+                    true if i < q => Some(u),
+                    true if i < q + len => None,
+                    true => Some(u - len),
+                    false if u < q => Some(u),
+                    false => Some(u + len),
                 }
-                aligned[u] = Some(sim.read[x]);
-                x += 1;
-                if let Some((_, bases)) = inserted.iter().find(|y| y.0 == u) {
-                    ins_ok &= sim.read[x..x + bases.len()] == bases[..]; // the inserted bases are the read's
-                    x += bases.len();
+            };
+            // candidates, each with the germline bases left and right of it
+            let candidates: Vec<(usize, usize, usize)> = if ins {
+                (first + 1..=last.saturating_sub(len)).map(|q| (q, u0 + q - 1 - first, u0 + q - first)).collect()
+            } else {
+                (u0 + 1..=u0 + last - first).map(|d| (d, d - 1, d + len)).collect()
+            };
+            let anchor = if k == 0 { sim.v.anchor } else { sim.j.anchor };
+            let mismatches = |q: usize| (first..=last).filter(|&i| pos(q, i).is_some_and(|u| !sim.read[i].eq_ignore_ascii_case(&g[u]))).count();
+            let mut best: Option<(usize, usize)> = None;
+            for (q, left, right) in candidates {
+                if anchor.is_some_and(|c| right > c && left < c + 2) {
+                    continue; // touches the anchor codon
                 }
-                u += 1;
+                let m = mismatches(q);
+                if best.is_none_or(|(bm, _)| m < bm) {
+                    best = Some((m, q));
+                }
             }
+            let (fewest, q) = best.unwrap();
+            // the VCF left-normalized placement (ruling A3), for the tally
+            let norm = x.read_pos - x.equiv.0.max(t5 + first + 1);
+            let a3 = if ins { x.read_pos - norm - t5 } else { x.germline_pos - norm };
+            let mut aligned: Vec<Option<u8>> = vec![None; g.len()];
+            for (i, &base) in sim.read.iter().enumerate().take(last + 1).skip(first) {
+                if let Some(u) = pos(q, i) {
+                    aligned[u] = Some(base);
+                }
+            }
+            let want_indel = if ins {
+                format!("{}:ins:{}", label(u0 + q - 1 - first), String::from_utf8_lossy(&sim.read[q..q + len]))
+            } else {
+                format!("{}:del:{}", label(q), String::from_utf8_lossy(&g[q..q + len]))
+            };
             let nt: Vec<String> = (0..g.len())
                 .filter_map(|u| aligned[u].filter(|x| !x.eq_ignore_ascii_case(&g[u])).map(|x| format!("{}:{}>{}", label(u), g[u] as char, x as char)))
                 .collect();
@@ -965,38 +996,64 @@ fn segment_mutations_from_normalized_alignment() {
                     aa.push(format!("{lab}:{from}>{to}"));
                 }
             }
-            // the generated placement's list: the net mutation events at the segment's bases
-            let t5 = sim.truncate_5;
-            let events: Vec<String> = (first..=last)
-                .filter_map(|i| {
-                    let u = ungapped(sim.origin[i])?;
-                    let hit = sim.mutations.iter().any(|m| m.pos == i + t5) && !sim.read[i].eq_ignore_ascii_case(&g[u]);
-                    hit.then(|| format!("{}:{}>{}", label(u), g[u] as char, sim.read[i] as char))
-                })
-                .collect();
-            let kind = usize::from(!ins.is_empty());
+            let kind = usize::from(ins);
             let got = ls(&rows, &format!("{seg}_mutations"), r);
+            let indels_got = if ins { &ins_got } else { &dels_got };
             tested[k][kind] += 1;
-            moved[k][kind] += usize::from(got != events);
+            shifted[k][kind] += usize::from(q != a3);
+            better[k][kind] += usize::from(fewest < mismatches(a3));
             let freq = f(&rows, &format!("{seg}_mutation_frequency"), r).unwrap();
-            let ok = ins_ok
+            let ok = indels_got == std::slice::from_ref(&want_indel)
+                && (if ins { &dels_got } else { &ins_got }).is_empty()
                 && got == nt
                 && i(&rows, &format!("{seg}_mutation_count"), r) == Some(nt.len() as i64)
                 && (freq - nt.len() as f64 / n as f64).abs() < 1e-12
+                && (k == 1 || (f(&rows, "v_identity", r).unwrap() - (n - nt.len()) as f64 / n as f64).abs() < 1e-12)
                 && ls(&rows, &format!("{seg}_mutations_aa"), r) == aa
                 && i(&rows, &format!("{seg}_mutation_count_aa"), r) == Some(aa.len() as i64)
                 && f(&rows, &format!("{seg}_mutation_frequency_aa"), r) == (nc > 0).then(|| aa.len() as f64 / nc as f64);
             if !ok {
                 if bad[k][kind] < 3 {
-                    eprintln!("{seg} row {r} {ins:?} {dels:?}: truth {got:?}, rebuilt {nt:?}");
+                    eprintln!("{seg} row {r}: truth {indels_got:?} {got:?}, rebuilt {want_indel} {nt:?}");
                 }
                 bad[k][kind] += 1;
             }
         }
     }
-    eprintln!("[V, J] x [deletion, insertion] rows: tested {tested:?}, truth differs from the events {moved:?}, mismatching the rebuild {bad:?}");
-    assert_eq!(bad, [[0; 2]; 2]);
-    assert!(tested.iter().flatten().all(|&x| x > 50) && moved[0].iter().all(|&x| x > 5), "{tested:?} {moved:?}");
+    eprintln!(
+        "[V, J] x [deletion, insertion] rows: tested {tested:?}, placed off the left-normalized placement {shifted:?} (with fewer mismatches {better:?}), mismatching the rebuild {bad:?}"
+    );
+    [tested, shifted, bad]
+}
+
+/// The human IGH model on the built-in human database.
+fn human_igh() -> Bound {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../python/abstar");
+    let db = abstar_germline::load(&root.join("germline_dbs/human")).unwrap();
+    bind(load_model(&root.join("models/human-igh/model.toml")).unwrap(), &db).unwrap()
+}
+
+/// Truth's per-segment fields follow the optimal alignment (ruling A17) on the tiny IGH model with
+/// every option on, and on indel-heavy bnab sets of the human IGH model, where the mismatch-minimizing
+/// placement often differs from the VCF left-normalized one.
+#[test]
+fn segment_fields_from_optimal_alignment() {
+    let p = GenerateParams {
+        indel_rate: 1.0,
+        indel_duplication: true,
+        mutation: "uniform:0.05-0.25".parse().unwrap(),
+        ..busy(4000, 27)
+    };
+    let tiny = check_optimal_alignment(&igh(), &p);
+    let b = human_igh();
+    let bnab = [(11, 0.5), (27, 1.0)].map(|(seed, indel_rate)| {
+        check_optimal_alignment(&b, &GenerateParams { n: 4000, seed, indel_rate, ..preset("bnab").unwrap() })
+    });
+    assert_eq!([tiny[2], bnab[0][2], bnab[1][2]], [[[0; 2]; 2]; 3], "rows mismatching the rebuild");
+    assert!(tiny[0].iter().flatten().all(|&x| x > 50), "{tiny:?}");
+    for [tested, shifted, _] in bnab {
+        assert!(tested[0].iter().all(|&x| x > 300) && shifted[0][0] > 50, "{tested:?} {shifted:?}");
+    }
 }
 
 /// The constant region's germline span is truth too, so its mutation fields can be graded.

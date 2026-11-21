@@ -51,7 +51,7 @@ Additions:
 - V nt: `IMGT{pos}:{ref}>{alt}`; D/J/C nt: `{pos}:{ref}>{alt}`. `pos` is the IMGT-gapped position (V) or the 1-based position in the called allele (D/J/C).
 - aa: V uses `IMGT{aa_pos}:{ref}>{alt}` (IMGT codon number); D/J/C use `{codon_pos}:{ref}>{alt}`.
 - J aa frame is set by the Trp/Phe118 codon. D aa frame is the frame D occupies in the junction (V frame).
-- Insertions are `{pos}:ins:{bases}`, where `pos` is the germline position the inserted bases follow (V: `IMGT{pos}`). Deletions are `{pos}:del:{bases}`, with `pos` the first deleted germline position.
+- Insertions are `{pos}:ins:{bases}`, where `pos` is the germline position the inserted bases follow (V: `IMGT{pos}`). Deletions are `{pos}:del:{bases}`, with `pos` the first deleted germline position. Indel strings use the placement that minimizes read-vs-germline mismatches over the segment, leftmost on ties (record 0026, ruling A17): the annotator's aligner must report the leftmost among equal-scoring placements, and the segment's mutation lists, counts and frequencies come from that same alignment.
 - Frequencies are mutations ÷ aligned germline positions of that segment (codons for aa), excluding deleted positions. Insertions and deletions are not substitutions and are not counted in them.
 
 **Masks**
