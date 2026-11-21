@@ -60,9 +60,9 @@ As with `run.json` (0018), an existing `generate.json` is deleted before any out
   - `R_aa` holds the codons (first V base to the last read base that is not a dangling insertion) whose 3rd base is in R, so a codon crossing a boundary belongs to the downstream region and partial codons are not translated. `R_length` is the length of `R_aa`, so `cdr3_length` counts the CDR3 in the V frame, not `junction_aa` length − 2 on an out-of-frame read.
   - Every region except FWR4, `sequence_aa`, the `sequence_vdj*` fields and the masks are null when the read has no V base or the V allele is not IMGT-gapped.
 - **Sequences.** `sequence_aa` translates the whole read in the V frame. `sequence_vdj` runs from the first V base to the last J base, or to the last V/N/D-derived base when the read has no J base (null without a V base); `sequence_vdjc` runs to the last constant-region base (null without one). Each `_aa` translates its sequence in the V frame.
-- **Masks** index `sequence_vdjc`, or `sequence_vdj` when the read has no C base; they are null when that sequence is null.
-  - `cdr_mask`: `1`/`2`/`3` for CDR1/CDR2/CDR3 (a partial CDR3 included), `0` for framework and constant-region bases. Null when CDR3's ends are undefined (as for a null CDR3 above, apart from truncation).
-  - `gene_segment_mask`: `V`, `D`, `J`, `C`; `N` for N and P nucleotides. An inserted base takes the segment it sits in (always V or J).
+- **Masks** cover only the V(D)J region (user decision A12): nt masks index `sequence_vdj` (one character per base) and aa masks `sequence_vdj_aa` (one per codon); they are null when that sequence is null. No mask has a constant-region base or a `C` label.
+  - `cdr_mask`: `1`/`2`/`3` for CDR1/CDR2/CDR3 (a partial CDR3 included), `0` for framework bases. Null when CDR3's ends are undefined (as for a null CDR3 above, apart from truncation).
+  - `gene_segment_mask`: `V`, `D`, `J`; `N` for N and P nucleotides. An inserted base takes the segment it sits in (always V or J).
   - `nongermline_mask`: `1` for N, P and inserted bases and for bases differing from the germline base behind them.
   - The `_aa` masks have one character per codon of the matching translation: the 3rd base's character for `cdr_mask_aa` and `gene_segment_mask_aa`; for `nongermline_mask_aa`, `1` when a base is N, P or inserted or the codon's amino acid differs from the translation of the germline bases behind it.
 - **Per-segment mutations** (`v`, `d`, `j`, `c`).
@@ -91,7 +91,7 @@ As with `run.json` (0018), an existing `generate.json` is deleted before any out
 - **Delete `generate.json` before validating parameters:** a typo would destroy a finished run's provenance without producing anything.
 - **The generated indel placement in the per-segment lists:** an aligner places an indel at one end of its equivalence range, so exact grading would fail on equivalent placements. Left normalization is the VCF convention; the masks and regions keep the generated placement, the residual ambiguity being inside the equivalence range.
 - **A null CDR3 when truncation removes one anchor codon:** it would break the rule that a partially covered region holds the covered part. A CDR3 whose anchor codon was trimmed stays null, because its boundary is not in the germline as used.
-- **A separate `cdr_mask` character for constant-region bases:** the mask alphabet is fixed at `0`–`3`; `gene_segment_mask` already marks C.
+- **Constant-region bases in the masks:** they are outside the annotated V(D)J region, so no mask covers them (the earlier draft indexed `sequence_vdjc` and labelled them `C`/`0`).
 - **Germline-frame codons for region and mask amino acids:** on frameshifted reads they would not match the read's own translation (`sequence_vdj_aa`), which an annotator reports.
 
 ## Consequences

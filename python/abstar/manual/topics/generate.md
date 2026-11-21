@@ -72,7 +72,7 @@ Grading rules:
 - `junction`, `junction_aa`, `productive`, `vj_in_frame` and `stop_codon` are exact matches, scored on reads where V and J are recoverable.
 - Regions, masks, `<seg>_mutations*` and indels are scored only where the primary call equals the true allele (regions: V, plus J for CDR3 and FWR4; masks: every segment present).
 - Mutation and indel lists are compared after restricting both to the germline positions inside the intersection of the two `<seg>_germline_start`..`end` spans. Counts and frequencies are recomputed from the restricted lists. V positions are mapped through the IMGT gapping of `germline_db` (default `human`; pass `germline_db=` for another database).
-- Masks are compared position by position where both `gene_segment_mask`s agree. `gene_segment_mask` itself may differ only at read positions the `_valid` boundary lists leave open.
+- Masks cover only the V(D)J region (nt masks index `sequence_vdj`, aa masks `sequence_vdj_aa`; no constant-region bases). They are compared position by position where both `gene_segment_mask`s agree. `gene_segment_mask` itself may differ only at read positions the `_valid` boundary lists leave open.
 
 In the TSV truth, list columns are comma-joined strings; the Parquet truth keeps them as lists.
 

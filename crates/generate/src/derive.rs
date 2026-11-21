@@ -134,14 +134,15 @@ pub(crate) fn fill(r: &mut TruthRecord, s: &Simulated) {
         r.sequence_vdjc_aa = vdjc.map(|z| translate(&read[f0.min(z)..z]));
 
         {
-            let m = vdjc.unwrap_or(vdj);
+            // the masks cover the V(D)J region only (decision 0026): they stop before any constant-region base
+            let m = o.iter().position(|x| matches!(x, C(_))).map_or(vdj, |c| c.min(vdj));
             let mut seg = Vec::with_capacity(m - i0);
             for &x in &o[i0..m] {
                 seg.push(match x {
                     V(_) => b'V',
                     D(_) => b'D',
                     J(_) => b'J',
-                    C(_) => b'C',
+                    C(_) => unreachable!("masks stop before the constant region"),
                     N1 | N2 | P => b'N',
                     Inserted => seg[seg.len() - 1],
                 });

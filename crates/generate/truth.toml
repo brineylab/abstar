@@ -998,7 +998,7 @@ type = "string"
 nullable = true
 origin = "abstar"
 coordinates = ""
-description = "Region of each base: 1, 2 or 3 in CDR1, CDR2 or CDR3, else 0 (framework and constant region). One character per base of sequence_vdjc, or of sequence_vdj when the read has no C base; null when that sequence is null. Also null when cdr3's ends are undefined (trimming removed an anchor's first base, or an allele has no anchor)."
+description = "Region of each base: 1, 2 or 3 in CDR1, CDR2 or CDR3, else 0 (framework). One character per base of sequence_vdj (the V(D)J region only: no constant-region bases); null when that sequence is null. Also null when cdr3's ends are undefined (trimming removed an anchor's first base, or an allele has no anchor)."
 decision = "0026"
 
 [[field]]
@@ -1007,7 +1007,7 @@ type = "string"
 nullable = true
 origin = "abstar"
 coordinates = ""
-description = "One character per codon of sequence_vdjc_aa (or sequence_vdj_aa when the read has no C base): the cdr_mask character of the codon's 3rd base (a codon crossing a boundary belongs to the downstream region). Null when cdr_mask is null."
+description = "One character per codon of sequence_vdj_aa: the cdr_mask character of the codon's 3rd base (a codon crossing a boundary belongs to the downstream region). Null when cdr_mask is null."
 decision = "0026"
 
 [[field]]
@@ -1016,7 +1016,7 @@ type = "string"
 nullable = true
 origin = "abstar"
 coordinates = ""
-description = "Origin of each base: V, D, J or C; N for N and P nucleotides. An inserted base takes the segment it sits in. One character per base of sequence_vdjc, or of sequence_vdj when the read has no C base; null when that sequence is null."
+description = "Origin of each base: V, D or J; N for N and P nucleotides. An inserted base takes the segment it sits in. One character per base of sequence_vdj (the V(D)J region only: no constant-region bases); null when that sequence is null."
 decision = "0026"
 
 [[field]]
@@ -1025,7 +1025,7 @@ type = "string"
 nullable = true
 origin = "abstar"
 coordinates = ""
-description = "One character per codon of sequence_vdjc_aa (or sequence_vdj_aa when the read has no C base): the gene_segment_mask character of the codon's 3rd base."
+description = "One character per codon of sequence_vdj_aa: the gene_segment_mask character of the codon's 3rd base."
 decision = "0026"
 
 [[field]]
@@ -1034,7 +1034,7 @@ type = "string"
 nullable = true
 origin = "abstar"
 coordinates = ""
-description = "1 for N and P nucleotides, inserted bases, and bases differing from the true germline (mutations), else 0. One character per base of sequence_vdjc, or of sequence_vdj when the read has no C base; null when that sequence is null."
+description = "1 for N and P nucleotides, inserted bases, and bases differing from the true germline (mutations), else 0. One character per base of sequence_vdj (the V(D)J region only: no constant-region bases); null when that sequence is null."
 decision = "0026"
 
 [[field]]
@@ -1043,7 +1043,7 @@ type = "string"
 nullable = true
 origin = "abstar"
 coordinates = ""
-description = "One character per codon of sequence_vdjc_aa (or sequence_vdj_aa when the read has no C base): 1 when any of its bases is N, P or inserted, or its amino acid differs from the translation of the germline bases behind it, else 0."
+description = "One character per codon of sequence_vdj_aa: 1 when any of its bases is N, P or inserted, or its amino acid differs from the translation of the germline bases behind it, else 0."
 decision = "0026"
 
 [[field]]

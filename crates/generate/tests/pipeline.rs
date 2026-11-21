@@ -544,15 +544,15 @@ fn region_truth_hand_traced() {
     assert_eq!(st("sequence_vdjc_aa"), Some(format!("{aa}PNC")));
     assert_eq!(st("sequence_aa"), Some(format!("{aa}PNC")));
     let rep = |c: &str, n: usize| c.repeat(n);
-    let cdr = [rep("0", 70), rep("1", 24), rep("0", 51), rep("2", 24), rep("0", 117), rep("3", 30), rep("0", 41)];
+    let cdr = [rep("0", 70), rep("1", 24), rep("0", 51), rep("2", 24), rep("0", 117), rep("3", 30), rep("0", 31)];
     assert_eq!(st("cdr_mask"), Some(cdr.concat()));
-    assert_eq!(st("gene_segment_mask"), Some([rep("V", 306), rep("N", 3), rep("J", 38), rep("C", 10)].concat()));
-    assert_eq!(st("nongermline_mask"), Some([rep("0", 306), rep("1", 3), rep("0", 48)].concat()));
-    let cdr_aa = [rep("0", 23), rep("1", 8), rep("0", 17), rep("2", 8), rep("0", 39), rep("3", 10), rep("0", 13)];
+    assert_eq!(st("gene_segment_mask"), Some([rep("V", 306), rep("N", 3), rep("J", 38)].concat()));
+    assert_eq!(st("nongermline_mask"), Some([rep("0", 306), rep("1", 3), rep("0", 38)].concat()));
+    let cdr_aa = [rep("0", 23), rep("1", 8), rep("0", 17), rep("2", 8), rep("0", 39), rep("3", 10), rep("0", 10)];
     assert_eq!(st("cdr_mask_aa"), Some(cdr_aa.concat()));
     // codons 102 (read 305-307) and 103 (308-310) hold the N bases
-    assert_eq!(st("gene_segment_mask_aa"), Some([rep("V", 101), rep("N", 1), rep("J", 13), rep("C", 3)].concat()));
-    assert_eq!(st("nongermline_mask_aa"), Some([rep("0", 101), rep("1", 2), rep("0", 15)].concat()));
+    assert_eq!(st("gene_segment_mask_aa"), Some([rep("V", 101), rep("N", 1), rep("J", 13)].concat()));
+    assert_eq!(st("nongermline_mask_aa"), Some([rep("0", 101), rep("1", 2), rep("0", 12)].concat()));
     // unmutated: empty lists, zero counts; no D; C codons are J-frame codons 3-5, 6-8 of C
     for seg in ["v", "j", "c"] {
         for k in ["mutations", "mutations_aa", "insertions", "deletions"] {
@@ -619,13 +619,8 @@ fn masks_consistent() {
         } else {
             assert_eq!(s(&rows, "cdr_mask", r), None);
         }
-        let has_c = sim.origin.iter().any(|o| matches!(o, abstar_generate::Origin::C(_)));
-        let (nt, aa) = if has_c {
-            (s(&rows, "sequence_vdjc", r), s(&rows, "sequence_vdjc_aa", r))
-        } else {
-            assert_eq!(s(&rows, "sequence_vdjc", r), None);
-            (s(&rows, "sequence_vdj", r), s(&rows, "sequence_vdj_aa", r))
-        };
+        // the masks cover the V(D)J region only, never the constant region
+        let (nt, aa) = (s(&rows, "sequence_vdj", r), s(&rows, "sequence_vdj_aa", r));
         let Some(nt) = nt else {
             assert_eq!(s(&rows, "gene_segment_mask", r), None);
             continue;
