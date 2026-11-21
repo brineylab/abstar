@@ -8,7 +8,7 @@ __all__ = ["run", "RunSummary", "InputSummary", "AbstarError", "germline", "gene
 if TYPE_CHECKING:
     from . import germline, model
     from ._generate import GenerateSummary, generate
-    from .grade import grade
+    from ._grade import grade
     from .api import InputSummary, RunSummary, run
     from .errors import AbstarError
 
@@ -24,9 +24,8 @@ def __getattr__(name):
 
         return getattr(_generate, name)
     if name == "grade":
-        from .grade import grade
+        from ._grade import grade
 
-        globals()["grade"] = grade  # the submodule import rebinds the name; keep the function
         return grade
     if name == "AbstarError":
         from .errors import AbstarError
