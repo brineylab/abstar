@@ -37,6 +37,7 @@ The generator records the origin of every read base (`Origin`: a gapped V index,
   - **V** by its true IMGT mapping. Past the last V-derived base, V continues with the allele's own ungapped bases after that gapped position, for as long as the allele has bases.
   - **D** at each tied best shift, in each tied orientation.
   - **J** at each tied best shift of the true J index (shift 0 is the true mapping). J can extend 5' with the allele's bases before the first J-derived base, for as long as the allele and the read have them.
+- **Amended 2026-11-21 (ruling A32):** the boundary lists also place a trimmed anchor codon. When a valid V end or J start that the true allele supports reaches the anchor's first base, truth's junction, CDR3 and productivity use that anchor (record 0026).
 
   The spec says V and J are placed by the true mapping. For J, a sibling of a different length, such as one missing 5' bases, needs its own shift to line up. Using its best shift places the allele exactly as it was compared for the set.
 - **Configurations.** V covers the read from its start to the V end. J covers the J start through the last J-derived base. Cuts are ordered: V end ≤ D start < D end ≤ J start. Each segment present in the read gets at least one base. Without a D (VJ loci, or a D run of length 0), the D terms are dropped.

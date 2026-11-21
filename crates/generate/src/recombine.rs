@@ -150,6 +150,17 @@ fn invalid(msg: String) -> GenerateError {
 }
 
 pub fn productivity(read: &[u8], origin: &[Origin], v: &Allele, j: &Allele) -> Productivity {
+    let start = v.anchor.and_then(|a| {
+        let g = gapped_index(v)[a];
+        origin.iter().position(|&o| o == Origin::V(g))
+    });
+    let end = j.anchor.and_then(|b| origin.iter().position(|&o| o == Origin::J(b)));
+    productivity_at(read, origin, start, end)
+}
+
+/// `productivity` with the junction's ends given: `start` the Cys104 codon's first read base, `end`
+/// the Trp/Phe118 codon's (ruling A32 places them from kept cuts when trimming removed them).
+pub(crate) fn productivity_at(read: &[u8], origin: &[Origin], start: Option<usize>, end: Option<usize>) -> Productivity {
     let codon = |i: usize| read.get(i..i + 3).map(|c| c.to_ascii_uppercase()).unwrap_or_default();
     // codons start at read positions ≡ i − g (mod 3) for the first V base (IMGT phase)
     let frame = origin.iter().enumerate().find_map(|(i, o)| match *o {
@@ -164,11 +175,6 @@ pub fn productivity(read: &[u8], origin: &[Origin], v: &Allele, j: &Allele) -> P
             .iter()
             .any(|c| matches!(&c.to_ascii_uppercase()[..], b"TAA" | b"TAG" | b"TGA"))
     });
-    let start = v.anchor.and_then(|a| {
-        let g = gapped_index(v)[a];
-        origin.iter().position(|&o| o == Origin::V(g))
-    });
-    let end = j.anchor.and_then(|b| origin.iter().position(|&o| o == Origin::J(b)));
     let junction = match (start, end) {
         (Some(s), Some(e)) if s + 3 <= e && e + 3 <= read.len() => Some(s..e + 3),
         _ => None,

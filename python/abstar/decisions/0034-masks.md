@@ -49,3 +49,4 @@ Measured in `tests/mutations.rs` by a Rust port of the grader's mask rule. The g
 - **The other masks' misses** come from upstream calls: the V start, cuts outside the valid lists, D placement, and indel representation (record 0033).
 - **Before ruling A30,** `nongermline_mask_aa` agreed on only about 80% of reads. The cause was a valid cut inside a codon that left its 3rd base's segment unchanged: truth marked an N base that matched the germline by chance as `1`, the annotator counted it as V/D/J, and the grader compared that codon anyway.
 - **Before ruling A29,** `nongermline_mask` agreed on 95.69% of the indel set. Truth's masks followed the generated placement while its lists followed the normalized one.
+- **2026-11-21 (ruling A33):** truth's `cdr_mask` now follows the regions on each segment's normalized indel placement, as the annotator's does. `cdr_mask` on igh_bnab rose from 96.55% to 96.91% on the accuracy gate.

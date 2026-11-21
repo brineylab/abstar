@@ -21,7 +21,7 @@ use sha2::{Digest, Sha256};
 use crate::schema::{arrow_schema, to_record_batch, TruthRecord};
 use crate::{
     productivity, truth, Bound, GenerateError, GenerateMeta, GenerateParams, GenerateSummary, IndelKind, Origin,
-    Productivity, Simulated, Simulator,
+    Simulated, Simulator,
 };
 
 /// Attempts per read under `productive_only` before the run fails.
@@ -170,17 +170,27 @@ impl<'a> Run<'a> {
             (s, pr, 1)
         };
         let rec = if full {
-            self.record(id, &s, &pr)
+            self.record(id, &s)
         } else {
             TruthRecord { sequence_id: id, sequence: String::from_utf8_lossy(&s.read).into_owned(), ..Default::default() }
         };
-        Ok(Row { rec, productive: pr.productive, attempts, warnings: s.warnings })
+        // the record's productivity may place an anchor from a kept cut (ruling A32)
+        let productive = if full { rec.productive == Some(true) } else { pr.productive };
+        Ok(Row { rec, productive, attempts, warnings: s.warnings })
     }
 
     /// The truth row of one read. All read positions are 1-based in the final read.
-    fn record(&self, id: String, s: &Simulated, pr: &Productivity) -> TruthRecord {
+    fn record(&self, id: String, s: &Simulated) -> TruthRecord {
         let t = truth(s, &self.bound.candidates);
         let (read, o) = (&s.read, &s.origin);
+        // the junction's anchors: from the origin map, or from a kept cut when trimming removed the
+        // anchor's first base but a valid V end or J start reaches it (ruling A32)
+        let (cys, trp) = crate::derive::anchors(s, &t.v_end_valid, &t.j_start_valid);
+        let at = |x: Origin| o.iter().position(|&y| y == x);
+        let start = s.v.anchor.and_then(|a| at(Origin::V(s.v.sequence_gapped.bytes().enumerate().filter(|&(_, b)| b != b'.').nth(a)?.0)));
+        let start = start.or(cys.and_then(|c| usize::try_from(c).ok()));
+        let end = s.j.anchor.and_then(|b| at(Origin::J(b))).or(trp.and_then(|t| usize::try_from(t).ok()));
+        let pr = &crate::recombine::productivity_at(read, o, start, end);
         let text = |b: &[u8]| String::from_utf8_lossy(b).into_owned();
         // 0-based first and last read index of each segment
         let span = |f: fn(&Origin) -> bool| Some((o.iter().position(f)?, o.iter().rposition(f)?));
@@ -268,7 +278,8 @@ impl<'a> Run<'a> {
             sequence: text(read),
             rev_comp: Some(false),
             productive: Some(pr.productive),
-            vj_in_frame: Some(pr.vj_in_frame),
+            // null without a junction (ruling A31), as the annotator reports it
+            vj_in_frame: pr.junction.is_some().then_some(pr.vj_in_frame),
             stop_codon: Some(pr.stop_codon),
             locus: Some(self.bound.model.locus.to_string()),
             v_call: Some(name(&s.v)),

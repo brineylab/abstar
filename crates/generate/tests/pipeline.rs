@@ -608,6 +608,8 @@ fn masks_consistent() {
         if let Some(j) = s(&rows, "junction", r) {
             assert_eq!(s(&rows, "cdr3", r).as_deref(), Some(&j[3..j.len() - 3]));
         }
+        // vj_in_frame is null exactly when there is no junction (ruling A31)
+        assert_eq!(bl(&rows, "vj_in_frame", r).is_some(), s(&rows, "junction", r).is_some(), "row {r}");
         if s(&rows, "cdr3", r).is_some() {
             assert_eq!(i(&rows, "cdr3_length", r), Some(s(&rows, "cdr3_aa", r).unwrap().len() as i64));
             // the regions in the read tile sequence_vdj, in nt and in aa

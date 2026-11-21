@@ -44,7 +44,7 @@ type = "bool"
 nullable = true
 origin = "airr-optional"
 coordinates = ""
-description = "The junction length is a multiple of 3 and the J anchor is in the V reading frame. F when the junction is not in the read."
+description = "The junction length is a multiple of 3 and the J anchor is in the V reading frame. Null when there is no junction (ruling A31)."
 decision = ""
 
 [[field]]
@@ -107,7 +107,7 @@ type = "string"
 nullable = true
 origin = "airr-required"
 coordinates = ""
-description = "Read bases from the first base of the Cys104 codon through the last base of the Trp/Phe118 codon of the true alleles. Null when either codon is not wholly in the read."
+description = "Read bases from the first base of the Cys104 codon through the last base of the Trp/Phe118 codon of the true alleles. A codon whose first base was trimmed away is placed from a valid V end or J start the true allele supports (ruling A32). Null when either codon is not wholly in the read."
 decision = ""
 
 [[field]]
