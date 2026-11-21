@@ -1,9 +1,9 @@
 //! Streaming run pipeline: read batches, annotate in parallel, write in input order.
+use crate::engine::{Annotate, Engine, EngineOptions};
 use crate::error::RunError;
 use crate::input::{Input, Source};
 use crate::runmeta::{now_rfc3339, RunMeta};
 use crate::schema::{arrow_schema, to_record_batch, Record};
-use crate::stub::annotate_stub;
 use crate::writers::{Format, ParquetSink, TsvWriter};
 use abstar_germline::{Database, Locus};
 use arrow_array::RecordBatch;
@@ -64,7 +64,7 @@ pub struct RunSummary {
     pub run_json: Option<PathBuf>,
 }
 
-type Annotator<'a> = &'a (dyn Fn(&str, &str, &Database) -> Record + Sync);
+type Annotator<'a> = &'a dyn Annotate;
 type Sink<'a> = &'a mut dyn FnMut(&RecordBatch) -> Result<(), RunError>;
 
 thread_local! { static QUIET: Cell<bool> = const { Cell::new(false) }; }
@@ -84,9 +84,9 @@ fn install_quiet_hook() {
     });
 }
 
-fn annotate_guarded(f: Annotator, id: &str, seq: &str, db: &Database) -> Record {
+fn annotate_guarded(f: Annotator, id: &str, seq: &str) -> Record {
     QUIET.with(|q| q.set(true));
-    let r = panic::catch_unwind(AssertUnwindSafe(|| f(id, seq, db)));
+    let r = panic::catch_unwind(AssertUnwindSafe(|| f.annotate(id, seq)));
     QUIET.with(|q| q.set(false));
     r.unwrap_or_else(|p| {
         let msg = p
@@ -145,7 +145,6 @@ fn tsv_safe(s: &mut String) {
 fn run_input(
     input: &Input,
     mut src: Source,
-    db: &Database,
     opts: &RunOptions,
     pool: &rayon::ThreadPool,
     ann: Annotator,
@@ -171,7 +170,7 @@ fn run_input(
                 .par_iter()
                 .map(|(id, seq, utf8)| {
                     if *utf8 {
-                        annotate_guarded(ann, id, seq, db)
+                        annotate_guarded(ann, id, seq)
                     } else {
                         Record {
                             sequence_id: id.clone(),
@@ -245,7 +244,9 @@ pub fn run_to_files(
     opts: &RunOptions,
     meta: &RunMeta,
 ) -> Result<RunSummary, RunError> {
-    run_to_files_with(inputs, output_dir, db, formats, opts, meta, &annotate_stub)
+    validate(db, opts)?;
+    let engine = Engine::new(db, &EngineOptions { threads: opts.threads })?;
+    run_to_files_with(inputs, output_dir, db, formats, opts, meta, &engine)
 }
 
 fn run_to_files_with(
@@ -307,7 +308,7 @@ fn run_to_files_with(
             outputs.insert(fmt_name(*f).to_string(), path);
         }
         let mut counts = StatusCounts::default();
-        run_input(input, src, db, opts, &pool, ann, &mut counts, &mut |b| {
+        run_input(input, src, opts, &pool, ann, &mut counts, &mut |b| {
             if let Some((w, what)) = tsv.as_mut() {
                 w.write(b).map_err(|e| io_err(what, e))?;
             }
@@ -357,6 +358,7 @@ pub fn run_to_writer<W: Write>(
     out: W,
 ) -> Result<StatusCounts, RunError> {
     validate(db, opts)?;
+    let engine = Engine::new(db, &EngineOptions { threads: opts.threads })?;
     let pool = pool(opts)?;
     let pipe = |e: &std::io::Error| e.kind() == ErrorKind::BrokenPipe;
     let mut w = match TsvWriter::new(BufWriter::with_capacity(1 << 16, out)) {
@@ -368,7 +370,7 @@ pub fn run_to_writer<W: Write>(
     let mut closed = false;
     for input in inputs {
         let mut c = StatusCounts::default();
-        let r = run_input(input, Source::open(input)?, db, opts, &pool, &annotate_stub, &mut c, &mut |b| match w.write(b) {
+        let r = run_input(input, Source::open(input)?, opts, &pool, &engine, &mut c, &mut |b| match w.write(b) {
             Err(e) if pipe(&e) => {
                 closed = true;
                 Err(RunError::Io("broken pipe".into()))
@@ -388,7 +390,9 @@ pub fn run_to_writer<W: Write>(
 }
 
 pub fn run_in_memory(inputs: &[Input], db: &Database, opts: &RunOptions) -> Result<Vec<RecordBatch>, RunError> {
-    run_in_memory_with(inputs, db, opts, &annotate_stub)
+    validate(db, opts)?;
+    let engine = Engine::new(db, &EngineOptions { threads: opts.threads })?;
+    run_in_memory_with(inputs, db, opts, &engine)
 }
 
 /// Same as `run_in_memory` with an injected annotator (tests).
@@ -397,13 +401,13 @@ pub fn run_in_memory_with(
     inputs: &[Input],
     db: &Database,
     opts: &RunOptions,
-    ann: &(dyn Fn(&str, &str, &Database) -> Record + Sync),
+    ann: &dyn Annotate,
 ) -> Result<Vec<RecordBatch>, RunError> {
     validate(db, opts)?;
     let pool = pool(opts)?;
     let mut out = vec![];
     for input in inputs {
-        run_input(input, Source::open(input)?, db, opts, &pool, ann, &mut StatusCounts::default(), &mut |b| {
+        run_input(input, Source::open(input)?, opts, &pool, ann, &mut StatusCounts::default(), &mut |b| {
             out.push(b.clone());
             Ok(())
         })?;

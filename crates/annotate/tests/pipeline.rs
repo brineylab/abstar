@@ -3,6 +3,7 @@ use abstar_annotate::input::Input;
 use abstar_annotate::pipeline::*;
 use abstar_annotate::runmeta::RunMeta;
 use abstar_annotate::schema::{arrow_schema, Record};
+use abstar_annotate::engine::{Annotate, Engine, EngineOptions, Stub};
 use abstar_annotate::stub::annotate_stub;
 use abstar_annotate::writers::Format;
 use abstar_germline::{Database, Locus, Manifest};
@@ -154,11 +155,27 @@ fn stems_and_run_json() {
     assert_eq!(std::fs::read_to_string(out.join("reads.tsv")).unwrap().lines().count(), 3);
 }
 
-fn boom(id: &str, seq: &str, db: &Database) -> Record {
-    if id == "boom" {
-        panic!("kaboom");
+struct Boom(Database);
+
+impl Annotate for Boom {
+    fn annotate(&self, id: &str, seq: &str) -> Record {
+        if id == "boom" {
+            panic!("kaboom");
+        }
+        annotate_stub(id, seq, &self.0)
     }
-    annotate_stub(id, seq, db)
+}
+
+#[test]
+fn engine_seam() {
+    let d = db();
+    let engine = Engine::new(&d, &EngineOptions { threads: None }).unwrap();
+    let inputs = [Input::File(data("empty.fasta")), recs().remove(0)];
+    let a = run_in_memory(&inputs, &d, &opts()).unwrap();
+    let b = run_in_memory_with(&inputs, &d, &opts(), &Stub(&d)).unwrap();
+    let c = run_in_memory_with(&inputs, &d, &opts(), &engine).unwrap();
+    assert_eq!(a, b);
+    assert_eq!(a, c);
 }
 
 fn recs() -> Vec<Input> {
@@ -167,7 +184,7 @@ fn recs() -> Vec<Input> {
 
 #[test]
 fn panic_becomes_error_row() {
-    let b = run_in_memory_with(&recs(), &db(), &opts(), &boom).unwrap();
+    let b = run_in_memory_with(&recs(), &db(), &opts(), &Boom(db())).unwrap();
     let col = b[0].column(arrow_schema().index_of("failure_reason").unwrap()).as_string::<i32>().clone();
     assert_eq!(b[0].num_rows(), 3);
     assert_eq!(col.value(1), "internal_error: kaboom");
@@ -178,7 +195,7 @@ fn panic_becomes_error_row() {
 #[test]
 fn strict_aborts() {
     let o = RunOptions { strict: true, ..opts() };
-    let e = run_in_memory_with(&recs(), &db(), &o, &boom).unwrap_err();
+    let e = run_in_memory_with(&recs(), &db(), &o, &Boom(db())).unwrap_err();
     assert_eq!(e.code(), "STRICT_RECORD_FAILURE");
 }
 

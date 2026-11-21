@@ -1,6 +1,7 @@
 //! Annotation engine.
 pub mod schema;
 pub mod writers;
+pub mod engine;
 pub mod error;
 pub mod input;
 pub mod pipeline;
