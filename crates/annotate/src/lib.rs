@@ -1,5 +1,6 @@
 //! Annotation engine.
 pub mod align;
+pub mod assign;
 pub mod schema;
 pub mod writers;
 pub mod engine;

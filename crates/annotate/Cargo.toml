@@ -27,6 +27,8 @@ block-aligner = { version = "0.5.1", features = ["simd_neon"] }
 abstar_table = { path = "../table", default-features = false, features = ["codegen"] }
 
 [dev-dependencies]
+# Tests only: generated reads and truth (never used by the library; tests/python/test_crate_graph.py).
+abstar_generate = { path = "../generate" }
 tempfile = "3"
 criterion = "0.5"
 

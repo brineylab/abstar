@@ -6,6 +6,7 @@ version = 4
 name = "abstar_annotate"
 version = "1.0.0-dev.0"
 dependencies = [
+ "abstar_generate",
  "abstar_germline",
  "abstar_table",
  "arrow-array",
