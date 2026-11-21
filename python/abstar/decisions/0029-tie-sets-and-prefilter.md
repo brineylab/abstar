@@ -176,3 +176,50 @@ On reads with a single true V indel where the primary is the true allele, the pl
 - **Typical cost:** 0.3 ms per naive read.
 - **Gapping limits.** An allele whose IMGT gapping is shifted (#138), or that lacks gaps (macaque, #137), is compared at the wrong positions, as in the truth sets.
 - **Constants.** Changing any constant here changes calls, so it needs a superseding record: k, scores, 90%, 3, 12, bin 8, 8 diagonal hits, J 30, near V 20, floor 50, the cut scores, the pair span of 40, the V start extension's 20 and 3 bases and quarter identity, or for J the 10-nt overlap, 3 cut alleles, the J floor of 30 and the J protect margin of 5.
+- **2026-11-21 (fix wave, rulings B1 and B4; measured on the Task 12 benchmark sets, 5,000 reads each, seeds 20261201–09).**
+  - **B1: short 3′ J fragments.** Below the J floor of 30, the best gapless alignment of the read's 3′ end to any J allele of the V's locus is called when all of these hold:
+    - it has at most 2 mismatches;
+    - it is at least 7 + ⌈log4(the locus's total J nt)⌉ bases long (12 for IGH, IGK, IGL and TRB; 13 for TRA), plus 4 bases per mismatch;
+    - the junction it implies (Cys104 on V's last diagonal through the Trp/Phe118 codon) is 6–180 nt; the bnab truth sets reach 162.
+
+    The tie set, the record 0008 pick and the re-cut then follow the usual steps, on that tail alignment. The joint junction step (record 0030) places the V end, D and J start of these reads as usual.
+    - On igh_truncated (memory preset, 0–60 nt 5′ and 0–40 nt 3′ truncation), J call accuracy rose from 77.19% to 80.91%, by J nt left:
+
+      | J nt left | before | after |
+      |---|---|---|
+      | 10–14 | 2.4% | 31.8% |
+      | 15–19 | 61.2% | 70.0% |
+      | ≥ 20 | 98.15% | 98.21% |
+
+      D rose from 71.28% to 74.89% and the junction from 92.23% to 94.46%. IgBLAST reaches 91.1% on J by calling more of the fragments under 15 nt; its J start reaches only 77.7%.
+    - **Null.** 100,000 random tails per V. With 250-nt tails (this record's null), J calls stay at today's rate for every locus (per 100k: IGH 5, IGK 8, IGL 12, TRA 16, TRB 6). The junction cap removes every tail match from these reads; without it, an exact 12-nt rule raised TRA to 29.
+    - **Short-tail null.** With 1–150-nt tails, where a fragment can imply a plausible junction, the rate rises (per 100k, before → after): IGH 2 → 2, IGK 4 → 6, IGL 0 → 2, TRA 7 → 15, TRB 1 → 8.
+    - **Rules swept**, on igh_truncated J and the short-tail null:
+
+      | Shortest exact fragment, IG / TRA | igh_truncated J | Short-tail null IGH / IGK / TRA (per 100k) |
+      |---|---|---|
+      | 10 | 84.30% | 20 / 18 / 234 |
+      | 11 | 82.54% | 2 / 7 / 67 |
+      | 12 / 13 (chosen) | 80.91% | 2 / 6 / 15 |
+  - **B4: later J start among equal cuts.** When the projecting J cut has at most 3 mismatched or gapped bases, the J alleles are counted only over read positions from the latest start among the top-3 cuts with the same score. Chance N bases matching a sibling's 5′ end, such as IGLJ3\*02's against IGLJ2\*01, therefore don't decide the allele.
+
+    J call, before → after:
+
+    | Set | J call | Tie coverage |
+    |---|---|---|
+    | igl | 98.70% → 99.82% | 98.70% → 99.82% |
+    | igh_naive | 99.76% → 99.84% | 98.86% → 98.92% |
+    | igh_memory | 99.56% → 99.62% | |
+    | igh_bnab | 93.65% → 93.63% | |
+    | igh_truncated | 80.89% → 80.91% | |
+    | igk, tra, trb, igh_indels | unchanged | |
+
+    It is a net gain, so it is kept. Variants that lost:
+    - Counting from the latest start of all three top cuts: IGL 90.7%, igh_memory 93.5%, igh_bnab 74.4%.
+    - Equal-score cuts on any J: igh_bnab −0.65 pp.
+    - Cuts within 4 of the best score: IGK 94.3%, IGL 93.3%.
+
+    The cut's own tie-break was already the shortest J among equal cut scores (`trim` keeps the latest minimal prefix), so that form of the ruling changes nothing.
+  - **New constants:**
+    - B1: the 7 + ⌈log4⌉ shortest fragment, 4 nt per mismatch, at most 2 mismatches, the 6–180-nt junction;
+    - B4: the 3-difference limit.

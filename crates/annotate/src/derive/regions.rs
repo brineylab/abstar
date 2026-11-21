@@ -81,7 +81,18 @@ pub fn regions(read: &Oriented, v: &VHit, j: Option<(&JHit, &Junction)>, c: Opti
     let jb = j.and_then(|(j, _)| alleles[j.primary].anchor);
     // read position of the Cys104 codon's first base (before the read when truncated away)
     let last_v = l.v.iter().rev().find_map(|&(i, u)| i.zip(u));
-    let cys = va.anchor.zip(last_v).filter(|&(a, (_, u))| a <= u).map(|(a, (i, u))| i as i64 - (u - a) as i64);
+    let mut cys = va.anchor.zip(last_v).filter(|&(a, (_, u))| a <= u).map(|(a, (i, u))| i as i64 - (u - a) as i64);
+    // V ends before the anchor (a heavily mutated V 3' end): the Cys104 codon is projected along
+    // V's last diagonal when it is TGT or TGC and ends before J (ruling B2)
+    let mut projected = None;
+    if cys.is_none() && j.is_some() {
+        if let Some((a, (i, u))) = va.anchor.zip(last_v).filter(|&(a, (_, u))| a > u) {
+            let p = i + (a - u);
+            if p + 3 <= l.j_start && matches!(&read.seq[p..p + 3], b"TGT" | b"TGC") {
+                (cys, projected) = (Some(p as i64), Some(p));
+            }
+        }
+    }
     let j_first = l.j.iter().find_map(|c| c.1);
     let cdr3_known = cys.is_some() && (j.is_none() || jb.zip(j_first).is_some_and(|(b, u)| u <= b));
 
@@ -115,7 +126,7 @@ pub fn regions(read: &Oriented, v: &VHit, j: Option<(&JHit, &Junction)>, c: Opti
     });
 
     let at = |cols: &[Col], u: usize| cols.iter().find(|c| c.1 == Some(u)).and_then(|c| c.0);
-    let start = va.anchor.and_then(|a| at(&l.v, a));
+    let start = va.anchor.and_then(|a| at(&l.v, a)).or(projected);
     let end = jb.and_then(|b| at(&l.j, b));
     let junction = match (start, end) {
         (Some(s), Some(e)) if s + 3 <= e && e + 3 <= len => Some((s, e + 3)),

@@ -152,3 +152,15 @@ fn j_call_accuracy_report() {
     grade("memory + 20% indels, seed 11", &generated(11, "memory", 3000, |p| p.indel_rate = 0.2));
     grade("bnab, seed 1", &generated(1, "bnab", 2000, |_| {}));
 }
+
+#[test]
+fn short_3p_fragment_called() {
+    // Ruling B1: a read ending after the first 14 J nt (exact) gets a J call; 11 nt (below IGH's
+    // 12-nt minimum) does not.
+    let r = human();
+    let (v, j) = (ungapped(r, "IGHV3-23*01"), ungapped(r, "IGHJ4*02"));
+    let h = r.call_j(&[&v[..], NP, &j[..14]].concat()).expect("J hit");
+    assert!(r.names(&h.ties).contains("IGHJ4*02"), "{:?}", r.names(&h.ties));
+    assert_eq!(h.aln.q_end - h.aln.q_start, 14);
+    assert!(r.call_j(&[&v[..], NP, &j[..11]].concat()).is_none());
+}

@@ -92,3 +92,25 @@ Measured with the built-in `human` database (release build), with truth comparin
 - **C:** on naive reads with 40 nt of C (seed 2, 2,000 reads) the primary is in `c_call_valid` on 100%.
 - **Cost:** about 160 µs per naive read and 230 µs per bnab read, single thread. Without the D search it is about 2.5 µs. The D search scores 62 orientations × about 100 offsets × a window of up to the D's length, as one serial DP pass each. SIMD across offsets is the upgrade path.
 - **Constants.** The ±1 score, the 5-nt D threshold, the 10-nt C threshold and the tie-break order are part of this decision. Changing any of them needs a superseding record.
+- **2026-11-21 (fix wave, ruling B3): D margin of 6.** A D is called only when its best configuration beats the best no-D configuration by at least **6**; it was 1 (`Sd > S0`). The 5-nt D threshold stays.
+  - **Effect.** A chance D placed over N bases rarely gains 6. An exact 5-nt true D gains only 5, but truth's 5-nt runs are where `d_call_valid` lists every allele containing those bases.
+  - **Sweep.** D call accuracy on the Task 12 sets, 5,000 reads each; a null D is correct when `d_call_null_valid` (A11):
+
+    | Setting | igh_naive | igh_memory | igh_bnab | igh_indels | igh_truncated | trb |
+    |---|---|---|---|---|---|---|
+    | margin 1 (before) | 95.84 | 93.20 | 68.32 | 92.54 | 74.69 | 85.72 |
+    | margin 2–4 | 95.84 | 93.20 | 68.32 | 92.54 | 74.69 | 85.72–87.48 |
+    | margin 5 | 95.90 | 93.22 | 68.38 | 92.58 | 74.71 | 90.28 |
+    | **margin 6 (chosen)** | **96.22** | **93.33** | **68.57** | **92.76** | **74.89** | **91.94** |
+    | margin 7 | 96.58 | 93.22 | 68.35 | 92.91 | 74.93 | 89.78 |
+    | margin 8 | 96.28 | 92.13 | 65.45 | 92.02 | 74.54 | 83.56 |
+    | min D run 7 (TRB only) | 95.84 | 93.20 | 68.32 | 92.54 | 74.69 | 87.58 |
+    | min D run 7 (all loci) | 96.06 | 93.20 | 68.46 | 92.85 | 74.83 | 87.58 |
+    | min D run 9 (TRB only) | 95.84 | 93.20 | 68.32 | 92.54 | 74.69 | 80.00 |
+
+    Margin 6 maximizes the summed D accuracy with one locus-independent constant. Margin 7 for IGH alone is within 10 reads of it in total, trading naive for mutated sets. D boundaries move with the call: trb D start goes from 82.02% to 90.06%; IgBLAST reaches 92.8% on the TRB D call.
+  - **Trade-off.**
+    - Exact true D runs of 5 nt are no longer called. Two TRB reads in the accuracy gate are examples.
+    - With no D, the no-D configuration can give the D's bases to V or J. On TRB, `v_sequence_end` fell from 99.56% to 99.44% and the V mutation fields from 99.80% to 99.51%. In one igh_memory gate read the J start moved 16 nt upstream onto IGHJ5\*02's 5′ end.
+    - On the real BCR corpus, 829 reads lose a D call. Reads where only legacy calls a D rose from 182 to 980; in 972 of them legacy's D scores 6 or less against the read.
+  - The margin of 6 is a constant of this decision.

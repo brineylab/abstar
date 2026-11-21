@@ -67,3 +67,14 @@ Agreement with truth (`tests/derive.rs`, seeds as listed) is measured on reads w
 - **Indel placement and the J end.** The remaining misses with truth's cuts are indels placed differently at a region boundary (memory + indels, bnab). There are also mutated last J bases cut from the J alignment's 3′ end, and J anchors trimmed away in reads that stop before J, which the read cannot show.
 - The `R_length` fields cite this record. `sequence_alignment` and `germline_alignment` are ungraded until truth defines them.
 - **2026-11-21 (rulings A31–A33, truth side):** truth now does three things the annotator already did. `vj_in_frame` is null without a junction. A trimmed anchor codon is placed from a valid V end or J start that the true allele supports, so the junction and CDR3 are defined. Regions follow each segment's normalized indel placement. On the accuracy gate (seed 20261121, 2,000 reads), the annotator rule is unchanged and agreement rose: `junction` on igh_naive from 98.75% to 99.75% and on tra from 99.15% to 99.95%; `fwr3` on igh_naive from 98.40% to 99.15%; `cdr2` on igh_bnab from 99.14% to 99.60%. The remaining `fwr3` misses are reads whose V is trimmed just short of Cys104 and has a valid V end one or two bases later. The annotator takes that end, so the extra base is FWR3 in its call, while truth counts it as an N base outside FWR3.
+- **2026-11-21 (fix wave, ruling B2): Cys104 projection.** When the V's last base lies before the V anchor (every V end the read supports stops short of Cys104, typically a heavily mutated V 3′ end), the Cys104 codon is projected along V's last diagonal. The projection is kept when the 3 read bases there are TGT or TGC and end before the J start.
+  - The projected codon is FWR3, as an anchor kept by V would be, and the junction and CDR3 start there. The V end itself does not move.
+  - **Why the Cys requirement.** Without it, every V trimmed past Cys104 (truth: junction null) would get a junction, the IgBLAST and legacy convention. On the Task 12 sets that would wrongly add about 126 junctions on igh_naive and 70 on tra. With it, 110 of 111 bnab reads whose projected codon is TGT/TGC have truth's junction at the projected position.
+  - **Before → after:**
+
+    | Set | junction | FWR3 | CDR3 |
+    |---|---|---|---|
+    | igh_bnab | 92.30% → 94.50% | 96.87% → 99.03% | 97.10% → 99.22% |
+    | igh_memory | 99.44% → 99.46% | | |
+    | igh_truncated | 94.46% → 94.44% (one read) | | |
+    | igh_naive, igk, igl, tra, trb | unchanged | | |

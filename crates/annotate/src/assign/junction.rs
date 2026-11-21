@@ -35,6 +35,10 @@ pub struct Junction {
 /// A chosen D run shorter than this is no D (record 0025's threshold).
 const MIN_D_LEN: usize = 5;
 
+/// A D is called only when its best configuration beats the best no-D configuration by at
+/// least this (ruling B3; record 0030): a chance D over N bases rarely gains 6.
+const D_MARGIN: i32 = 6;
+
 /// An inverted D is called only when its best score beats the best forward D score by at
 /// least this (forward wins ties; record 0031).
 const INVERTED_MARGIN: i32 = 2;
@@ -144,9 +148,9 @@ fn best_d(q: &[u8], g: &[u8], s: i64, w: Range<usize>, pa: &[i32], sb: &[i32]) -
 /// J are the primaries on their alignments' diagonals (`v_scores`, `j_scores`); D is every D
 /// allele of the V primary's locus (`d`, uppercase) in both orientations at every offset.
 ///
-/// - **No D** when `locus_has_d` is false, when no D configuration beats the best no-D score,
-///   or when the chosen D configuration's run is shorter than `MIN_D_LEN`: the boundaries are
-///   the best no-D configuration's.
+/// - **No D** when `locus_has_d` is false, when no D configuration beats the best no-D score by
+///   `D_MARGIN`, or when the chosen D configuration's run is shorter than `MIN_D_LEN`: the
+///   boundaries are the best no-D configuration's.
 /// - The D orientation is inverted only when the best inverted score beats the best forward
 ///   score by at least `INVERTED_MARGIN` (record 0031). The D tie set is the alleles reaching
 ///   that orientation's best score, the primary its record 0008 pick, and the boundaries come
@@ -193,7 +197,7 @@ pub fn resolve_junction(read: &Oriented, v: &VHit, j: &JHit, alleles: &[Allele],
     let inverted = best(1) - best(0) >= INVERTED_MARGIN;
     let o = usize::from(inverted);
     let sd = best(o);
-    if sd <= s0 {
+    if sd < s0 + D_MARGIN {
         return no_d;
     }
     let mut ties: Vec<usize> = (0..ks.len()).filter(|&x| scores[x][o] == sd).collect();

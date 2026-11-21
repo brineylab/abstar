@@ -265,3 +265,22 @@ fn deterministic_across_threads_and_batches() {
     assert!(ca.annotated >= 330, "{ca:?}");
     assert_eq!((ca.invalid_input, ca.error), (1, 0));
 }
+
+#[test]
+fn cys_projected_past_a_mutated_v_end() {
+    // Ruling B2: the 24 V bases before Cys104 all mutated, so V's alignment stops short of it; the
+    // intact TGT is projected along V's diagonal and the junction starts there.
+    let db = human();
+    let mut v = ungapped(db, "IGHV1-2*02").into_bytes();
+    let cys = at_imgt(db, "IGHV1-2*02", 310);
+    assert_eq!(&v[cys..cys + 3], b"TGT");
+    for b in &mut v[cys - 24..cys] {
+        *b = match *b { b'A' => b'C', b'C' => b'G', b'G' => b'T', _ => b'A' };
+    }
+    let read = [String::from_utf8(v).unwrap(), "CC".into(), ungapped(db, "IGHD3-3*01"), "GG".into(), ungapped(db, "IGHJ4*02")].concat();
+    let r = engine().annotate("r1", &read);
+    assert!(r.v_sequence_end.unwrap() < cys as i64, "V reaches Cys: {:?}", r.v_sequence_end);
+    assert_eq!(r.junction.as_deref().map(|j| &j[..3]), Some("TGT"));
+    assert_eq!(r.cdr3_start, Some(cys as i64 + 4));
+    assert_eq!(r.annotation_status, "annotated");
+}
