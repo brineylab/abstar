@@ -58,13 +58,21 @@ The truth table holds the true generative values under the same AIRR names as `a
 - The difficulty flags (`high_mutation`, `long_cdr3`, `has_indel`, `truncated_5p`, `truncated_3p`, `ambiguous_v`, `ambiguous_d`, `ambiguous_j`) let you break accuracy down by case.
 - Indels record their range of equivalent positions; a placement anywhere in it is correct.
 
+`abstar.grade(truth, calls)` applies these rules and returns one row per field and subset (`field, subset, n, correct, accuracy`); the subsets are `all` and each difficulty flag. `calls` is any table with `sequence_id` and AIRR columns such as `abstar run` output; a field it lacks is reported with `n = 0`.
+
 ```python
 import polars as pl
 abstar.generate(10_000, "IGH", seed=1, preset="bnab", output_dir="bench", formats=["parquet"])
 truth = pl.read_parquet("bench/generated.truth.parquet")
-graded = abstar.run("bench/generated.fasta").join(truth, on="sequence_id", suffix="_true")
-graded.select(pl.col("v_call_valid").list.contains(pl.col("v_call")).mean())  # V allele accuracy
+abstar.grade(truth, abstar.run("bench/generated.fasta"))
 ```
+
+Grading rules:
+- A segment's fields count only for reads where that segment is recoverable (`not unrecoverable_<seg>`). An empty `_valid` list (the segment left no base in the read) accepts only the true allele, or a null boundary.
+- `junction`, `junction_aa`, `productive`, `vj_in_frame` and `stop_codon` are exact matches, scored on reads where V and J are recoverable.
+- Regions, masks, `<seg>_mutations*` and indels are scored only where the primary call equals the true allele (regions: V, plus J for CDR3 and FWR4; masks: every segment present).
+- Mutation and indel lists are compared after restricting both to the germline positions inside the intersection of the two `<seg>_germline_start`..`end` spans. Counts and frequencies are recomputed from the restricted lists. V positions are mapped through the IMGT gapping of `germline_db` (default `human`; pass `germline_db=` for another database).
+- Masks are compared position by position where both `gene_segment_mask`s agree. `gene_segment_mask` itself may differ only at read positions the `_valid` boundary lists leave open.
 
 In the TSV truth, list columns are comma-joined strings; the Parquet truth keeps them as lists.
 

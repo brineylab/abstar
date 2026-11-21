@@ -3,11 +3,12 @@ from typing import TYPE_CHECKING
 
 __version__ = _version("abstar")
 
-__all__ = ["run", "RunSummary", "InputSummary", "AbstarError", "germline", "generate", "GenerateSummary", "model"]
+__all__ = ["run", "RunSummary", "InputSummary", "AbstarError", "germline", "generate", "GenerateSummary", "grade", "model"]
 
 if TYPE_CHECKING:
     from . import germline, model
     from ._generate import GenerateSummary, generate
+    from .grade import grade
     from .api import InputSummary, RunSummary, run
     from .errors import AbstarError
 
@@ -22,6 +23,11 @@ def __getattr__(name):
         from . import _generate
 
         return getattr(_generate, name)
+    if name == "grade":
+        from .grade import grade
+
+        globals()["grade"] = grade  # the submodule import rebinds the name; keep the function
+        return grade
     if name == "AbstarError":
         from .errors import AbstarError
 
