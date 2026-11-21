@@ -13,6 +13,7 @@ use crate::{IndelKind, Origin, Simulated};
 /// Exclusive IMGT-gapped ends of FWR1, CDR1, FWR2, CDR2 and FWR3 (which ends with Cys104).
 const V_ENDS: [usize; 5] = [78, 114, 165, 195, 312];
 /// Region indices: FWR1, CDR1, FWR2, CDR2, FWR3, CDR3, FWR4.
+const FWR3: usize = 4;
 const CDR3: usize = 5;
 const FWR4: usize = 6;
 
@@ -64,11 +65,18 @@ pub(crate) fn fill(r: &mut TruthRecord, s: &Simulated) {
     };
     let gbase = |x: Origin| seg_of(x).map(|(k, u)| germ[k].as_ref().expect("segment allele")[u]);
     let label = |k: usize, u: usize| if k == 0 { format!("IMGT{}", gi[u] + 1) } else { (u + 1).to_string() };
-    // CDR3's ends are known when both anchor codons survive trimming; truncation may still
-    // cut it, leaving the covered part
+    // The Cys104 codon is the 3 read bases from the V anchor's first base, whatever their
+    // origin (trimming may replace its tail with N bases); CDR3 runs from there to the J's
+    // Trp/Phe118 base. Its ends are known when both anchors' first bases survive trimming;
+    // truncation may still cut it, leaving the covered part. `cys`: read index of the Cys
+    // codon's first base (before the read when truncated), placed from the last V base.
     let v_kept = s.v.sequence().len() as i64 - s.v_trim_3.max(0);
-    let cdr3_known =
-        s.v.anchor.is_some_and(|a| a as i64 + 3 <= v_kept) && s.j.anchor.is_some_and(|b| s.j_trim_5 <= b as i64);
+    let cys = s.v.anchor.filter(|&a| (a as i64) < v_kept).and_then(|a| {
+        let il = o.iter().rposition(|x| matches!(x, V(_)))?;
+        let V(gl) = o[il] else { unreachable!() };
+        Some(il as i64 + a as i64 - ug[gl] as i64)
+    });
+    let cdr3_known = cys.is_some() && s.j.anchor.is_some_and(|b| s.j_trim_5 <= b as i64);
 
     if let (true, Some(i0)) = (gapped, o.iter().position(|x| matches!(x, V(_)))) {
         let V(g0) = o[i0] else { unreachable!() };
@@ -80,10 +88,11 @@ pub(crate) fn fill(r: &mut TruthRecord, s: &Simulated) {
         for i in i0..end {
             reg[i] = match o[i] {
                 V(g) => Some(V_ENDS.iter().position(|&e| g < e).unwrap_or(CDR3)),
-                N1 | N2 | P | D(_) => Some(CDR3),
-                J(u) => s.j.anchor.map(|b| if u < b { CDR3 } else { FWR4 }),
                 C(_) => None,
                 Inserted => reg[i - 1],
+                _ if cys.is_some_and(|c| (i as i64) < c + 3) => Some(FWR3),
+                J(u) => s.j.anchor.map(|b| if u < b { CDR3 } else { FWR4 }),
+                N1 | N2 | P | D(_) => Some(CDR3),
             };
         }
         let regions: Vec<Region> = (0..7)
@@ -116,14 +125,16 @@ pub(crate) fn fill(r: &mut TruthRecord, s: &Simulated) {
 
         r.sequence_aa = Some(translate(&read[f0 % 3..]));
         let last = |f: fn(&Origin) -> bool| o.iter().rposition(f);
-        let vdj = last(|x| matches!(x, J(_))).map(|z| z + 1);
-        let vdjc = vdj.and(last(|x| matches!(x, C(_)))).map(|z| z + 1);
-        r.sequence_vdj = vdj.map(|z| text(&read[i0..z]));
-        r.sequence_vdj_aa = vdj.map(|z| translate(&read[f0.min(z)..z]));
+        // through the J end, or without a J base through the last V/N/D-derived base
+        let vdj = last(|x| matches!(x, J(_))).map_or(end, |z| z + 1);
+        let vdjc = last(|x| matches!(x, C(_))).map(|z| z + 1);
+        r.sequence_vdj = Some(text(&read[i0..vdj]));
+        r.sequence_vdj_aa = Some(translate(&read[f0.min(vdj)..vdj]));
         r.sequence_vdjc = vdjc.map(|z| text(&read[i0..z]));
         r.sequence_vdjc_aa = vdjc.map(|z| translate(&read[f0.min(z)..z]));
 
-        if let Some(m) = vdjc.or(vdj) {
+        {
+            let m = vdjc.unwrap_or(vdj);
             let mut seg = Vec::with_capacity(m - i0);
             for &x in &o[i0..m] {
                 seg.push(match x {
@@ -163,6 +174,26 @@ pub(crate) fn fill(r: &mut TruthRecord, s: &Simulated) {
             r.gene_segment_mask = Some(text(&seg));
             r.nongermline_mask = Some(text(&ng));
             r.nongermline_mask_aa = Some(text(&ng_aa));
+        }
+    } else if let Some(b) = s.j.anchor {
+        // no V frame: FWR4 alone, phased by the J's Trp/Phe118 codon
+        let end = o.iter().rposition(|&x| x != Inserted).map_or(0, |e| e + 1);
+        let mut in4 = vec![false; end];
+        for i in 0..end {
+            in4[i] = match o[i] {
+                J(u) => u >= b,
+                Inserted => i > 0 && in4[i - 1],
+                _ => false,
+            };
+        }
+        if let (Some(a), Some(z)) = (in4.iter().position(|&x| x), in4.iter().rposition(|&x| x)) {
+            let J(u) = o[a] else { unreachable!() };
+            let p0 = a + (3 - (u - b) % 3) % 3;
+            let codons = (p0..).step_by(3).take_while(|p| p + 3 <= end);
+            let aa: String = codons.filter(|p| in4[p + 2]).map(|p| translate(&read[p..p + 3])).collect();
+            r.fwr4_length = Some(aa.len() as i64);
+            (r.fwr4, r.fwr4_aa) = (Some(text(&read[a..=z])), Some(aa));
+            (r.fwr4_start, r.fwr4_end) = (Some(a as i64 + 1), Some(z as i64 + 1));
         }
     }
 
@@ -262,9 +293,8 @@ pub(crate) fn fill(r: &mut TruthRecord, s: &Simulated) {
         })
         .collect();
     let [v, d, j, c]: [Segment; 4] = segs.try_into().expect("4 segments");
-    // v_mutation_frequency (same definition) is set by the caller
     (r.v_mutations, r.v_mutations_aa, r.v_insertions, r.v_deletions) = (v.0, v.1, v.2, v.3);
-    (r.v_mutation_count, r.v_mutation_count_aa, r.v_mutation_frequency_aa) = (v.4, v.5, v.7);
+    (r.v_mutation_count, r.v_mutation_count_aa, r.v_mutation_frequency, r.v_mutation_frequency_aa) = (v.4, v.5, v.6, v.7);
     (r.d_mutations, r.d_mutations_aa, r.d_insertions, r.d_deletions) = (d.0, d.1, d.2, d.3);
     (r.d_mutation_count, r.d_mutation_count_aa, r.d_mutation_frequency, r.d_mutation_frequency_aa) = (d.4, d.5, d.6, d.7);
     (r.j_mutations, r.j_mutations_aa, r.j_insertions, r.j_deletions) = (j.0, j.1, j.2, j.3);

@@ -530,7 +530,7 @@ type = "float64"
 nullable = true
 origin = "abstar"
 coordinates = ""
-description = "Fraction of the read's V-derived bases that differ from the true V allele: v_mutation_count ÷ the V germline positions in the read (deleted positions and inserted bases excluded). Null when no V base is in the read."
+description = "Fraction of the read's V-derived bases that differ from the true V allele: v_mutation_count ÷ the V germline positions in the read (deleted positions and inserted bases excluded). Null when no V base is in the read or the V allele is not IMGT-gapped."
 decision = "0026"
 
 [[field]]
@@ -827,7 +827,7 @@ type = "string"
 nullable = true
 origin = "airr-optional"
 coordinates = ""
-description = "FWR3: V bases at IMGT nt 196-312, including the Cys104 codon (310-312). Valued for the true alleles. An inserted base belongs to the region of the germline base it follows. Partial when truncation cuts the region, empty when the region lies inside the read but every base is deleted, null when no base of it is in the read or the read has no V base."
+description = "FWR3: V bases at IMGT nt 196-312, ending with the Cys104 codon (310-312). The Cys104 codon is the 3 read bases from the V anchor's first base, whatever their origin (N or P bases when trimming cut into the codon). Valued for the true alleles. An inserted base belongs to the region of the germline base it follows. Partial when truncation cuts the region, empty when the region lies inside the read but every base is deleted, null when no base of it is in the read or the read has no V base."
 decision = ""
 
 [[field]]
@@ -872,7 +872,7 @@ type = "string"
 nullable = true
 origin = "airr-optional"
 coordinates = ""
-description = "CDR3: the bases after the Cys104 codon and before the Trp/Phe118 codon (the junction without its anchor codons). Partial when truncation removes an anchor codon (junction is then null); null when trimming cut into either anchor codon or an allele has no anchor. Valued for the true alleles. An inserted base belongs to the region of the germline base it follows. Partial when truncation cuts the region, empty when the region lies inside the read but every base is deleted, null when no base of it is in the read or the read has no V base."
+description = "CDR3: the read bases from 3 after the V anchor's first base (the end of the Cys104 codon) to before the J's Trp/Phe118 base, so cdr3 = junction minus its anchor codons whenever junction is set. Partial when truncation removes an anchor codon (junction is then null); null when trimming removed either anchor's first base or an allele has no anchor. Valued for the true alleles. Empty when the read holds both anchor codons back to back, null when no base of it is in the read or the read has no V base."
 decision = ""
 
 [[field]]
@@ -917,7 +917,7 @@ type = "string"
 nullable = true
 origin = "airr-optional"
 coordinates = ""
-description = "FWR4: the true J's bases from the Trp/Phe118 codon to the J end. Valued for the true alleles. An inserted base belongs to the region of the germline base it follows. Partial when truncation cuts the region, empty when the region lies inside the read but every base is deleted, null when no base of it is in the read or the read has no V base."
+description = "FWR4: the true J's bases from the Trp/Phe118 codon to the J end. Valued for the true alleles, also when the read has no V base. An inserted base belongs to the region of the germline base it follows. Partial when truncation cuts the region; null when no base of it is in the read or the J has no anchor."
 decision = ""
 
 [[field]]
@@ -926,7 +926,7 @@ type = "string"
 nullable = true
 origin = "airr-optional"
 coordinates = ""
-description = "Translation of fwr4 in the continuous V(D)J reading frame of sequence_vdj: a codon crossing a region boundary belongs to the downstream region (the region of its 3rd base); partial codons are not translated. Null when fwr4 is null."
+description = "Translation of fwr4 in the continuous V(D)J reading frame of sequence_vdj, or in the J frame (phased by the Trp/Phe118 codon) when the read has no V base: a codon crossing a region boundary belongs to the downstream region (the region of its 3rd base); partial codons are not translated. Null when fwr4 is null."
 decision = ""
 
 [[field]]
@@ -962,7 +962,7 @@ type = "string"
 nullable = true
 origin = "abstar"
 coordinates = ""
-description = "The read from the first V base through the last J base. Null when the read lacks V or J bases."
+description = "The read from the first V base through the last J base, or through the last V/N/D-derived base when the read has no J base. Null when the read has no V base."
 decision = "0026"
 
 [[field]]
@@ -980,7 +980,7 @@ type = "string"
 nullable = true
 origin = "abstar"
 coordinates = ""
-description = "The read from the first V base through the last constant-region base. Null when the read lacks V, J or C bases."
+description = "The read from the first V base through the last constant-region base. Null when the read lacks V or C bases."
 decision = "0026"
 
 [[field]]
@@ -998,7 +998,7 @@ type = "string"
 nullable = true
 origin = "abstar"
 coordinates = ""
-description = "Region of each base: 1, 2 or 3 in CDR1, CDR2 or CDR3, else 0 (framework and constant region). One character per base of sequence_vdjc, or of sequence_vdj when the read has no C base; null when that sequence is null. Also null when cdr3's ends are undefined (trimming cut into an anchor codon, or an allele has no anchor)."
+description = "Region of each base: 1, 2 or 3 in CDR1, CDR2 or CDR3, else 0 (framework and constant region). One character per base of sequence_vdjc, or of sequence_vdj when the read has no C base; null when that sequence is null. Also null when cdr3's ends are undefined (trimming removed an anchor's first base, or an allele has no anchor)."
 decision = "0026"
 
 [[field]]

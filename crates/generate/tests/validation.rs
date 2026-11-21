@@ -464,5 +464,5 @@ fn neutral_output_pinned() {
         Sha256::digest(&bytes).iter().map(|b| format!("{b:02x}")).collect::<String>()
     };
     assert_eq!(hash("pin.fasta"), "1e60db4508fc6450f63399da818ee460cb64ecadd31c696dcb5b315157585ef9");
-    assert_eq!(hash("pin.truth.tsv"), "850c128ab532a8510b0e67429e5b551c9cfd62f8cacaff4a3f62a468c0a58fc4");
+    assert_eq!(hash("pin.truth.tsv"), "7f959802972f7b92125643b0ea2113bdd4d955ce00f052df800f04f7554c398f");
 }

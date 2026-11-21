@@ -329,7 +329,6 @@ impl<'a> Run<'a> {
             truncate_3p: Some(s.truncate_3 as i64),
             truncated_5p: Some(s.truncate_5 > 0),
             truncated_3p: Some(s.truncate_3 > 0),
-            v_mutation_frequency: (nv > 0).then_some(vmf),
             high_mutation: Some(vmf >= 0.20),
             unrecoverable_v: Some(t.unrecoverable_v),
             unrecoverable_d: Some(t.unrecoverable_d),

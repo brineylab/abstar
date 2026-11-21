@@ -297,6 +297,86 @@ fn junction_removed_by_truncation() {
         assert_eq!(bl(&rows, "productive", r), Some(false));
         assert_eq!(bl(&rows, "truncated_3p", r), Some(true));
         assert_eq!(i(&rows, "truncate_3p", r), Some(40));
+        // no J base: sequence_vdj runs to the last V/N base, the masks index it, and CDR3
+        // holds the V tail and one N base (read 292-312; codons from read 1)
+        let read = s(&rows, "sequence", r).unwrap();
+        assert_eq!(read.len(), 312);
+        assert_eq!(s(&rows, "sequence_vdj", r), Some(read.clone()));
+        assert_eq!(s(&rows, "sequence_vdjc", r), None);
+        assert_eq!((i(&rows, "cdr3_start", r), i(&rows, "cdr3_end", r), i(&rows, "cdr3_length", r)), (Some(292), Some(312), Some(7)));
+        let mask = s(&rows, "cdr_mask", r).unwrap();
+        assert!(mask.len() == 312 && mask.ends_with(&"3".repeat(21)) && mask.as_bytes()[290] == b'0', "{mask}");
+        assert_eq!(s(&rows, "gene_segment_mask", r), Some("V".repeat(311) + "N"));
+        assert_eq!(s(&rows, "nongermline_mask_aa", r).map(|x| x.len()), Some(104));
+        assert_eq!(s(&rows, "fwr4", r), None);
+    }
+}
+
+/// V trimmed into the Cys104 codon, keeping its first base: the junction exists, and the
+/// regions follow read offsets from the Cys codon start. Read: V 6-289 (Cys T at read 284),
+/// `AAA` (285-287), IGKJ1*01 (288-325, Phe118 at 295-297).
+#[test]
+fn cdr3_by_cys_offset_when_v_trimmed_into_cys() {
+    let mut m = model("tiny_igk");
+    m.trim.v_3 = TrimSet { default: fixed(22), genes: Default::default() };
+    m.trim.j_5 = TrimSet { default: fixed(0), genes: Default::default() };
+    m.insertions.insert("vj".into(), fixed(3));
+    for k in ["start", "A", "C", "G", "T"] {
+        m.n_markov.insert(k.into(), [1.0, 0.0, 0.0, 0.0]);
+    }
+    let b = bind(m, &db(sim_igk_alleles())).unwrap();
+    let p = GenerateParams { truncate_5p: "fixed:5".parse().unwrap(), ..params(1, 9) };
+    let rows = one(&generate_in_memory(&b, &p).unwrap());
+    let read = s(&rows, "sequence", 0).unwrap();
+    let get = |n: &str| i(&rows, n, 0);
+    let junction = s(&rows, "junction", 0).unwrap();
+    assert_eq!(junction, read[283..297]);
+    assert_eq!(junction, "TAAAGTGGACGTTC");
+    // FWR3 keeps the Cys codon position (T + two N bases); CDR3 = junction[3..len-3]
+    assert_eq!((get("fwr3_start"), get("fwr3_end")), (Some(170), Some(286)));
+    assert!(s(&rows, "fwr3_aa", 0).unwrap().ends_with('*'));
+    assert_eq!((get("cdr3_start"), get("cdr3_end")), (Some(287), Some(294)));
+    assert_eq!(s(&rows, "cdr3", 0).as_deref(), Some(&junction[3..junction.len() - 3]));
+    assert_eq!((s(&rows, "cdr3_aa", 0).as_deref(), get("cdr3_length")), (Some("SG"), Some(2)));
+    assert_eq!((get("fwr4_start"), get("fwr4_end")), (Some(295), Some(325)));
+    let rep = |c: &str, n: usize| c.repeat(n);
+    let mask = [rep("0", 70), rep("1", 24), rep("0", 51), rep("2", 24), rep("0", 117), rep("3", 8), rep("0", 31)].concat();
+    assert_eq!(s(&rows, "cdr_mask", 0), Some(mask));
+    assert_eq!(s(&rows, "gene_segment_mask", 0), Some(["V".repeat(284), "NNN".into(), "J".repeat(38)].concat()));
+}
+
+/// No V base in the read: only FWR4 is valued, phased by the J anchor.
+#[test]
+fn fwr4_without_v() {
+    let b = igk_fixed(3);
+    // V (311) + AAA + 6 J bases cut: the read is IGKJ1*01 7-38, Phe118 at read 2-4
+    let p = GenerateParams { truncate_5p: "fixed:320".parse().unwrap(), ..params(1, 9) };
+    let rows = one(&generate_in_memory(&b, &p).unwrap());
+    assert_eq!(s(&rows, "sequence", 0).unwrap().len(), 32);
+    assert_eq!((i(&rows, "fwr4_start", 0), i(&rows, "fwr4_end", 0)), (Some(2), Some(32)));
+    assert_eq!((s(&rows, "fwr4_aa", 0).as_deref(), i(&rows, "fwr4_length", 0)), (Some("FGQGTKVEIK"), Some(10)));
+    for k in ["cdr3", "fwr3", "sequence_aa", "sequence_vdj", "cdr_mask", "gene_segment_mask"] {
+        assert_eq!(s(&rows, k, 0), None, "{k}");
+    }
+}
+
+/// A V allele that is not IMGT-gapped: every V mutation field is null, frequencies included.
+/// `bind` refuses such alleles, so the bound V is ungapped after binding.
+#[test]
+fn ungapped_v_has_null_v_fields() {
+    let mut m = model("tiny_igk");
+    m.shm_model = "motif".into();
+    let mut b = bind(m, &db(sim_igk_alleles())).unwrap();
+    for (a, _) in &mut b.v {
+        a.sequence_gapped.retain(|c| c != '.');
+        a.anchor = None;
+    }
+    let p = GenerateParams { mutation: "fixed:0.1".parse().unwrap(), ..params(5, 3) };
+    let rows = one(&generate_in_memory(&b, &p).unwrap());
+    for r in 0..5 {
+        assert!(col(&rows, "v_mutations").is_null(r));
+        assert_eq!((f(&rows, "v_mutation_frequency", r), f(&rows, "v_mutation_frequency_aa", r)), (None, None));
+        assert!(!ls(&rows, "j_mutations", r).is_empty() || i(&rows, "j_mutation_count", r) == Some(0));
     }
 }
 
