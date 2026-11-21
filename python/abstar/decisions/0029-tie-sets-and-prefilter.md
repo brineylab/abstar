@@ -179,28 +179,43 @@ On reads with a single true V indel where the primary is the true allele, the pl
 - **2026-11-21 (fix wave, rulings B1 and B4; measured on the Task 12 benchmark sets, 5,000 reads each, seeds 20261201–09).**
   - **B1: short 3′ J fragments.** Below the J floor of 30, the best gapless alignment of the read's 3′ end to any J allele of the V's locus is called when all of these hold:
     - it has at most 2 mismatches;
-    - it is at least 7 + ⌈log4(the locus's total J nt)⌉ bases long (12 for IGH, IGK, IGL and TRB; 13 for TRA), plus 4 bases per mismatch;
-    - the junction it implies (Cys104 on V's last diagonal through the Trp/Phe118 codon) is 6–180 nt; the bnab truth sets reach 162.
+    - it is at least 7 + ⌈log4(the locus's total J nt)⌉ bases long, plus 1 for TR loci (12 for IGH, IGK and IGL; 13 for TRB; 14 for TRA), plus 4 bases per mismatch;
+    - the junction it implies (Cys104 on V's last diagonal through the Trp/Phe118 codon) is 6–180 nt; the bnab truth sets reach 162. Without a V or J anchor the junction cannot be bounded, so the fragment is not called.
 
     The tie set, the record 0008 pick and the re-cut then follow the usual steps, on that tail alignment. The joint junction step (record 0030) places the V end, D and J start of these reads as usual.
-    - On igh_truncated (memory preset, 0–60 nt 5′ and 0–40 nt 3′ truncation), J call accuracy rose from 77.19% to 80.91%, by J nt left:
+    - On igh_truncated (memory preset, 0–60 nt 5′ and 0–40 nt 3′ truncation), J call accuracy rose from 77.19% to 80.91% (`scripts/benchmark/short_j_null.py`), by J nt left:
 
-      | J nt left | before | after |
+      | J nt left | before | after | IgBLAST |
+      |---|---|---|---|
+      | < 10 (n = 415) | 0.0% | 0.0% | 39.3% |
+      | 10–14 (n = 463) | 2.4% | 31.7% | 78.8% |
+      | 15–19 (n = 510) | 61.2% | 70.4% | 91.6% |
+      | ≥ 20 (n = 3,513) | 98.2% | 98.2% | 98.9% |
+
+      D rose from 71.28% to 74.89% and the junction from 92.23% to 94.46%. IgBLAST reaches 91.1% on J by calling many more of the fragments under 15 nt; its J start reaches only 77.7%.
+    - **Null.** `scripts/benchmark/short_j_null.py`: the full V allele plus 100,000 seeded random tails, per V.
+      - With 250-nt tails (this record's null), J calls stay at today's rate for every locus. Per 100k: IGH 5, IGK 8, IGL 12, TRA 16, TRB 6. The junction cap removes every tail match from these reads; without it, an exact 12-nt rule raised TRA to 29.
+      - With 1–150-nt tails, where a fragment can imply a plausible junction, the rule is held within +2 per 100k of the rate before B1 on every locus:
+
+        | Locus | before | after |
+        |---|---|---|
+        | IGH | 2 | 2 |
+        | IGK | 4 | 6 |
+        | IGL | 0 | 2 |
+        | TRA | 7 | 9 |
+        | TRB | 1 | 3 |
+    - **Rules swept**, measured with temporarily overridable constants: the five-locus short-tail null and the igh_truncated buckets (10–14 / 15–19 nt).
+
+      | Rule | igh_truncated J | Short-tail null IGH / IGK / IGL / TRA / TRB |
       |---|---|---|
-      | 10–14 | 2.4% | 31.8% |
-      | 15–19 | 61.2% | 70.0% |
-      | ≥ 20 | 98.15% | 98.21% |
+      | shortest exact 10 on every locus | 84.30% | 20 / 18 / – / 234 / – |
+      | shortest exact 11 on every locus | 82.54% | 2 / 7 / – / 67 / – |
+      | 12 / 12 (TRB) / 13 (TRA), the first B1 commit | 80.91% (31.7 / 70.4) | 2 / 6 / 2 / 15 / 8 |
+      | **TR + 1: 13 (TRB) / 14 (TRA) (chosen)** | **80.91% (31.7 / 70.4)** | **2 / 6 / 2 / 9 / 3** |
+      | TR + 2 | 80.91% | 2 / 6 / 2 / 8 / 3 |
+      | 5 nt per mismatch | 79.86% (30.9 / 63.5) | 2 / 6 / 2 / 15 / 8 |
 
-      D rose from 71.28% to 74.89% and the junction from 92.23% to 94.46%. IgBLAST reaches 91.1% on J by calling more of the fragments under 15 nt; its J start reaches only 77.7%.
-    - **Null.** 100,000 random tails per V. With 250-nt tails (this record's null), J calls stay at today's rate for every locus (per 100k: IGH 5, IGK 8, IGL 12, TRA 16, TRB 6). The junction cap removes every tail match from these reads; without it, an exact 12-nt rule raised TRA to 29.
-    - **Short-tail null.** With 1–150-nt tails, where a fragment can imply a plausible junction, the rate rises (per 100k, before → after): IGH 2 → 2, IGK 4 → 6, IGL 0 → 2, TRA 7 → 15, TRB 1 → 8.
-    - **Rules swept**, on igh_truncated J and the short-tail null:
-
-      | Shortest exact fragment, IG / TRA | igh_truncated J | Short-tail null IGH / IGK / TRA (per 100k) |
-      |---|---|---|
-      | 10 | 84.30% | 20 / 18 / 234 |
-      | 11 | 82.54% | 2 / 7 / 67 |
-      | 12 / 13 (chosen) | 80.91% | 2 / 6 / 15 |
+      TR + 1 is the least change that meets the +2 bound; the IGH truncated gain is untouched because IGH's minimum is unchanged.
   - **B4: later J start among equal cuts.** When the projecting J cut has at most 3 mismatched or gapped bases, the J alleles are counted only over read positions from the latest start among the top-3 cuts with the same score. Chance N bases matching a sibling's 5′ end, such as IGLJ3\*02's against IGLJ2\*01, therefore don't decide the allele.
 
     J call, before → after:
@@ -221,5 +236,5 @@ On reads with a single true V indel where the primary is the true allele, the pl
 
     The cut's own tie-break was already the shortest J among equal cut scores (`trim` keeps the latest minimal prefix), so that form of the ruling changes nothing.
   - **New constants:**
-    - B1: the 7 + ⌈log4⌉ shortest fragment, 4 nt per mismatch, at most 2 mismatches, the 6–180-nt junction;
+    - B1: the 7 + ⌈log4⌉ (+1 for TR) shortest fragment, 4 nt per mismatch, at most 2 mismatches, the 6–180-nt junction;
     - B4: the 3-difference limit.

@@ -1,0 +1,34 @@
+tool	field	rule	misses	explained	share	convention_only
+igblast	cdr3_aa	same nt, one extra/missing trailing residue (partial codon translated)	9628	9627	0.9999	true
+igblast	fwr1	FWR1 starts after truth's V start, same end	3779	3716	0.9833	true
+igblast	fwr1_aa	FWR1 starts after truth's V start, same end	3592	3529	0.9825	true
+igblast	fwr1_start	FWR1 starts after truth's V start, same end	3737	3716	0.9944	true
+igblast	fwr4	FWR4 ends before truth's J end, same start	37724	37460	0.993	true
+igblast	fwr4_aa	FWR4 ends before truth's J end, same start	26571	24095	0.9068	true
+igblast	fwr4_end	FWR4 ends before truth's J end, same start	37640	37460	0.9952	true
+igblast	junction_aa	same nt, one extra/missing trailing residue (partial codon translated)	9600	9599	0.9999	true
+legacy	cdr3_aa	same nt, one extra/missing trailing residue (partial codon translated)	26	0	0.0	false
+legacy	cdr_mask	mask cut at the 3' end, or truth has no junction	4285	1832	0.4275	false
+legacy	cdr_mask_aa	mask cut at the 3' end, or truth has no junction	3649	1289	0.3532	false
+legacy	fwr1	FWR1 starts after truth's V start, same end	4166	4091	0.982	true
+legacy	fwr1_aa	FWR1 starts after truth's V start, same end	4041	3940	0.975	true
+legacy	fwr1_start	FWR1 starts after truth's V start, same end	4137	4091	0.9889	true
+legacy	fwr4	FWR4 ends before truth's J end, same start	3727	3592	0.9638	true
+legacy	fwr4_aa	FWR4 ends before truth's J end, same start	2380	2253	0.9466	true
+legacy	fwr4_end	FWR4 ends before truth's J end, same start	3636	3592	0.9879	true
+legacy	gene_segment_mask	mask cut at the 3' end, or truth has no junction	4656	177	0.038	false
+legacy	gene_segment_mask_aa	aa mask codon labels; nt mask graded right	23394	18951	0.8101	false
+legacy	nongermline_mask	mask cut at the 3' end, or truth has no junction	3693	268	0.0726	false
+legacy	nongermline_mask_aa	mask cut at the 3' end, or truth has no junction	4864	447	0.0919	false
+new	cdr_mask	mask cut at the 3' end, or truth has no junction	176	33	0.1875	false
+new	cdr_mask_aa	mask cut at the 3' end, or truth has no junction	171	31	0.1813	false
+new	fwr1	FWR1 starts after truth's V start, same end	139	131	0.9424	true
+new	fwr1_aa	FWR1 starts after truth's V start, same end	139	131	0.9424	true
+new	fwr1_start	FWR1 starts after truth's V start, same end	131	131	1.0	true
+new	fwr4	FWR4 ends before truth's J end, same start	90	35	0.3889	false
+new	fwr4_aa	FWR4 ends before truth's J end, same start	126	29	0.2302	false
+new	fwr4_end	FWR4 ends before truth's J end, same start	35	35	1.0	false
+new	gene_segment_mask	mask cut at the 3' end, or truth has no junction	320	2	0.0063	false
+new	gene_segment_mask_aa	aa mask codon labels; nt mask graded right	304	0	0.0	false
+new	nongermline_mask	mask cut at the 3' end, or truth has no junction	264	0	0.0	false
+new	nongermline_mask_aa	mask cut at the 3' end, or truth has no junction	206	3	0.0146	false

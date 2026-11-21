@@ -2,7 +2,7 @@ use super::ties::tiebreak_cmp;
 use super::v::{fewest, trim};
 use super::{primary_by_tiebreak, Oriented, SegmentIndex, VHit};
 use crate::align::{align_semiglobal, collapse_gap_pairs, place_gaps, score_semiglobal, Alignment, Op, Scoring};
-use abstar_germline::Allele;
+use abstar_germline::{Allele, Locus};
 
 /// The J call for one oriented read.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -86,12 +86,14 @@ const SHORT_PER_MM: usize = 4;
 /// this many nt (bnab truth sets reach 162).
 const SHORT_MAX_JUNCTION: i64 = 180;
 
-/// Shortest exact 3' J fragment called for a locus: 7 + ⌈log4(the locus's total J nt)⌉, so the
-/// chance that a random read end matches some J stretch stays near 4^-7 (ruling B1): 12 for
-/// IGH, IGK, IGL and TRB, 13 for TRA.
-fn short_min(j: &SegmentIndex, ks: &[usize]) -> usize {
+/// Shortest exact 3' J fragment called for a locus: 7 + ⌈log4(the locus's total J nt)⌉, plus 1
+/// for TR loci, so the chance that a random read end matches some J stretch stays near today's
+/// false-J rate (ruling B1; record 0029's 1-150-nt tail null within +2 per 100k on every locus):
+/// 12 for IGH, IGK and IGL, 13 for TRB, 14 for TRA.
+fn short_min(j: &SegmentIndex, ks: &[usize], locus: Locus) -> usize {
     let total: usize = ks.iter().map(|&k| j.seqs[k].len()).sum();
-    7 + (usize::BITS - total.saturating_sub(1).leading_zeros()).div_ceil(2) as usize
+    let tr = matches!(locus, Locus::TRA | Locus::TRB | Locus::TRG | Locus::TRD);
+    7 + (usize::BITS - total.saturating_sub(1).leading_zeros()).div_ceil(2) as usize + usize::from(tr)
 }
 
 /// The aligned read bases of `aln` at read positions `>= min_q` as (allele index, read base);
@@ -166,16 +168,16 @@ pub fn assign_j(read: &Oriented, v: &VHit, alleles: &[Allele], j: &SegmentIndex,
                 .reduce(|a, b| if b.1 .0 > a.1 .0 { b } else { a })?;
             let len = a.q_end - a.q_start;
             let mm = (len - bs as usize) / 2;
-            if mm > SHORT_MAX_MM || len < short_min(j, &ks) + SHORT_PER_MM * mm {
+            if mm > SHORT_MAX_MM || len < short_min(j, &ks, locus) + SHORT_PER_MM * mm {
                 return None;
             }
-            // the junction the fragment implies: Cys104 on V's last diagonal to Trp/Phe118's end
-            if let (Some(va), Some(ja)) = (alleles[v.primary].anchor, alleles[j.ids[k]].anchor) {
-                let cys = v.aln.q_end as i64 - (v.aln.g_end as i64 - va as i64);
-                let w = (from + a.q_start) as i64 + ja as i64 - a.g_start as i64;
-                if w + 3 - cys > SHORT_MAX_JUNCTION || w + 3 - cys < 6 {
-                    return None;
-                }
+            // the junction the fragment implies: Cys104 on V's last diagonal to Trp/Phe118's end;
+            // without both anchors it cannot be bounded, so no short-fragment call
+            let (va, ja) = (alleles[v.primary].anchor?, alleles[j.ids[k]].anchor?);
+            let cys = v.aln.q_end as i64 - (v.aln.g_end as i64 - va as i64);
+            let w = (from + a.q_start) as i64 + ja as i64 - a.g_start as i64;
+            if w + 3 - cys > SHORT_MAX_JUNCTION || w + 3 - cys < 6 {
+                return None;
             }
             (k, a)
         }
@@ -190,12 +192,20 @@ pub fn assign_j(read: &Oriented, v: &VHit, alleles: &[Allele], j: &SegmentIndex,
     } else {
         top.iter().filter(|(_, a)| a.score == aln.score).map(|(_, a)| a.q_start).max().unwrap_or(0)
     };
-    let mut c = counts(&pairs_from(&aln, q, late), j, &ks);
+    // the later start only narrows the counted bases; it never leaves none
+    let count = |aln: &Alignment| {
+        let p = match pairs_from(aln, q, late) {
+            p if p.is_empty() => pairs_from(aln, q, 0),
+            p => p,
+        };
+        counts(&p, j, &ks)
+    };
+    let mut c = count(&aln);
     let pick = primary_by_tiebreak(&fewest(&c).0, alleles);
     if pick != j.ids[k] {
         k = j.ids.binary_search(&pick).expect("tie is a J allele");
         aln = recut(k);
-        c = counts(&pairs_from(&aln, q, late), j, &ks);
+        c = count(&aln);
     }
     let (mut ties, mismatches) = fewest(&c);
     ties.sort_by(|&x, &y| tiebreak_cmp(&alleles[x], &alleles[y]).then(x.cmp(&y)));

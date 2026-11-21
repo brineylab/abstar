@@ -5,8 +5,9 @@ Not a CI dependency. Needs the project venv (abstar.generate/run/grade) and the 
 
     .venv/bin/python scripts/benchmark/run_benchmark.py --work WORK [--igblast-db WORK/igblast_db]
 
-Raw outputs go to WORK (reused when present; delete a tool's directory to rerun it). Summary tables go
-to --out (default docs/superpowers/benchmarks/).
+Raw outputs go to WORK and are reused when present; delete a tool's output directory (e.g. WORK/igh_naive/new)
+to rerun it. Summary tables go to --out (default WORK/tables). Writing over existing tables there, such as the
+committed ones in docs/superpowers/benchmarks/, needs --overwrite.
 """
 import argparse
 import gzip
@@ -85,7 +86,7 @@ def cached(work, key, fn):
     """Run fn() -> (seconds, path) once; the timing is kept in WORK/timings.json."""
     tf = work / "timings.json"
     times = json.loads(tf.read_text()) if tf.exists() else {}
-    if key not in times:
+    if key not in times or not Path(times[key]["path"]).exists():
         sec, path = fn()
         times[key] = {"seconds": sec, "path": str(path)}
         tf.write_text(json.dumps(times, indent=1))
@@ -130,6 +131,63 @@ def load(tool, path, truth):
     return df.select(cols)
 
 
+# Per-tool output conventions that differ from truth's while the underlying call agrees. A (tool, field) is
+# convention-only when at least CONV_SHARE of the tool's misses on it (reads with the true V and J alleles) fit
+# the rule's evidence test; such fields are left out of the head-to-head and at-target tallies.
+CONV_SHARE, CONV_MIN = 0.9, 50
+CONV_RULES = {
+    "FWR4 ends before truth's J end, same start": (("fwr4", "fwr4_aa", "fwr4_end"),
+        lambda t, c, f: c.get("fwr4_start") == t["fwr4_start"] and c.get("fwr4_end") is not None and t["fwr4_end"] is not None
+        and c["fwr4_end"] < t["fwr4_end"]),
+    "FWR1 starts after truth's V start, same end": (("fwr1", "fwr1_aa", "fwr1_start"),
+        lambda t, c, f: c.get("fwr1_end") == t["fwr1_end"] and c.get("fwr1_start") is not None and t["fwr1_start"] is not None
+        and c["fwr1_start"] > t["fwr1_start"]),
+    # counted over aa misses whose nt field is right (an nt miss is the nt field's)
+    "same nt, one extra/missing trailing residue (partial codon translated)": (("junction_aa", "cdr3_aa"),
+        lambda t, c, f: bool(c.get(f)) and bool(t[f]) and abs(len(c[f]) - len(t[f])) == 1
+        and (c[f].startswith(t[f]) or t[f].startswith(c[f]))),
+    "aa mask codon labels; nt mask graded right": (("gene_segment_mask_aa",), None),  # tested in conv_counts
+    "mask cut at the 3' end, or truth has no junction": (("cdr_mask", "cdr_mask_aa", "nongermline_mask", "nongermline_mask_aa",
+        "gene_segment_mask"),
+        lambda t, c, f: (f.startswith("cdr") and t["junction"] is None)
+        or (bool(c.get(f)) and bool(t[f]) and len(c[f]) < len(t[f]) and t[f].startswith(c[f]))),
+}
+
+
+MASKS = ("cdr_mask", "cdr_mask_aa", "gene_segment_mask", "gene_segment_mask_aa", "nongermline_mask", "nongermline_mask_aa")
+
+
+def conv_counts(truth, calls):
+    """(field) -> [misses, explained] under CONV_RULES, over reads with the true V and J alleles. Region and aa
+    fields miss when they differ from truth (the grader compares them exactly); a mask misses when abstar.grade
+    fails it on that read (masks may differ at ambiguous boundaries)."""
+    crows = {r["sequence_id"]: r for r in calls.iter_rows(named=True)}
+    mcols = [c for c in ("sequence_id", "v_call", "d_call", "j_call", *MASKS) if c in calls.columns]
+    by_id = calls.select(mcols).partition_by("sequence_id", as_dict=True) if len(mcols) > 4 else {}
+    out = {}
+    for i, t in enumerate(truth.iter_rows(named=True)):
+        c = crows.get(t["sequence_id"], {})
+        if t["v_call"] is None or c.get("v_call") != t["v_call"] or c.get("j_call") != t["j_call"]:
+            continue
+        mask_fail = None
+        for fields, test in CONV_RULES.values():
+            for f in fields:
+                if f not in calls.columns or c.get(f) == t[f]:
+                    continue
+                if f in ("junction_aa", "cdr3_aa") and c.get(f[:-3]) != t[f[:-3]]:
+                    continue
+                if f in MASKS:
+                    if mask_fail is None:
+                        g = abstar.grade(truth[i:i + 1], by_id[(t["sequence_id"],)])
+                        mask_fail = set(g.filter((pl.col("subset") == "all") & (pl.col("n") > 0) & (pl.col("correct") == 0))["field"])
+                    if f not in mask_fail:
+                        continue
+                x = out.setdefault(f, [0, 0])
+                x[0] += 1
+                x[1] += ("gene_segment_mask" not in mask_fail) if test is None else bool(test(t, c, f))
+    return out
+
+
 def fails(truth, calls):
     """Per-read failures on the primary fields (the grader's rules), for examples. Counts are checked against grade()."""
     crows = {r["sequence_id"]: r for r in calls.iter_rows(named=True)}
@@ -171,7 +229,7 @@ def db_names(db="human"):
 
 def generated(a, run, work):
     names, seqs = db_names(), allele_seqs()
-    acc, timing, naming, short = [], [], [], []
+    acc, timing, naming, short, conv = [], [], [], [], {}
     for name, (locus, seed, opts) in SETS.items():
         d = work / name
         gen = d / "gen"
@@ -191,6 +249,10 @@ def generated(a, run, work):
             g = abstar.grade(truth, calls)
             live = g.filter(pl.col("n") > 0)
             acc.append(live.with_columns(set=pl.lit(name), tool=pl.lit(tool)))
+            for f, (m, e) in conv_counts(truth, calls).items():
+                x = conv.setdefault((tool, f), [0, 0])
+                x[0] += m
+                x[1] += e
             fl = fails(truth, calls)
             fl.write_csv(d / f"{tool}.fails.tsv", separator="\t")
             for f in PRIMARY:  # the example extractor must agree with the grader
@@ -204,8 +266,38 @@ def generated(a, run, work):
             if tool == "new":
                 short.append(shortfalls(name, truth, path, seqs))
         print(f"{name}: done", file=sys.stderr)
+    rule = {f: r for r, (fs, _) in CONV_RULES.items() for f in fs}
+    conv = pl.DataFrame([{"tool": t, "field": f, "rule": rule[f], "misses": m, "explained": e, "share": round(e / m, 4),
+                          "convention_only": m >= CONV_MIN and e / m >= CONV_SHARE} for (t, f), (m, e) in sorted(conv.items())])
     return (pl.concat(acc).select("set", "tool", "field", "subset", "n", "correct", "accuracy"), pl.DataFrame(timing),
-            pl.DataFrame(naming), pl.concat(short).sort("set", "field", "count", descending=[False, False, True]))
+            pl.DataFrame(naming), pl.concat(short).sort("set", "field", "count", descending=[False, False, True]), conv)
+
+
+def tallies(acc, conv):
+    """At-target and head-to-head counts, raw and without each tool's convention-only fields."""
+    excl = {(r["tool"], r["field"]) for r in conv.filter(pl.col("convention_only")).iter_rows(named=True)}
+    rows = []
+    live = acc.filter(pl.col("n") > 0)
+    for adjusted in (False, True):
+        keep = live.filter(~pl.struct("tool", "field").map_elements(lambda r: adjusted and (r["tool"], r["field"]) in excl,
+                                                                    return_dtype=pl.Boolean))
+        for tool in TOOLS:
+            x = keep.filter(pl.col("tool") == tool)
+            a = x.filter(pl.col("subset") == "all")
+            rows.append({"tally": "at target (>= 99.5%)", "tool": tool, "convention_only_removed": adjusted,
+                         "cells": x.height, "count": x.filter(pl.col("accuracy") >= TARGET).height,
+                         "all_subset_cells": a.height, "all_subset_count": a.filter(pl.col("accuracy") >= TARGET).height})
+        w = live.filter(pl.col("n") >= 30).pivot(on="tool", index=["set", "field", "subset"], values="accuracy")
+        for other in ("igblast", "legacy"):
+            x = w.filter(pl.col(other).is_not_null() & pl.col("new").is_not_null())
+            if adjusted:
+                x = x.filter(~pl.col("field").is_in([f for t, f in excl if t in ("new", other)]))
+            a = x.filter(pl.col("subset") == "all")
+            rows.append({"tally": f"new vs {other} (n >= 30)", "tool": "new", "convention_only_removed": adjusted,
+                         "cells": x.height, "count": x.filter(pl.col("new") >= pl.col(other) - 1e-9).height,
+                         "all_subset_cells": a.height, "all_subset_count": a.filter(pl.col("new") >= pl.col(other) - 1e-9).height,
+                         "behind_over_half_pp": x.filter(pl.col("new") < pl.col(other) - 0.005).height})
+    return pl.DataFrame(rows)
 
 
 def shortfalls(name, truth, path, seqs):
@@ -459,24 +551,30 @@ def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--work", required=True, type=Path)
     p.add_argument("--igblast-db", default=None)
-    p.add_argument("--out", type=Path, default=ROOT / "docs" / "superpowers" / "benchmarks")
+    p.add_argument("--out", type=Path, default=None, help="table directory (default WORK/tables)")
+    p.add_argument("--overwrite", action="store_true", help="replace existing tables in --out")
     p.add_argument("--micromamba", default=str(Path.home() / ".local" / "bin" / "micromamba"))
     p.add_argument("--env", default="abstar-bench")
     a = p.parse_args()
     a.work = a.work.resolve()
     a.igblast_db = a.igblast_db or str(a.work / "igblast_db")
     a.work.mkdir(parents=True, exist_ok=True)
+    a.out = a.out or a.work / "tables"
+    stem = a.out / "2026-11-20-annotator-v1"
+    if not a.overwrite and list(a.out.glob(f"{stem.name}-*.tsv")):
+        sys.exit(f"{a.out} already has benchmark tables; pass --overwrite to replace them")
     a.out.mkdir(parents=True, exist_ok=True)
     run = Runner(a)
-    acc, timing, naming, short = generated(a, run, a.work)
+    acc, timing, naming, short, conv = generated(a, run, a.work)
     real, rtiming = real_data(a, run, a.work)
-    stem = a.out / "2026-11-20-annotator-v1"
     acc.sort("set", "tool", "field", "subset").write_csv(f"{stem}-accuracy.tsv", separator="\t", float_precision=4)
     pl.concat([timing, rtiming.with_columns(returned=pl.lit(None, pl.Int64)).select(timing.columns)]).write_csv(f"{stem}-speed.tsv", separator="\t")
     naming.write_csv(f"{stem}-legacy-naming.tsv", separator="\t")
     short.write_csv(f"{stem}-shortfalls.tsv", separator="\t")
+    conv.write_csv(f"{stem}-conventions.tsv", separator="\t")
+    tallies(acc, conv).write_csv(f"{stem}-tallies.tsv", separator="\t")
     real.write_csv(f"{stem}-realdata.tsv", separator="\t")
-    print(f"wrote {stem}-{{accuracy,speed,legacy-naming,shortfalls,realdata}}.tsv", file=sys.stderr)
+    print(f"wrote {stem}-{{accuracy,speed,legacy-naming,shortfalls,conventions,tallies,realdata}}.tsv", file=sys.stderr)
 
 
 if __name__ == "__main__":

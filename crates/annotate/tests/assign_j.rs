@@ -164,3 +164,23 @@ fn short_3p_fragment_called() {
     assert_eq!(h.aln.q_end - h.aln.q_start, 14);
     assert!(r.call_j(&[&v[..], NP, &j[..11]].concat()).is_none());
 }
+
+#[test]
+fn short_fragment_needs_read_end_and_a_bounded_junction() {
+    // B1 is anchored at the read's 3' end, and the junction it implies must be at most 180 nt.
+    let r = human();
+    let (v, j) = (ungapped(r, "IGHV3-23*01"), ungapped(r, "IGHJ4*02"));
+    assert!(r.call_j(&[&v[..], NP, &j[..14], b"CCCCCCCCCC"].concat()).is_none(), "fragment not at the read end");
+    assert!(r.call_j(&[&v[..], &rand_seq(200, 3), &j[..14]].concat()).is_none(), "implied junction over 180 nt");
+}
+
+#[test]
+fn later_j_start_breaks_iglj2_iglj3_tie() {
+    // B4: N bases TG match IGLJ3*02's 5' end (TTGGGTG...) by chance; the J itself is IGLJ2*01 from
+    // its 4th base (GGTATTC...), where IGLJ3*02 has a mismatch (GGTGTTC...).
+    let r = human();
+    let j2 = ungapped(r, "IGLJ2*01");
+    let read = [&ungapped(r, "IGLV2-14*01")[..], b"CTGCATG", &j2[3..]].concat();
+    let h = r.call_j(&read).expect("J hit");
+    assert_eq!(r.alleles[h.primary].name, "IGLJ2*01", "ties {:?}", r.names(&h.ties));
+}

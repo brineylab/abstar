@@ -266,21 +266,62 @@ fn deterministic_across_threads_and_batches() {
     assert_eq!((ca.invalid_input, ca.error), (1, 0));
 }
 
-#[test]
-fn cys_projected_past_a_mutated_v_end() {
-    // Ruling B2: the 24 V bases before Cys104 all mutated, so V's alignment stops short of it; the
-    // intact TGT is projected along V's diagonal and the junction starts there.
+/// IGHV1-2*02 with the `n` V bases before Cys104 all mutated and the Cys codon replaced by
+/// `cys_codon`, then CC + IGHD3-3*01 + GG + IGHJ4*02; and the Cys104 codon's read position.
+fn mutated_v_end_read(n: usize, cys_codon: &[u8]) -> (String, usize) {
     let db = human();
     let mut v = ungapped(db, "IGHV1-2*02").into_bytes();
     let cys = at_imgt(db, "IGHV1-2*02", 310);
     assert_eq!(&v[cys..cys + 3], b"TGT");
-    for b in &mut v[cys - 24..cys] {
+    for b in &mut v[cys - n..cys] {
         *b = match *b { b'A' => b'C', b'C' => b'G', b'G' => b'T', _ => b'A' };
     }
-    let read = [String::from_utf8(v).unwrap(), "CC".into(), ungapped(db, "IGHD3-3*01"), "GG".into(), ungapped(db, "IGHJ4*02")].concat();
+    v[cys..cys + 3].copy_from_slice(cys_codon);
+    ([String::from_utf8(v).unwrap(), "CC".into(), ungapped(db, "IGHD3-3*01"), "GG".into(), ungapped(db, "IGHJ4*02")].concat(), cys)
+}
+
+#[test]
+fn cys_projected_past_a_mutated_v_end() {
+    // Ruling B2: the 24 V bases before Cys104 all mutated, so V's alignment stops short of it; the
+    // intact TGT is projected along V's diagonal and the junction starts there.
+    let (read, cys) = mutated_v_end_read(24, b"TGT");
     let r = engine().annotate("r1", &read);
     assert!(r.v_sequence_end.unwrap() < cys as i64, "V reaches Cys: {:?}", r.v_sequence_end);
     assert_eq!(r.junction.as_deref().map(|j| &j[..3]), Some("TGT"));
     assert_eq!(r.cdr3_start, Some(cys as i64 + 4));
     assert_eq!(r.annotation_status, "annotated");
+}
+
+#[test]
+fn cys_not_projected_unless_cys_and_near() {
+    // B2 projects only a TGT/TGC codon, at most 50 nt past V's last base.
+    let (read, cys) = mutated_v_end_read(24, b"TCT");
+    let r = engine().annotate("r1", &read);
+    assert!(r.v_sequence_end.unwrap() < cys as i64);
+    assert_eq!((r.junction, r.failure_reason.as_deref()), (None, Some("junction_undefined")));
+    let (read, cys) = mutated_v_end_read(60, b"TGT");
+    let r = engine().annotate("r2", &read);
+    assert!(r.v_sequence_end.unwrap() + 50 < cys as i64, "V end {:?}, Cys {cys}", r.v_sequence_end);
+    assert_eq!(r.junction, None);
+}
+
+#[test]
+fn no_v_no_short_j() {
+    // B1 needs a V call: random bases then the first 14 nt of IGHJ4*02 get no call at all.
+    let j = ungapped(human(), "IGHJ4*02");
+    let read = [String::from_utf8(rand_seq(300, 5)).unwrap(), j[..14].to_string()].concat();
+    let r = engine().annotate("r1", &read);
+    assert_eq!((r.v_call, r.j_call, r.failure_reason.as_deref()), (None, None, Some("no_v_hit")));
+}
+
+#[test]
+fn d_margin() {
+    // Ruling B3: an exact 5-nt D gains only 5 over no D and is not called; 10 nt are.
+    let db = human();
+    let d = ungapped(db, "IGHD3-3*01");
+    let read = |run: &str| [ungapped(db, "IGHV1-2*02"), "CCCCC".into(), run.to_string(), "CCCCC".into(), ungapped(db, "IGHJ4*02")].concat();
+    let r = engine().annotate("r5", &read(&d[6..11]));
+    assert_eq!(r.d_call, None, "5-nt D called");
+    let r = engine().annotate("r10", &read(&d[6..16]));
+    assert!(r.d_call_ties.as_ref().is_some_and(|t| t.iter().any(|x| x == "IGHD3-3*01")), "{:?}", r.d_call_ties);
 }

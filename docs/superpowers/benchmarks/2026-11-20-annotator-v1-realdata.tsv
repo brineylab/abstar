@@ -45,10 +45,10 @@ new vs baseline	j	different gene	tie (read can't decide)	67
 new vs baseline	j	tie overlap	read favors baseline	10
 new vs baseline	j	different gene	read favors baseline	7
 new vs baseline	j	same gene, other allele	read favors baseline	5
-new vs baseline	j	only reference called	one null	4
 new vs baseline	j	same gene, other allele	tie (read can't decide)	4
-new vs baseline	j	only tool called	one null	1
+new vs baseline	j	only reference called	one null	4
 new vs baseline	j	same gene, other allele	read favors new	1
+new vs baseline	j	only tool called	one null	1
 new vs baseline	junction_aa	agree		49141
 new vs baseline	junction_aa	only baseline has a junction		809
 new vs baseline	junction_aa	differ: length		49
@@ -63,8 +63,8 @@ new vs baseline	v	tie overlap	read favors new	9
 new vs baseline	v	different gene	read favors new	8
 new vs baseline	v	same gene, other allele	tie (read can't decide)	6
 new vs baseline	v	same gene, other allele	read favors baseline	3
-new vs baseline	v	different gene	tie (read can't decide)	2
 new vs baseline	v	same gene, other allele	read favors new	2
+new vs baseline	v	different gene	tie (read can't decide)	2
 new vs baseline	v	only tool called	one null	1
 new vs igblast	d	both null		33775
 new vs igblast	d	same allele		13274

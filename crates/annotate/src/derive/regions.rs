@@ -8,6 +8,9 @@ const V_ENDS: [usize; 5] = [78, 114, 165, 195, 312];
 const FWR3: usize = 4;
 const CDR3: usize = 5;
 const FWR4: usize = 6;
+/// Furthest the Cys104 codon is projected past V's last base (ruling B2): the bnab truth set's
+/// projections reach 49 nt, all at truth's anchor.
+const MAX_PROJECTION: usize = 50;
 const NAMES: [&str; 7] = ["fwr1", "cdr1", "fwr2", "cdr2", "fwr3", "cdr3", "fwr4"];
 
 /// IMGT regions, junction and assembled-sequence extents of a read (record 0032). A region is
@@ -83,10 +86,10 @@ pub fn regions(read: &Oriented, v: &VHit, j: Option<(&JHit, &Junction)>, c: Opti
     let last_v = l.v.iter().rev().find_map(|&(i, u)| i.zip(u));
     let mut cys = va.anchor.zip(last_v).filter(|&(a, (_, u))| a <= u).map(|(a, (i, u))| i as i64 - (u - a) as i64);
     // V ends before the anchor (a heavily mutated V 3' end): the Cys104 codon is projected along
-    // V's last diagonal when it is TGT or TGC and ends before J (ruling B2)
+    // V's last diagonal, at most MAX_PROJECTION nt, when it is TGT or TGC and ends before J (B2)
     let mut projected = None;
     if cys.is_none() && j.is_some() {
-        if let Some((a, (i, u))) = va.anchor.zip(last_v).filter(|&(a, (_, u))| a > u) {
+        if let Some((a, (i, u))) = va.anchor.zip(last_v).filter(|&(a, (_, u))| a > u && a - u <= MAX_PROJECTION) {
             let p = i + (a - u);
             if p + 3 <= l.j_start && matches!(&read.seq[p..p + 3], b"TGT" | b"TGC") {
                 (cys, projected) = (Some(p as i64), Some(p));

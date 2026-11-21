@@ -41,7 +41,7 @@ def main(out="igblast_db", db="human"):
     ndm, aux = [], []
     for r in rows:
         seg, locus = r["segment"], r["locus"]
-        if seg not in "VDJ" or locus not in CHAIN:
+        if seg not in ("V", "D", "J") or locus not in CHAIN:
             continue
         seq = r["sequence_gapped"].replace(".", "").upper()
         kind = "ig" if locus.startswith("IG") else "tr"
