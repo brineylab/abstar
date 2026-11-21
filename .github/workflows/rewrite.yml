@@ -31,6 +31,11 @@ jobs:
       - name: Generator validation (release)
         if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
         run: cargo test -p abstar_generate --release --test validation -- --include-ignored
+      - name: Accuracy gate and AIRR validation (release)
+        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
+        run: |
+          . .venv/bin/activate
+          python -m pytest tests/python/test_accuracy.py -q -s
       - name: Python tests
         run: |
           . .venv/bin/activate

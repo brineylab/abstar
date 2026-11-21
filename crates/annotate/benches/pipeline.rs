@@ -1,4 +1,4 @@
-//! Pipeline throughput (parse, stub-annotate, write TSV) over the first 10k corpus records.
+//! Pipeline throughput (parse, annotate, write TSV) over the first 10k corpus records.
 use abstar_annotate::input::Input;
 use abstar_annotate::pipeline::{run_to_writer, RunOptions};
 use criterion::{criterion_group, criterion_main, Criterion};
