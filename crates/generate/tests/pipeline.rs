@@ -807,6 +807,66 @@ fn segment_indels_left_normalized() {
     assert!(tested > 50, "{tested}");
 }
 
+/// The aa denominator drops the codons holding a deleted base at the left-normalized placement
+/// (the one the `v_deletions` strings give), not at the generated placement.
+#[test]
+fn aa_denominator_follows_left_normalized_deletions() {
+    use abstar_generate::IndelKind;
+    let b = igh();
+    let p = GenerateParams { indel_rate: 1.0, mutation: "uniform:0.05-0.2".parse().unwrap(), ..params(4000, 25) };
+    let rows = one(&generate_in_memory(&b, &p).unwrap());
+    let (mut tested, mut moved) = (0, 0);
+    for r in 0..rows.num_rows() {
+        let dels = ls(&rows, "v_deletions", r);
+        let (Some(freq), Some(count)) = (f(&rows, "v_mutation_frequency_aa", r), i(&rows, "v_mutation_count_aa", r)) else { continue };
+        if dels.is_empty() {
+            continue;
+        }
+        let sim = simulated(&b, &p, r);
+        let gapped = sim.v.sequence_gapped.as_bytes();
+        let gi: Vec<usize> = (0..gapped.len()).filter(|&g| gapped[g] != b'.').collect();
+        // IMGT positions (1-based) of the normalized deleted bases
+        let mut deleted = Vec::new();
+        for d in &dels {
+            let (pos, bases) = (d[4..d.find(':').unwrap()].parse::<usize>().unwrap(), d.rsplit(':').next().unwrap().len());
+            let u = gi.iter().position(|&g| g + 1 == pos).unwrap();
+            deleted.extend((u..u + bases).map(|x| gi[x] + 1));
+        }
+        let (lo, hi) = (gi[i(&rows, "v_germline_start", r).unwrap() as usize - 1] + 1, gi[i(&rows, "v_germline_end", r).unwrap() as usize - 1] + 1);
+        let den = (1..=gapped.len() / 3)
+            .filter(|n| 3 * n - 2 >= lo && 3 * n <= hi && !gapped[3 * n - 3..3 * n].contains(&b'.'))
+            .filter(|n| !deleted.iter().any(|&x| x.div_ceil(3) == *n))
+            .count();
+        assert!(den > 0 && (freq - count as f64 / den as f64).abs() < 1e-12, "row {r}: {freq} {count} {den}");
+        // the generated placement falls in other codons than the normalized one
+        if let Some(x) = sim.indels.iter().find(|x| x.kind == IndelKind::Del) {
+            let generated: Vec<usize> = (x.germline_pos..x.germline_pos + x.len).map(|u| gi[u] / 3 + 1).collect();
+            let normalized: Vec<usize> = deleted.iter().map(|x| x.div_ceil(3)).collect();
+            moved += usize::from(generated != normalized);
+        }
+        tested += 1;
+    }
+    assert!(tested > 100 && moved > 5, "{tested} {moved}");
+}
+
+/// The constant region's germline span is truth too, so its mutation fields can be graded.
+#[test]
+fn c_germline_coordinates() {
+    let b = igh();
+    let p = busy(300, 26);
+    let rows = one(&generate_in_memory(&b, &p).unwrap());
+    let mut with_c = 0;
+    for r in 0..rows.num_rows() {
+        let (a, z) = (i(&rows, "c_germline_start", r), i(&rows, "c_germline_end", r));
+        assert_eq!(a.is_some(), i(&rows, "c_sequence_start", r).is_some());
+        if let (Some(a), Some(z), Some(rs), Some(re)) = (a, z, i(&rows, "c_sequence_start", r), i(&rows, "c_sequence_end", r)) {
+            assert_eq!((a, z - a), (1, re - rs), "row {r}");
+            with_c += 1;
+        }
+    }
+    assert!(with_c > 100, "{with_c}");
+}
+
 /// A read cut inside CDR3, before the J's Phe118 codon: CDR3 holds the covered bases, the
 /// masks cover it, and the junction and FWR4 are null.
 #[test]

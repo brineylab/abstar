@@ -202,6 +202,8 @@ pub(crate) fn fill(r: &mut TruthRecord, s: &Simulated) {
     // unmutated germline: the left end of `equiv`), kept where the base to their left is
     // still of the same segment and in the read. Listed only with a read base on both sides.
     let (mut ins, mut del): ([Vec<String>; 4], [Vec<String>; 4]) = Default::default();
+    // (ungapped germline index, length) of each deletion at its left-normalized placement
+    let mut del_at: [Vec<(usize, usize)>; 4] = Default::default();
     let t5 = s.truncate_5;
     for x in &s.indels {
         let is_ins = x.kind == IndelKind::Ins;
@@ -219,6 +221,7 @@ pub(crate) fn fill(r: &mut TruthRecord, s: &Simulated) {
             ins[k].push(format!("{}:ins:{}", label(k, x.germline_pos - 1 - shift), text(&bases)));
         } else {
             let u = x.germline_pos - shift;
+            del_at[k].push((u, x.len));
             del[k].push(format!("{}:del:{}", label(k, u), text(&g[u..u + x.len])));
         }
     }
@@ -268,11 +271,28 @@ pub(crate) fn fill(r: &mut TruthRecord, s: &Simulated) {
                     (s0..).step_by(3).take_while(|u| u + 3 <= g.len()).map(|u| (((u - s0) / 3 + 1).to_string(), u)).collect()
                 })
             };
+            // which germline positions count as aligned follows the left-normalized deletions (as the
+            // deletion strings do): the read bases keep their order and fill the positions not deleted
+            let aligned: Vec<bool> = if del_at[k].is_empty() {
+                at.iter().map(Option::is_some).collect()
+            } else {
+                let deleted = |u: usize| del_at[k].iter().any(|&(d, len)| (d..d + len).contains(&u));
+                let (first, n) = (at.iter().position(Option::is_some).expect("a base of the segment"), at.iter().flatten().count());
+                let mut ok = vec![false; g.len()];
+                for u in (first..g.len()).filter(|&u| !deleted(u)).take(n) {
+                    ok[u] = true;
+                }
+                ok
+            };
             let aa = codons.map(|cs| {
                 let (mut out, mut nc) = (Vec::new(), 0usize);
                 for (lab, u) in cs {
-                    let Some(pos) = (u..u + 3).map(|x| at[x]).collect::<Option<Vec<_>>>() else { continue };
+                    if !(u..u + 3).all(|x| aligned[x]) {
+                        continue;
+                    }
                     nc += 1;
+                    // the amino acid comes from the generated placement
+                    let Some(pos) = (u..u + 3).map(|x| at[x]).collect::<Option<Vec<_>>>() else { continue };
                     let (from, to) = (translate(&g[u..u + 3]), translate(&pos.iter().map(|&i| read[i]).collect::<Vec<_>>()));
                     if from != to {
                         out.push(format!("{lab}:{from}>{to}"));

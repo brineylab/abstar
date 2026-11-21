@@ -228,3 +228,19 @@ def test_missing_cut_column_reports_absent():
     calls = pl.DataFrame({"sequence_id": ["a", "b", "c"], "v_call": ["IGHV1-18*01"] * 3, "v_germline_start": [1] * 3,
                           "v_germline_end": [10] * 3, "v_mutations": [["IMGT3:A>C"], [], []]})
     assert _row(abstar.grade(_truth(), calls), "v_mutations")["n"] == 0
+
+
+def test_c_mutation_fields_are_graded():
+    truth = abstar.generate(400, "IGH", seed=5, constant=30, mutation="uniform:0.05-0.2")
+    assert truth["c_germline_start"].drop_nulls().len() > 100
+    g = abstar.grade(truth, truth).filter(pl.col("subset") == "all")
+    for p in ("mutations", "mutations_aa", "insertions", "deletions", "mutation_count", "mutation_count_aa", "mutation_frequency", "mutation_frequency_aa"):
+        r = _row(g, f"c_{p}")
+        assert r["n"] > 100 and r["accuracy"] == 1.0, (p, r)
+    # garbage: wrong count, and a clipped span, are wrong
+    calls = truth.select("sequence_id", "c_call", "c_germline_start", "c_germline_end", "c_mutations", "c_mutations_aa", "c_mutation_count", "c_mutation_frequency").with_columns(
+        pl.col("c_mutation_count") + 5, pl.col("c_germline_end") - 3
+    )
+    g = abstar.grade(truth, calls).filter(pl.col("subset") == "all")
+    assert _row(g, "c_mutation_count")["correct"] == 0
+    assert _row(g, "c_mutations")["correct"] == 0

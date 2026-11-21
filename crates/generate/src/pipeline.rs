@@ -293,6 +293,8 @@ impl<'a> Run<'a> {
             d_germline_end: gend(d),
             j_germline_start: gstart(j),
             j_germline_end: gend(j),
+            c_germline_start: gstart(c),
+            c_germline_end: gend(c),
             np1_length: np1.as_ref().map(|x| x.len() as i64),
             np1,
             np2_length: np2.as_ref().map(|x| x.len() as i64),

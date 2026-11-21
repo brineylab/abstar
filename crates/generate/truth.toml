@@ -255,6 +255,24 @@ description = "Position in the ungapped true J allele of the read's last J-deriv
 decision = ""
 
 [[field]]
+name = "c_germline_start"
+type = "int64"
+nullable = true
+origin = "airr-optional"
+coordinates = "germline: 1-based closed, ungapped allele"
+description = "Position in the true constant allele of the read's first constant-region base; null when no constant-region base is in the read."
+decision = "0026"
+
+[[field]]
+name = "c_germline_end"
+type = "int64"
+nullable = true
+origin = "airr-optional"
+coordinates = "germline: 1-based closed, ungapped allele"
+description = "Position in the true constant allele of the read's last constant-region base; null when no constant-region base is in the read."
+decision = "0026"
+
+[[field]]
 name = "np1"
 type = "string"
 nullable = true
