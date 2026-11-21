@@ -173,7 +173,8 @@ fn ambiguous_junction_base_is_nonproductive() {
 
 #[test]
 fn no_j_hit_keeps_v_fields() {
-    let read = [ungapped(human(), "IGHV1-2*02"), "CCGTATTACG".into()].concat();
+    // The 10 bases after V match no J allele at the Wave 3 low-path floor (record 0029).
+    let read = [ungapped(human(), "IGHV1-2*02"), "AACCAACCAA".into()].concat();
     let r = engine().annotate("r", &read);
     assert_eq!((r.annotation_status.as_str(), r.failure_reason.as_deref()), ("unassigned", Some("no_j_hit")));
     assert_eq!((r.v_call.as_deref(), r.v_species.as_deref(), r.rev_comp), (Some("IGHV1-2*02"), Some("human"), Some(false)));

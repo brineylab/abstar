@@ -349,4 +349,44 @@ On reads with a single true V indel where the primary is the true allele, the pl
       Below floor 6 the added calls are more often wrong than right, and the J is 1–3 nt.
   - **Accuracy gate:** 32 floors rose and 24 fell. All 24 are igh_bnab J mutation cells that hold one more correct read (dilution).
   - **Null** (per 100k, 250-nt / 1–150-nt tails): IGH 2,153 / 5,941; IGK 3,527 / 7,616; IGL 3,119 / 6,042; TRA 14,555 / 19,346; TRB 7,349 / 10,539. The ruling accepts it.
+- **2026-11-21 (Wave 3, controller ruling: the low path is added).** The N/D-ending test was the controller's own construct, not a user requirement. A read whose last bases exactly match a J stretch cannot be told from a truncated J, so calling J there is an acceptable false positive. The bullet above, "the third acceptance path was swept and is not added", is superseded.
+  - **Low path (new, tried last).** After the weak J and B1 fail (or fail their guards after the pick), the best gapless cut among the `TOP` normal-scoring (−3) cuts is called when:
+    - it scores at least `LOW_MIN_SCORE` = **6** on the ±2 scale (3 net matches);
+    - it implies a 6–180-nt junction.
+
+    Like the other fallbacks, its guards are re-applied to the alignment reported after the record 0008 pick.
+  - **Floor: the lowest floor whose marginal step is net-positive on the 12 sets.** Net = right minus (wrong allele + calls on reads with no true J). The summed gain must also be at least the next floor up's. Measured with weak 12 and B1 at 8:
+
+      | step | new calls | right | wrong allele | no true J | net (right − wrong) | per set (right/wrong/noJ) |
+      |---|---|---|---|---|---|---|
+      | 1000 → 16 | 0 | 0 | 0 | 0 | +0 |  |
+      | 16 → 14 | 49 | 47 | 1 | 1 | +45 | igh_truncated 47/1/1 |
+      | 14 → 12 | 34 | 28 | 4 | 2 | +22 | igh_truncated 28/4/2 |
+      | 12 → 10 | 42 | 34 | 4 | 4 | +26 | igh_truncated 34/4/4 |
+      | 10 → 8 | 29 | 18 | 6 | 5 | +7 | igh_truncated 18/6/5 |
+      | 8 → 6 | 19 | 13 | 5 | 1 | +7 | igh_truncated 13/5/1 |
+      | 6 → 4 | 25 | 9 | 10 | 6 | -7 | igh_truncated 9/10/6 |
+      | 4 → 2 | 26 | 12 | 6 | 8 | -2 | igh_bnab 0/2/0; igh_truncated 12/4/8 |
+
+    Summed `j_call` + `junction` gain over pre-Wave-2, by floor:
+
+    | Floor | off/16 | 14 | 12 | 10 | 8 | **6** | 4 | 2 |
+    |---|---|---|---|---|---|---|---|---|
+    | Σ (pp) | +31.75 | +32.67 | +33.20 | +33.80 | +34.07 | **+34.31** | +34.37 | +34.45 |
+
+    - 6 → 4 is the first net-negative step (9 right, 16 wrong), so the floor is 6.
+    - No floor loses correct reads in any listed cell against the pre-Wave-2 build. Against fix round 1, the worst is igh_bnab_c junction 4,157 → 4,155 of 4,212 (−0.047 pp), from B1 at 8.
+    - At 6: igh_truncated J 92.98 → 95.54; junction 98.84 unchanged; J by nt left < 10 nt 30.4 → 58.8%.
+    - J on the 54 no-J truncated reads rises from 4 to 17.
+    - Dilution at 6: igh_truncated `fwr4` 3,526 of 3,528 (99.94%) → 4,110 of 4,123 (99.68%).
+  - **Guards, at floor 6.**
+    - **Gapless** is kept. It changes results: without it, one more right call and one more call on a no-J read (net 0).
+    - **"Read ends inside J" and "read end"** never changed a benchmark result, so they are dropped. On the real corpus, dropping them lets ordinal 36217 (the last `no_j_hit`) get IGLJ2\*01, legacy's call, from a 14-nt match followed by 211 more read bases. Its junction stays null; legacy's is projected (CGESHTIDG).
+  - **Tests.**
+    - `missing_j_is_none` now pins the boundary: a read ending in N/D bases (V + every prefix of NP) gets a J exactly when its tail, laid on some IGH J allele's 5′ end, scores ≥ 6. 27 of the 33 prefixes stay below that and get no J.
+    - `low_path_calls_a_short_fragment`: an exact 7-nt IGHJ4\*02 fragment, below B1, is called IGHJ4\*02 at its true position.
+    - The junction-bound rejection test covers the low path too.
+    - The tail after V in the `no_j_hit` field tests is now `AACCAACCAA`, which matches no J at the floor. `CCGTATTACG` now gets IGHJ6\*02.
+  - **Null and gate:** see the Wave 3 note in the benchmark report. Floors regenerated: 12 rose, none fell.
+  - **New constant:** `LOW_MIN_SCORE` = 6.
 

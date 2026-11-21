@@ -110,11 +110,12 @@ fn truncated_into_cdr1() {
 
 #[test]
 fn truncated_into_cdr3() {
-    // The read ends 10 nt past V: no J hit (status `no_j_hit`, record 0035), no junction, CDR3
+    // The read ends 10 nt past V, in bases no J allele matches at the Wave 3 low-path floor: no J
+    // hit (status `no_j_hit`, record 0035), no junction, CDR3
     // the covered part (ruling A4), sequence_vdj through the read end (ruling A8).
     let r = human();
     let v = ungapped(r, IGHV);
-    let read = [&v[..], b"CCGTATTACG"].concat();
+    let read = [&v[..], b"AACCAACCAA"].concat();
     let (c, g) = forward(r, &read);
     assert!(c.j.is_none());
     assert_eq!(g.junction, None);

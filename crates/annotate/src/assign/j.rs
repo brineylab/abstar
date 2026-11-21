@@ -36,6 +36,11 @@ const WEAK_TOP: usize = 8;
 /// ... and the best cut that holds the allele's Trp/Phe118 codon is a candidate if it scores at
 /// least this (on `trim`'s ±2 scale).
 const WEAK_MIN_SCORE: i32 = 12;
+/// Low path (record 0029, Wave 3): when neither fallback above calls, the best gapless cut of the
+/// `TOP` normal-scoring cuts is called if it scores at least this (on `trim`'s ±2 scale: 3 net
+/// matches) and bounds the junction. The lowest floor whose step still adds more right than
+/// wrong calls on the benchmark sets.
+const LOW_MIN_SCORE: i32 = 6;
 /// The later-start count (ruling B4) applies when the projecting cut has at most this many
 /// mismatched or gapped bases.
 const LATE_MAX_MM: u32 = 3;
@@ -149,9 +154,10 @@ fn counts(p: &[(usize, u8)], j: &SegmentIndex, ks: &[usize]) -> Vec<(usize, u32)
 ///    `WEAK_MIN_SCORE`; a heavily mutated J), and the B1 fragment (the best gapless alignment
 ///    of the read's 3' end to any locus J allele whose matches minus mismatches reach
 ///    `short_min`). The fragment goes first when its doubled score is at least the weak cut's
-///    (both on the ±2 scale); the other is the fallback. A candidate whose reported alignment
-///    (after the pick in step 3) fails its guard is dropped; with none left there is no J
-///    hit (`None`).
+///    (both on the ±2 scale); the other is the fallback. Last comes the low path: the best
+///    gapless cut of the `TOP` normal cuts scoring `LOW_MIN_SCORE`, junction bounded. A
+///    candidate whose reported alignment (after the pick in step 3) fails its guard is
+///    dropped; with none left there is no J hit (`None`).
 /// 3. Every J allele of the locus is counted for mismatches over those bases at its best shift
 ///    (truth's sliding rule: an uncovered base is a mismatch); when the projecting cut has at most
 ///    `LATE_MAX_MM` differences, only bases from the latest start among the top cuts with its
@@ -183,10 +189,11 @@ pub fn assign_j(read: &Oriented, v: &VHit, alleles: &[Allele], j: &SegmentIndex,
         Path::Strong => true,
         Path::Weak => a.score >= WEAK_MIN_SCORE && holds_anchor(k, a) && bounded(k, a),
         Path::Tail => bounded(k, a),
+        Path::Low => a.score >= LOW_MIN_SCORE && a.ops.iter().all(|o| matches!(o.0, Op::Match | Op::Mismatch)) && bounded(k, a),
     };
     let finish = |path: Path, mut k: usize, mut aln: Alignment| -> Option<JHit> {
         let recut = |k: usize| match path {
-            Path::Strong => cut(q, alleles, j, k, scoring),
+            Path::Strong | Path::Low => cut(q, alleles, j, k, scoring),
             Path::Weak => cut(q, alleles, j, k, &weak_s),
             Path::Tail => tail_aln(q, &j.seqs[k], scoring).map_or_else(|| cut(q, alleles, j, k, scoring), |t| t.1),
         };
@@ -253,8 +260,10 @@ pub fn assign_j(read: &Oriented, v: &VHit, alleles: &[Allele], j: &SegmentIndex,
     };
     let weak = weak.map(|(k, a)| (Path::Weak, k, a));
     let tail = tail.map(|(k, (_, a))| (Path::Tail, k, a));
-    let order = if tail_first { [tail, weak] } else { [weak, tail] };
-    order.into_iter().flatten().find_map(|(path, k, a)| finish(path, k, a))
+    // Low path: the best gapless normal cut, last (record 0029, Wave 3).
+    let low = best(&mut top.iter().filter(|&(k, a)| guard(Path::Low, *k, a)).cloned()).map(|(k, a)| (Path::Low, k, a));
+    let [first, second] = if tail_first { [tail, weak] } else { [weak, tail] };
+    [first, second, low].into_iter().flatten().find_map(|(path, k, a)| finish(path, k, a))
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -262,4 +271,5 @@ enum Path {
     Strong,
     Weak,
     Tail,
+    Low,
 }

@@ -65,13 +65,16 @@ fn short_j_sibling_tie() {
 
 #[test]
 fn j_from_v_locus_only() {
-    // An IGK V followed by an IGH J: only IGK J alleles are searched, and none of them fits.
+    // An IGK V followed by an IGH J: only IGK J alleles are searched. None fits the IGH J; the
+    // Wave 3 low path may still call a chance IGK match (accepted false positive), but never an
+    // IGH allele.
     let r = human();
     let read = [&ungapped(r, "IGKV3-20*01")[..], NP, &ungapped(r, "IGHJ4*02")].concat();
     let (o, v) = r.call(&read).expect("V hit");
     assert_eq!(r.alleles[v.primary].locus, Locus::IGK);
-    let h = assign_j(&o, &v, &r.alleles, &r.j, &Scoring::default());
-    assert_eq!(h.map(|h| r.names(&h.ties)), None);
+    if let Some(h) = assign_j(&o, &v, &r.alleles, &r.j, &Scoring::default()) {
+        assert!(h.ties.iter().all(|&i| r.alleles[i].locus == Locus::IGK), "{:?}", r.names(&h.ties));
+    }
     // An IGK J after it is called, from IGK.
     let read = [&ungapped(r, "IGKV3-20*01")[..], NP, &ungapped(r, "IGKJ1*01")].concat();
     let (o, v) = r.call(&read).expect("V hit");
@@ -86,13 +89,25 @@ fn missing_j_is_none() {
     let r = human();
     let v = ungapped(r, "IGHV3-23*01");
     assert!(r.call_j(&v).is_none(), "V only");
-    // A read that ends in N or D bases, before any J base, gets no J at any truncation point.
+    // A read that ends in N or D bases (no J base) gets a J exactly when its tail, laid on some
+    // IGH J allele's 5' end, scores at least the low path's floor of 6 on the ±2 scale (3 net
+    // matches): such a tail cannot be told from a truncated J (record 0029, Wave 3). On the NP
+    // stretch, 27 truncation points stay below it and get no J; 6 reach it.
+    let js: Vec<Vec<u8>> = r.alleles.iter().filter(|a| a.segment == Segment::J && a.locus == Locus::IGH).map(|a| a.sequence().into_bytes()).collect();
+    let five = |q: &[u8]| {
+        let score = |t: &[u8], g: &[u8]| t.iter().zip(g).map(|(a, b)| if a == b { 2 } else { -2 }).sum::<i32>();
+        js.iter().flat_map(|g| (1..=q.len().min(g.len())).map(|l| score(&q[q.len() - l..], &g[..l]))).max().unwrap_or(0)
+    };
+    let mut below = 0;
     for k in 1..=NP.len() {
-        assert!(r.call_j(&[&v[..], &NP[..k]].concat()).is_none(), "read ends {k} nt into N/D");
+        let called = r.call_j(&[&v[..], &NP[..k]].concat()).is_some();
+        assert_eq!(called, five(&NP[..k]) >= 6, "read ends {k} nt into N/D, 5' tail score {}", five(&NP[..k]));
+        below += usize::from(!called);
     }
+    assert_eq!(below, 27);
     // V followed by random bases of 1-120 nt. The random-tail rate is reported, not a bound: the
-    // user accepts false J calls on junk after a V (record 0029, Wave 3). 64 of these 1,000 get a J
-    // (11 in Wave 2); the cap only catches a gross change.
+    // user accepts false J calls on junk after a V (record 0029, Wave 3). 314 of these 1,000 get a
+    // J (11 in Wave 2, 64 before the low path); the cap only catches a gross change.
     let called: Vec<String> = (0..1000u64)
         .into_par_iter()
         .filter_map(|s| {
@@ -100,7 +115,7 @@ fn missing_j_is_none() {
             r.call_j(&read).map(|h| format!("seed {s}: {} score {}", r.alleles[h.primary].name, h.aln.score))
         })
         .collect();
-    assert!(called.len() <= 100, "random tails given a J: {called:?}");
+    assert!(called.len() <= 400, "random tails given a J: {called:?}");
 }
 
 /// Recoverable reads: the true J allele is in its non-empty valid set.
@@ -168,14 +183,13 @@ fn j_call_accuracy_report() {
 fn short_3p_fragment_called() {
     // Ruling B1 as amended in Waves 2 and 3: a 3' J fragment is called when its matches minus
     // mismatches reach 8 (IGH, IGK, IGL; 10 in Wave 2). An exact 8-nt fragment is called (Wave 2
-    // left it uncalled, so this is the Wave 3 gain), a 7-nt one is not, and a 12-nt fragment with
-    // 2 mismatches (score 8) is called.
+    // left it uncalled), and a 12-nt fragment with 2 mismatches (score 8) is called. A 7-nt
+    // fragment is below B1 and goes to the low path (`low_path_calls_a_short_fragment`).
     let r = human();
     let (v, j) = (ungapped(r, "IGHV3-23*01"), ungapped(r, "IGHJ4*02"));
     let h = r.call_j(&[&v[..], NP, &j[..8]].concat()).expect("J hit");
     assert_eq!(r.alleles[h.primary].name, "IGHJ4*02", "ties {:?}", r.names(&h.ties));
     assert_eq!((h.aln.q_end - h.aln.q_start, h.aln.g_start, h.mismatches), (8, 0, 0));
-    assert!(r.call_j(&[&v[..], NP, &j[..7]].concat()).is_none());
     let mut two = j[..12].to_vec();
     two[5] = transition(two[5]);
     two[10] = transition(two[10]);
@@ -185,10 +199,25 @@ fn short_3p_fragment_called() {
 }
 
 #[test]
+fn low_path_calls_a_short_fragment() {
+    // Record 0029, Wave 3: an exact 7-nt IGHJ4*02 fragment is below B1 (score 7 < 8) and holds no
+    // Trp118 for the weak J; the low path (gapless cut scoring >= 6, junction bounded) calls it,
+    // as the read's own 7 J bases.
+    let r = human();
+    let (v, j) = (ungapped(r, "IGHV3-23*01"), ungapped(r, "IGHJ4*02"));
+    let read = [&v[..], NP, &j[..7]].concat();
+    let h = r.call_j(&read).expect("J hit");
+    assert!(r.names(&h.ties).contains("IGHJ4*02"), "{:?}", r.names(&h.ties));
+    assert_eq!(r.alleles[h.primary].name, "IGHJ4*02", "ties {:?}", r.names(&h.ties));
+    assert_eq!((h.aln.q_start, h.aln.q_end, h.aln.g_start, h.aln.g_end), (read.len() - 7, read.len(), 0, 7));
+    assert_eq!(h.aln.ops, vec![(Op::Match, 7)]);
+}
+
+#[test]
 fn short_fragment_needs_read_end_and_a_bounded_junction() {
     // B1 is anchored at the read's 3' end, and the junction it implies must be at most 180 nt.
     // The non-J bases after the fragment mismatch the J's continuation at every base, so the weak
-    // path cannot reach the Trp118 codon either.
+    // path cannot reach the Trp118 codon either. The low path's junction bound rejects both too.
     let r = human();
     let (v, j) = (ungapped(r, "IGHV3-23*01"), ungapped(r, "IGHJ4*02"));
     let other: Vec<u8> = j[12..22].iter().map(|&b| transversion(b)).collect();
