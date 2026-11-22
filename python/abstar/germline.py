@@ -204,6 +204,8 @@ def gap(
     import polars as pl
 
     core = _core()
+    if templates is not None and not templates:
+        raise AbstarError("INVALID_ARGUMENT", "templates must not be empty")
     records = _read_fasta(Path(sequences)) if isinstance(sequences, (str, Path)) else builtins.list(sequences)
     queries = [(_allele_name(h), s) for h, s in records]
     paths = [str(resolve(t)[0]) for t in (templates if templates is not None else core.GAP_DEFAULT_TEMPLATES)]
@@ -212,8 +214,6 @@ def gap(
     except core.CoreError as e:
         raise from_core(e) from None
     out = [(h, r["gapped"]) for (h, _), r in zip(records, results) if r["gapped"] is not None]
-    if not out:
-        raise AbstarError("NO_ALLELES_GAPPED", f"none of {len(records)} sequences could be gapped")
     report = pl.DataFrame(
         {
             "name": [r["name"] for r in results],
@@ -232,4 +232,11 @@ def gap(
             "warnings": pl.String, "failure_reason": pl.String,
         },
     )
+    if not out:
+        from collections import Counter
+
+        reasons = ", ".join(f"{k}: {v}" for k, v in sorted(Counter(report["failure_reason"].to_list()).items()))
+        err = AbstarError("NO_ALLELES_GAPPED", f"none of {len(records)} sequences could be gapped ({reasons})")
+        err.report = report  # so the CLI can still write --report
+        raise err
     return out, report

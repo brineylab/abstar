@@ -1,5 +1,6 @@
 import csv
 import json
+from pathlib import Path
 
 import pytest
 from typer.testing import CliRunner
@@ -48,6 +49,15 @@ def test_gap_none_gapped_raises():
     with pytest.raises(AbstarError) as e:
         germline.gap([j_record()], templates=["human"])
     assert e.value.code == "NO_ALLELES_GAPPED"
+    assert e.value.message.startswith("none of 1 sequences could be gapped (")
+    assert e.value.report["failure_reason"].to_list() == ["no_alignment"]
+    assert "(no_alignment: 1)" in e.value.message
+
+
+def test_gap_empty_templates_invalid():
+    with pytest.raises(AbstarError) as e:
+        germline.gap([("a", "ACGT")], templates=[])
+    assert e.value.code == "INVALID_ARGUMENT"
 
 
 def write_fasta(tmp_path):
@@ -72,7 +82,8 @@ def test_cli_gap_json_summary(tmp_path):
     res = CliRunner().invoke(app, ["germline", "gap", str(p), "--templates", "human", "--output", str(tmp_path / "o.fasta"), "--json"])
     assert res.exit_code == 0, res.output
     s = json.loads(res.stdout)
-    assert s["n_input"] == 2 and s["n_failed"] == 0 and s["templates"] == ["human"]
+    assert s["n_input"] == 2 and s["n_failed"] == 0 and [(t["name"], t["alleles_sha256"]) for t in s["templates"]] == [("human", germline.info("human").alleles_sha256)]
+    assert Path(s["templates"][0]["path"]) == germline.info("human").path
 
 
 def test_gap_templates_replace_default():
@@ -94,3 +105,20 @@ def test_cli_gap_none_gapped_exit_code(tmp_path):
     )
     assert r.returncode == 2
     assert "NO_ALLELES_GAPPED" in r.stderr
+
+
+def test_cli_gap_none_gapped_writes_report(tmp_path):
+    import subprocess
+    import sys
+
+    n, q = j_record()
+    p = tmp_path / "j.fasta"
+    p.write_text(f">{n}\n{q}\n")
+    rep = tmp_path / "r.tsv"
+    r = subprocess.run(
+        [sys.executable, "-c", "from abstar.cli import main; main()", "germline", "gap", str(p), "--templates", "human", "--report", str(rep)],
+        capture_output=True, text=True,
+    )
+    assert r.returncode == 2
+    assert "failure_reason" in rep.read_text() and len(rep.read_text().splitlines()) == 2
+    assert "none of 1 sequences could be gapped (" in r.stderr

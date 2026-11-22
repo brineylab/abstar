@@ -149,7 +149,12 @@ def germline_gap(
     from . import _core, germline
 
     recs = germline._read_fasta(v_fasta)
-    out, rep = germline.gap(recs, templates)
+    try:
+        out, rep = germline.gap(recs, templates)
+    except AbstarError as e:
+        if report and getattr(e, "report", None) is not None:
+            e.report.write_csv(report, separator="\t")
+        raise
     text = "".join(f">{h}\n{s}\n" for h, s in out)
     if output:
         output.write_text(text)
@@ -158,13 +163,17 @@ def germline_gap(
     if report:
         rep.write_csv(report, separator="\t")
     failed = rep.filter(rep["status"] == "failed")
-    names = templates if templates is not None else list(_core.GAP_DEFAULT_TEMPLATES)
+    used = []
+    for t in templates if templates is not None else list(_core.GAP_DEFAULT_TEMPLATES):
+        i = germline.info(t)
+        used.append({"name": i.name, "path": str(i.path), "alleles_sha256": i.alleles_sha256})
     dest = sys.stdout if output else sys.stderr
     if json_out:
         failures = [{"name": n, "failure_reason": r} for n, r in zip(failed["name"], failed["failure_reason"])]
-        print(json.dumps({"n_input": len(rep), "n_gapped": len(out), "n_failed": len(failed), "templates": names, "failed": failures}), file=dest)
+        print(json.dumps({"n_input": len(rep), "n_gapped": len(out), "n_failed": len(failed), "templates": used, "failed": failures}), file=dest)
         return
     print(f"gapped {len(out)}, failed {len(failed)}", file=dest)
+    print("templates: " + ", ".join(f"{t['name']} ({t['alleles_sha256'][:8]})" for t in used), file=dest)
     for n, r in zip(failed["name"], failed["failure_reason"]):
         print(f"failed {n}: {r}", file=dest)
 

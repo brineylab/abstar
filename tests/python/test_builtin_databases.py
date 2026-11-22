@@ -123,7 +123,20 @@ def test_macaque_v_anchored():
         )
 
     v = [a for a in alleles("macaque") if a["segment"] == "V" and has_orf(a["sequence_gapped"])]
-    assert sum(bool(a["anchor"]) for a in v) / len(v) >= 0.99
+    assert v
+    missing = [a["name"] for a in v if not a["anchor"]]
+    assert 1 - len(missing) / len(v) >= 0.99, f"unanchored ORF alleles: {missing}"
+
+
+def test_macaque_gap_template_checksums_current():
+    prov = germline.info("macaque").provenance
+    seen = 0
+    for p in prov:
+        for f, sha in zip(p["files"], p["sha256"]):
+            if f.startswith("gap-template:"):
+                seen += 1
+                assert sha == germline.info(f.split(":", 1)[1]).alleles_sha256, f"{f}: template rebuilt, macaque not"
+    assert seen == 3
 
 
 def test_macaque_never_a_default_template():
