@@ -106,7 +106,7 @@ Inside a virtualenv with a Rust toolchain:
 ```bash
 pip install maturin
 maturin develop --release --extras test
-cargo test --workspace
+cargo test --workspace --release
 python -m pytest -q
 ```
 

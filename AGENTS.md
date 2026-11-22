@@ -11,7 +11,9 @@ Python package.
   legacy code and its correctness rules.
 - Build and test (inside a virtualenv):
   - `maturin develop --release --extras test`
-  - `cargo test --workspace`
+  - `cargo test --workspace --release` (a debug build takes ~40 min on the accuracy tests;
+    CI also sets `CARGO_PROFILE_RELEASE_DEBUG_ASSERTIONS=true` and
+    `CARGO_PROFILE_RELEASE_OVERFLOW_CHECKS=true` to keep debug-build checks)
   - `python -m pytest -q`
   - Rebuild built-in germline databases from `germline-sources/recipes/`:
     `python scripts/build_builtin_germlines.py [NAME ...]` (decision 0019)

@@ -15,25 +15,33 @@ jobs:
       matrix:
         os: [ubuntu-latest, ubuntu-24.04-arm, macos-15]
         python: ["3.11", "3.13"]
+    env:
+      # Optimized build with the checks a debug build has: the accuracy tests take ~30 s instead
+      # of ~40 min. Job-wide, so the extension and the Rust tests share one compile.
+      CARGO_PROFILE_RELEASE_DEBUG_ASSERTIONS: "true"
+      CARGO_PROFILE_RELEASE_OVERFLOW_CHECKS: "true"
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python }}
       - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.event_name == 'push' }}
       - run: python -m venv .venv
       - name: Build and install
         run: |
           . .venv/bin/activate
           pip install maturin
           maturin develop --release --extras test
-      - name: Rust tests
-        run: cargo test --workspace
-      - name: Gap round trips (release, debug assertions on)
-        env:
-          CARGO_PROFILE_RELEASE_DEBUG_ASSERTIONS: "true"
-        run: cargo test -p abstar_germline --release --test gap_roundtrip -- --include-ignored
-      - name: Generator validation (release)
+      # The Rust tests don't involve Python: run them once per OS, not per Python version.
+      - name: Rust tests, gap round trips
+        if: matrix.python == '3.13'
+        run: |
+          cargo test --workspace --release
+          cargo test -p abstar_germline --release --test gap_roundtrip -- --include-ignored
+      - name: Generator validation
         if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
         run: cargo test -p abstar_generate --release --test validation -- --include-ignored
       # x86_64 only: AVX2 and NEON may break alignment ties differently, and the floors are measured on x86_64
