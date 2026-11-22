@@ -79,3 +79,18 @@ def test_gap_templates_replace_default():
     r = v_alleles("human", "IGK")[0]
     _, report = germline.gap([(r["name"], ungapped(r))], templates=["c57bl6"])
     assert report["template_species"][0] == "mouse"
+
+
+def test_cli_gap_none_gapped_exit_code(tmp_path):
+    import subprocess
+    import sys
+
+    n, s = j_record()
+    p = tmp_path / "j.fasta"
+    p.write_text(f">{n}\n{s}\n")
+    r = subprocess.run(
+        [sys.executable, "-c", "from abstar.cli import main; main()", "germline", "gap", str(p), "--templates", "human"],
+        capture_output=True, text=True,
+    )
+    assert r.returncode == 2
+    assert "NO_ALLELES_GAPPED" in r.stderr
