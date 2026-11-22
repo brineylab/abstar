@@ -36,14 +36,12 @@ jobs:
           pip install maturin
           maturin develop --release --extras test
       # The Rust tests don't involve Python: run them once per OS, not per Python version.
-      - name: Rust tests, gap round trips
+      # --workspace on the release-only suites too: `-p` changes the feature set and recompiles.
+      - name: Rust tests, gap round trips, generator validation
         if: matrix.python == '3.13'
         run: |
           cargo test --workspace --release
-          cargo test -p abstar_germline --release --test gap_roundtrip -- --include-ignored
-      - name: Generator validation
-        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
-        run: cargo test -p abstar_generate --release --test validation -- --include-ignored
+          cargo test --workspace --release --test gap_roundtrip --test validation -- --include-ignored
       # x86_64 only: AVX2 and NEON may break alignment ties differently, and the floors are measured on x86_64
       - name: Accuracy gate and AIRR validation (release)
         if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
