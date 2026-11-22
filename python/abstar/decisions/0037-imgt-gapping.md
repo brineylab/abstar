@@ -32,7 +32,7 @@ IMGT position p occupies gapped nt `3(p−1)..3p`. Regions: FR1 1–26, CDR1 27�
    - A CDR1 longer than 12 or a CDR2 longer than 10 fails the pair with `cdr_too_long`.
    - A query that starts inside a CDR (5′-partial) has no known CDR length. Its residues keep the template's positions. They are right-aligned on the CDR's last positions only if one of them has no position.
 7. **Build** the gapped nucleotide string: a codon per position, `...` for an absent one. Leading dots put the first base at its IMGT nt position, including a partial first codon. Trailing bases that don't fill a codon are kept.
-8. **Check.** The string with dots removed must equal the cleaned input, and every internal dot run must be whole codons. This holds by construction, so a pair that fails it has no named reason. A `debug_assert!` fires if every tried pair fails that way.
+8. **Check.** The string with dots removed must equal the cleaned input, and every internal dot run must be whole codons. This holds by construction, so a pair that fails it has no named reason. A `debug_assert!` fires if every tried pair fails that way; the release round-trip CI step runs with debug assertions on, so it is exercised there.
 9. **Choose.** The first passing pair (in rank order) with TGT/TGC at nt 310–312 wins. If no passing pair has one, the first passing pair is written with `no_cys104`, as IMGT writes alleles with a mutated Cys104. If no pair passes, the allele fails with the first named reason in rank order.
 
 **Default templates.** The defaults are exactly `human`, `c57bl6` and `balbc` (`DEFAULT_TEMPLATES`), whose gaps come from IMGT or OGRDB. `human+c57bl6` would only duplicate two of them. A database this tool gapped (macaque, once it ships) is never a default template, so a rebuild cannot inherit its own earlier mistakes. `--templates` / `gap_templates` / `templates=` replace the default list.
@@ -82,6 +82,7 @@ IMGT position p occupies gapped nt `3(p−1)..3p`. Regions: FR1 1–26, CDR1 27�
 | 13 | 2 | 5 | 573/577 | 191/193 | 261/263 | 192/193 | 262/263 | 326/340 | no | 295.0 |
 
 - Three settings tie on Σ. 13/1/5 has the most self matches.
+- Gap open 13 sits at the top of the swept range; Σ is flat between 12 and 13, so the sweep does not show whether a larger open would help.
 - Every extend-2 setting holds c57bl6 to 191/193 (98.96%), so none qualifies, though some reach a higher Σ.
 - Without the CDR open cost (re-measured with the fixes below), c57bl6 stays at or below 191/193 for every open 9–13 / extend 1–2, so no setting holds the self round trip.
 - That first row is the starting point (open 11, extend 1, no CDR cost). It already includes three fixes made during tuning: the contiguous tail, the per-pair 50-residue floor and the 5′-partial CDR rule. Before them, human was 571/577.
@@ -120,7 +121,7 @@ Self totals: human 573/577 (99.3%), c57bl6 192/193 (99.5%), balbc 262/263 (99.6%
 - cross-species exact per locus at the measured rate rounded down to a whole percent: mouse from human IGH 100, IGK 98, IGL 100; human from mouse IGH 100, IGK 100, IGL 78;
 - Cys104 ≥ 99% of the written alleles everywhere.
 
-**What is still wrong** (10 alleles written with gaps that differ from IMGT's, 16 refused):
+**What is still wrong** (10 alleles written with gaps that differ from IMGT's, 15 refused):
 
 - Human self (4 wrong):
   - TRAV5\*01: FR1 gap at 9 instead of 8.

@@ -119,6 +119,7 @@ except abstar.AbstarError as e:
 abstar.germline.list()
 abstar.germline.info("human")
 abstar.germline.build("donor.toml")
+gapped, report = abstar.germline.gap("ungapped_v.fasta", templates=["human"])  # IMGT-gap V alleles; report is a DataFrame
 
 truth = abstar.generate(1000, "IGH", seed=1)        # truth table as a Polars DataFrame
 s = abstar.generate(1000, "IGH", seed=1, preset="bnab", output_dir="bench/", formats=["airr", "parquet"])

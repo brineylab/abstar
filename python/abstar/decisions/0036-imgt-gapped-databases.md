@@ -17,11 +17,11 @@ Regions, mutations and masks are numbered by IMGT gapped position (records 0032â
 
 The error names the database, the failing count, up to five example allele names, and says IMGT-gapped V sequences are required. A database with no V alleles skips the check.
 
-The rule is database-level, not per allele: real IMGT-gapped alleles lack Cys104 (a mutated codon, or a partial sequence: human IGKV2-29*01, IGLV3-2*03, TRBV7-3*02/03, IGHV3-20*02). Built-in coverage is human 577/588, c57bl6 193/196, balbc 263/265, against macaque 8/1,071.
+The rule is database-level, not per allele: real IMGT-gapped alleles lack Cys104 (a mutated codon, or a partial sequence: human IGKV2-29*01, IGLV3-2*03, TRBV7-3*02/03, IGHV3-20*02). Built-in coverage is human 577/588, c57bl6 193/196, balbc 263/265, against macaque 8/1,071 as the KIMDB/IMGT sources came (before gapping; with `abstar germline gap` it is now 1,053 of 1,064 V alleles anchored, and 1,028 of 1,030 with an ORF).
 
 *Amended 2026-11-21 (record 0037, #137): ungapped databases can now be made valid with `abstar germline gap` or the recipe option `gap_v`, and macaque ships again that way. The text it replaces is kept: "Macaque is no longer shipped. Its recipe and `germline-sources/macaque/` stay for #137, and `scripts/build_builtin_germlines.py` skips it."*
 
-Macaque is no longer shipped. Its recipe and `germline-sources/macaque/` stay for #137, and `scripts/build_builtin_germlines.py` skips it.
+~~Macaque is no longer shipped. Its recipe and `germline-sources/macaque/` stay for #137, and `scripts/build_builtin_germlines.py` skips it.~~ *Superseded by the 2026-11-21 amendment above (record 0037, #137): macaque ships again, V genes gapped by abstar.*
 
 ## Alternatives considered
 

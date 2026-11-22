@@ -20,8 +20,10 @@ Python package.
     (decision 0027)
 - Specs: `docs/superpowers/specs/2026-11-20-abstar-foundation-design.md`
   (foundation) and `docs/superpowers/specs/2026-11-20-abstar-generate-design.md`
-  (`abstar generate`). Plans: `docs/superpowers/plans/2026-11-20-abstar-foundation.md`
-  and `docs/superpowers/plans/2026-11-20-abstar-generate.md`.
+  (`abstar generate`), and `docs/superpowers/specs/2026-11-21-imgt-gapping-design.md`
+  (`abstar germline gap`). Plans: `docs/superpowers/plans/2026-11-20-abstar-foundation.md`,
+  `docs/superpowers/plans/2026-11-20-abstar-generate.md` and
+  `docs/superpowers/plans/2026-11-21-imgt-gapping.md`.
   Design decisions are recorded in `python/abstar/decisions/`.
 
 This file is the source of truth for coding-agent guidance in this repository.
