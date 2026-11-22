@@ -203,3 +203,45 @@ fn order_preserved() {
     let expected: Vec<_> = queries.iter().map(|q| q.0.clone()).collect();
     assert_eq!(names, expected);
 }
+
+#[test]
+fn tail_after_104_is_contiguous() {
+    // A template with a long tail (IGHV1-2*02 to the Cys104 codon, then CAR + WGQGTTVTVSS), and
+    // queries whose tails have one residue more (an extra G) and one fewer (no Q).
+    let db = human();
+    let mut t = get(&db, "IGHV1-2*02").clone();
+    let prefix = t.sequence_gapped[..318].to_string(); // ends GCGAGA: positions 105-106 (A, R)
+    t.sequence_gapped = format!("{prefix}TGGGGCCAAGGGACCACGGTCACCGTCTCCTCA");
+    for tail in [
+        "TGGGGCCAAGGGGGCACCACGGTCACCGTCTCCTCA",
+        "TGGGGCGGGACCACGGTCACCGTCTCCTCA",
+    ] {
+        let query = format!("{prefix}{tail}");
+        let r = gap_one("IGHV1-2*02", &strip(&query), std::slice::from_ref(&t));
+        assert_eq!(r.failure, None, "{r:?}");
+        assert_eq!(r.gapped.as_deref(), Some(query.as_str()));
+    }
+}
+
+#[test]
+fn partial_start_inside_cdr1_keeps_template_positions() {
+    // TRBV7-9*07 starts at IMGT 29 (H), then N R at 37-38, as in TRBV7-9*01.
+    let db = human();
+    let shipped = &get(&db, "TRBV7-9*07").sequence_gapped;
+    assert_eq!(
+        regap("TRBV7-9*07", shipped).gapped.as_deref(),
+        Some(shipped.as_str())
+    );
+}
+
+#[test]
+fn every_tried_pair_needs_fifty_aligned_residues() {
+    // An FR2 insertion leaves no in-frame placement against mouse lambda templates; a short
+    // wrong-frame alignment must not be written instead.
+    let mouse = [alleles("c57bl6"), alleles("balbc")].concat();
+    let db = human();
+    let shipped = &get(&db, "IGLV1-41*01").sequence_gapped;
+    let query = strip(&format!("{}GGCAGCGGC{}", &shipped[..135], &shipped[135..]));
+    let r = gap_one("IGLV1-41*01", &query, &mouse);
+    assert_eq!(r.failure.as_deref(), Some("framework_insertion"), "{r:?}");
+}

@@ -4,13 +4,17 @@
 pub struct Scoring {
     pub gap_open: i32,
     pub gap_extend: i32,
+    /// Open cost of a gap that starts in a template CDR column (`TemplateOnly`) or next to one
+    /// (`QueryOnly`), where CDR lengths vary; the CDR's residues are laid out by rule later.
+    pub cdr_gap_open: i32,
 }
 
 impl Scoring {
     /// A gap of length k costs `open + (k-1) * extend`.
     pub const DEFAULT: Scoring = Scoring {
-        gap_open: 11,
+        gap_open: 13,
         gap_extend: 1,
+        cdr_gap_open: 5,
     };
 }
 
@@ -86,9 +90,26 @@ enum St {
 
 /// Gotoh DP, free end gaps on both sequences. Ties prefer diagonal, then a gap in the query
 /// (`TemplateOnly`), then `QueryOnly`; tracing back from the end keeps pairs as long as
-/// possible, which places gaps leftmost.
-pub fn align(query: &[u8], template: &[u8], s: &Scoring) -> ProteinAlignment {
+/// possible, which places gaps leftmost. `cdr[j]` marks template residue j as CDR (missing
+/// entries are framework); a gap opening there costs `cdr_gap_open`.
+pub fn align(query: &[u8], template: &[u8], cdr: &[bool], s: &Scoring) -> ProteinAlignment {
     let (n, m) = (query.len(), template.len());
+    let is_cdr = |j: usize| cdr.get(j).copied().unwrap_or(false);
+    // TemplateOnly at template residue j-1; QueryOnly between template residues j-1 and j.
+    let open_x = |j: usize| {
+        if is_cdr(j - 1) {
+            s.cdr_gap_open
+        } else {
+            s.gap_open
+        }
+    };
+    let open_y = |j: usize| {
+        if is_cdr(j - 1) || is_cdr(j) {
+            s.cdr_gap_open
+        } else {
+            s.gap_open
+        }
+    };
     let w = m + 1;
     let at = |i: usize, j: usize| i * w + j;
     let size = (n + 1) * w;
@@ -101,9 +122,9 @@ pub fn align(query: &[u8], template: &[u8], s: &Scoring) -> ProteinAlignment {
             best = best.max(mm[prev]).max(xx[prev]).max(yy[prev]);
             mm[at(i, j)] = best + blosum62(query[i - 1], template[j - 1]);
             let l = at(i, j - 1);
-            xx[at(i, j)] = (mm[l] - s.gap_open).max(xx[l] - s.gap_extend);
+            xx[at(i, j)] = (mm[l] - open_x(j)).max(xx[l] - s.gap_extend);
             let u = at(i - 1, j);
-            yy[at(i, j)] = (mm[u] - s.gap_open).max(yy[u] - s.gap_extend);
+            yy[at(i, j)] = (mm[u] - open_y(j)).max(yy[u] - s.gap_extend);
         }
     }
     // Best end: last row or last column, ending in a pair.
@@ -148,7 +169,7 @@ pub fn align(query: &[u8], template: &[u8], s: &Scoring) -> ProteinAlignment {
             St::X => {
                 cols.push(Col::TemplateOnly(j - 1));
                 let l = at(i, j - 1);
-                st = if xx[at(i, j)] == mm[l] - s.gap_open {
+                st = if xx[at(i, j)] == mm[l] - open_x(j) {
                     St::M
                 } else {
                     St::X
@@ -158,7 +179,7 @@ pub fn align(query: &[u8], template: &[u8], s: &Scoring) -> ProteinAlignment {
             St::Y => {
                 cols.push(Col::QueryOnly(i - 1));
                 let u = at(i - 1, j);
-                st = if yy[at(i, j)] == mm[u] - s.gap_open {
+                st = if yy[at(i, j)] == mm[u] - open_y(j) {
                     St::M
                 } else {
                     St::Y

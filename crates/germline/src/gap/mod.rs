@@ -11,9 +11,10 @@ use std::cmp::Reverse;
 pub const DEFAULT_TEMPLATES: [&str; 3] = ["human", "c57bl6", "balbc"];
 pub const TOP_N: usize = 10;
 pub const LOW_IDENTITY: f64 = 0.60;
-pub const TIE_MARGIN: i32 = 5;
+pub const TIE_MARGIN: i32 = 10;
 
-/// Smallest number of query residues the best pair must align for the query to count as a V.
+/// Smallest number of query residues a (frame, template) pair must align to be tried. If the
+/// best-scoring pair aligns fewer, the query is not a V (`no_alignment`).
 const MIN_ALIGNED: usize = 50;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -36,6 +37,7 @@ struct Template<'a> {
     /// IMGT position of each residue in `aa`.
     pos: Vec<u16>,
     aa: Vec<u8>,
+    cdr: Vec<bool>,
 }
 
 /// One (frame, template) pair that passed placement and the required checks.
@@ -64,6 +66,7 @@ pub fn gap_v(queries: &[(String, String)], templates: &[Allele]) -> Vec<GapResul
                 allele: a,
                 pos: res.iter().map(|r| r.pos).collect(),
                 aa: res.iter().map(|r| r.aa).collect(),
+                cdr: res.iter().map(|r| is_cdr(region(r.pos))).collect(),
             }
         })
         .collect();
@@ -122,20 +125,21 @@ fn gap_one(name: &str, seq: &str, all: &[Template]) -> GapResult {
         .enumerate()
         .flat_map(|(ti, t)| {
             let frames = &frames;
-            (0..3).map(move |f| (ti, f, align(&frames[f], &t.aa, &Scoring::DEFAULT)))
+            (0..3).map(move |f| (ti, f, align(&frames[f], &t.aa, &t.cdr, &Scoring::DEFAULT)))
         })
         .collect();
     ranked.sort_by_key(|(ti, f, a)| (Reverse(a.score), *ti, *f));
 
-    let aligned =
-        |a: &align::ProteinAlignment| a.cols.iter().filter(|c| matches!(c, Col::Pair(..))).count();
-    match ranked.first() {
-        Some((_, _, a)) if a.score > 0 && aligned(a) >= MIN_ALIGNED => {}
-        _ => {
-            out.failure = Some("no_alignment".into());
-            return out;
-        }
+    let long = |a: &align::ProteinAlignment| {
+        a.score > 0 && a.cols.iter().filter(|c| matches!(c, Col::Pair(..))).count() >= MIN_ALIGNED
+    };
+    if !ranked.first().is_some_and(|(_, _, a)| long(a)) {
+        out.failure = Some("no_alignment".into());
+        return out;
     }
+    // Lower pairs are held to the same floor, so a short wrong-frame hit is never written in
+    // place of a refusal.
+    ranked.retain(|(_, _, a)| long(a));
 
     let attempts: Vec<Attempt> = ranked
         .iter()
@@ -145,6 +149,11 @@ fn gap_one(name: &str, seq: &str, all: &[Template]) -> GapResult {
     let passing: Vec<&Built> = attempts.iter().filter_map(|a| a.as_ref().ok()).collect();
     let Some(win) = passing.iter().find(|b| b.cys104).or(passing.first()) else {
         let reason = attempts.iter().find_map(|a| *a.as_ref().err()?);
+        // Placement passes the required checks by construction, so some pair has a named reason.
+        debug_assert!(
+            reason.is_some(),
+            "{name}: every top pair failed the required checks"
+        );
         out.failure = Some(reason.unwrap_or("no_alignment").into());
         return out;
     };
@@ -206,15 +215,19 @@ fn try_pair(
 ) -> Attempt {
     let mut cols = aln.cols.clone();
     slide_deletions(&mut cols, q, t, occ);
-    let pairs: Vec<(usize, usize)> = cols
+    let mut pairs: Vec<(usize, usize)> = cols
         .iter()
         .filter_map(|c| match *c {
             Col::Pair(i, j) => Some((i, j)),
             _ => None,
         })
         .collect();
+    // Positions after 104 are contiguous whatever the template's tail does: drop the tail
+    // pairs, so the residues after the last one at <= 104 run on from 105 as an overhang.
+    let reaches_tail = pairs.last().is_some_and(|&(_, j)| t.pos[j] > 104);
+    pairs.retain(|&(_, j)| t.pos[j] <= 104);
     let (Some(&(qf, tf)), Some(&(ql, tl))) = (pairs.first(), pairs.last()) else {
-        return Err(None);
+        return Err(Some("unplaceable_overhang"));
     };
 
     let n = q.len();
@@ -251,13 +264,12 @@ fn try_pair(
     for (i, slot) in pos.iter_mut().enumerate().take(qf) {
         *slot = Some((p0 - qf + i) as u16);
     }
-    let p1 = t.pos[tl] as usize;
     if ql + 1 < n {
-        if p1 < 104 {
+        if t.pos[tl] < 104 && !reaches_tail {
             return Err(Some("unplaceable_overhang"));
         }
         for (i, slot) in pos.iter_mut().enumerate().skip(ql + 1) {
-            *slot = Some((p1 + i - ql) as u16);
+            *slot = Some((104 + i - ql) as u16);
         }
     }
 
@@ -273,7 +285,9 @@ fn try_pair(
         let k = r - first;
         let places = match l {
             Some(_) => cdr_positions(cdr, k),
-            // 5'-partial start inside the CDR: right-align on its last positions.
+            // 5'-partial start inside the CDR: its full length is unknown, so the template's
+            // positions stand; right-align on the last positions only if a residue has none.
+            None if pos[first..r].iter().all(Option::is_some) => continue,
             None => (k < (fr_start - fr_end) as usize)
                 .then(|| (fr_start - k as u16..fr_start).collect()),
         }
