@@ -48,6 +48,7 @@ name = "abstar_germline"
 version = "1.0.0-dev.0"
 dependencies = [
  "needletail",
+ "rayon",
  "serde",
  "serde_json",
  "sha2",
