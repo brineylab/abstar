@@ -1,6 +1,6 @@
 use crate::io::hex_sha256;
 use crate::{
-    anchors, load, recipe, sources, validate, write, Allele, BuildWarning, Database, GermlineError,
+    anchors, gap, load, recipe, sources, validate, write, Allele, BuildWarning, Database, GermlineError,
     Locus, Manifest, Provenance, Segment,
 };
 use std::collections::{BTreeMap, BTreeSet, HashSet};
@@ -50,6 +50,8 @@ pub fn build(
     let base = recipe_path.parent().unwrap_or(Path::new("."));
     let mut entries: Vec<Entry> = Vec::new();
     let mut provenance = Vec::new();
+    // gap_v outcomes as (species, allele name, message); ids are final only after the prefix step
+    let mut gap_notes: Vec<(String, String, String)> = Vec::new();
 
     for src in &recipe.sources {
         if let Some(name) = &src.database {
@@ -84,7 +86,57 @@ pub fn build(
             description: src.description.clone(),
         };
         let mut descriptions: Vec<String> = Vec::new();
+        let mut templates: Vec<Allele> = Vec::new();
+        if src.gap_v {
+            let names: Vec<String> = src
+                .gap_templates
+                .clone()
+                .unwrap_or_else(|| gap::DEFAULT_TEMPLATES.iter().map(|s| s.to_string()).collect());
+            for name in names {
+                let path = match database_paths.get(&name) {
+                    Some(p) => p.clone(),
+                    None if base.join(&name).is_dir() => base.join(&name),
+                    None => return Err(invalid(format!("gap template database {name:?} not found"))),
+                };
+                let db = load(&path)?;
+                p.files.push(format!("gap-template:{}", db.manifest.name));
+                p.sha256.push(db.manifest.alleles_sha256);
+                templates.extend(db.alleles);
+            }
+        }
         let mut add = |alleles: Vec<Allele>, file: &str| {
+            let alleles = if src.gap_v {
+                let v: Vec<(String, String)> = alleles
+                    .iter()
+                    .filter(|a| a.segment == Segment::V)
+                    .map(|a| (a.name.clone(), a.sequence()))
+                    .collect();
+                let mut results = gap::gap_v(&v, &templates).into_iter();
+                let mut out = Vec::new();
+                for mut a in alleles {
+                    if a.segment == Segment::V {
+                        let r = results.next().expect("one result per V allele");
+                        match (r.gapped, r.failure) {
+                            (Some(g), _) => {
+                                a.sequence_gapped = g;
+                                if !r.warnings.is_empty() {
+                                    let m = format!("gapped: {}", r.warnings.join(", "));
+                                    gap_notes.push((species.clone(), a.name.clone(), m));
+                                }
+                            }
+                            (None, f) => {
+                                let m = format!("not gapped: {}", f.unwrap_or_default());
+                                gap_notes.push((species.clone(), a.name.clone(), m));
+                                continue;
+                            }
+                        }
+                    }
+                    out.push(a);
+                }
+                out
+            } else {
+                alleles
+            };
             for mut a in alleles {
                 a.species = species.clone();
                 a.source = file.into();
@@ -156,6 +208,13 @@ pub fn build(
         .iter()
         .filter_map(|(a, w)| w.as_ref().map(|m| BuildWarning { allele: a.id.clone(), message: m.clone() }))
         .collect();
+    warnings.extend(gap_notes.into_iter().map(|(species, name, message)| BuildWarning {
+        allele: match prefixes.get(&species) {
+            Some(p) => format!("{p}|{name}"),
+            None => name,
+        },
+        message,
+    }));
     let alleles: Vec<Allele> = entries.into_iter().map(|(a, _)| a).collect();
     // validate's generic "no anchor" warning is dropped for alleles that already have
     // a specific anchor-search warning: one message per allele

@@ -26,6 +26,9 @@ pub(crate) struct Source {
     #[serde(default)]
     pub ogrdb_json: Vec<PathBuf>,
     #[serde(default)]
+    pub gap_v: bool,
+    pub gap_templates: Option<Vec<String>>,
+    #[serde(default)]
     v_fasta: Vec<PathBuf>,
     #[serde(default)]
     d_fasta: Vec<PathBuf>,
@@ -64,6 +67,12 @@ pub(crate) fn read(path: &Path) -> Result<Recipe, GermlineError> {
     for (i, s) in r.sources.iter().enumerate() {
         let n = i + 1;
         let files = !s.ogrdb_json.is_empty() || s.fasta().next().is_some();
+        if s.gap_v && s.database.is_some() {
+            return Err(bad(format!("source {n}: gap_v does not apply to database sources")));
+        }
+        if s.gap_templates.is_some() && !s.gap_v {
+            return Err(bad(format!("source {n}: gap_templates requires gap_v = true")));
+        }
         match (&s.database, &s.species) {
             (Some(_), Some(_)) => return Err(bad(format!("source {n}: database sources take no species"))),
             (Some(_), None) if files => return Err(bad(format!("source {n}: database sources take no files"))),

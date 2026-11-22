@@ -176,3 +176,24 @@ def test_recipe_name_traversal_rejected(tmp_path, abstar_home):
     assert sorted(tmp_path.rglob("*")) == before
     assert not abstar_home.exists()
     assert (victim / "keep.txt").read_text() == "precious"
+
+
+def test_build_gap_v_default_templates(tmp_path):
+    human = germline.resolve("human")[0] / "alleles.tsv"
+    # strip a few shipped human IGHV alleles into a FASTA
+    rows = [l.split("\t") for l in human.read_text().splitlines()]
+    cols = rows[0]
+    fa = ""
+    for r in rows[1:]:
+        d = dict(zip(cols, r))
+        if d["id"] in ("IGHV1-2*02", "IGHV3-23*01"):
+            fa += f">{d['id']}\n{d['sequence_gapped'].replace('.', '')}\n"
+    assert fa.count(">") == 2
+    (tmp_path / "v.fasta").write_text(fa)
+    (tmp_path / "r.toml").write_text(
+        'name = "gapped"\n[[source]]\nspecies = "human"\ngap_v = true\nv_fasta = ["v.fasta"]\n'
+    )
+    germline.build(tmp_path / "r.toml", output_dir=tmp_path / "out")
+    files = germline.info(tmp_path / "out").provenance[0]["files"]
+    for t in ("human", "c57bl6", "balbc"):
+        assert f"gap-template:{t}" in files

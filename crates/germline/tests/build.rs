@@ -376,3 +376,75 @@ fn macaque_sources_refused_as_not_imgt_gapped() {
     let e = build(&root.join("recipes/macaque.toml"), &out.path().join("db"), &no_dbs(), &opts()).unwrap_err().to_string();
     assert!(e.contains("database macaque is not IMGT-gapped") && e.contains("IMGT-gapped V sequences are required"), "{e}");
 }
+
+fn human_dir() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../python/abstar/germline_dbs/human")
+}
+
+/// A gap_v recipe over `v_fasta` text; returns the build result and the output dir.
+fn gap_build(extra_fasta: &str) -> (Result<BuildReport, GermlineError>, PathBuf, tempfile::TempDir) {
+    let tmp = tempfile::tempdir().unwrap();
+    let human = load(&human_dir()).unwrap();
+    let mut fa = String::new();
+    for id in ["IGHV1-2*02", "IGHV3-23*01", "IGHV4-34*01"] {
+        let a = human.alleles.iter().find(|a| a.id == id).unwrap();
+        fa += &format!(">{id}\n{}\n", a.sequence());
+    }
+    fa += extra_fasta;
+    put(tmp.path(), "v.fasta", &fa);
+    let r = put(
+        tmp.path(),
+        "r.toml",
+        "name = \"g\"\n[[source]]\nspecies = \"human\"\ngap_v = true\ngap_templates = [\"human\"]\nv_fasta = [\"v.fasta\"]\n",
+    );
+    let out = tmp.path().join("db");
+    let dbs = BTreeMap::from([("human".to_string(), human_dir())]);
+    (build(&r, &out, &dbs, &opts()), out, tmp)
+}
+
+#[test]
+fn gap_v_source_is_gapped() {
+    let (r, out, _t) = gap_build("");
+    assert_eq!(r.unwrap().n_alleles, 3);
+    let db = load(&out).unwrap();
+    let human = load(&human_dir()).unwrap();
+    for id in ["IGHV1-2*02", "IGHV3-23*01", "IGHV4-34*01"] {
+        let a = allele(&db, id);
+        assert_eq!(a.sequence_gapped, allele(&human, id).sequence_gapped);
+        assert!(a.anchor.is_some());
+    }
+    let p = &db.manifest.provenance[0];
+    assert!(p.files.contains(&"gap-template:human".to_string()));
+    assert_eq!(p.files.len(), p.sha256.len());
+}
+
+#[test]
+fn gap_v_drops_failures_with_warning() {
+    let human = load(&human_dir()).unwrap();
+    let j = human.alleles.iter().find(|a| a.segment == Segment::J).unwrap();
+    let (r, _out, _t) = gap_build(&format!(">IGHVJ-bad\n{}\n", j.sequence()));
+    let r = r.unwrap();
+    assert_eq!(r.n_alleles, 3);
+    assert!(
+        r.warnings.iter().any(|w| w.allele == "IGHVJ-bad" && w.message == "not gapped: no_alignment"),
+        "{:?}",
+        r.warnings
+    );
+}
+
+#[test]
+fn gap_v_recipe_validation() {
+    let tmp = tempfile::tempdir().unwrap();
+    for (i, body) in [
+        "[[source]]\ndatabase = \"human\"\ngap_v = true\n",
+        "[[source]]\nspecies = \"human\"\ngap_templates = [\"human\"]\nv_fasta = [\"v.fasta\"]\n",
+    ]
+    .iter()
+    .enumerate()
+    {
+        let r = put(tmp.path(), &format!("r{i}.toml"), &format!("name = \"x\"\n{body}"));
+        let e = build(&r, &tmp.path().join(format!("o{i}")), &no_dbs(), &opts()).unwrap_err();
+        assert_eq!(e.code(), "RECIPE_INVALID", "{body}");
+        assert!(e.to_string().contains("source 1"), "{e}");
+    }
+}

@@ -113,8 +113,12 @@ def build(
     output_dir = Path(output_dir)
     sources = spec.get("source", [])
     databases = [s["database"] for s in sources if isinstance(s, dict) and isinstance(s.get("database"), str)]
-    paths = {db: str(resolve(db)[0]) for db in databases}
     core = _core()
+    for s in sources:
+        if isinstance(s, dict) and s.get("gap_v") is True:
+            templates = s.get("gap_templates")
+            databases += templates if isinstance(templates, builtins.list) else core.GAP_DEFAULT_TEMPLATES
+    paths = {db: str(resolve(db)[0]) for db in databases if isinstance(db, str)}
     try:
         r = core.germline_build(str(recipe), str(output_dir), overwrite, paths)
     except core.CoreError as e:

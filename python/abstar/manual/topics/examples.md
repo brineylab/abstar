@@ -62,6 +62,17 @@ species = "human"
 v_fasta = ["novel_v.fasta"]  # also d_fasta, j_fasta, c_fasta, ogrdb_json
 ```
 
+Add `gap_v = true` to a `species` source to IMGT-gap its ungapped V alleles during the build
+(templates default to human, c57bl6, balbc; override with `gap_templates = ["human"]`). V alleles
+that cannot be gapped are dropped with a build warning:
+
+```toml
+[[source]]
+species = "human"
+gap_v = true
+v_fasta = ["novel_v.fasta"]
+```
+
 ## Synthetic reads with truth
 
 ```sh
