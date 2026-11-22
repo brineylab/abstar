@@ -155,3 +155,13 @@ def test_invalid_model_file(tmp_path):
     bad.write_text("not = [toml")
     assert _code(lambda: model_info(bad)) == "MODEL_INVALID"
     assert _code(lambda: abstar.generate(3, "IGH", model=bad, seed=1)) == "MODEL_INVALID"
+
+
+def test_local_model_does_not_shadow_builtin(tmp_path, monkeypatch, abstar_home):
+    # #141: a ./human-igh directory in the working directory is not the default model.
+    (tmp_path / "human-igh").mkdir()
+    shutil.copy(BUILTIN_MODELS / "human-igk" / "model.toml", tmp_path / "human-igh" / "model.toml")
+    monkeypatch.chdir(tmp_path)
+    assert resolve_model(None, "human", "IGH")[1] == "builtin"
+    assert resolve_model("human-igh", "human", "IGH")[1] == "builtin"
+    assert resolve_model("./human-igh", "human", "IGH") == (Path("human-igh/model.toml"), "path")

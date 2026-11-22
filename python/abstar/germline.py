@@ -78,15 +78,22 @@ def builtin_names() -> builtins.list[str]:
     return _names(_BUILTIN_DIR)
 
 
+def _is_path(name_or_path: str | Path) -> bool:
+    """A Path, or a string with a path separator: always a path, never a database or model name."""
+    return isinstance(name_or_path, Path) or any(c in name_or_path for c in {"/", os.sep, os.altsep} - {None})
+
+
 def resolve(name_or_path: str | Path) -> tuple[Path, Kind]:
-    """A database directory, then a built-in name, then a user name."""
+    """A built-in name, then a user name, then a database directory. A path (`_is_path`) skips the
+    names, so `./human` is a local directory and `human` always the built-in (decision 0010)."""
+    name = str(name_or_path)
+    if not _is_path(name_or_path):
+        for kind, d in (("builtin", _BUILTIN_DIR), ("user", _user_dir())):
+            if name in _names(d):
+                return d / name, kind
     p = Path(name_or_path)
     if (p / "manifest.toml").is_file():
         return p, "path"
-    name = str(name_or_path)
-    for kind, d in (("builtin", _BUILTIN_DIR), ("user", _user_dir())):
-        if name in _names(d):
-            return d / name, kind
     available = ", ".join(builtin_names() + _names(_user_dir())) or "none"
     raise AbstarError("DATABASE_NOT_FOUND", f"no germline database {name!r} (available: {available})")
 

@@ -197,3 +197,16 @@ def test_build_gap_v_default_templates(tmp_path):
     files = germline.info(tmp_path / "out").provenance[0]["files"]
     for t in ("human", "c57bl6", "balbc"):
         assert f"gap-template:{t}" in files
+
+
+def test_local_directory_does_not_shadow_builtin(tmp_path, monkeypatch, abstar_home):
+    # #141 / 0010: a ./human database directory is used only when named as a path.
+    work = tmp_path / "work"
+    germline.build(recipe(tmp_path, "local"), output_dir=work / "human")
+    monkeypatch.chdir(work)
+    assert germline.resolve("human")[1] == "builtin"
+    assert germline.resolve("./human") == (Path("human"), "path")
+    assert germline.resolve(Path("human")) == (Path("human"), "path")
+    # a bare name that is no built-in or user database still finds a local directory
+    (work / "human").rename(work / "mine")
+    assert germline.resolve("mine") == (Path("mine"), "path")

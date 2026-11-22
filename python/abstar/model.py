@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Literal
 
 from .errors import AbstarError, from_core
-from .germline import abstar_home
+from .germline import abstar_home, _is_path
 
 _BUILTIN_DIR = Path(__file__).parent / "models"
 
@@ -43,26 +43,28 @@ def _user_dir() -> Path:
 
 
 def resolve(name_or_path: str | Path | None, species: str, locus: str) -> tuple[Path, Kind]:
-    """The model file for `name_or_path` (a model.toml, a directory holding one, a built-in
-    name, then a user name), or the built-in `f"{species}-{locus.lower()}"` when it is None."""
+    """The model file for `name_or_path` (a built-in name, a user name, then a model.toml or a
+    directory holding one), or the built-in `f"{species}-{locus.lower()}"` when it is None. A path
+    (`germline._is_path`) skips the names, so a local `human-igh/` never replaces the built-in."""
     if name_or_path is None:
         name_or_path = f"{species}-{locus.lower()}"
+    name = str(name_or_path)
+    builtins_, users = _names(_BUILTIN_DIR), _names(_user_dir())
+    if not _is_path(name_or_path):
+        if name in builtins_:
+            if name in users:
+                raise AbstarError(
+                    "BUILTIN_NAME_CONFLICT",
+                    f"user model {_user_dir() / name} has the name of a built-in model; rename it",
+                )
+            return _BUILTIN_DIR / name / "model.toml", "builtin"
+        if name in users:
+            return _user_dir() / name / "model.toml", "user"
     p = Path(name_or_path)
     if p.is_file():
         return p, "path"
     if (p / "model.toml").is_file():
         return p / "model.toml", "path"
-    name = str(name_or_path)
-    builtins_, users = _names(_BUILTIN_DIR), _names(_user_dir())
-    if name in builtins_:
-        if name in users:
-            raise AbstarError(
-                "BUILTIN_NAME_CONFLICT",
-                f"user model {_user_dir() / name} has the name of a built-in model; rename it",
-            )
-        return _BUILTIN_DIR / name / "model.toml", "builtin"
-    if name in users:
-        return _user_dir() / name / "model.toml", "user"
     raise AbstarError(
         "MODEL_NOT_FOUND", f"no recombination model {name!r} (available: {', '.join(builtins_ + users) or 'none'})"
     )
