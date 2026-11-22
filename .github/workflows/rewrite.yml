@@ -28,6 +28,10 @@ jobs:
           maturin develop --release --extras test
       - name: Rust tests
         run: cargo test --workspace
+      - name: Gap round trips (release, debug assertions on)
+        env:
+          CARGO_PROFILE_RELEASE_DEBUG_ASSERTIONS: "true"
+        run: cargo test -p abstar_germline --release --test gap_roundtrip -- --include-ignored
       - name: Generator validation (release)
         if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
         run: cargo test -p abstar_generate --release --test validation -- --include-ignored

@@ -61,11 +61,19 @@ const BLOSUM62: [[i8; 24]; 24] = [
     [-4,-4,-4,-4,-4,-4,-4,-4,-4,-4,-4,-4,-4,-4,-4,-4,-4,-4,-4,-4,-4,-4,-4, 1],
 ];
 
+/// Symbol index by byte; anything not in `SYMBOLS` maps to `X`.
+static IDX: [u8; 256] = {
+    let mut t = [(SYMBOLS.len() - 2) as u8; 256];
+    let mut i = 0;
+    while i < SYMBOLS.len() {
+        t[SYMBOLS[i] as usize] = i as u8;
+        i += 1;
+    }
+    t
+};
+
 fn idx(c: u8) -> usize {
-    SYMBOLS
-        .iter()
-        .position(|&s| s == c)
-        .unwrap_or(SYMBOLS.len() - 2) // X
+    IDX[c as usize] as usize
 }
 
 /// Standard BLOSUM62, except that `X` scores -1 against every residue (as in EMBOSS), including

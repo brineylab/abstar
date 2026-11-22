@@ -70,6 +70,9 @@ pub(crate) fn read(path: &Path) -> Result<Recipe, GermlineError> {
         if s.gap_v && s.database.is_some() {
             return Err(bad(format!("source {n}: gap_v does not apply to database sources")));
         }
+        if s.gap_templates.as_ref().is_some_and(|t| t.is_empty()) {
+            return Err(bad(format!("source {n}: gap_templates must not be empty")));
+        }
         if s.gap_templates.is_some() && !s.gap_v {
             return Err(bad(format!("source {n}: gap_templates requires gap_v = true")));
         }

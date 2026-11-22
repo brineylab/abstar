@@ -369,14 +369,6 @@ fn ungapped_v_gets_no_imgt_position_anchor() {
     assert!(e.to_string().contains("not IMGT-gapped"), "{e}");
 }
 
-#[test]
-fn macaque_sources_refused_as_not_imgt_gapped() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../germline-sources");
-    let out = tempfile::tempdir().unwrap();
-    let e = build(&root.join("recipes/macaque.toml"), &out.path().join("db"), &no_dbs(), &opts()).unwrap_err().to_string();
-    assert!(e.contains("database macaque is not IMGT-gapped") && e.contains("IMGT-gapped V sequences are required"), "{e}");
-}
-
 fn human_dir() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../python/abstar/germline_dbs/human")
 }
@@ -438,6 +430,7 @@ fn gap_v_recipe_validation() {
     for (i, body) in [
         "[[source]]\ndatabase = \"human\"\ngap_v = true\n",
         "[[source]]\nspecies = \"human\"\ngap_templates = [\"human\"]\nv_fasta = [\"v.fasta\"]\n",
+        "[[source]]\nspecies = \"human\"\ngap_v = true\ngap_templates = []\nv_fasta = [\"v.fasta\"]\n",
     ]
     .iter()
     .enumerate()

@@ -82,6 +82,7 @@ fn pct(k: usize, n: usize) -> f64 {
 }
 
 #[test]
+#[ignore = "release only: CARGO_PROFILE_RELEASE_DEBUG_ASSERTIONS=true cargo test -p abstar_germline --release --test gap_roundtrip -- --include-ignored"]
 fn self_round_trip_leave_one_out() {
     for db in ["human", "c57bl6", "balbc"] {
         let all = alleles(db);
@@ -115,6 +116,7 @@ fn assert_floors(label: &str, t: &BTreeMap<Locus, Tally>, floors: &[(Locus, f64)
 }
 
 #[test]
+#[ignore = "release only: CARGO_PROFILE_RELEASE_DEBUG_ASSERTIONS=true cargo test -p abstar_germline --release --test gap_roundtrip -- --include-ignored"]
 fn mouse_from_human() {
     let human = alleles("human");
     let floors = [(Locus::IGH, 100.0), (Locus::IGK, 98.0), (Locus::IGL, 100.0)];
@@ -128,6 +130,7 @@ fn mouse_from_human() {
 }
 
 #[test]
+#[ignore = "release only: CARGO_PROFILE_RELEASE_DEBUG_ASSERTIONS=true cargo test -p abstar_germline --release --test gap_roundtrip -- --include-ignored"]
 fn human_ig_from_mouse() {
     let human = alleles("human");
     let mouse: Vec<Allele> = [alleles("c57bl6"), alleles("balbc")].concat();
