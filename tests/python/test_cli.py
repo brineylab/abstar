@@ -243,6 +243,23 @@ def test_closed_stdout_pipe(tmp_path):
         assert "Traceback" not in p.stderr and "BrokenPipe" not in p.stderr, (args, p.stderr)
 
 
+def test_closed_stdout_pipe_keeps_error_exit_code():
+    # #142: buffered stdout plus an error; flushing into the closed pipe must not turn exit 2 into 0.
+    import os
+
+    code = (
+        "import sys; from abstar import cli; print('partial output');"
+        "sys.argv = ['abstar', 'germline', 'info', 'nope']; cli.main()"
+    )
+    r, w = os.pipe()
+    os.close(r)
+    try:
+        p = subprocess.run([sys.executable, "-c", code], stdout=w, stderr=subprocess.PIPE, text=True)
+    finally:
+        os.close(w)
+    assert p.returncode == 2, p.stderr
+    assert p.stderr.startswith("error[DATABASE_NOT_FOUND]: ") and "Traceback" not in p.stderr
+
 def test_unknown_locus_is_invalid_argument():
     p = abstar("run", "--seq", "ACGT", "--locus", "TRZ")
     assert p.returncode == 2 and p.stderr.startswith("error[INVALID_ARGUMENT]: ")

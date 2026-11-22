@@ -334,6 +334,7 @@ def manual(
 
 
 def main() -> None:
+    code: int | str | None = 0
     try:
         try:
             app()
@@ -342,16 +343,16 @@ def main() -> None:
                 _err(json.dumps({"error": {"code": e.code, "message": e.message}}))
             else:
                 _err(f"error[{e.code}]: {e.message}")
-            sys.exit(e.exit_code)
-        except SystemExit:
+            code = e.exit_code
+        except SystemExit as e:
             # Typer turns EPIPE inside a command into exit 1 after wrapping stdout in
             # (its vendored) click's PacifyFlushWrapper; matched by name, not imported.
             if type(sys.stdout).__name__ == "PacifyFlushWrapper":
                 raise BrokenPipeError from None
-            raise
-        finally:
-            sys.stdout.flush()  # surface a closed pipe here, not at interpreter shutdown
+            code = e.code
+        sys.stdout.flush()  # surface a closed pipe here, not at interpreter shutdown
     except BrokenPipeError:
-        # The reader went away (`| head`): that ends the output, it is not an error.
+        # The reader went away (`| head`): that ends the output, it is not an error. An error's
+        # exit code, already set, stands (#142).
         os.dup2(os.open(os.devnull, os.O_WRONLY), sys.stdout.fileno())
-        sys.exit(0)
+    sys.exit(code)
