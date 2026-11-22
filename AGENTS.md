@@ -1,5 +1,33 @@
 # Repository instructions
 
+## Rewrite branch
+
+This branch is a ground-up rewrite: a Rust core (PyO3, maturin) behind a
+Python package.
+
+- New code lives in `crates/` (`germline`, `table`, `annotate`, `generate`, `py`) and `python/abstar/`.
+- `legacy/` is the previous implementation. It is read-only reference: never
+  edit it, import from it, or depend on it. The sections below describe the
+  legacy code and its correctness rules.
+- Build and test (inside a virtualenv):
+  - `maturin develop --release --extras test`
+  - `cargo test --workspace --release` (a debug build takes ~40 min on the accuracy tests;
+    CI also sets `CARGO_PROFILE_RELEASE_DEBUG_ASSERTIONS=true` and
+    `CARGO_PROFILE_RELEASE_OVERFLOW_CHECKS=true` to keep debug-build checks)
+  - `python -m pytest -q`
+  - Rebuild built-in germline databases from `germline-sources/recipes/`:
+    `python scripts/build_builtin_germlines.py [NAME ...]` (decision 0019)
+  - Rebuild the built-in human recombination models (`python/abstar/models/`)
+    from `germline-sources/models/`: `python scripts/build_default_models.py`
+    (decision 0027)
+- Specs: `docs/superpowers/specs/2026-11-20-abstar-foundation-design.md`
+  (foundation) and `docs/superpowers/specs/2026-11-20-abstar-generate-design.md`
+  (`abstar generate`), and `docs/superpowers/specs/2026-11-21-imgt-gapping-design.md`
+  (`abstar germline gap`). Plans: `docs/superpowers/plans/2026-11-20-abstar-foundation.md`,
+  `docs/superpowers/plans/2026-11-20-abstar-generate.md` and
+  `docs/superpowers/plans/2026-11-21-imgt-gapping.md`.
+  Design decisions are recorded in `python/abstar/decisions/`.
+
 This file is the source of truth for coding-agent guidance in this repository.
 Keep it current when the package layout, supported workflows, or development
 commands change.
@@ -287,7 +315,7 @@ biological regression test with exact expected values.
 
 The currently packaged database names are:
 
-- BCR: `human`, `macaque`, `c57bl6`, `balbc`, and `human+c57bl6`;
+- BCR: `human`, `c57bl6`, `balbc`, `macaque`, and `human+c57bl6`;
 - TCR: `human`.
 
 Each database may contain:
@@ -416,3 +444,29 @@ nonempty input.
   explicitly requires regenerating them.
 - End each task with the relevant verification commands, observed results, and
   any remaining risk or untested path.
+
+<!-- codebox:board:start -->
+## Board
+
+Deferred work for this repo lives on its GitHub Projects board (Triage, Planned, In Progress, Done). Use the `board` command (`board --help`) to keep it current:
+
+1. **Work starts on a card:** move it to In Progress immediately: `board move N in-progress`.
+2. **A PR is opened:** items it completes get `Closes #N` in the PR body (GitHub moves them to Done on merge). Items it only partly advances get `Refs #N`, are moved to In Progress, and get a short comment on what changed and what's left: `board move N in-progress --comment - <<'EOF'` (text, then `EOF`).
+3. **Non-PR work** (cluster runs, investigations, dataset publishes): when a card's "Done when:" is met, close it with a comment linking the evidence (W&B run, HF tag, commit): `board move N done --comment - <<'EOF'` (text, then `EOF`).
+
+Make these moves without asking, and report them in one line, e.g. `Board: #12 → Done (PR #49), #15 → In Progress`.
+
+New ideas go in Triage (the `codebox-defer` skill does this). Check `board search TERMS` first; on an open match, `board comment N --body - <<'EOF'` instead of filing a duplicate. A card must stand on its own weeks later:
+
+```
+board add --title 'Short, specific title' --body - <<'EOF'
+**Why:** what prompted it and what problem it solves.
+**Context:** relevant files, commits, PRs, runs (W&B/HF links), constraints already known.
+**Done when:** one concrete, checkable line.
+EOF
+```
+
+`--body -` and `--comment -` read the text from stdin; otherwise the text is the flag's value.
+
+Quote titles with single quotes and send bodies/comments through a quoted heredoc so backticks and $ aren't expanded.
+<!-- codebox:board:end -->

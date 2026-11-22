@@ -1,0 +1,20 @@
+name = "human"
+description = "Human (Homo sapiens) IG and TR germline genes. IGH, IGK and IGL V, D and J: OGRDB Homo sapiens germline sets IGH_VDJ_extended rev 9, IGKappa_VJ_extended rev 4 and IGLambda_VJ_extended rev 3 (released 2024-10-12). IGH, IGK and IGL constant regions: IMGT GENE-DB. TRA, TRB, TRG and TRD V, D, J and constant regions: IMGT GENE-DB (downloaded 2025-03-27; F, ORF and in-frame P, IMGT-gapped)."
+
+[[source]]
+species = "human"
+description = "IG V/D/J: OGRDB Homo sapiens; IG constant regions: IMGT GENE-DB"
+ogrdb_json = [
+    "../human/Homo_sapiens_IGH_VDJ_rev_9_ex.json",
+    "../human/Homo_sapiens_IGKappa_VJ_rev_4_ex.json",
+    "../human/Homo_sapiens_IGLambda_VJ_rev_3_ex.json",
+]
+c_fasta = ["../human/imgt_ig_c.fasta"]
+
+[[source]]
+species = "human"
+description = "TR V/D/J/C: IMGT GENE-DB, downloaded 2025-03-27 (F, ORF and in-frame P, IMGT-gapped)"
+v_fasta = ["../human/imgt_tr_v.fasta"]
+d_fasta = ["../human/imgt_tr_d.fasta"]
+j_fasta = ["../human/imgt_tr_j.fasta"]
+c_fasta = ["../human/imgt_tr_c.fasta"]

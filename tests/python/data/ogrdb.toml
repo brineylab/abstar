@@ -1,0 +1,7 @@
+name = "ogrdb-test"
+description = "Trimmed OGRDB IGH set plus one IMGT constant region"
+
+[[source]]
+species = "human"
+ogrdb_json = ["Homo_sapiens_IGH_VDJ_rev_9_ex_trimmed.json"]
+c_fasta = ["c.fasta"]

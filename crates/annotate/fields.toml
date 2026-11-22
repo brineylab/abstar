@@ -1,0 +1,1324 @@
+airr_version = "2.0"
+
+[[field]]
+name = "sequence_id"
+type = "string"
+nullable = false
+origin = "airr-required"
+coordinates = ""
+description = "Unique query sequence identifier for the Rearrangement."
+decision = ""
+
+[[field]]
+name = "sequence"
+type = "string"
+nullable = false
+origin = "airr-required"
+coordinates = ""
+description = "The query nucleotide sequence."
+decision = ""
+
+[[field]]
+name = "rev_comp"
+type = "bool"
+nullable = true
+origin = "airr-required"
+coordinates = ""
+description = "True if the alignment is on the opposite strand (reverse complemented) with respect to the query sequence."
+decision = ""
+
+[[field]]
+name = "productive"
+type = "bool"
+nullable = true
+origin = "airr-required"
+coordinates = ""
+description = "True if the V(D)J sequence is predicted to be productive."
+decision = ""
+
+[[field]]
+name = "v_call"
+type = "string"
+nullable = true
+origin = "airr-required"
+coordinates = ""
+description = "V gene with allele."
+decision = ""
+
+[[field]]
+name = "d_call"
+type = "string"
+nullable = true
+origin = "airr-required"
+coordinates = ""
+description = "First or only D gene with allele."
+decision = ""
+
+[[field]]
+name = "j_call"
+type = "string"
+nullable = true
+origin = "airr-required"
+coordinates = ""
+description = "J gene with allele."
+decision = ""
+
+[[field]]
+name = "sequence_alignment"
+type = "string"
+nullable = true
+origin = "airr-required"
+coordinates = ""
+description = "Aligned portion of query sequence, including any indel corrections or numbering spacers, such as IMGT-gaps."
+decision = ""
+
+[[field]]
+name = "germline_alignment"
+type = "string"
+nullable = true
+origin = "airr-required"
+coordinates = ""
+description = "Assembled, aligned, full-length inferred germline sequence spanning the same region as the sequence_alignment field (typically the V(D)J region) and including the same set of corrections and spacers (if any)."
+decision = ""
+
+[[field]]
+name = "junction"
+type = "string"
+nullable = true
+origin = "airr-required"
+coordinates = ""
+description = "Junction region nucleotide sequence, where the junction is defined as the CDR3 plus the two flanking conserved codons."
+decision = ""
+
+[[field]]
+name = "junction_aa"
+type = "string"
+nullable = true
+origin = "airr-required"
+coordinates = ""
+description = "Amino acid translation of the junction."
+decision = ""
+
+[[field]]
+name = "v_cigar"
+type = "string"
+nullable = true
+origin = "airr-required"
+coordinates = ""
+description = "CIGAR string for the V gene alignment."
+decision = ""
+
+[[field]]
+name = "d_cigar"
+type = "string"
+nullable = true
+origin = "airr-required"
+coordinates = ""
+description = "CIGAR string for the first or only D gene alignment."
+decision = ""
+
+[[field]]
+name = "j_cigar"
+type = "string"
+nullable = true
+origin = "airr-required"
+coordinates = ""
+description = "CIGAR string for the J gene alignment."
+decision = ""
+
+[[field]]
+name = "c_call"
+type = "string"
+nullable = true
+origin = "airr-optional"
+coordinates = ""
+description = "Constant region gene with allele."
+decision = ""
+
+[[field]]
+name = "v_gene"
+type = "string"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Gene name of the V call, without the allele."
+decision = "0008"
+
+[[field]]
+name = "v_species"
+type = "string"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Species of the germline sequence chosen for the V call."
+decision = "0007"
+
+[[field]]
+name = "v_call_ties"
+type = "list<string>"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Every V allele tied for the top score, including the primary call."
+decision = "0008"
+
+[[field]]
+name = "v_species_ties"
+type = "list<string>"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Species of each allele in v_call_ties, aligned entry by entry."
+decision = "0008"
+
+[[field]]
+name = "d_gene"
+type = "string"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Gene name of the D call, without the allele."
+decision = "0008"
+
+[[field]]
+name = "d_species"
+type = "string"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Species of the germline sequence chosen for the D call."
+decision = "0007"
+
+[[field]]
+name = "d_call_ties"
+type = "list<string>"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Every D allele tied for the top score, including the primary call."
+decision = "0008"
+
+[[field]]
+name = "d_species_ties"
+type = "list<string>"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Species of each allele in d_call_ties, aligned entry by entry."
+decision = "0008"
+
+[[field]]
+name = "j_gene"
+type = "string"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Gene name of the J call, without the allele."
+decision = "0008"
+
+[[field]]
+name = "j_species"
+type = "string"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Species of the germline sequence chosen for the J call."
+decision = "0007"
+
+[[field]]
+name = "j_call_ties"
+type = "list<string>"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Every J allele tied for the top score, including the primary call."
+decision = "0008"
+
+[[field]]
+name = "j_species_ties"
+type = "list<string>"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Species of each allele in j_call_ties, aligned entry by entry."
+decision = "0008"
+
+[[field]]
+name = "c_gene"
+type = "string"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Gene name of the constant region call, without the allele."
+decision = "0008"
+
+[[field]]
+name = "c_species"
+type = "string"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Species of the germline sequence chosen for the constant region call."
+decision = "0007"
+
+[[field]]
+name = "c_call_ties"
+type = "list<string>"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Every constant region allele tied for the top score, including the primary call."
+decision = "0008"
+
+[[field]]
+name = "c_species_ties"
+type = "list<string>"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Species of each allele in c_call_ties, aligned entry by entry."
+decision = "0008"
+
+[[field]]
+name = "locus"
+type = "string"
+nullable = true
+origin = "airr-optional"
+coordinates = ""
+description = "Locus of the V call (IGH, IGK, IGL, TRA, TRB, TRD, TRG). Null when there is no V call."
+decision = ""
+
+[[field]]
+name = "vj_in_frame"
+type = "bool"
+nullable = true
+origin = "airr-optional"
+coordinates = ""
+description = "True when the junction length is a multiple of 3 and the J anchor is in the V reading frame. Null when the junction is undefined."
+decision = ""
+
+[[field]]
+name = "stop_codon"
+type = "bool"
+nullable = true
+origin = "airr-optional"
+coordinates = ""
+description = "True when the V-frame translation of sequence_vdj contains a stop codon (constant region excluded). Null when sequence_vdj is null."
+decision = ""
+
+[[field]]
+name = "junction_length"
+type = "int64"
+nullable = true
+origin = "airr-optional"
+coordinates = ""
+description = "Length of junction in nucleotides. Null when junction is null."
+decision = ""
+
+[[field]]
+name = "v_sequence_start"
+type = "int64"
+nullable = true
+origin = "airr-optional"
+coordinates = "read: 1-based closed"
+description = "Position in sequence of the first V-derived base; when rev_comp is T it addresses the reverse complement. Null when there is no V alignment."
+decision = ""
+
+[[field]]
+name = "v_sequence_end"
+type = "int64"
+nullable = true
+origin = "airr-optional"
+coordinates = "read: 1-based closed"
+description = "Position in sequence of the last V-derived base; when rev_comp is T it addresses the reverse complement. Null when there is no V alignment."
+decision = ""
+
+[[field]]
+name = "v_germline_start"
+type = "int64"
+nullable = true
+origin = "airr-optional"
+coordinates = "germline: 1-based closed, ungapped allele"
+description = "Position in the ungapped called V allele of the first aligned base. Null when there is no V alignment."
+decision = ""
+
+[[field]]
+name = "v_germline_end"
+type = "int64"
+nullable = true
+origin = "airr-optional"
+coordinates = "germline: 1-based closed, ungapped allele"
+description = "Position in the ungapped called V allele of the last aligned base. Null when there is no V alignment."
+decision = ""
+
+[[field]]
+name = "v_score"
+type = "float64"
+nullable = true
+origin = "airr-optional"
+coordinates = ""
+description = "Score of the reported V alignment (v_sequence_start to v_sequence_end, the columns v_identity and the V mutations use): +2 per match, -3 per mismatch (a non-ACGT base mismatches), -10 to open and -1 to extend a gap. Null when there is no V alignment."
+decision = "0035"
+
+[[field]]
+name = "v_identity"
+type = "float64"
+nullable = true
+origin = "airr-optional"
+coordinates = ""
+description = "Fraction of aligned V bases that match the called allele; inserted and deleted bases are not counted. Null when there is no V alignment."
+decision = ""
+
+[[field]]
+name = "d_sequence_start"
+type = "int64"
+nullable = true
+origin = "airr-optional"
+coordinates = "read: 1-based closed"
+description = "Position in sequence of the first D-derived base; when rev_comp is T it addresses the reverse complement. Null when there is no D alignment."
+decision = ""
+
+[[field]]
+name = "d_sequence_end"
+type = "int64"
+nullable = true
+origin = "airr-optional"
+coordinates = "read: 1-based closed"
+description = "Position in sequence of the last D-derived base; when rev_comp is T it addresses the reverse complement. Null when there is no D alignment."
+decision = ""
+
+[[field]]
+name = "d_germline_start"
+type = "int64"
+nullable = true
+origin = "airr-optional"
+coordinates = "germline: 1-based closed, ungapped allele, as used"
+description = "Position in the ungapped called D allele (the reverse complement of the allele when d_inverted) of the first aligned base. Null when there is no D alignment."
+decision = ""
+
+[[field]]
+name = "d_germline_end"
+type = "int64"
+nullable = true
+origin = "airr-optional"
+coordinates = "germline: 1-based closed, ungapped allele, as used"
+description = "Position in the ungapped called D allele (the reverse complement of the allele when d_inverted) of the last aligned base. Null when there is no D alignment."
+decision = ""
+
+[[field]]
+name = "d_score"
+type = "float64"
+nullable = true
+origin = "airr-optional"
+coordinates = ""
+description = "Score of the reported D alignment (d_sequence_start to d_sequence_end, the columns d_identity and the D mutations use): +2 per match, -3 per mismatch (a non-ACGT base mismatches), -10 to open and -1 to extend a gap. Null when there is no D alignment."
+decision = "0035"
+
+[[field]]
+name = "d_identity"
+type = "float64"
+nullable = true
+origin = "airr-optional"
+coordinates = ""
+description = "Fraction of aligned D bases that match the called allele; inserted and deleted bases are not counted. Null when there is no D alignment."
+decision = ""
+
+[[field]]
+name = "j_sequence_start"
+type = "int64"
+nullable = true
+origin = "airr-optional"
+coordinates = "read: 1-based closed"
+description = "Position in sequence of the first J-derived base; when rev_comp is T it addresses the reverse complement. Null when there is no J alignment."
+decision = ""
+
+[[field]]
+name = "j_sequence_end"
+type = "int64"
+nullable = true
+origin = "airr-optional"
+coordinates = "read: 1-based closed"
+description = "Position in sequence of the last J-derived base; when rev_comp is T it addresses the reverse complement. Null when there is no J alignment."
+decision = ""
+
+[[field]]
+name = "j_germline_start"
+type = "int64"
+nullable = true
+origin = "airr-optional"
+coordinates = "germline: 1-based closed, ungapped allele"
+description = "Position in the ungapped called J allele of the first aligned base. Null when there is no J alignment."
+decision = ""
+
+[[field]]
+name = "j_germline_end"
+type = "int64"
+nullable = true
+origin = "airr-optional"
+coordinates = "germline: 1-based closed, ungapped allele"
+description = "Position in the ungapped called J allele of the last aligned base. Null when there is no J alignment."
+decision = ""
+
+[[field]]
+name = "j_score"
+type = "float64"
+nullable = true
+origin = "airr-optional"
+coordinates = ""
+description = "Score of the reported J alignment (j_sequence_start to j_sequence_end, the columns j_identity and the J mutations use): +2 per match, -3 per mismatch (a non-ACGT base mismatches), -10 to open and -1 to extend a gap. Null when there is no J alignment."
+decision = "0035"
+
+[[field]]
+name = "j_identity"
+type = "float64"
+nullable = true
+origin = "airr-optional"
+coordinates = ""
+description = "Fraction of aligned J bases that match the called allele; inserted and deleted bases are not counted. Null when there is no J alignment."
+decision = ""
+
+[[field]]
+name = "c_sequence_start"
+type = "int64"
+nullable = true
+origin = "airr-optional"
+coordinates = "read: 1-based closed"
+description = "Position in sequence of the first constant region-derived base; when rev_comp is T it addresses the reverse complement. Null when there is no constant region alignment."
+decision = ""
+
+[[field]]
+name = "c_sequence_end"
+type = "int64"
+nullable = true
+origin = "airr-optional"
+coordinates = "read: 1-based closed"
+description = "Position in sequence of the last constant region-derived base; when rev_comp is T it addresses the reverse complement. Null when there is no constant region alignment."
+decision = ""
+
+[[field]]
+name = "c_germline_start"
+type = "int64"
+nullable = true
+origin = "airr-optional"
+coordinates = "germline: 1-based closed, ungapped allele"
+description = "Position in the ungapped called constant region allele of the first aligned base. Null when there is no constant region alignment."
+decision = ""
+
+[[field]]
+name = "c_germline_end"
+type = "int64"
+nullable = true
+origin = "airr-optional"
+coordinates = "germline: 1-based closed, ungapped allele"
+description = "Position in the ungapped called constant region allele of the last aligned base. Null when there is no constant region alignment."
+decision = ""
+
+[[field]]
+name = "c_score"
+type = "float64"
+nullable = true
+origin = "airr-optional"
+coordinates = ""
+description = "Score of the reported constant region alignment (c_sequence_start to c_sequence_end, the columns c_identity and the constant region mutations use): +2 per match, -3 per mismatch (a non-ACGT base mismatches), -10 to open and -1 to extend a gap. Null when there is no constant region alignment."
+decision = "0035"
+
+[[field]]
+name = "c_identity"
+type = "float64"
+nullable = true
+origin = "airr-optional"
+coordinates = ""
+description = "Fraction of aligned constant region bases that match the called allele; inserted and deleted bases are not counted. Null when there is no constant region alignment."
+decision = ""
+
+[[field]]
+name = "np1"
+type = "string"
+nullable = true
+origin = "airr-optional"
+coordinates = ""
+description = "Bases between the V end and the D start (or the J start when there is no D): N and P nucleotides as they appear in the read. Null when either flanking segment is absent."
+decision = ""
+
+[[field]]
+name = "np1_length"
+type = "int64"
+nullable = true
+origin = "airr-optional"
+coordinates = ""
+description = "Length of np1."
+decision = ""
+
+[[field]]
+name = "np2"
+type = "string"
+nullable = true
+origin = "airr-optional"
+coordinates = ""
+description = "Bases between the D end and the J start, as they appear in the read. Null when D or J is absent."
+decision = ""
+
+[[field]]
+name = "np2_length"
+type = "int64"
+nullable = true
+origin = "airr-optional"
+coordinates = ""
+description = "Length of np2."
+decision = ""
+
+[[field]]
+name = "d_inverted"
+type = "bool"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "True when the D was aligned as its reverse complement. Null without a D call."
+decision = "0031"
+
+[[field]]
+name = "sequence_aa"
+type = "string"
+nullable = true
+origin = "airr-optional"
+coordinates = ""
+description = "Translation of the whole sequence in the V reading frame (codons in phase with the first V base IMGT position), dropping partial codons at either end. Null when there is no V alignment."
+decision = ""
+
+[[field]]
+name = "sequence_alignment_aa"
+type = "string"
+nullable = true
+origin = "airr-optional"
+coordinates = ""
+description = "Amino acid translation of sequence_alignment. Null when sequence_alignment is null."
+decision = ""
+
+[[field]]
+name = "germline_alignment_aa"
+type = "string"
+nullable = true
+origin = "airr-optional"
+coordinates = ""
+description = "Amino acid translation of germline_alignment. Null when germline_alignment is null."
+decision = ""
+
+[[field]]
+name = "fwr1"
+type = "string"
+nullable = true
+origin = "airr-optional"
+coordinates = ""
+description = "FWR1 nucleotide sequence, with IMGT region boundaries on the V gapped coordinates (CDR3 lies between the Cys104 and Trp/Phe118 codons, FWR4 starts at the Trp/Phe118 codon). A partially covered region holds the covered part; null when no base of it is in the read."
+decision = ""
+
+[[field]]
+name = "fwr1_aa"
+type = "string"
+nullable = true
+origin = "airr-optional"
+coordinates = ""
+description = "Translation of fwr1 in the continuous V(D)J reading frame of sequence_vdj: a codon crossing a region boundary belongs to the downstream region; partial codons are not translated. Null when fwr1 is null."
+decision = ""
+
+[[field]]
+name = "fwr1_start"
+type = "int64"
+nullable = true
+origin = "airr-optional"
+coordinates = "read: 1-based closed"
+description = "Position in sequence of the first base of fwr1. Null when fwr1 is null or empty."
+decision = ""
+
+[[field]]
+name = "fwr1_end"
+type = "int64"
+nullable = true
+origin = "airr-optional"
+coordinates = "read: 1-based closed"
+description = "Position in sequence of the last base of fwr1. Null when fwr1 is null or empty."
+decision = ""
+
+[[field]]
+name = "fwr1_length"
+type = "int64"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Length of fwr1_aa in amino acids. Null when fwr1 is null."
+decision = "0032"
+
+[[field]]
+name = "cdr1"
+type = "string"
+nullable = true
+origin = "airr-optional"
+coordinates = ""
+description = "CDR1 nucleotide sequence, with IMGT region boundaries on the V gapped coordinates (CDR3 lies between the Cys104 and Trp/Phe118 codons, FWR4 starts at the Trp/Phe118 codon). A partially covered region holds the covered part; null when no base of it is in the read."
+decision = ""
+
+[[field]]
+name = "cdr1_aa"
+type = "string"
+nullable = true
+origin = "airr-optional"
+coordinates = ""
+description = "Translation of cdr1 in the continuous V(D)J reading frame of sequence_vdj: a codon crossing a region boundary belongs to the downstream region; partial codons are not translated. Null when cdr1 is null."
+decision = ""
+
+[[field]]
+name = "cdr1_start"
+type = "int64"
+nullable = true
+origin = "airr-optional"
+coordinates = "read: 1-based closed"
+description = "Position in sequence of the first base of cdr1. Null when cdr1 is null or empty."
+decision = ""
+
+[[field]]
+name = "cdr1_end"
+type = "int64"
+nullable = true
+origin = "airr-optional"
+coordinates = "read: 1-based closed"
+description = "Position in sequence of the last base of cdr1. Null when cdr1 is null or empty."
+decision = ""
+
+[[field]]
+name = "cdr1_length"
+type = "int64"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Length of cdr1_aa in amino acids. Null when cdr1 is null."
+decision = "0032"
+
+[[field]]
+name = "fwr2"
+type = "string"
+nullable = true
+origin = "airr-optional"
+coordinates = ""
+description = "FWR2 nucleotide sequence, with IMGT region boundaries on the V gapped coordinates (CDR3 lies between the Cys104 and Trp/Phe118 codons, FWR4 starts at the Trp/Phe118 codon). A partially covered region holds the covered part; null when no base of it is in the read."
+decision = ""
+
+[[field]]
+name = "fwr2_aa"
+type = "string"
+nullable = true
+origin = "airr-optional"
+coordinates = ""
+description = "Translation of fwr2 in the continuous V(D)J reading frame of sequence_vdj: a codon crossing a region boundary belongs to the downstream region; partial codons are not translated. Null when fwr2 is null."
+decision = ""
+
+[[field]]
+name = "fwr2_start"
+type = "int64"
+nullable = true
+origin = "airr-optional"
+coordinates = "read: 1-based closed"
+description = "Position in sequence of the first base of fwr2. Null when fwr2 is null or empty."
+decision = ""
+
+[[field]]
+name = "fwr2_end"
+type = "int64"
+nullable = true
+origin = "airr-optional"
+coordinates = "read: 1-based closed"
+description = "Position in sequence of the last base of fwr2. Null when fwr2 is null or empty."
+decision = ""
+
+[[field]]
+name = "fwr2_length"
+type = "int64"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Length of fwr2_aa in amino acids. Null when fwr2 is null."
+decision = "0032"
+
+[[field]]
+name = "cdr2"
+type = "string"
+nullable = true
+origin = "airr-optional"
+coordinates = ""
+description = "CDR2 nucleotide sequence, with IMGT region boundaries on the V gapped coordinates (CDR3 lies between the Cys104 and Trp/Phe118 codons, FWR4 starts at the Trp/Phe118 codon). A partially covered region holds the covered part; null when no base of it is in the read."
+decision = ""
+
+[[field]]
+name = "cdr2_aa"
+type = "string"
+nullable = true
+origin = "airr-optional"
+coordinates = ""
+description = "Translation of cdr2 in the continuous V(D)J reading frame of sequence_vdj: a codon crossing a region boundary belongs to the downstream region; partial codons are not translated. Null when cdr2 is null."
+decision = ""
+
+[[field]]
+name = "cdr2_start"
+type = "int64"
+nullable = true
+origin = "airr-optional"
+coordinates = "read: 1-based closed"
+description = "Position in sequence of the first base of cdr2. Null when cdr2 is null or empty."
+decision = ""
+
+[[field]]
+name = "cdr2_end"
+type = "int64"
+nullable = true
+origin = "airr-optional"
+coordinates = "read: 1-based closed"
+description = "Position in sequence of the last base of cdr2. Null when cdr2 is null or empty."
+decision = ""
+
+[[field]]
+name = "cdr2_length"
+type = "int64"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Length of cdr2_aa in amino acids. Null when cdr2 is null."
+decision = "0032"
+
+[[field]]
+name = "fwr3"
+type = "string"
+nullable = true
+origin = "airr-optional"
+coordinates = ""
+description = "FWR3 nucleotide sequence, with IMGT region boundaries on the V gapped coordinates (CDR3 lies between the Cys104 and Trp/Phe118 codons, FWR4 starts at the Trp/Phe118 codon). A partially covered region holds the covered part; null when no base of it is in the read."
+decision = ""
+
+[[field]]
+name = "fwr3_aa"
+type = "string"
+nullable = true
+origin = "airr-optional"
+coordinates = ""
+description = "Translation of fwr3 in the continuous V(D)J reading frame of sequence_vdj: a codon crossing a region boundary belongs to the downstream region; partial codons are not translated. Null when fwr3 is null."
+decision = ""
+
+[[field]]
+name = "fwr3_start"
+type = "int64"
+nullable = true
+origin = "airr-optional"
+coordinates = "read: 1-based closed"
+description = "Position in sequence of the first base of fwr3. Null when fwr3 is null or empty."
+decision = ""
+
+[[field]]
+name = "fwr3_end"
+type = "int64"
+nullable = true
+origin = "airr-optional"
+coordinates = "read: 1-based closed"
+description = "Position in sequence of the last base of fwr3. Null when fwr3 is null or empty."
+decision = ""
+
+[[field]]
+name = "fwr3_length"
+type = "int64"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Length of fwr3_aa in amino acids. Null when fwr3 is null."
+decision = "0032"
+
+[[field]]
+name = "cdr3"
+type = "string"
+nullable = true
+origin = "airr-optional"
+coordinates = ""
+description = "CDR3 nucleotide sequence, with IMGT region boundaries on the V gapped coordinates (CDR3 lies between the Cys104 and Trp/Phe118 codons, FWR4 starts at the Trp/Phe118 codon). A partially covered region holds the covered part; null when no base of it is in the read."
+decision = ""
+
+[[field]]
+name = "cdr3_aa"
+type = "string"
+nullable = true
+origin = "airr-optional"
+coordinates = ""
+description = "Translation of cdr3 in the continuous V(D)J reading frame of sequence_vdj: a codon crossing a region boundary belongs to the downstream region; partial codons are not translated. Null when cdr3 is null."
+decision = ""
+
+[[field]]
+name = "cdr3_start"
+type = "int64"
+nullable = true
+origin = "airr-optional"
+coordinates = "read: 1-based closed"
+description = "Position in sequence of the first base of cdr3. Null when cdr3 is null or empty."
+decision = ""
+
+[[field]]
+name = "cdr3_end"
+type = "int64"
+nullable = true
+origin = "airr-optional"
+coordinates = "read: 1-based closed"
+description = "Position in sequence of the last base of cdr3. Null when cdr3 is null or empty."
+decision = ""
+
+[[field]]
+name = "cdr3_length"
+type = "int64"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Length of cdr3_aa in amino acids. Null when cdr3 is null."
+decision = "0032"
+
+[[field]]
+name = "fwr4"
+type = "string"
+nullable = true
+origin = "airr-optional"
+coordinates = ""
+description = "FWR4 nucleotide sequence, with IMGT region boundaries on the V gapped coordinates (CDR3 lies between the Cys104 and Trp/Phe118 codons, FWR4 starts at the Trp/Phe118 codon). A partially covered region holds the covered part; null when no base of it is in the read."
+decision = ""
+
+[[field]]
+name = "fwr4_aa"
+type = "string"
+nullable = true
+origin = "airr-optional"
+coordinates = ""
+description = "Translation of fwr4 in the continuous V(D)J reading frame of sequence_vdj: a codon crossing a region boundary belongs to the downstream region; partial codons are not translated. Null when fwr4 is null."
+decision = ""
+
+[[field]]
+name = "fwr4_start"
+type = "int64"
+nullable = true
+origin = "airr-optional"
+coordinates = "read: 1-based closed"
+description = "Position in sequence of the first base of fwr4. Null when fwr4 is null or empty."
+decision = ""
+
+[[field]]
+name = "fwr4_end"
+type = "int64"
+nullable = true
+origin = "airr-optional"
+coordinates = "read: 1-based closed"
+description = "Position in sequence of the last base of fwr4. Null when fwr4 is null or empty."
+decision = ""
+
+[[field]]
+name = "fwr4_length"
+type = "int64"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Length of fwr4_aa in amino acids. Null when fwr4 is null."
+decision = "0032"
+
+[[field]]
+name = "sequence_vdj"
+type = "string"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "The oriented sequence from the first V base through the last J base, or through the last V/N/D base when there is no J. Null when there is no V alignment."
+decision = "0028"
+
+[[field]]
+name = "sequence_vdj_aa"
+type = "string"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Translation of sequence_vdj in the V reading frame, dropping partial codons."
+decision = "0028"
+
+[[field]]
+name = "sequence_vdjc"
+type = "string"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "The oriented sequence from the first V base through the last constant region base. Null when V or C is absent."
+decision = "0028"
+
+[[field]]
+name = "sequence_vdjc_aa"
+type = "string"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Translation of sequence_vdjc in the V reading frame, dropping partial codons."
+decision = "0028"
+
+[[field]]
+name = "cdr_mask"
+type = "string"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Region of each base: 1, 2 or 3 in CDR1, CDR2 or CDR3, else 0 (framework). One character per base of sequence_vdj (the V(D)J region only: no constant region bases); null when sequence_vdj is null, or when cdr3's ends are unknown (the V keeps no Cys104 base, or the J allele has no anchor or starts past it)."
+decision = "0034"
+
+[[field]]
+name = "cdr_mask_aa"
+type = "string"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "The cdr_mask character of each codon's 3rd base (a codon crossing a boundary belongs to the downstream region). One character per codon of sequence_vdj_aa (the V(D)J region only); null when the matching nt mask is null."
+decision = "0034"
+
+[[field]]
+name = "gene_segment_mask"
+type = "string"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Origin of each base: V, N, D or J (P nucleotides count as N; an inserted base takes the segment it sits in). Constant region is not represented. One character per base of sequence_vdj (the V(D)J region only: no constant region bases); null when sequence_vdj is null."
+decision = "0034"
+
+[[field]]
+name = "gene_segment_mask_aa"
+type = "string"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "The gene_segment_mask character of each codon's 3rd base. One character per codon of sequence_vdj_aa (the V(D)J region only); null when the matching nt mask is null."
+decision = "0034"
+
+[[field]]
+name = "nongermline_mask"
+type = "string"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "1 for N and P nucleotides, inserted bases and bases that differ from the germline (mutations), else 0. One character per base of sequence_vdj (the V(D)J region only: no constant region bases); null when sequence_vdj is null."
+decision = "0034"
+
+[[field]]
+name = "nongermline_mask_aa"
+type = "string"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "1 when any base of the codon is N, P or inserted, or its amino acid differs from the germline translation, else 0. One character per codon of sequence_vdj_aa (the V(D)J region only); null when the matching nt mask is null."
+decision = "0034"
+
+[[field]]
+name = "v_mutations"
+type = "list<string>"
+nullable = true
+origin = "abstar"
+coordinates = "germline: IMGT-gapped nt position (aa: IMGT codon number)"
+description = "Substitutions in the V bases against the called allele, in germline order, as \"IMGT{pos}:REF>ALT\" (the IMGT-gapped position). Null when there is no V alignment."
+decision = "0033"
+
+[[field]]
+name = "v_mutations_aa"
+type = "list<string>"
+nullable = true
+origin = "abstar"
+coordinates = "germline: IMGT-gapped nt position (aa: IMGT codon number)"
+description = "Amino acid changes, as \"IMGT{aa_pos}:REF>ALT\" (codon number in the allele), over germline codons whose three bases are all aligned. Null when there is no V alignment."
+decision = "0033"
+
+[[field]]
+name = "v_insertions"
+type = "list<string>"
+nullable = true
+origin = "abstar"
+coordinates = "germline: IMGT-gapped nt position (aa: IMGT codon number)"
+description = "Insertions in V, as \"IMGT{pos}:ins:BASES\", POS the germline position the inserted bases follow; BASES are the inserted read bases. Placed where it minimizes read-vs-germline mismatches over the segment, leftmost on ties (rulings A17, A18); searched only where indels can occur (V at least 3 nt upstream of Cys104, J at least 3 nt downstream of Trp/Phe118, never in CDR3). The segment mutation lists, counts and frequencies come from this same alignment. Null when there is no V alignment."
+decision = "0033"
+
+[[field]]
+name = "v_deletions"
+type = "list<string>"
+nullable = true
+origin = "abstar"
+coordinates = "germline: IMGT-gapped nt position (aa: IMGT codon number)"
+description = "Deletions from V, as \"IMGT{pos}:del:BASES\", POS the first deleted germline position; BASES are the deleted germline bases. Placed where it minimizes read-vs-germline mismatches over the segment, leftmost on ties (rulings A17, A18); searched only where indels can occur (V at least 3 nt upstream of Cys104, J at least 3 nt downstream of Trp/Phe118, never in CDR3). The segment mutation lists, counts and frequencies come from this same alignment. Null when there is no V alignment."
+decision = "0033"
+
+[[field]]
+name = "v_mutation_count"
+type = "int64"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Length of v_mutations (indels are not substitutions). Null when v_mutations is null."
+decision = "0033"
+
+[[field]]
+name = "v_mutation_count_aa"
+type = "int64"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Length of v_mutations_aa. Null when v_mutations_aa is null."
+decision = "0033"
+
+[[field]]
+name = "v_mutation_frequency"
+type = "float64"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "v_mutation_count divided by the aligned V germline positions, excluding deleted positions. Null when v_mutations is null."
+decision = "0033"
+
+[[field]]
+name = "v_mutation_frequency_aa"
+type = "float64"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "v_mutation_count_aa divided by the germline codons counted for v_mutations_aa. Null when that is null or no codon is counted."
+decision = "0033"
+
+[[field]]
+name = "d_mutations"
+type = "list<string>"
+nullable = true
+origin = "abstar"
+coordinates = "germline: 1-based ungapped allele, as used (reverse-complemented when d_inverted)"
+description = "Substitutions in the D bases against the called allele, in germline order, as \"{pos}:REF>ALT\" (the 1-based position in the called allele as used). Null when there is no D alignment."
+decision = "0033"
+
+[[field]]
+name = "d_mutations_aa"
+type = "list<string>"
+nullable = true
+origin = "abstar"
+coordinates = "germline: 1-based ungapped allele, as used (reverse-complemented when d_inverted)"
+description = "Amino acid changes, as \"{codon_pos}:REF>ALT\" (codon number in the allele), over germline codons whose three bases are all aligned. Null when there is no D alignment."
+decision = "0033"
+
+[[field]]
+name = "d_insertions"
+type = "list<string>"
+nullable = true
+origin = "abstar"
+coordinates = "germline: 1-based ungapped allele, as used (reverse-complemented when d_inverted)"
+description = "Insertions in D, as \"{pos}:ins:BASES\", POS the germline position the inserted bases follow; BASES are the inserted read bases. Placed where it minimizes read-vs-germline mismatches over the segment, leftmost on ties (rulings A17, A18); searched only where indels can occur (V at least 3 nt upstream of Cys104, J at least 3 nt downstream of Trp/Phe118, never in CDR3). The segment mutation lists, counts and frequencies come from this same alignment. Null when there is no D alignment."
+decision = "0033"
+
+[[field]]
+name = "d_deletions"
+type = "list<string>"
+nullable = true
+origin = "abstar"
+coordinates = "germline: 1-based ungapped allele, as used (reverse-complemented when d_inverted)"
+description = "Deletions from D, as \"{pos}:del:BASES\", POS the first deleted germline position; BASES are the deleted germline bases. Placed where it minimizes read-vs-germline mismatches over the segment, leftmost on ties (rulings A17, A18); searched only where indels can occur (V at least 3 nt upstream of Cys104, J at least 3 nt downstream of Trp/Phe118, never in CDR3). The segment mutation lists, counts and frequencies come from this same alignment. Null when there is no D alignment."
+decision = "0033"
+
+[[field]]
+name = "d_mutation_count"
+type = "int64"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Length of d_mutations (indels are not substitutions). Null when d_mutations is null."
+decision = "0033"
+
+[[field]]
+name = "d_mutation_count_aa"
+type = "int64"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Length of d_mutations_aa. Null when d_mutations_aa is null."
+decision = "0033"
+
+[[field]]
+name = "d_mutation_frequency"
+type = "float64"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "d_mutation_count divided by the aligned D germline positions, excluding deleted positions. Null when d_mutations is null."
+decision = "0033"
+
+[[field]]
+name = "d_mutation_frequency_aa"
+type = "float64"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "d_mutation_count_aa divided by the germline codons counted for d_mutations_aa. Null when that is null or no codon is counted."
+decision = "0033"
+
+[[field]]
+name = "j_mutations"
+type = "list<string>"
+nullable = true
+origin = "abstar"
+coordinates = "germline: 1-based ungapped allele"
+description = "Substitutions in the J bases against the called allele, in germline order, as \"{pos}:REF>ALT\" (the 1-based position in the called allele). Null when there is no J alignment."
+decision = "0033"
+
+[[field]]
+name = "j_mutations_aa"
+type = "list<string>"
+nullable = true
+origin = "abstar"
+coordinates = "germline: 1-based ungapped allele"
+description = "Amino acid changes, as \"{codon_pos}:REF>ALT\" (codon number in the allele), over germline codons whose three bases are all aligned. Null when there is no J alignment."
+decision = "0033"
+
+[[field]]
+name = "j_insertions"
+type = "list<string>"
+nullable = true
+origin = "abstar"
+coordinates = "germline: 1-based ungapped allele"
+description = "Insertions in J, as \"{pos}:ins:BASES\", POS the germline position the inserted bases follow; BASES are the inserted read bases. Placed where it minimizes read-vs-germline mismatches over the segment, leftmost on ties (rulings A17, A18); searched only where indels can occur (V at least 3 nt upstream of Cys104, J at least 3 nt downstream of Trp/Phe118, never in CDR3). The segment mutation lists, counts and frequencies come from this same alignment. Null when there is no J alignment."
+decision = "0033"
+
+[[field]]
+name = "j_deletions"
+type = "list<string>"
+nullable = true
+origin = "abstar"
+coordinates = "germline: 1-based ungapped allele"
+description = "Deletions from J, as \"{pos}:del:BASES\", POS the first deleted germline position; BASES are the deleted germline bases. Placed where it minimizes read-vs-germline mismatches over the segment, leftmost on ties (rulings A17, A18); searched only where indels can occur (V at least 3 nt upstream of Cys104, J at least 3 nt downstream of Trp/Phe118, never in CDR3). The segment mutation lists, counts and frequencies come from this same alignment. Null when there is no J alignment."
+decision = "0033"
+
+[[field]]
+name = "j_mutation_count"
+type = "int64"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Length of j_mutations (indels are not substitutions). Null when j_mutations is null."
+decision = "0033"
+
+[[field]]
+name = "j_mutation_count_aa"
+type = "int64"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Length of j_mutations_aa. Null when j_mutations_aa is null."
+decision = "0033"
+
+[[field]]
+name = "j_mutation_frequency"
+type = "float64"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "j_mutation_count divided by the aligned J germline positions, excluding deleted positions. Null when j_mutations is null."
+decision = "0033"
+
+[[field]]
+name = "j_mutation_frequency_aa"
+type = "float64"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "j_mutation_count_aa divided by the germline codons counted for j_mutations_aa. Null when that is null or no codon is counted."
+decision = "0033"
+
+[[field]]
+name = "c_mutations"
+type = "list<string>"
+nullable = true
+origin = "abstar"
+coordinates = "germline: 1-based ungapped allele"
+description = "Substitutions in the constant region bases against the called allele, in germline order, as \"{pos}:REF>ALT\" (the 1-based position in the called allele). Null when there is no constant region alignment."
+decision = "0033"
+
+[[field]]
+name = "c_mutations_aa"
+type = "list<string>"
+nullable = true
+origin = "abstar"
+coordinates = "germline: 1-based ungapped allele"
+description = "Amino acid changes, as \"{codon_pos}:REF>ALT\" (codon number in the allele), over germline codons whose three bases are all aligned. Null when there is no constant region alignment."
+decision = "0033"
+
+[[field]]
+name = "c_insertions"
+type = "list<string>"
+nullable = true
+origin = "abstar"
+coordinates = "germline: 1-based ungapped allele"
+description = "Insertions in constant region, as \"{pos}:ins:BASES\", POS the germline position the inserted bases follow; BASES are the inserted read bases. Placed where it minimizes read-vs-germline mismatches over the segment, leftmost on ties (rulings A17, A18); searched only where indels can occur (V at least 3 nt upstream of Cys104, J at least 3 nt downstream of Trp/Phe118, never in CDR3). The segment mutation lists, counts and frequencies come from this same alignment. Null when there is no constant region alignment."
+decision = "0033"
+
+[[field]]
+name = "c_deletions"
+type = "list<string>"
+nullable = true
+origin = "abstar"
+coordinates = "germline: 1-based ungapped allele"
+description = "Deletions from constant region, as \"{pos}:del:BASES\", POS the first deleted germline position; BASES are the deleted germline bases. Placed where it minimizes read-vs-germline mismatches over the segment, leftmost on ties (rulings A17, A18); searched only where indels can occur (V at least 3 nt upstream of Cys104, J at least 3 nt downstream of Trp/Phe118, never in CDR3). The segment mutation lists, counts and frequencies come from this same alignment. Null when there is no constant region alignment."
+decision = "0033"
+
+[[field]]
+name = "c_mutation_count"
+type = "int64"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Length of c_mutations (indels are not substitutions). Null when c_mutations is null."
+decision = "0033"
+
+[[field]]
+name = "c_mutation_count_aa"
+type = "int64"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Length of c_mutations_aa. Null when c_mutations_aa is null."
+decision = "0033"
+
+[[field]]
+name = "c_mutation_frequency"
+type = "float64"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "c_mutation_count divided by the aligned constant region germline positions, excluding deleted positions. Null when c_mutations is null."
+decision = "0033"
+
+[[field]]
+name = "c_mutation_frequency_aa"
+type = "float64"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "c_mutation_count_aa divided by the germline codons counted for c_mutations_aa. Null when that is null or no codon is counted."
+decision = "0033"
+
+[[field]]
+name = "annotation_status"
+type = "string"
+nullable = false
+origin = "abstar"
+coordinates = ""
+description = "Whether the record was annotated or failed, as a status code."
+decision = "0004"
+
+[[field]]
+name = "failure_reason"
+type = "string"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Why annotation failed, when it did; empty otherwise."
+decision = "0004"
+
+[[field]]
+name = "source_file"
+type = "string"
+nullable = true
+origin = "abstar"
+coordinates = ""
+description = "Input file the record came from."
+decision = "0013"

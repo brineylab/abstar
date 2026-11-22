@@ -1,0 +1,23 @@
+[package]
+name = "abstar_table"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[features]
+# `codegen` is all a build script needs; `writers` pulls in arrow and parquet.
+default = ["codegen", "writers"]
+codegen = ["dep:toml"]
+writers = ["dep:arrow-array", "dep:arrow-schema", "dep:parquet"]
+
+[dependencies]
+arrow-array = { version = "60.1.0", optional = true }
+arrow-schema = { version = "60.1.0", optional = true }
+parquet = { version = "60.1.0", features = ["arrow", "zstd"], optional = true }
+toml = { version = "1.2.1", optional = true }
+
+[dev-dependencies]
+tempfile = "3"
+
+[build-dependencies]
+toml = "1.2.1"

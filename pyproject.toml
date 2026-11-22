@@ -1,57 +1,26 @@
 [build-system]
-requires = ["setuptools>=77", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["maturin>=1.7"]
+build-backend = "maturin"
 
 [project]
 name = "abstar"
-description = "Germline assignment and annotation of AIRR data. Scalable from a single sequence to billions of sequences."
-readme = { file = "README.md", content-type = "text/markdown" }
-requires-python = ">=3.10"
-license = "MIT"
-license-files = ["LICENSE"]
-authors = [
-  { name = "Bryan Briney", email = "briney@scripps.edu" },
-]
-classifiers = [
-  "Development Status :: 5 - Production/Stable",
-  "Intended Audience :: Science/Research",
-  "Operating System :: OS Independent",
-  "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3.10",
-  "Programming Language :: Python :: 3.11",
-  "Programming Language :: Python :: 3.12",
-  "Programming Language :: Python :: 3.13",
-  "Topic :: Scientific/Engineering :: Bio-Informatics",
-]
-dynamic = ["version", "dependencies"]
+dynamic = ["version"]
+description = "Antibody germline annotation"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+dependencies = ["typer>=0.12", "polars>=1.44"]
+
+[project.optional-dependencies]
+test = ["pytest>=8", "airr>=2.0"]
 
 [project.scripts]
-abstar = "abstar.scripts.abstar:cli"
+abstar = "abstar.cli:main"
 
-[project.urls]
-Homepage = "https://github.com/brineylab/abstar"
-
-[tool.setuptools]
-include-package-data = true
-
-[tool.setuptools.packages.find]
-include = ["abstar*"]
-
-[tool.setuptools.dynamic]
-version = { attr = "abstar.version.__version__" }
-dependencies = { file = ["requirements.txt"] }
+[tool.maturin]
+python-source = "python"
+module-name = "abstar._core"
+manifest-path = "crates/py/Cargo.toml"
 
 [tool.pytest.ini_options]
-testpaths = ["abstar/tests"]
-strict_config = true
-strict_markers = true
-xfail_strict = true
-required_plugins = ["pytest-cov>=6,<8"]
-markers = [
-  "integration: exercises a real component or external-tool boundary",
-  "e2e: exercises abstar.run or the installed abstar command",
-  "slow: bounded checks excluded from the ordinary pull-request matrix",
-]
-filterwarnings = [
-  "error::Warning:abstar.*",
-]
+testpaths = ["tests/python"]

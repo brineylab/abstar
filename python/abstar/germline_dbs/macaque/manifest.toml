@@ -1,0 +1,266 @@
+format_version = 1
+name = "macaque"
+description = "Rhesus macaque (Macaca mulatta) IG germline genes. IGH V, D and J: KIMDB 1.1 (downloaded 2024-08-19). IGK and IGL V and J: IMGT GENE-DB (downloaded 2024-08-19). IGH, IGK and IGL constant regions: IMGT GENE-DB (downloaded 2024-08-19). V genes IMGT-gapped by abstar germline gap against human, c57bl6 and balbc (decision 0037)."
+abstar_version = "1.0.0-dev.0"
+built = "2026-11-22"
+alleles_sha256 = "5a2e813bd4991de3c96692a80e2bf041b64e0828484f3109573b3a51f72b51ba"
+species = ["macaque"]
+loci = ["IGH", "IGK", "IGL"]
+
+[[provenance]]
+species = "macaque"
+files = ["gap-template:human", "gap-template:c57bl6", "gap-template:balbc", "v.fasta", "d.fasta", "j.fasta", "c.fasta"]
+sha256 = ["32043e8ebf5b87964366f77d05934977ac0e921ab53b862da29943a70e4c1a7e", "4ac09550be6028949bae0b3aab285a55bc8353b9f72ce9c61b52cb8e891653f9", "7f7fe24fe6c50c94d219b3c2b513b74590d85c1baf0ad489dc606bd1d92946f1", "95aa8ffda1de898c9c00048e64411ab664def12a45efca47052f2e3540f40ad6", "ae7e19fd04431a020736d4e31336777ea10a28944145809c93bf33402a9ccf2c", "e5d7921f4ca3427cff15be6d3357498a3470c5b3f72a96a9d6e70b1b478a0c95", "648fbdeb3b4ff9711c4ff3133812d422a4ee0d5ec689c5f757b143516c82499c"]
+description = "IGH V/D/J: KIMDB 1.1; IGK/IGL V/J and all constant regions: IMGT GENE-DB; all downloaded 2024-08-19"
+
+[[warnings]]
+allele = "IGKV1-29*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV1-29*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV2-2*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV2-2*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV2-7*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV2-49*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV2-49*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV2-81*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGKV3-88*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV3-18*02"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLV5-93*01"
+message = "no Cys104 codon at IMGT positions 310-312"
+
+[[warnings]]
+allele = "IGLJ4*01"
+message = "no J Trp/Phe118 motif (TGG|TTT|TTC)GGNNNNGGN"
+
+[[warnings]]
+allele = "IGLJ7*02"
+message = "no J Trp/Phe118 motif (TGG|TTT|TTC)GGNNNNGGN"
+
+[[warnings]]
+allele = "IGKV1-29*01"
+message = "gapped: no_cys104, stop_codon, no_cys23"
+
+[[warnings]]
+allele = "IGKV1-29*02"
+message = "gapped: no_cys104, stop_codon, no_cys23"
+
+[[warnings]]
+allele = "IGKV1-56*01"
+message = "gapped: stop_codon, no_trp41"
+
+[[warnings]]
+allele = "IGKV1-56*02"
+message = "gapped: stop_codon, no_trp41"
+
+[[warnings]]
+allele = "IGKV2-2*01"
+message = "gapped: no_cys104, stop_codon, no_cys23, template_disagreement"
+
+[[warnings]]
+allele = "IGKV2-2*02"
+message = "gapped: no_cys104, stop_codon, no_cys23, template_disagreement"
+
+[[warnings]]
+allele = "IGKV2-7*01"
+message = "gapped: no_cys104, stop_codon"
+
+[[warnings]]
+allele = "IGKV2-23*01"
+message = "gapped: stop_codon, no_cys23"
+
+[[warnings]]
+allele = "IGKV2-26*01"
+message = "gapped: no_cys23"
+
+[[warnings]]
+allele = "IGKV2-26*02"
+message = "gapped: no_cys23"
+
+[[warnings]]
+allele = "IGKV2-30*01"
+message = "gapped: stop_codon, no_cys23, no_trp41"
+
+[[warnings]]
+allele = "IGKV2-30*02"
+message = "gapped: stop_codon, no_cys23, no_trp41"
+
+[[warnings]]
+allele = "IGKV2-39*01"
+message = "not gapped: framework_insertion"
+
+[[warnings]]
+allele = "IGKV2-48*01"
+message = "gapped: stop_codon"
+
+[[warnings]]
+allele = "IGKV2-48*02"
+message = "gapped: stop_codon"
+
+[[warnings]]
+allele = "IGKV2-49*01"
+message = "gapped: no_cys104, stop_codon"
+
+[[warnings]]
+allele = "IGKV2-49*02"
+message = "gapped: no_cys104, stop_codon"
+
+[[warnings]]
+allele = "IGKV2-58*02"
+message = "gapped: stop_codon, no_trp41"
+
+[[warnings]]
+allele = "IGKV2-75*01"
+message = "gapped: stop_codon, no_trp41"
+
+[[warnings]]
+allele = "IGKV2-81*01"
+message = "gapped: no_cys104"
+
+[[warnings]]
+allele = "IGKV2-83*01"
+message = "gapped: stop_codon, no_trp41"
+
+[[warnings]]
+allele = "IGKV2-86*02"
+message = "gapped: no_cys23"
+
+[[warnings]]
+allele = "IGKV2-87*01"
+message = "not gapped: framework_insertion"
+
+[[warnings]]
+allele = "IGKV2-103*01"
+message = "gapped: stop_codon"
+
+[[warnings]]
+allele = "IGKV2S16*01"
+message = "gapped: no_trp41"
+
+[[warnings]]
+allele = "IGKV3-79*01"
+message = "gapped: stop_codon, low_identity, template_disagreement"
+
+[[warnings]]
+allele = "IGKV3-88*01"
+message = "gapped: no_cys104, stop_codon, no_trp41, low_identity"
+
+[[warnings]]
+allele = "IGKV3-93*01"
+message = "gapped: stop_codon, no_trp41, template_disagreement"
+
+[[warnings]]
+allele = "IGKV3-96*01"
+message = "gapped: no_trp41, low_identity"
+
+[[warnings]]
+allele = "IGKV4-8*01"
+message = "gapped: stop_codon"
+
+[[warnings]]
+allele = "IGKV4-8*02"
+message = "gapped: stop_codon"
+
+[[warnings]]
+allele = "IGKV6-67*01"
+message = "not gapped: framework_insertion"
+
+[[warnings]]
+allele = "IGLV1-100*01"
+message = "gapped: no_trp41"
+
+[[warnings]]
+allele = "IGLV1-100*02"
+message = "gapped: no_trp41"
+
+[[warnings]]
+allele = "IGLV1-122*01"
+message = "gapped: stop_codon, no_trp41"
+
+[[warnings]]
+allele = "IGLV1-122*02"
+message = "gapped: stop_codon, no_trp41"
+
+[[warnings]]
+allele = "IGLV1-122*03"
+message = "gapped: stop_codon, no_trp41"
+
+[[warnings]]
+allele = "IGLV1-122*04"
+message = "gapped: stop_codon, no_trp41"
+
+[[warnings]]
+allele = "IGLV3-2*01"
+message = "gapped: stop_codon"
+
+[[warnings]]
+allele = "IGLV3-18*01"
+message = "not gapped: framework_insertion"
+
+[[warnings]]
+allele = "IGLV3-18*02"
+message = "gapped: no_cys104"
+
+[[warnings]]
+allele = "IGLV3-18*03"
+message = "not gapped: framework_insertion"
+
+[[warnings]]
+allele = "IGLV3-35*01"
+message = "gapped: stop_codon"
+
+[[warnings]]
+allele = "IGLV4-9*01"
+message = "gapped: stop_codon"
+
+[[warnings]]
+allele = "IGLV4-17*01"
+message = "not gapped: framework_insertion"
+
+[[warnings]]
+allele = "IGLV4-17*02"
+message = "not gapped: framework_insertion"
+
+[[warnings]]
+allele = "IGLV5-93*01"
+message = "gapped: no_cys104, stop_codon"
+
+[[warnings]]
+allele = "IGLV7-56*01"
+message = "gapped: stop_codon, no_trp41"
+
+[[warnings]]
+allele = "IGLV7-59*01"
+message = "gapped: stop_codon"
+
+[[warnings]]
+allele = "IGLV9-84*01"
+message = "gapped: stop_codon"

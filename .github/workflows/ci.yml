@@ -1,0 +1,118 @@
+name: ci
+
+on:
+  push:
+    branches: [master, rewrite]
+  pull_request:
+    branches: [master]
+  workflow_call:
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-15]
+        python: ["3.11", "3.13"]
+    env:
+      # Optimized build with the checks a debug build has: the accuracy tests take ~30 s instead
+      # of ~40 min. Job-wide, so the extension and the Rust tests share one compile.
+      CARGO_PROFILE_RELEASE_DEBUG_ASSERTIONS: "true"
+      CARGO_PROFILE_RELEASE_OVERFLOW_CHECKS: "true"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python }}
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.event_name == 'push' }}
+      - run: python -m venv .venv
+      - name: Build and install
+        run: |
+          . .venv/bin/activate
+          pip install maturin
+          maturin develop --release --extras test
+      # The Rust tests don't involve Python: run them once per OS, not per Python version.
+      # --workspace on the release-only suites too: `-p` changes the feature set and recompiles.
+      - name: Rust tests, gap round trips, generator validation
+        if: matrix.python == '3.13'
+        run: |
+          cargo test --workspace --release
+          cargo test --workspace --release --test gap_roundtrip --test validation -- --include-ignored
+      # x86_64 only: AVX2 and NEON may break alignment ties differently, and the floors are measured on x86_64
+      - name: Accuracy gate and AIRR validation (release)
+        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
+        env:
+          ABSTAR_FULL_TABLE: "1"
+        run: |
+          . .venv/bin/activate
+          python -m pytest tests/python/test_accuracy.py -q -s
+      - name: Python tests
+        run: |
+          . .venv/bin/activate
+          python -m pytest -q --ignore tests/python/test_accuracy.py
+
+  wheels:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {os: ubuntu-latest, target: x86_64}
+          - {os: ubuntu-latest, target: aarch64}
+          - {os: macos-15, target: aarch64}
+          - {os: windows-latest, target: x64}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: PyO3/maturin-action@v1
+        with:
+          target: ${{ matrix.target }}
+          args: --release --out dist
+          manylinux: auto
+      - uses: actions/upload-artifact@v5
+        with:
+          name: wheel-${{ matrix.os }}-${{ matrix.target }}
+          path: dist
+
+  sdist:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: PyO3/maturin-action@v1
+        with:
+          command: sdist
+          args: --out dist
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install sdist in a fresh venv
+        run: |
+          python -m venv /tmp/sdist-venv
+          /tmp/sdist-venv/bin/pip install dist/*.tar.gz
+          /tmp/sdist-venv/bin/python -c "import abstar._core"
+      - uses: actions/upload-artifact@v5
+        with:
+          name: sdist
+          path: dist
+
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - uses: dtolnay/rust-toolchain@stable
+      - run: python -m venv .venv
+      - name: Build and install
+        run: |
+          . .venv/bin/activate
+          pip install . -r docs/requirements.txt
+      - name: Build docs
+        run: |
+          . .venv/bin/activate
+          sphinx-build -W -b html docs docs/_build

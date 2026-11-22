@@ -1,0 +1,9 @@
+[workspace]
+resolver = "2"
+members = ["crates/germline", "crates/table", "crates/generate", "crates/annotate", "crates/py"]
+exclude = ["spikes"]
+
+[workspace.package]
+version = "1.0.0-rc.1"
+edition = "2021"
+license = "MIT"

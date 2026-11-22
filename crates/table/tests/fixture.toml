@@ -1,0 +1,64 @@
+airr_version = "2.0"
+
+[[field]]
+name = "id"
+type = "string"
+nullable = false
+origin = "airr-optional"
+coordinates = ""
+description = "fixture"
+decision = ""
+
+[[field]]
+name = "s"
+type = "string"
+nullable = true
+origin = "airr-optional"
+coordinates = ""
+description = "fixture"
+decision = ""
+
+[[field]]
+name = "b"
+type = "bool"
+nullable = true
+origin = "airr-optional"
+coordinates = ""
+description = "fixture"
+decision = ""
+
+[[field]]
+name = "i"
+type = "int64"
+nullable = true
+origin = "airr-optional"
+coordinates = ""
+description = "fixture"
+decision = ""
+
+[[field]]
+name = "f"
+type = "float64"
+nullable = true
+origin = "airr-optional"
+coordinates = ""
+description = "fixture"
+decision = ""
+
+[[field]]
+name = "ls"
+type = "list<string>"
+nullable = true
+origin = "airr-optional"
+coordinates = ""
+description = "fixture"
+decision = ""
+
+[[field]]
+name = "li"
+type = "list<int64>"
+nullable = true
+origin = "airr-optional"
+coordinates = ""
+description = "fixture"
+decision = ""

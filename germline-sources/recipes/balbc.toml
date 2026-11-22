@@ -1,0 +1,14 @@
+name = "balbc"
+description = "BALB/c mouse (Mus musculus) IG germline genes. IGH V, D and J: OGRDB Mus musculus BALB/c IGH rev 3 (2022-06-02). IGKV: OGRDB Mus musculus BALB/c/ByJ IGKV rev 1 (2022-05-03). IGLV: OGRDB Mus musculus BALB/c/ByJ IGLV rev 2 (2024-04-20). IGKJ and IGLJ: OGRDB Mus musculus IGKJ (all strains) and IGLJ (all strains) rev 1 (2022-05-31). IGH, IGK and IGL constant regions: IMGT GENE-DB Mus musculus (downloaded 2024-08-19)."
+
+[[source]]
+species = "mouse"
+description = "IG V/D/J: OGRDB Mus musculus; IG constant regions: IMGT GENE-DB Mus musculus, downloaded 2024-08-19"
+ogrdb_json = [
+    "../balbc/Mus_musculus_BALB_c IGH_rev_3.json",
+    "../balbc/Mus_musculus_BALB_c_ByJ IGKV_rev_1.json",
+    "../balbc/Mus_musculus_BALB_c_ByJ IGLV_rev_2.json",
+    "../balbc/Mus_musculus_IGKJ (all strains)_rev_1.json",
+    "../balbc/Mus_musculus_IGLJ (all strains)_rev_1.json",
+]
+c_fasta = ["../balbc/gapped_constants.fasta"]

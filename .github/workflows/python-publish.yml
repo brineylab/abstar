@@ -1,5 +1,7 @@
-name: publish tested Python distributions
+name: publish
 
+# Publishing a GitHub release runs the full CI (tests, wheels, sdist, docs) and uploads exactly
+# the wheels and sdist it built. PyPI trusts this file by name (trusted publishing).
 on:
   release:
     types: [published]
@@ -8,33 +10,23 @@ permissions:
   contents: read
 
 jobs:
-  test-release:
-    name: test release commit
-    permissions:
-      contents: read
-    uses: ./.github/workflows/pytest.yml
+  ci:
+    uses: ./.github/workflows/ci.yml
 
-  pypi-publish:
-    name: publish exact tested distributions
+  pypi:
+    needs: ci
     runs-on: ubuntu-latest
-    needs: test-release
     permissions:
       id-token: write
-      actions: read
     steps:
-      - name: Download distributions produced by the release gate
-        uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@v5
         with:
-          name: abstar-release-distributions
+          merge-multiple: true
           path: dist
-      - name: Verify distribution manifest
+      - name: Release tag matches the package version
         run: |
-          test "$(find dist -maxdepth 1 -type f -name '*.whl' | wc -l)" -eq 1
-          test "$(find dist -maxdepth 1 -type f -name '*.tar.gz' | wc -l)" -eq 1
-          sha256sum --check dist/SHA256SUMS
-          mkdir verified-dist
-          cp dist/*.whl dist/*.tar.gz verified-dist/
-      - name: Publish distributions to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          packages-dir: verified-dist/
+          ls dist
+          test "$(ls dist/*.whl | wc -l)" -eq 4
+          version=$(basename dist/*.tar.gz .tar.gz); version=${version#abstar-}
+          test "${GITHUB_REF_NAME#v}" = "$version" || { echo "tag $GITHUB_REF_NAME != package $version"; exit 1; }
+      - uses: pypa/gh-action-pypi-publish@release/v1

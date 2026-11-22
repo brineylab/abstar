@@ -1,0 +1,16 @@
+>10E8 first record
+ACGTACGT
+ACGTAC
+>seq2 crlf
+ACGTACGT
+ACGT
+>lower
+acgtnacgt
+
+>empty
+>dup
+ACGT
+>dup
+GGCC
+>0012
+TTTT

@@ -1,0 +1,11 @@
+name = "macaque"
+description = "Rhesus macaque (Macaca mulatta) IG germline genes. IGH V, D and J: KIMDB 1.1 (downloaded 2024-08-19). IGK and IGL V and J: IMGT GENE-DB (downloaded 2024-08-19). IGH, IGK and IGL constant regions: IMGT GENE-DB (downloaded 2024-08-19). V genes IMGT-gapped by abstar germline gap against human, c57bl6 and balbc (decision 0037)."
+
+[[source]]
+species = "macaque"
+description = "IGH V/D/J: KIMDB 1.1; IGK/IGL V/J and all constant regions: IMGT GENE-DB; all downloaded 2024-08-19"
+gap_v = true
+v_fasta = ["../macaque/v.fasta"]
+d_fasta = ["../macaque/d.fasta"]
+j_fasta = ["../macaque/j.fasta"]
+c_fasta = ["../macaque/c.fasta"]

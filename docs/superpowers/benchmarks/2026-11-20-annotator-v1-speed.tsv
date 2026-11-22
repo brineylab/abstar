@@ -1,0 +1,40 @@
+set	tool	reads	returned	seconds	reads_per_s	threads
+igh_naive	new	5000	5000	0.36	13825.3	32
+igh_naive	igblast	5000	5000	2.72	1841.5	32
+igh_naive	legacy	5000	5000	5.5	908.4	32
+igh_memory	new	5000	5000	0.43	11591.7	32
+igh_memory	igblast	5000	5000	2.6	1920.4	32
+igh_memory	legacy	5000	5000	5.78	865.3	32
+igh_bnab	new	5000	5000	0.6	8388.1	32
+igh_bnab	igblast	5000	5000	2.36	2122.2	32
+igh_bnab	legacy	5000	4984	6.45	775.3	32
+igh_indels	new	5000	5000	0.47	10689.9	32
+igh_indels	igblast	5000	5000	2.74	1822.2	32
+igh_indels	legacy	5000	5000	5.71	875.0	32
+igh_truncated	new	5000	5000	0.41	12212.2	32
+igh_truncated	igblast	5000	5000	2.52	1980.7	32
+igh_truncated	legacy	5000	4921	5.43	920.4	32
+igk	new	5000	5000	0.29	17261.2	32
+igk	igblast	5000	5000	2.06	2428.8	32
+igk	legacy	5000	5000	5.04	991.1	32
+igl	new	5000	5000	0.27	18222.4	32
+igl	igblast	5000	5000	2.44	2048.1	32
+igl	legacy	5000	5000	5.08	985.0	32
+tra	new	5000	5000	0.41	12322.4	32
+tra	igblast	5000	5000	2.46	2032.2	32
+tra	legacy	5000	5000	4.94	1011.9	32
+trb	new	5000	5000	0.3	16577.9	32
+trb	igblast	5000	5000	2.0	2501.3	32
+trb	legacy	5000	5000	5.31	941.1	32
+igh_memory_c	new	5000	5000	0.47	10547.1	32
+igh_memory_c	igblast	5000	5000	2.88	1738.9	32
+igh_memory_c	legacy	5000	5000	6.62	755.6	32
+igh_bnab_c	new	5000	5000	0.67	7473.0	32
+igh_bnab_c	igblast	5000	5000	2.47	2024.9	32
+igh_bnab_c	legacy	5000	4978	7.75	644.8	32
+igk_c	new	5000	5000	0.34	14887.5	32
+igk_c	igblast	5000	5000	2.13	2352.2	32
+igk_c	legacy	5000	5000	5.73	872.5	32
+corpus_real_bcr	new	50000		2.82	17721.9	32
+corpus_real_bcr	igblast	50000		25.02	1998.2	32
+corpus_real_bcr	legacy	50000		28.72	1740.9	32

@@ -60,3 +60,7 @@ target/
 
 *.sublime-*
 .DS_Store
+
+# Generated docs
+docs/_generated/
+docs/_build/
