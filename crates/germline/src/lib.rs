@@ -2,6 +2,7 @@
 mod anchors;
 mod build;
 mod error;
+pub mod gap;
 mod io;
 mod model;
 mod recipe;
