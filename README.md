@@ -1,119 +1,114 @@
 ![](https://img.shields.io/pypi/v/abstar.svg?colorB=blue)
-[![tests](https://github.com/brineylab/abstar/actions/workflows/pytest.yml/badge.svg)](https://github.com/brineylab/abstar/actions/workflows/pytest.yml)
-[![Documentation Status](https://readthedocs.org/projects/abstar/badge/?version=latest)](https://abstar.readthedocs.io/en/latest/?badge=latest)
-![](https://img.shields.io/pypi/pyversions/abstar.svg)
 ![](https://img.shields.io/badge/license-MIT-blue.svg)
 
 # abstar
 
-`abstar` assigns immunoglobulin and T-cell receptor germline genes and produces
-detailed V(D)J annotations. It supports the command line, a Python API, and
-AIRR TSV and Parquet output.
+`abstar` annotates antibody and T-cell receptor sequences. For each read it calls
+V, D, J and constant-region alleles (with ties), finds the junction and the IMGT
+regions, and reports mutations, as AIRR Rearrangement TSV or Parquet. The
+annotator is written in Rust; the command line and the Python API are a thin
+Python layer over it.
 
-- Source: [github.com/brineylab/abstar](https://github.com/brineylab/abstar)
-- Documentation: [abstar.readthedocs.org](https://abstar.readthedocs.org)
-- Package: [pypi.org/project/abstar](https://pypi.org/project/abstar/)
-- Container: [hub.docker.com/r/brineylab/datascience](https://hub.docker.com/r/brineylab/datascience/)
+Each topic below is covered in full by the built-in manual, `abstar manual`.
 
 ## Install
-
-`abstar` supports Python 3.10 through 3.13. The tested dependency ranges include
-`abutils>=0.6.1`, `polars>=1.6`, and `pyarrow>=16.1`.
 
 ```bash
 pip install abstar
 ```
 
-On Apple Silicon, Parasail needs source-build prerequisites. See the
-[macOS installation instructions](https://abstar.readthedocs.io/en/latest/installation.html#macos-source-build-prerequisites).
+Python 3.11 or later. Wheels are built for Linux (x86_64 and aarch64),
+macOS (Apple silicon) and Windows (x64); they include the germline databases,
+so there is nothing else to install and no network access at run time. On
+other platforms pip builds from source, which needs a
+[Rust toolchain](https://rustup.rs).
 
-MMseqs2 and fastp executables are provided through `abutils`; no separate
-system installation is required for the normal packaged workflow.
+### On a cluster (HPC)
 
-## Use
-
-Annotate one FASTA or FASTQ file into a project directory:
-
-```bash
-abstar run path/to/sequences.fasta path/to/project_directory
-```
-
-Directories are discovered recursively:
+No root access, compiler or external tools are needed:
 
 ```bash
-abstar run path/to/input_directory path/to/project_directory
+module load python/3.11        # or any Python >= 3.11 (conda, micromamba, uv)
+python -m venv ~/venvs/abstar
+~/venvs/abstar/bin/pip install abstar
 ```
 
-Use `-o parquet`, or repeat `-o` to write both formats. Use `--receptor tcr`
-for TCR annotation. Run `abstar run --help` for merging, UMI, germline database,
-and performance options.
+- The Linux wheels need glibc 2.17 or later, which covers CentOS/RHEL 7 and
+  newer.
+- `abstar run` uses every core it is allowed. Under a scheduler, pass the
+  allocation explicitly, e.g. `--threads $SLURM_CPUS_PER_TASK`.
+- On CPUs without AVX2 (roughly pre-2013), abstar switches to a slower
+  aligner by itself. If polars warns about missing CPU features, install its
+  compatibility build: `pip install "polars[rtcompat]"`.
+- User-built germline databases go in `~/.abstar`. Set `ABSTAR_HOME` to put
+  them somewhere else, such as project storage when home quotas are small.
 
-The API preserves the input category:
+## Annotate
+
+```bash
+abstar run reads.fasta out/                    # out/reads.tsv and out/run.json
+abstar run fastqs/ out/ --format parquet       # a directory, searched recursively
+abstar run reads.fastq.gz > reads.tsv          # no OUTPUT_DIR: TSV on stdout
+abstar run reads.fasta out/ -g c57bl6 --locus IGH
+abstar run --seq CAGGTGCAGCTGGTGCAGTCTGGG       # one sequence
+```
+
+FASTA and FASTQ are accepted, gzipped or not, in either orientation (reverse
+reads are detected per read). `abstar run --help` lists every option.
+
+From Python:
 
 ```python
 import abstar
-from abutils import Sequence
 
-one = abstar.run(Sequence("N", id="one"))
-many = abstar.run([Sequence("N", id="first"), Sequence("N", id="second")])
-frame = abstar.run("sequences.fasta", as_dataframe=True)
+df = abstar.run("reads.fasta")                 # a polars DataFrame
+df = abstar.run([("id1", seq1), ("id2", seq2)])  # or a list of strings
+summary = abstar.run("fastqs/", "out/", formats=["airr", "parquet"])
 ```
 
-One input record returns one `abutils.Sequence` when it annotates or is unassigned; multiple records return a list,
-including when only one is assigned; `as_dataframe=True` always returns a Polars
-DataFrame. Every returned or written row has `annotation_status`. Biological
-non-assignment produces an `unassigned` row with `failure_reason`. A sequence
-annotation exception is logged and omitted from the result; other records and
-samples continue. An entirely failed input returns an empty list/DataFrame with
-a warning and persistent diagnostics. Use `strict=True` or CLI `--strict` to
-raise `abstar.AnnotationRunError` on sequence errors instead. Worker, input,
-external-tool, and output failures still abort. `partial_output_paths` lists
-retained artifacts for aborted runs.
+Every record gets a row. One that can't be annotated is `unassigned`, with a
+`failure_reason`; `abstar manual fields` defines every column.
 
-Per-record diagnostics live in `logs/<input-stem>/<encoded-id>__<row-key>.failed`.
-`logs/failures.tsv` indexes exact IDs, source files, exceptions, and diagnostic
-paths; `logs/run.json` records versions, source hashes, and parameters. API calls
-warn with the index location, including when no project directory was supplied.
-Duplicate visible IDs and input ordering are preserved.
+## Germline databases
 
-Every output (AIRR TSV, Parquet, and Python returns) targets the AIRR 2.0
-Rearrangement schema with identical fields and meanings: 1-based closed
-coordinates and the original, unmodified query as `sequence`; `rev_comp`
-indicates that calls, alignments, and coordinates address its reverse
-complement. The assembled V(D)J is in `sequence_vdj` / `sequence_vdj_aa`. TSV
-writes `T`/`F` booleans and empty null cells. **0.9.0 changed coordinates and
-`sequence` meanings from 0.8.x**; see the
-[changelog](https://abstar.readthedocs.io/en/latest/changelog.html) and
-[output-format documentation](https://abstar.readthedocs.io/en/latest/output_formats.html).
-
-## Test
-
-Install the development test environment:
+Built in: `human` (IG and TR), `c57bl6`, `balbc` and `human+c57bl6` (for
+humanized mice). Every V allele must be IMGT-gapped.
 
 ```bash
-python -m pip install -r requirements-test.txt
+abstar germline list
+abstar germline info human
+abstar germline build donor.toml               # e.g. human restricted to a donor's genotype
+abstar run reads.fasta out/ -g donor
 ```
 
-The ordinary fast gate and the complete suite are:
+`abstar manual germline` describes the recipe format.
+
+## Synthetic reads
+
+`abstar generate` simulates reads with known truth for benchmarking, and
+`abstar.grade()` scores calls against it. See `abstar manual generate`.
+
+## The manual
 
 ```bash
-python -m pytest -m "not integration and not e2e and not slow" -q
+abstar manual              # everything, as Markdown
+abstar manual examples     # common invocations
+abstar manual migration    # moving from abstar 0.x
+abstar manual errors       # error codes and exit codes
+```
+
+The documentation site built from `docs/` has the same content.
+
+## Development
+
+Inside a virtualenv with a Rust toolchain:
+
+```bash
+pip install maturin
+maturin develop --release --extras test
+cargo test --workspace
 python -m pytest -q
 ```
 
-The integration and end-to-end gate uses real bundled executables and databases:
-
-```bash
-python -m pytest -m "integration or e2e" -q
-```
-
-Contributor commands, coverage floors, focused AIRR/database gates, and the
-optional external-corpus discovery command are documented in `AGENTS.md`. The
-bulk published corpus is never required by ordinary CI.
-
-A separate push/PR workflow runs the fixed, committed BCR subset in
-[`test_data/bcr_corpus/`](test_data/bcr_corpus/README.md). It checks record
-conservation, internal annotation consistency, and exact regression baselines.
-See the [test debugging guide](abstar/tests/README.md) before changing expected
-assignment results. This corpus is not repeated in the pytest version matrix
-or included in installed Python distributions.
+`AGENTS.md` covers the repository layout and conventions, and design decisions
+are recorded in `python/abstar/decisions/`.
