@@ -388,3 +388,21 @@ fn mutated_j_start_cannot_pass_a_held_anchor() {
     assert_eq!(r.annotation_status, "annotated", "{:?}", r.failure_reason);
     assert_eq!(r.junction.as_deref(), Some("TGTGAGAGAGAGAAGTATTGGGTGACCACTTATTGGCGACGCATACTACCAAAGGGTCTCGATTGTTGG"));
 }
+
+#[test]
+fn trp_placed_when_j_starts_past_it() {
+    // #162: real Jaffe chains whose J alignment starts 1-9 nt past the Trp/Phe118 codon (mutated
+    // or inserted J 5' ends); the codon is placed near J's first diagonal and the junction is
+    // legacy abstar's.
+    let fasta = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/j_past_anchor.fasta")).unwrap();
+    let mut n = 0;
+    for rec in fasta.split('>').skip(1) {
+        let (head, seq) = rec.split_once('\n').unwrap();
+        let (id, want) = head.split_once(" junction=").unwrap();
+        let r = engine().annotate(id, seq.trim());
+        assert_eq!((r.junction.as_deref(), r.annotation_status.as_str()), (Some(want), "annotated"), "{id}");
+        assert_eq!(r.productive, Some(true), "{id}");
+        n += 1;
+    }
+    assert_eq!(n, 4);
+}

@@ -11,6 +11,9 @@ const FWR4: usize = 6;
 /// Furthest the Cys104 codon is projected past V's last base (ruling B2): the bnab truth set's
 /// projections reach 49 nt, all at truth's anchor.
 const MAX_PROJECTION: usize = 50;
+/// Furthest the Trp/Phe118 codon is placed from J's first diagonal when J starts past it (#162):
+/// on the 1,356 such Jaffe chains it finds legacy abstar's codon in 1,334 (record 0032).
+const MAX_TRP_SHIFT: usize = 12;
 const NAMES: [&str; 7] = ["fwr1", "cdr1", "fwr2", "cdr2", "fwr3", "cdr3", "fwr4"];
 
 /// IMGT regions, junction and assembled-sequence extents of a read (record 0032). A region is
@@ -70,9 +73,9 @@ fn by_read(cols: &[Col], len: usize) -> Vec<Option<usize>> {
 ///   FWR3 whatever segment they came from. N and D bases after them are CDR3; J bases are
 ///   CDR3 before the J anchor (Trp/Phe118) and FWR4 from it. Bases after J (C) have none.
 /// - CDR3 is `None` when the V anchor's first base is not in V, the J has no anchor or its
-///   alignment starts past it; it is partial when the read stops inside it (ruling A4).
+///   alignment starts past it with no codon placed; it is partial when the read stops inside it (ruling A4).
 /// - The junction needs both anchor bases in their segments and the Trp/Phe118 codon in the
-///   read.
+///   read. A J starting past its anchor has the codon placed near J's first diagonal (#162).
 pub fn regions(read: &Oriented, v: &VHit, j: Option<(&JHit, &Junction)>, c: Option<&CHit>, alleles: &[Allele]) -> Regions {
     let len = read.seq.len();
     let l = Layout::new(read, v, j);
@@ -97,18 +100,38 @@ pub fn regions(read: &Oriented, v: &VHit, j: Option<(&JHit, &Junction)>, c: Opti
         }
     }
     let j_first = l.j.iter().find_map(|c| c.1);
-    let cdr3_known = cys.is_some() && (j.is_none() || jb.zip(j_first).is_some_and(|(b, u)| u <= b));
+    // J starts past its anchor (a mutated or inserted J 5' end): the Trp/Phe118 codon is the
+    // TGG, TTT or TTC that J's first diagonal projects to, else the V-frame codon nearest it (at
+    // most MAX_TRP_SHIFT nt away) that starts the FWR4 motif [WF]G.G; either after the Cys104
+    // codon. FWR4 starts there even if V's alignment reached into it by chance (#162)
+    let mut trp = None;
+    if let (Some(c), Some(b), Some((i, u))) = (cys, jb, l.j.iter().find_map(|&(i, u)| i.zip(u))) {
+        if u > b && c >= 0 {
+            let codon = |q: usize| q >= c as usize + 3 && q + 3 <= l.end && matches!(&read.seq[q..q + 3], b"TGG" | b"TTT" | b"TTC");
+            let gg = |k: usize| read.seq.get(k..k + 2) == Some(b"GG");
+            let p = i as i64 - (u - b) as i64;
+            trp = usize::try_from(p).ok().filter(|&q| codon(q)).or_else(|| {
+                (c as usize + 3..l.end)
+                    .step_by(3)
+                    .filter(|&q| (q as i64 - p).unsigned_abs() <= MAX_TRP_SHIFT as u64 && codon(q) && gg(q + 3) && gg(q + 9))
+                    .min_by_key(|&q| ((q as i64 - p).unsigned_abs(), q))
+            });
+        }
+    }
+    let cdr3_known = cys.is_some() && (j.is_none() || trp.is_some() || jb.zip(j_first).is_some_and(|(b, u)| u <= b));
 
     let mut reg: Vec<Option<usize>> = vec![None; len];
     for i in i0..len {
         let before = i.checked_sub(1).and_then(|p| reg[p]);
-        reg[i] = if i < l.v_end {
+        reg[i] = if trp.is_some_and(|t| i >= t && i < l.end) {
+            Some(FWR4)
+        } else if i < l.v_end {
             vmap[i].map_or(before, |u| Some(V_ENDS.iter().position(|&e| imgt[u] < e).unwrap_or(CDR3)))
         } else if i >= l.end {
             None
         } else if cys.is_some_and(|c| (i as i64) < c + 3) {
             Some(FWR3)
-        } else if i < l.j_start {
+        } else if trp.is_some() || i < l.j_start {
             Some(CDR3)
         } else {
             jmap[i].map_or(before, |u| jb.map(|b| if u < b { CDR3 } else { FWR4 }))
@@ -130,7 +153,7 @@ pub fn regions(read: &Oriented, v: &VHit, j: Option<(&JHit, &Junction)>, c: Opti
 
     let at = |cols: &[Col], u: usize| cols.iter().find(|c| c.1 == Some(u)).and_then(|c| c.0);
     let start = va.anchor.and_then(|a| at(&l.v, a)).or(projected);
-    let end = jb.and_then(|b| at(&l.j, b));
+    let end = jb.and_then(|b| at(&l.j, b)).or(trp);
     let junction = match (start, end) {
         (Some(s), Some(e)) if s + 3 <= e && e + 3 <= len => Some((s, e + 3)),
         _ => None,
