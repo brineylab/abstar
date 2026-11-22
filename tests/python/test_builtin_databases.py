@@ -6,15 +6,23 @@ from pathlib import Path
 import pytest
 
 from abstar import _core, germline
-from abstar.errors import AbstarError
 
 LEGACY = Path(__file__).parents[2] / "legacy" / "abstar" / "germline_dbs"
-DATABASES = ["balbc", "c57bl6", "human", "human+c57bl6"]
+DATABASES = ["balbc", "c57bl6", "human", "human+c57bl6", "macaque"]
 LEGACY_SOURCES = {
     "human": ["bcr/human", "tcr/human"],
     "c57bl6": ["bcr/c57bl6"],
     "balbc": ["bcr/balbc"],
     "human+c57bl6": ["bcr/human+c57bl6"],
+    "macaque": ["bcr/macaque"],
+}
+# legacy macaque V alleles abstar germline gap cannot gap (framework insertion, decision 0037)
+MACAQUE_DROPOUTS = {
+    n: "framework_insertion"
+    for n in [
+        "IGKV2-39*01", "IGKV2-87*01", "IGKV6-67*01", "IGLV3-18*01",
+        "IGLV3-18*03", "IGLV4-17*01", "IGLV4-17*02",
+    ]
 }
 SUFFIX_SPECIES = {"homo_sapiens": "human", "mus_musculus": "mouse"}
 
@@ -46,6 +54,7 @@ def test_builtin_names():
         ("c57bl6", {"V": 196, "D": 8, "J": 22, "C": 35}),
         ("balbc", {"V": 265, "D": 10, "J": 22, "C": 35}),
         ("human+c57bl6", {"V": 538, "D": 39, "J": 45, "C": 138}),
+        ("macaque", {"V": 1064, "D": 52, "J": 28, "C": 46}),
     ],
 )
 def test_segment_counts(db, expected):
@@ -73,7 +82,9 @@ def test_sequences_match_legacy(db, seg):
         if a["segment"] == seg
     }
     assert built - legacy == set()
-    assert legacy - built == set()
+    missing = {x[0] if not mixed else x[1] for x in legacy - built}
+    allowed = set(MACAQUE_DROPOUTS) if db == "macaque" and seg == "V" else set()
+    assert missing == allowed
 
 
 def test_mixed_ids_prefixed_names_plain():
@@ -103,6 +114,17 @@ def test_builtins_load(db):
     assert s["n_alleles"] == sum(s["counts"].values()) > 0
 
 
-def test_macaque_is_not_builtin():
-    with pytest.raises(AbstarError, match="no germline database 'macaque'"):
-        germline.resolve("macaque")
+def test_macaque_v_anchored():
+    def has_orf(seq):
+        seq = seq.replace(".", "").upper()
+        return any(
+            not any(seq[i : i + 3] in ("TAA", "TAG", "TGA") for i in range(f, len(seq) - 2, 3))
+            for f in range(3)
+        )
+
+    v = [a for a in alleles("macaque") if a["segment"] == "V" and has_orf(a["sequence_gapped"])]
+    assert sum(bool(a["anchor"]) for a in v) / len(v) >= 0.99
+
+
+def test_macaque_never_a_default_template():
+    assert "macaque" not in _core.GAP_DEFAULT_TEMPLATES

@@ -311,7 +311,7 @@ biological regression test with exact expected values.
 
 The currently packaged database names are:
 
-- BCR: `human`, `c57bl6`, `balbc`, and `human+c57bl6`;
+- BCR: `human`, `c57bl6`, `balbc`, `macaque`, and `human+c57bl6`;
 - TCR: `human`.
 
 Each database may contain:

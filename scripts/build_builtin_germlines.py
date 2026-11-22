@@ -13,8 +13,7 @@ OUT = ROOT / "python" / "abstar" / "germline_dbs"
 
 
 def main(names: list[str]) -> None:
-    # macaque is not shipped until #137 regaps it to IMGT (decision 0036); the recipe stays for that
-    for name in names or sorted(p.stem for p in RECIPES.glob("*.toml") if p.stem != "macaque"):
+    for name in names or sorted(p.stem for p in RECIPES.glob("*.toml")):
         r = germline.build(RECIPES / f"{name}.toml", output_dir=OUT / name, overwrite=True)
         print(f"{r.name}: {r.n_alleles} alleles, {len(r.warnings)} warnings -> {r.path}")
         for w in r.warnings:

@@ -19,6 +19,8 @@ The error names the database, the failing count, up to five example allele names
 
 The rule is database-level, not per allele: real IMGT-gapped alleles lack Cys104 (a mutated codon, or a partial sequence: human IGKV2-29*01, IGLV3-2*03, TRBV7-3*02/03, IGHV3-20*02). Built-in coverage is human 577/588, c57bl6 193/196, balbc 263/265, against macaque 8/1,071.
 
+*Amended 2026-11-21 (record 0037, #137): ungapped databases can now be made valid with `abstar germline gap` or the recipe option `gap_v`, and macaque ships again that way. The text it replaces is kept: "Macaque is no longer shipped. Its recipe and `germline-sources/macaque/` stay for #137, and `scripts/build_builtin_germlines.py` skips it."*
+
 Macaque is no longer shipped. Its recipe and `germline-sources/macaque/` stay for #137, and `scripts/build_builtin_germlines.py` skips it.
 
 ## Alternatives considered
@@ -30,5 +32,5 @@ Macaque is no longer shipped. Its recipe and `germline-sources/macaque/` stay fo
 ## Consequences
 
 - Every V allele of a loaded database is gapped, so the annotator has no non-IMGT V path; a V allele without an anchor takes the normal path (`junction_undefined`).
-- `abstar run -g macaque` fails with `DATABASE_NOT_FOUND` until #137 ships a regapped database.
+- `abstar run -g macaque` fails with `DATABASE_NOT_FOUND` until #137 ships a regapped database (shipped 2026-11-21, see amendment above).
 - A custom database with ungapped V sequences fails at `build`, not at annotation.

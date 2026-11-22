@@ -71,8 +71,8 @@ Every record gets a row. One that can't be annotated is `unassigned`, with a
 
 ## Germline databases
 
-Built in: `human` (IG and TR), `c57bl6`, `balbc` and `human+c57bl6` (for
-humanized mice). Every V allele must be IMGT-gapped.
+Built in: `human` (IG and TR), `c57bl6`, `balbc`, `macaque` and `human+c57bl6`
+(for humanized mice). Every V allele must be IMGT-gapped.
 
 ```bash
 abstar germline list

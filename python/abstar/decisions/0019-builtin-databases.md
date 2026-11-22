@@ -10,6 +10,8 @@ The five built-in databases (`human`, `c57bl6`, `balbc`, `macaque`, `human+c57bl
 
 ## Decision
 
+*Amended 2026-11-21 (record 0037, #137): `macaque` is built in again. Its V genes are IMGT-gapped by `abstar germline gap` (recipe option `gap_v`) against human, c57bl6 and balbc; 7 of 1,071 V alleles cannot be gapped (framework insertion) and are dropped. The old note above is kept: "`macaque` is no longer built in, because its V genes are not IMGT-gapped and such a database is refused." The built-in list is `human`, `c57bl6`, `balbc`, `macaque`, `human+c57bl6`.*
+
 *Amended 2026-11-21 (record 0036): `macaque` is no longer built in, because its V genes are not IMGT-gapped and such a database is refused. The built-in list is `human`, `c57bl6`, `balbc`, `human+c57bl6`. The recipe and `germline-sources/macaque/` stay for #137. The macaque paragraphs below describe what shipped before.*
 
 Each built-in database is built by the recipe builder (0017) from `germline-sources/recipes/<name>.toml`. Its source files are copied verbatim from `legacy/abstar/germline_dbs/` into `germline-sources/<db>/`. `scripts/build_builtin_germlines.py [NAME ...]` rebuilds them into `python/abstar/germline_dbs/` with `overwrite=True` and prints every warning. The generated `manifest.toml` and `alleles.tsv` are committed and ship in the wheel.
