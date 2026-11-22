@@ -39,7 +39,7 @@ Replaced by `abstar germline build RECIPE`. A TOML recipe file describes the sou
 | `-m`, `--manifest` | Recipe `description` and per-source `description`. The built `manifest.toml` records provenance, file hashes, build date and warnings. |
 | `-r`, `--receptor` | Removed: loci are read from the alleles. |
 | `-l`, `--location` | `--output DIR` (default: `~/.abstar/germline/<name>`, or `$ABSTAR_HOME/germline/<name>`). |
-| `--reference` | Removed for now: V sequences must already be IMGT-gapped. Gapping by alignment to a reference species will return with the aligner. |
+| `--reference` | Recipe source key `gap_v = true` (templates via `gap_templates`; default `human`, `c57bl6`, `balbc`), or `abstar germline gap` on a FASTA. V sequences are IMGT-gapped by protein alignment to the closest template allele (decision 0037). |
 | `--include_species_in_name` / `--exclude_species_from_name` | Recipe `prefixes` (species to ID prefix), used when sources mix species (decision 0007). |
 | `--verbose` / `--quiet` | Removed: the build prints a one-line summary, keep-list results and warnings; `--json` for machine-readable output. |
 | `--debug` | Removed: no external tools are run. |

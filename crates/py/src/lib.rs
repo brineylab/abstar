@@ -437,11 +437,3 @@ fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(run_to_stdout, m)?)?;
     m.add_function(wrap_pyfunction!(run_in_memory, m)?)
 }
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn version_is_dev() {
-        assert_eq!(super::version(), "1.0.0-dev.0");
-    }
-}

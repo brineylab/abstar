@@ -1,0 +1,32 @@
+name: publish
+
+# Publishing a GitHub release runs the full CI (tests, wheels, sdist, docs) and uploads exactly
+# the wheels and sdist it built. PyPI trusts this file by name (trusted publishing).
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  pypi:
+    needs: ci
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v5
+        with:
+          merge-multiple: true
+          path: dist
+      - name: Release tag matches the package version
+        run: |
+          ls dist
+          test "$(ls dist/*.whl | wc -l)" -eq 4
+          version=$(basename dist/*.tar.gz .tar.gz); version=${version#abstar-}
+          test "${GITHUB_REF_NAME#v}" = "$version" || { echo "tag $GITHUB_REF_NAME != package $version"; exit 1; }
+      - uses: pypa/gh-action-pypi-publish@release/v1
