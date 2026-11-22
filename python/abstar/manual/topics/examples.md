@@ -41,6 +41,13 @@ abstar germline build donor.toml --output dbs/donor --overwrite
 abstar run reads.fasta out/ -g donor # use it by name (or by path)
 ```
 
+Gap ungapped V alleles (e.g. novel alleles) into IMGT numbering by transfer from the best template:
+
+```sh
+abstar germline gap novel_v.fasta --output novel_v.gapped.fasta --report gap.tsv
+abstar germline gap novel_v.fasta --templates human --templates c57bl6 > gapped.fasta
+```
+
 A donor recipe restricts a base database to the donor's genotype and adds novel alleles:
 
 ```toml

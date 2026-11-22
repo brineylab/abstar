@@ -2,18 +2,22 @@
 from __future__ import annotations
 
 import builtins
+import gzip
 import os
 import re
 import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from .errors import AbstarError, from_core
 
 _BUILTIN_DIR = Path(__file__).parent / "germline_dbs"
 # Leftovers of an interrupted build (crates/germline io.rs `sibling`); never databases.
 _LEFTOVER = re.compile(r"\.(staging|old)-\d+$")
+
+if TYPE_CHECKING:
+    import polars as pl
 
 Kind = Literal["builtin", "user", "path"]
 
@@ -160,3 +164,68 @@ def list() -> builtins.list[DatabaseInfo]:
     return [_listed(_BUILTIN_DIR / n, "builtin") for n in builtin_names()] + [
         _listed(_user_dir() / n, "user") for n in _names(_user_dir())
     ]
+
+
+def _read_fasta(path: Path) -> builtins.list[tuple[str, str]]:
+    try:
+        opener = gzip.open if path.suffix == ".gz" else open
+        with opener(path, "rt") as f:
+            lines = f.read().splitlines()
+    except (OSError, UnicodeDecodeError) as e:
+        raise AbstarError("INPUT_UNREADABLE", f"{path}: {e}") from None
+    out: builtins.list[tuple[str, str]] = []
+    for line in lines:
+        if line.startswith(">"):
+            out.append((line[1:], ""))
+        elif out:
+            out[-1] = (out[-1][0], out[-1][1] + line.strip())
+    return out
+
+
+def _allele_name(header: str) -> str:
+    """The allele name the way crates/germline `sources::fasta` takes it."""
+    if "|" in header:
+        f = header.split("|")
+        return f[1].strip() if len(f) > 1 else ""
+    return header.split()[0] if header.split() else ""
+
+
+def gap(
+    sequences: "str | Path | builtins.list[tuple[str, str]]", templates: builtins.list[str] | None = None
+) -> "tuple[builtins.list[tuple[str, str]], pl.DataFrame]":
+    """IMGT-gap V sequences by transferring positions from the best template allele.
+
+    Returns the gapped `(header, sequence)` records (full input headers, input order) and a
+    per-record report. Raises `NO_ALLELES_GAPPED` when nothing could be gapped."""
+    import polars as pl
+
+    core = _core()
+    records = _read_fasta(Path(sequences)) if isinstance(sequences, (str, Path)) else builtins.list(sequences)
+    queries = [(_allele_name(h), s) for h, s in records]
+    paths = [str(resolve(t)[0]) for t in (templates if templates is not None else core.GAP_DEFAULT_TEMPLATES)]
+    try:
+        results = core.germline_gap(queries, paths)
+    except core.CoreError as e:
+        raise from_core(e) from None
+    out = [(h, r["gapped"]) for (h, _), r in zip(records, results) if r["gapped"] is not None]
+    if not out:
+        raise AbstarError("NO_ALLELES_GAPPED", f"none of {len(records)} sequences could be gapped")
+    report = pl.DataFrame(
+        {
+            "name": [r["name"] for r in results],
+            "status": ["failed" if r["failure"] else "gapped" for r in results],
+            "template": [r["template"] for r in results],
+            "template_species": [r["template_species"] for r in results],
+            "identity": [r["identity"] for r in results],
+            "cdr1_length": [r["cdr1_length"] for r in results],
+            "cdr2_length": [r["cdr2_length"] for r in results],
+            "warnings": [";".join(r["warnings"]) for r in results],
+            "failure_reason": [r["failure"] for r in results],
+        },
+        schema={
+            "name": pl.String, "status": pl.String, "template": pl.String, "template_species": pl.String,
+            "identity": pl.Float64, "cdr1_length": pl.Int64, "cdr2_length": pl.Int64,
+            "warnings": pl.String, "failure_reason": pl.String,
+        },
+    )
+    return out, report

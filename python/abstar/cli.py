@@ -137,6 +137,38 @@ def germline_build(
         _err(f"warning: {w['allele']}: {w['message']}")
 
 
+@germline_app.command("gap")
+def germline_gap(
+    v_fasta: Annotated[Path, typer.Argument(help="FASTA of ungapped V alleles (gzip allowed).")],
+    templates: Annotated[Optional[list[str]], typer.Option("--templates", help="Template database name or path; repeatable (default: human, c57bl6, balbc).")] = None,
+    output: Annotated[Optional[Path], typer.Option("--output", help="Gapped FASTA file (default: stdout).")] = None,
+    report: Annotated[Optional[Path], typer.Option("--report", help="Per-allele report TSV.")] = None,
+    json_out: Annotated[bool, typer.Option("--json", help="Machine-readable summary.")] = False,
+) -> None:
+    """IMGT-gap V alleles using the best template allele."""
+    from . import _core, germline
+
+    recs = germline._read_fasta(v_fasta)
+    out, rep = germline.gap(recs, templates)
+    text = "".join(f">{h}\n{s}\n" for h, s in out)
+    if output:
+        output.write_text(text)
+    else:
+        sys.stdout.write(text)
+    if report:
+        rep.write_csv(report, separator="\t")
+    failed = rep.filter(rep["status"] == "failed")
+    names = templates if templates is not None else list(_core.GAP_DEFAULT_TEMPLATES)
+    dest = sys.stdout if output else sys.stderr
+    if json_out:
+        failures = [{"name": n, "failure_reason": r} for n, r in zip(failed["name"], failed["failure_reason"])]
+        print(json.dumps({"n_input": len(rep), "n_gapped": len(out), "n_failed": len(failed), "templates": names, "failed": failures}), file=dest)
+        return
+    print(f"gapped {len(out)}, failed {len(failed)}", file=dest)
+    for n, r in zip(failed["name"], failed["failure_reason"]):
+        print(f"failed {n}: {r}", file=dest)
+
+
 @germline_app.command("list")
 def germline_list(json_out: Annotated[bool, typer.Option("--json", help="Machine-readable output.")] = False) -> None:
     """List built-in and user databases."""

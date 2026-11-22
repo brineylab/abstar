@@ -12,7 +12,7 @@ use pyo3::conversion::FromPyObjectOwned;
 use pyo3::create_exception;
 use pyo3::exceptions::PyException;
 use pyo3::prelude::*;
-use pyo3::types::PyDict;
+use pyo3::types::{PyDict, PyList};
 use pyo3_arrow::PyTable;
 use std::collections::BTreeMap;
 use std::fmt::Display;
@@ -98,6 +98,37 @@ fn germline_build<'py>(
     d.set_item("passed_through", &r.passed_through)?;
     d.set_item("warnings", warnings(&r.warnings))?;
     Ok(d)
+}
+
+/// Gap V sequences against the V alleles of the template databases.
+#[pyfunction]
+fn germline_gap<'py>(
+    py: Python<'py>,
+    queries: Vec<(String, String)>,
+    template_paths: Vec<String>,
+) -> PyResult<Bound<'py, PyList>> {
+    let results = py.detach(|| -> PyResult<_> {
+        let mut templates = Vec::new();
+        for p in &template_paths {
+            templates.extend(load(p)?.alleles);
+        }
+        Ok(abstar_germline::gap::gap_v(&queries, &templates))
+    })?;
+    let out = PyList::empty(py);
+    for r in results {
+        let d = PyDict::new(py);
+        d.set_item("name", r.name)?;
+        d.set_item("gapped", r.gapped)?;
+        d.set_item("template", r.template)?;
+        d.set_item("template_species", r.template_species)?;
+        d.set_item("identity", r.identity)?;
+        d.set_item("cdr1_length", r.cdr1_length)?;
+        d.set_item("cdr2_length", r.cdr2_length)?;
+        d.set_item("warnings", r.warnings)?;
+        d.set_item("failure", r.failure)?;
+        out.append(d)?;
+    }
+    Ok(out)
 }
 
 /// Manifest fields plus "counts" and "n_alleles".
@@ -400,6 +431,8 @@ fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(fields_toml, m)?)?;
     m.add_function(wrap_pyfunction!(germline_build, m)?)?;
     m.add_function(wrap_pyfunction!(germline_summary, m)?)?;
+    m.add_function(wrap_pyfunction!(germline_gap, m)?)?;
+    m.add("GAP_DEFAULT_TEMPLATES", abstar_germline::gap::DEFAULT_TEMPLATES.to_vec())?;
     m.add_function(wrap_pyfunction!(run_to_files, m)?)?;
     m.add_function(wrap_pyfunction!(run_to_stdout, m)?)?;
     m.add_function(wrap_pyfunction!(run_in_memory, m)?)

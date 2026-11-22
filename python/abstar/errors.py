@@ -20,6 +20,7 @@ ERROR_CODES: dict[str, tuple[int, str]] = {
     "BUILTIN_NAME_CONFLICT": (2, "the name is reserved by a built-in database or model"),
     "MODEL_NOT_FOUND": (2, "the recombination model does not exist"),
     "MODEL_INVALID": (2, "the recombination model is malformed or does not fit the germline database"),
+    "NO_ALLELES_GAPPED": (1, "no sequence could be gapped"),
     "IO_ERROR": (1, "a file system read or write failed"),
     "INTERNAL": (1, "an internal error (please report it)"),
     "STRICT_RECORD_FAILURE": (3, "a record failed to annotate in strict mode"),

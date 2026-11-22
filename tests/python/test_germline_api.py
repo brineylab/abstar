@@ -90,7 +90,7 @@ def test_error_table():
         "OUTPUT_NAME_CONFLICT": 2, "DATABASE_NOT_FOUND": 2, "DATABASE_INVALID": 2,
         "RECIPE_INVALID": 2, "DATABASE_EXISTS": 2, "BUILTIN_NAME_CONFLICT": 2,
         "MODEL_NOT_FOUND": 2, "MODEL_INVALID": 2,
-        "IO_ERROR": 1, "INTERNAL": 1, "STRICT_RECORD_FAILURE": 3,
+        "NO_ALLELES_GAPPED": 1, "IO_ERROR": 1, "INTERNAL": 1, "STRICT_RECORD_FAILURE": 3,
     }
     assert all(isinstance(v[1], str) and v[1] for v in errors.ERROR_CODES.values())
     assert set(errors.EXIT_CODES) == {0, 1, 2, 3}
