@@ -1,8 +1,8 @@
 format_version = 1
 name = "c57bl6"
 description = "C57BL/6 mouse (Mus musculus) IG germline genes. IGH V, D and J: OGRDB Mus musculus C57BL/6 IGH rev 3 (2022-06-02). IGKV: OGRDB Mus musculus C57BL/6J IGKV rev 1 (2022-05-03). IGLV: OGRDB Mus musculus C57BL/6J IGLV rev 1 (2022-05-03). IGKJ and IGLJ: OGRDB Mus musculus IGKJ (all strains) and IGLJ (all strains) rev 1 (2022-05-31). IGH, IGK and IGL constant regions: IMGT GENE-DB Mus musculus (downloaded 2024-08-19)."
-abstar_version = "1.0.0-dev.0"
-built = "2026-11-20"
+abstar_version = "1.0.0"
+built = "2026-11-23"
 alleles_sha256 = "4ac09550be6028949bae0b3aab285a55bc8353b9f72ce9c61b52cb8e891653f9"
 species = ["mouse"]
 loci = ["IGH", "IGK", "IGL"]

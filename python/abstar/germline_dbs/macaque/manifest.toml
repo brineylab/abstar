@@ -1,8 +1,8 @@
 format_version = 1
 name = "macaque"
 description = "Rhesus macaque (Macaca mulatta) IG germline genes. IGH V, D and J: KIMDB 1.1 (downloaded 2024-08-19). IGK and IGL V and J: IMGT GENE-DB (downloaded 2024-08-19). IGH, IGK and IGL constant regions: IMGT GENE-DB (downloaded 2024-08-19). V genes IMGT-gapped by abstar germline gap against human, c57bl6 and balbc (decision 0037)."
-abstar_version = "1.0.0-dev.0"
-built = "2026-11-22"
+abstar_version = "1.0.0"
+built = "2026-11-23"
 alleles_sha256 = "5a2e813bd4991de3c96692a80e2bf041b64e0828484f3109573b3a51f72b51ba"
 species = ["macaque"]
 loci = ["IGH", "IGK", "IGL"]

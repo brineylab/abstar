@@ -1,8 +1,8 @@
 format_version = 1
 name = "human"
 description = "Human (Homo sapiens) IG and TR germline genes. IGH, IGK and IGL V, D and J: OGRDB Homo sapiens germline sets IGH_VDJ_extended rev 9, IGKappa_VJ_extended rev 4 and IGLambda_VJ_extended rev 3 (released 2024-10-12). IGH, IGK and IGL constant regions: IMGT GENE-DB. TRA, TRB, TRG and TRD V, D, J and constant regions: IMGT GENE-DB (downloaded 2025-03-27; F, ORF and in-frame P, IMGT-gapped)."
-abstar_version = "1.0.0-dev.0"
-built = "2026-11-20"
+abstar_version = "1.0.0"
+built = "2026-11-23"
 alleles_sha256 = "32043e8ebf5b87964366f77d05934977ac0e921ab53b862da29943a70e4c1a7e"
 species = ["human"]
 loci = ["IGH", "IGK", "IGL", "TRA", "TRB", "TRG", "TRD"]
