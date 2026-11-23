@@ -119,7 +119,7 @@ pub fn regions(read: &Oriented, v: &VHit, j: Option<(&JHit, &Junction)>, c: Opti
                 let a = align_semiglobal(&read.seq[from.min(l.end)..l.end], &g.as_bytes()[b..jh.aln.g_end], &Scoring::default());
                 let q = from + a.q_start;
                 let run: u32 = a.ops.iter().take_while(|o| matches!(o.0, Op::Match | Op::Mismatch)).map(|o| o.1).sum();
-                (a.g_start == 0 && run > 3 && (q - from) % 3 == 0 && (q as i64 - p).unsigned_abs() <= MAX_TRP_SHIFT as u64 && codon(q)).then_some(q)
+                (a.g_start == 0 && run > 3 && (q - from).is_multiple_of(3) && (q as i64 - p).unsigned_abs() <= MAX_TRP_SHIFT as u64 && codon(q)).then_some(q)
             });
         }
     }

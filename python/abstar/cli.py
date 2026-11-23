@@ -56,6 +56,7 @@ def run(
     seq: Annotated[Optional[str], typer.Option("--seq", help="A single sequence (ID '1') instead of SEQUENCES.")] = None,
     germline_db: Annotated[str, typer.Option("--germline-db", "-g", help="Database name or path.")] = "human",
     locus: Annotated[Optional[list[str]], typer.Option("--locus", help="Restrict to a locus (repeatable).")] = None,
+    include_nonfunctional: Annotated[bool, typer.Option("--include-nonfunctional", help="Also search pseudogene (P) and non-functional (NF) alleles.")] = False,
     format: Annotated[Optional[list[str]], typer.Option("--format", help="airr or parquet (repeatable).")] = None,
     threads: Annotated[Optional[int], typer.Option("--threads", help="Worker threads (>= 1).")] = None,
     strict: Annotated[bool, typer.Option("--strict", help="Fail (exit 3) on any record error.")] = False,
@@ -83,7 +84,7 @@ def run(
     if output_dir is not None:
         if verbose:
             _err(f"database: {germline.resolve(germline_db)[0]}\ninputs: {items}")
-        s = api.run(items, output_dir, germline_db=germline_db, locus=locus, formats=fmts, threads=threads, strict=strict)
+        s = api.run(items, output_dir, germline_db=germline_db, locus=locus, include_nonfunctional=include_nonfunctional, formats=fmts, threads=threads, strict=strict)
         if json_out:
             print(_json(s))
         elif not quiet:
@@ -103,7 +104,7 @@ def run(
     sys.stdout.flush()
     sys.stderr.flush()
     try:
-        counts = _core.run_to_stdout(inputs, records, db_path, threads, strict, locus)
+        counts = _core.run_to_stdout(inputs, records, db_path, threads, strict, locus, include_nonfunctional)
     except _core.CoreError as e:
         raise from_core(e) from None
     finally:
@@ -239,6 +240,7 @@ def generate(
     truncate_5p: Annotated[Optional[str], typer.Option("--truncate-5p", help="nt removed from the 5' end: N or uniform:LO-HI.")] = None,
     truncate_3p: Annotated[Optional[str], typer.Option("--truncate-3p", help="nt removed from the 3' end: N or uniform:LO-HI.")] = None,
     constant: Annotated[Optional[int], typer.Option("--constant", help="Append this many nt of constant region.")] = None,
+    include_nonfunctional: Annotated[bool, typer.Option("--include-nonfunctional", help="Also draw pseudogene (P) and non-functional (NF) alleles.")] = False,
     productive_only: Annotated[Optional[bool], typer.Option("--productive-only/--no-productive-only", help="Keep only productive reads (default: the preset's; bnab turns it on).", show_default=False)] = None,
     shm_table: Annotated[Optional[Path], typer.Option("--shm-table", help="Directory of S5F CSVs to mutate with.")] = None,
     name: Annotated[str, typer.Option("--name", help="Output file name stem.")] = "generated",
@@ -257,6 +259,7 @@ def generate(
         "truncate_3p": truncate_3p, "constant": constant, "shm_table": None if shm_table is None else str(shm_table),
         # flags only override a preset when given
         "frameshift_indels": frameshift_indels or None, "productive_only": productive_only,
+        "include_nonfunctional": include_nonfunctional or None,
     }
     from . import _generate as gen
 

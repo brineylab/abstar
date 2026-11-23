@@ -257,9 +257,28 @@ fn mixed_species_fields() {
 }
 
 #[test]
+fn nonfunctional_alleles_searched_only_on_request() {
+    // Record 0038: IGKV2-29*01 (NF) reads TGA at Cys104. A read of it with TGT there (as 7 Jaffe
+    // chains have) is called to a functional IGKV2-29*02-like allele by default and gets a junction;
+    // with include_nonfunctional it is called *01, which has no anchor, so no junction.
+    let mut v = ungapped(human(), "IGKV2-29*01").into_bytes();
+    let c = at_imgt(human(), "IGKV2-29*01", 310);
+    assert_eq!(&v[c..c + 3], b"TGA");
+    v[c + 2] = b'T';
+    let read = [String::from_utf8(v).unwrap(), "CCC".into(), ungapped(human(), "IGKJ1*01")].concat();
+    let r = engine().annotate("d", &read);
+    assert_ne!(r.v_call.as_deref(), Some("IGKV2-29*01"));
+    assert!(!r.v_call_ties.as_ref().unwrap().iter().any(|a| a == "IGKV2-29*01"));
+    assert!(r.junction.is_some() && r.productive == Some(true), "{:?}", r.v_call);
+    let all = Engine::new(human(), &EngineOptions { include_nonfunctional: true, ..Default::default() }).unwrap();
+    let r = all.annotate("a", &read);
+    assert_eq!((r.v_call.as_deref(), r.failure_reason.as_deref()), (Some("IGKV2-29*01"), Some("junction_undefined")));
+}
+
+#[test]
 fn loci_option_restricts_the_search() {
     let tcr = [ungapped(human(), "TRBV7-2*01"), "GGGACAGG".into(), ungapped(human(), "TRBJ2-1*01")].concat();
-    let ig = Engine::new(human(), &EngineOptions { loci: Some(vec![Locus::IGH, Locus::IGK, Locus::IGL]) }).unwrap();
+    let ig = Engine::new(human(), &EngineOptions { loci: Some(vec![Locus::IGH, Locus::IGK, Locus::IGL]), ..Default::default() }).unwrap();
     assert_eq!(ig.annotate("t", &tcr).failure_reason.as_deref(), Some("no_v_hit"));
     assert_eq!(ig.annotate("r", &igh_read()).annotation_status, "annotated");
 }

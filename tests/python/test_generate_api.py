@@ -165,3 +165,15 @@ def test_local_model_does_not_shadow_builtin(tmp_path, monkeypatch, abstar_home)
     assert resolve_model(None, "human", "IGH")[1] == "builtin"
     assert resolve_model("human-igh", "human", "IGH")[1] == "builtin"
     assert resolve_model("./human-igh", "human", "IGH") == (Path("human-igh/model.toml"), "path")
+
+
+def test_nonfunctional_alleles_drawn_only_on_request(tmp_path):
+    # Record 0038: known non-functional alleles (P, NF) are left out of simulation by default.
+    import polars as pl
+
+    al = pl.read_csv(Path(abstar.__file__).parent / "germline_dbs/human/alleles.tsv", separator="\t", infer_schema_length=0)
+    nf = al.filter(pl.col("functionality").is_in(["P", "NF"]))["id"].to_list()
+    assert not abstar.generate(3000, "IGH", seed=5)["v_call"].is_in(nf).any()
+    assert abstar.generate(3000, "IGH", seed=5, include_nonfunctional=True)["v_call"].is_in(nf).any()
+    s = abstar.generate(3, "IGH", seed=5, output_dir=tmp_path, include_nonfunctional=True)
+    assert json.loads(s.generate_json.read_text())["parameters"]["include_nonfunctional"] is True

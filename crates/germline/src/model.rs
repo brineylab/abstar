@@ -40,6 +40,14 @@ str_enum!(Segment { V = "V", D = "D", J = "J", C = "C" });
 pub enum Functionality { F, ORF, P, NF, Unknown }
 str_enum!(Functionality { F = "F", ORF = "ORF", P = "P", NF = "NF", Unknown = "unknown" });
 
+impl Functionality {
+    /// Known non-functional (IMGT pseudogene `P` or OGRDB `NF`): left out of annotation searches
+    /// and simulation unless asked for (record 0038). `F`, `ORF` and `unknown` are kept.
+    pub fn is_nonfunctional(self) -> bool {
+        matches!(self, Functionality::P | Functionality::NF)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Allele {
     pub id: String,
