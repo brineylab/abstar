@@ -591,7 +591,7 @@ type = "string"
 nullable = true
 origin = "airr-optional"
 coordinates = ""
-description = "Amino acid translation of sequence_alignment. Null when sequence_alignment is null. For amino-acid input: the V(D)J residues of the input with the primary V allele's IMGT gaps as '.', a residue deleted from the germline as '-'."
+description = "For nucleotide input: the amino acid translation of sequence_alignment, null when sequence_alignment is null. For amino-acid input: the V(D)J residues of the input with the primary V allele's IMGT gaps as '.', a residue deleted from the germline as '-'."
 decision = ""
 
 [[field]]
@@ -600,7 +600,7 @@ type = "string"
 nullable = true
 origin = "airr-optional"
 coordinates = ""
-description = "Amino acid translation of germline_alignment. Null when germline_alignment is null. For amino-acid input: the germline residues aligned to sequence_alignment_aa (inserted and N residues are '-'); there are no D residues, so the CDR3 middle is non-germline."
+description = "For nucleotide input: the amino acid translation of germline_alignment, null when germline_alignment is null. For amino-acid input: the germline residues aligned to sequence_alignment_aa (inserted and N residues are '-'); there are no D residues, so the CDR3 middle is non-germline."
 decision = ""
 
 [[field]]

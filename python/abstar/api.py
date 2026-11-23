@@ -74,7 +74,7 @@ def _classify(item, aa: bool = False) -> tuple[str, object]:
     if item and _exists(Path(item)):
         return "path", Path(item)
     if not (_AA if aa else _NT).issuperset(item):
-        hint = " (protein? use sequence_type='aa')" if not aa and _AA.issuperset(item) else ""
+        hint = " (if this is a protein sequence, use sequence_type='aa')" if not aa and _AA.issuperset(item) else ""
         raise AbstarError("INPUT_NOT_FOUND", f"{item}: not an existing file and not {'an amino-acid' if aa else 'a nucleotide'} sequence{hint}")
     return "seq", item
 
