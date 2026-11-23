@@ -42,14 +42,15 @@ fn inputs(paths: Vec<String>) -> Vec<Input> {
     paths.into_iter().map(|p| if p == "-" { Input::Stdin } else { Input::File(p.into()) }).collect()
 }
 
-fn options(threads: Option<usize>, strict: bool, loci: Option<Vec<String>>, include_nonfunctional: bool) -> PyResult<RunOptions> {
+fn options(threads: Option<usize>, strict: bool, loci: Option<Vec<String>>, include_nonfunctional: bool, sequence_type: &str) -> PyResult<RunOptions> {
     let parse = |s: &String| {
         s.parse::<Locus>().map_err(|_| {
             err("INVALID_ARGUMENT", format!("unknown locus {s:?}; valid loci: {}", Locus::NAMES.join(", ")))
         })
     };
     let loci = loci.map(|l| l.iter().map(parse).collect::<PyResult<Vec<_>>>()).transpose()?;
-    Ok(RunOptions { threads, strict, loci, include_nonfunctional, ..Default::default() })
+    let sequence_type = sequence_type.parse().map_err(|e: String| err("INVALID_ARGUMENT", e))?;
+    Ok(RunOptions { threads, strict, loci, include_nonfunctional, sequence_type, ..Default::default() })
 }
 
 fn counts_dict<'py>(py: Python<'py>, c: &StatusCounts) -> PyResult<Bound<'py, PyDict>> {
@@ -179,12 +180,13 @@ fn run_to_files<'py>(
     strict: bool,
     loci: Option<Vec<String>>,
     include_nonfunctional: bool,
+    sequence_type: String,
 ) -> PyResult<Bound<'py, PyDict>> {
     let mut ins = self::inputs(inputs);
     if !records.is_empty() {
         ins.push(Input::Records(records));
     }
-    let opts = options(threads, strict, loci, include_nonfunctional)?;
+    let opts = options(threads, strict, loci, include_nonfunctional, &sequence_type)?;
     let formats =
         formats.iter().map(|f| f.parse::<Format>()).collect::<Result<Vec<_>, _>>().map_err(|e| err("INVALID_ARGUMENT", e))?;
     let s = py.detach(|| {
@@ -207,12 +209,13 @@ fn run_to_stdout<'py>(
     strict: bool,
     loci: Option<Vec<String>>,
     include_nonfunctional: bool,
+    sequence_type: String,
 ) -> PyResult<Bound<'py, PyDict>> {
     let mut ins = self::inputs(inputs);
     if !records.is_empty() {
         ins.push(Input::Records(records));
     }
-    let opts = options(threads, strict, loci, include_nonfunctional)?;
+    let opts = options(threads, strict, loci, include_nonfunctional, &sequence_type)?;
     let c = py.detach(|| {
         let db = load(&db_path)?;
         abstar_annotate::pipeline::run_to_writer(&ins, &db, &opts, std::io::stdout().lock()).map_err(run_err)
@@ -232,12 +235,13 @@ fn run_in_memory(
     strict: bool,
     loci: Option<Vec<String>>,
     include_nonfunctional: bool,
+    sequence_type: String,
 ) -> PyResult<PyTable> {
     let mut ins = self::inputs(inputs);
     if !records.is_empty() {
         ins.push(Input::Records(records));
     }
-    let opts = options(threads, strict, loci, include_nonfunctional)?;
+    let opts = options(threads, strict, loci, include_nonfunctional, &sequence_type)?;
     let batches = py.detach(|| {
         let db = load(&db_path)?;
         abstar_annotate::pipeline::run_in_memory(&ins, &db, &opts).map_err(run_err)

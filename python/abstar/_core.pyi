@@ -17,6 +17,8 @@ def run_to_files(
     threads: int | None,
     strict: bool,
     loci: list[str] | None,
+    include_nonfunctional: bool,
+    sequence_type: str,
 ) -> dict: ...
 def run_to_stdout(
     inputs: list[str],
@@ -25,6 +27,8 @@ def run_to_stdout(
     threads: int | None,
     strict: bool,
     loci: list[str] | None,
+    include_nonfunctional: bool,
+    sequence_type: str,
 ) -> dict: ...
 def run_in_memory(
     inputs: list[str],
@@ -33,6 +37,8 @@ def run_in_memory(
     threads: int | None,
     strict: bool,
     loci: list[str] | None,
+    include_nonfunctional: bool,
+    sequence_type: str,
 ) -> object: ...
 def truth_toml() -> str: ...
 def model_summary(path: str) -> dict: ...

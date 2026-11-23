@@ -57,6 +57,7 @@ def run(
     germline_db: Annotated[str, typer.Option("--germline-db", "-g", help="Database name or path.")] = "human",
     locus: Annotated[Optional[list[str]], typer.Option("--locus", help="Restrict to a locus (repeatable).")] = None,
     include_nonfunctional: Annotated[bool, typer.Option("--include-nonfunctional", help="Also search pseudogene (P) and non-functional (NF) alleles.")] = False,
+    sequence_type: Annotated[str, typer.Option("--sequence-type", help="nt (default) or aa (protein input).")] = "nt",
     format: Annotated[Optional[list[str]], typer.Option("--format", help="airr or parquet (repeatable).")] = None,
     threads: Annotated[Optional[int], typer.Option("--threads", help="Worker threads (>= 1).")] = None,
     strict: Annotated[bool, typer.Option("--strict", help="Fail (exit 3) on any record error.")] = False,
@@ -84,7 +85,7 @@ def run(
     if output_dir is not None:
         if verbose:
             _err(f"database: {germline.resolve(germline_db)[0]}\ninputs: {items}")
-        s = api.run(items, output_dir, germline_db=germline_db, locus=locus, include_nonfunctional=include_nonfunctional, formats=fmts, threads=threads, strict=strict)
+        s = api.run(items, output_dir, germline_db=germline_db, locus=locus, include_nonfunctional=include_nonfunctional, formats=fmts, threads=threads, strict=strict, sequence_type=sequence_type)
         if json_out:
             print(_json(s))
         elif not quiet:
@@ -97,14 +98,14 @@ def run(
 
     from . import _core
 
-    inputs, records = api._normalize(items)
+    inputs, records = api._normalize(items, sequence_type == "aa")
     db_path = str(germline.resolve(germline_db)[0])
     if verbose:
         _err(f"database: {db_path}\ninputs: {inputs + [r[0] for r in records]}")
     sys.stdout.flush()
     sys.stderr.flush()
     try:
-        counts = _core.run_to_stdout(inputs, records, db_path, threads, strict, locus, include_nonfunctional)
+        counts = _core.run_to_stdout(inputs, records, db_path, threads, strict, locus, include_nonfunctional, sequence_type)
     except _core.CoreError as e:
         raise from_core(e) from None
     finally:

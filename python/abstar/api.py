@@ -15,6 +15,7 @@ if TYPE_CHECKING:
 
 _EXTS = (".fasta", ".fa", ".fna", ".fastq", ".fq")
 _NT = frozenset("ACGTNRYSWKMBDHVacgtnryswkmbdhv")
+_AA = frozenset("ACDEFGHIKLMNPQRSTVWYXBZUOJ*acdefghiklmnpqrstvwyxbzuoj")
 # Errors that mean "this string cannot be a path" (a long sequence; an invalid name on Windows).
 _NOT_A_PATH = (errno.ENAMETOOLONG, errno.EINVAL)
 _FORMATS = {"airr", "parquet"}
@@ -56,7 +57,7 @@ def _exists(p: Path) -> bool:
         raise AbstarError("INPUT_UNREADABLE", f"{p}: {e.strerror or e}") from None
 
 
-def _classify(item) -> tuple[str, object]:
+def _classify(item, aa: bool = False) -> tuple[str, object]:
     """('path', str) | ('seq', str) | ('rec', (id, seq))."""
     if isinstance(item, tuple):
         if len(item) == 2 and all(isinstance(x, str) for x in item):
@@ -72,8 +73,8 @@ def _classify(item) -> tuple[str, object]:
         raise AbstarError("INVALID_ARGUMENT", f"unsupported input of type {type(item).__name__}")
     if item and _exists(Path(item)):
         return "path", Path(item)
-    if not _NT.issuperset(item):
-        raise AbstarError("INPUT_NOT_FOUND", f"{item}: not an existing file and not a nucleotide sequence")
+    if not (_AA if aa else _NT).issuperset(item):
+        raise AbstarError("INPUT_NOT_FOUND", f"{item}: not an existing file and not {'an amino-acid' if aa else 'a nucleotide'} sequence")
     return "seq", item
 
 
@@ -87,9 +88,9 @@ def _expand(p: Path) -> list[str]:
     return [str(p)]
 
 
-def _normalize(sequences) -> tuple[list[str], list[tuple[str, str]]]:
+def _normalize(sequences, aa: bool = False) -> tuple[list[str], list[tuple[str, str]]]:
     items = [sequences] if isinstance(sequences, (str, Path)) else list(sequences)  # consumed once
-    kinds = [_classify(i) for i in items]
+    kinds = [_classify(i, aa) for i in items]
     paths = [v for k, v in kinds if k == "path"]
     if paths and len(paths) != len(kinds):
         raise AbstarError("INVALID_ARGUMENT", "inputs mix file paths with sequences or records")
@@ -108,6 +109,7 @@ def run(
     formats: str | Iterable[str] = ("airr",),
     threads: int | None = None,
     strict: bool = False,
+    sequence_type: str = "nt",
 ) -> "pl.DataFrame | RunSummary":
     """Annotate antibody/TCR sequences.
 
@@ -117,7 +119,9 @@ def run(
     A string that exists on disk is a path; otherwise, if it consists only of
     nucleotide characters (`ACGTN` and IUPAC `RYSWKMBDHV`, any case) it is a
     sequence, with ID `"1"`..`"N"` by position, and anything else raises
-    `INPUT_NOT_FOUND`. A path that cannot be checked (for example, permission
+    `INPUT_NOT_FOUND`. With `sequence_type="aa"` the input is protein: a string
+    is a sequence if it consists only of amino-acid letters (20 standard, `XBZUOJ`
+    and `*`, any case). A path that cannot be checked (for example, permission
     denied) raises `INPUT_UNREADABLE`. `"-"` is stdin. Mixing paths and
     sequences raises `INVALID_ARGUMENT`. Iterables are consumed once.
 
@@ -128,24 +132,29 @@ def run(
     Alleles the database marks non-functional (pseudogene `P`, OGRDB `NF`) are
     not searched unless `include_nonfunctional` is true; `F`, `ORF` and
     `unknown` alleles always are.
+
+    `sequence_type` is `"nt"` (default) or `"aa"`; anything else raises
+    `INVALID_ARGUMENT`.
     """
     fmts = [formats] if isinstance(formats, str) else list(formats)
     if not fmts or not set(fmts) <= _FORMATS:
         raise AbstarError("INVALID_ARGUMENT", f"formats must be a non-empty subset of {sorted(_FORMATS)}, got {fmts!r}")
     if threads is not None and (isinstance(threads, bool) or not isinstance(threads, int) or threads < 1):
         raise AbstarError("INVALID_ARGUMENT", f"threads must be None or an integer >= 1, got {threads!r}")
+    if sequence_type not in ("nt", "aa"):
+        raise AbstarError("INVALID_ARGUMENT", f"sequence_type must be 'nt' or 'aa', got {sequence_type!r}")
     loci = [locus] if isinstance(locus, str) else (list(locus) if locus is not None else None)
 
     from . import _core, germline
 
-    inputs, records = _normalize(sequences)
+    inputs, records = _normalize(sequences, sequence_type == "aa")
     db_path = str(germline.resolve(germline_db)[0])
     try:
         if output_dir is None:
             import polars as pl
 
-            return pl.DataFrame(_core.run_in_memory(inputs, records, db_path, threads, strict, loci, bool(include_nonfunctional)))
-        d = _core.run_to_files(inputs, records, str(output_dir), db_path, fmts, threads, strict, loci, bool(include_nonfunctional))
+            return pl.DataFrame(_core.run_in_memory(inputs, records, db_path, threads, strict, loci, bool(include_nonfunctional), sequence_type))
+        d = _core.run_to_files(inputs, records, str(output_dir), db_path, fmts, threads, strict, loci, bool(include_nonfunctional), sequence_type)
     except _core.CoreError as e:
         raise from_core(e) from None
     return RunSummary(

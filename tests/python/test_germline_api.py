@@ -122,9 +122,9 @@ def test_run_in_memory_is_arrow_stream(tmp_path):
     from abstar import _core
     germline.build(recipe(tmp_path, "mydb"))
     db = str(germline.resolve("mydb")[0])
-    df = pl.DataFrame(_core.run_in_memory([], [("a", "ACGT"), ("b", "TTTT")], db, 1, False, None, False))
+    df = pl.DataFrame(_core.run_in_memory([], [("a", "ACGT"), ("b", "TTTT")], db, 1, False, None, False, "nt"))
     assert df["sequence_id"].to_list() == ["a", "b"]
-    empty = pl.DataFrame(_core.run_in_memory([], [], db, None, False, None, False))
+    empty = pl.DataFrame(_core.run_in_memory([], [], db, None, False, None, False, "nt"))
     assert empty.height == 0 and "sequence_id" in empty.columns
 
 
@@ -134,14 +134,14 @@ def test_run_to_files_and_stdout(tmp_path, capfd):
     db = str(germline.resolve("mydb")[0])
     fasta = tmp_path / "reads.fasta"
     fasta.write_text(">r1\nACGT\n>r2\nGGGG\n")
-    out = _core.run_to_files([str(fasta)], [], str(tmp_path / "out"), db, ["airr"], None, False, ["IGH"], False)
+    out = _core.run_to_files([str(fasta)], [], str(tmp_path / "out"), db, ["airr"], None, False, ["IGH"], False, "nt")
     assert sum(out["counts"].values()) == 2
     assert Path(out["inputs"][0]["outputs"]["airr"]).is_file()
-    counts = _core.run_to_stdout([str(fasta)], [], db, None, False, None, False)
+    counts = _core.run_to_stdout([str(fasta)], [], db, None, False, None, False, "nt")
     assert sum(counts.values()) == 2
     assert capfd.readouterr().out.splitlines()[0].startswith("sequence_id\t")
     with pytest.raises(_core.CoreError) as e:
-        _core.run_to_files([str(tmp_path / "nope.fa")], [], str(tmp_path / "o2"), db, ["airr"], None, False, None, False)
+        _core.run_to_files([str(tmp_path / "nope.fa")], [], str(tmp_path / "o2"), db, ["airr"], None, False, None, False, "nt")
     assert e.value.args[0] == "INPUT_NOT_FOUND"
 
 
@@ -151,7 +151,7 @@ def test_run_to_stdout_broken_pipe(tmp_path):
     db = str(germline.resolve("mydb")[0])
     fasta = tmp_path / "many.fasta"
     fasta.write_text("".join(f">r{i}\nACGTACGTACGT\n" for i in range(50_000)))
-    code = f"from abstar import _core; print(_core.run_to_stdout([{str(fasta)!r}], [], {db!r}, 1, False, None, False), file=__import__('sys').stderr)"
+    code = f"from abstar import _core; print(_core.run_to_stdout([{str(fasta)!r}], [], {db!r}, 1, False, None, False, 'nt'), file=__import__('sys').stderr)"
     p = subprocess.Popen([sys.executable, "-c", code], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     assert p.stdout.readline().startswith(b"sequence_id\t")
     p.stdout.close()

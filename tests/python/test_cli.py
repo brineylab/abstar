@@ -290,3 +290,12 @@ def test_include_nonfunctional_flags(tmp_path):
     p = abstar("generate", tmp_path / "gen", "--n", "3", "--locus", "IGH", "--seed", "1", "--include-nonfunctional", "-q")
     assert p.returncode == 0, p.stderr
     assert json.loads((tmp_path / "gen" / "generate.json").read_text())["parameters"]["include_nonfunctional"] is True
+
+
+def test_run_sequence_type_aa():
+    from test_run_api import IGH_AA
+
+    p = abstar("run", "--seq", IGH_AA, "--sequence-type", "aa")
+    assert p.returncode == 0, p.stderr
+    head, row = (line.split("\t") for line in p.stdout.splitlines())
+    assert dict(zip(head, row))["v_gene"] == "IGHV1-2"
