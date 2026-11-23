@@ -32,10 +32,10 @@ pub fn failed(id: &str, seq: &str, status: &str, reason: &str) -> Record {
     }
 }
 
-type Call = (Option<String>, Option<String>, Option<String>, Option<Vec<String>>, Option<Vec<String>>);
+pub(crate) type Call = (Option<String>, Option<String>, Option<String>, Option<Vec<String>>, Option<Vec<String>>);
 
 /// `<seg>_call`, `_gene`, `_species`, `_call_ties`, `_species_ties` (plain names, record 0007).
-fn call(alleles: &[Allele], primary: usize, ties: &[usize]) -> Call {
+pub(crate) fn call(alleles: &[Allele], primary: usize, ties: &[usize]) -> Call {
     let a = &alleles[primary];
     (
         Some(a.name.clone()),

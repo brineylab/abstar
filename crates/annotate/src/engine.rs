@@ -10,6 +10,10 @@ use abstar_germline::{Allele, Database, Locus, Segment};
 /// Annotates one sequence. Implementations are shared across threads.
 pub trait Annotate: Sync {
     fn annotate(&self, id: &str, seq: &str) -> Record;
+    /// A record with only identity and status; the raw input goes where this engine reports it.
+    fn failed(&self, id: &str, seq: &str, status: &str, reason: &str) -> Record {
+        failed(id, seq, status, reason)
+    }
 }
 
 #[derive(Clone, Debug, Default)]
