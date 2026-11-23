@@ -1,9 +1,11 @@
 """Accuracy gate: generate fixed-seed sets, annotate, grade against truth, hold each cell to a floor.
 
-`ABSTAR_WRITE_FLOORS=1` rewrites data/accuracy_floors.toml as measured - 0.5 pp (capped at the 99.5% target).
-Cells graded on fewer than `MIN_N` reads are reported but carry no floor.
+`ABSTAR_WRITE_FLOORS=1` rewrites data/accuracy_floors.toml (nucleotide) and data/accuracy_floors_aa.toml
+(amino acid: truth `sequence_aa` of in-frame reads, `sequence_type="aa"`) as measured - 0.5 pp (capped at
+the 99.5% target). Cells graded on fewer than `MIN_N` reads are reported but carry no floor.
 """
 import os
+import random
 import tomllib
 from pathlib import Path
 
@@ -14,6 +16,7 @@ import abstar
 
 N, TARGET, MIN_N = 2000, 0.995, 5
 FLOORS = Path(__file__).parent / "data" / "accuracy_floors.toml"
+FLOORS_AA = Path(__file__).parent / "data" / "accuracy_floors_aa.toml"
 SETS = {  # name: (locus, generate options)
     "igh_naive": ("IGH", {"preset": "naive"}),
     "igh_memory": ("IGH", {"preset": "memory"}),
@@ -29,9 +32,7 @@ SETS = {  # name: (locus, generate options)
 }
 
 
-def _measure(name):
-    locus, opts = SETS[name]
-    truth = abstar.generate(N, locus, seed=20261121, **opts)
+def _measure(truth):
     calls = abstar.run(list(zip(truth["sequence_id"], truth["sequence"])))
     g = abstar.grade(truth, calls).filter(_not_null())
     return {f"{r['field']}/{r['subset']}": (r["accuracy"], r["n"]) for r in g.iter_rows(named=True)}
@@ -44,19 +45,83 @@ def _not_null():
 
 
 @pytest.fixture(scope="module")
-def measured():
-    return {n: _measure(n) for n in SETS}
+def truths():
+    return {n: abstar.generate(N, locus, seed=20261121, **opts) for n, (locus, opts) in SETS.items()}
+
+
+@pytest.fixture(scope="module")
+def measured(truths):
+    return {n: _measure(t) for n, t in truths.items()}
 
 
 def test_accuracy_floors(measured):
+    _check_floors(measured, FLOORS)
+
+
+V_REGIONS = ("fwr1", "cdr1", "fwr2", "cdr2", "fwr3")
+
+
+def _imgt_1_100(muts):
+    return sorted(m for m in muts or [] if 1 <= int(m[4 : m.index(":")]) <= 100)
+
+
+def _grade_aa(truth, calls):
+    """{field: (accuracy, n)}; region fields only on reads whose V (FWR1-3), J (FWR4) or both (CDR3) are right."""
+    hits = {}
+    rows = truth.join(calls, on="sequence_id", how="left", suffix="_c")
+    for r in rows.iter_rows(named=True):
+        ties = {s: r[f"{s}_call_ties"] or [] for s in "vj"}
+        ok = {s: r[f"{s}_call"] in ties[s] for s in "vj"}
+        cells = {f"{s}_call": ok[s] for s in "vj"}
+        cells |= {f"{s}_gene": r[f"{s}_gene"] in {t.split("*")[0] for t in ties[s]} for s in "vj"}
+        cells |= {f: r[f] == r[f"{f}_c"] for f in ("locus", "productive", "stop_codon")}
+        gated = {**{reg: ok["v"] for reg in V_REGIONS}, "fwr4": ok["j"], "cdr3": ok["v"] and ok["j"]}
+        cells |= {f"{reg}{x}": r[f"{reg}{x}"] == r[f"{reg}{x}_c"] for reg, g in gated.items() if g for x in ("_aa", "_length")}
+        if ok["v"] and ok["j"]:
+            cells["junction_aa"] = r["junction_aa"] == r["junction_aa_c"]
+        if ok["v"]:
+            cells["v_mutations_aa"] = _imgt_1_100(r["v_mutations_aa"]) == _imgt_1_100(r["v_mutations_aa_c"])
+        for f, hit in cells.items():
+            hits.setdefault(f, []).append(hit)
+    return {f: (sum(h) / len(h), len(h)) for f, h in hits.items()}
+
+
+def _run_aa(truth):
+    t = truth.filter(truth["vj_in_frame"])
+    return t, abstar.run(list(zip(t["sequence_id"], t["sequence_aa"])), sequence_type="aa")
+
+
+def test_accuracy_floors_aa(truths):
+    _check_floors({n: _grade_aa(*_run_aa(t)) for n, t in truths.items()}, FLOORS_AA)
+
+
+def test_aa_negative_controls(truths):
+    ubiquitin = "MQIFVKTLTGKTITLEVEPSDTIENVKAKIQDKEGIPPDQQRLIFAGKQLEDGRTLSDYNIQKESTLHLVLRLRGG"
+    gfp = (
+        "MSKGEELFTGVVPVLVELDGDVNGHKFSVSGEGEGDATYGKLTLKFICTTGKLPVPWPTLVTTFSYGVQCFSRYPDHMKQHDFFKSAMPEGYVQERTIFF"
+        "KDDGNYKTRAEVKFEGDTLVNRIELKGIDFKEDGNILGHKLEYNYNSHNVYIMADKQKNGIKVNFKIRHNIEDGSVQLADHYQQNTPIGDGPVLLPDNHYLS"
+        "TQSALSKDPNEKRDHMVLLEFVTAAGITHGMDELYK"
+    )
+    lysozyme = (
+        "KVFGRCELAAAMKRHGLDNYRGYSLGNWVCAAKFESNFNTQATNRNTDGSTDYGILQINSRWWCNDGRTPGSRNLCNIPCSALLSSDITASVNCAKKIVSDG"
+        "NGMNAWVAWRNRCKGTDVQAWIRGCRL"
+    )
+    rng = random.Random(20261121)
+    rand = ["".join(rng.choices("ACDEFGHIKLMNPQRSTVWY", k=120)) for _ in range(20)]
+    seqs = [ubiquitin, gfp, truths["igh_memory"]["sequence"][0], lysozyme, *rand]
+    calls = abstar.run([(f"neg{i}", s) for i, s in enumerate(seqs)], sequence_type="aa")
+    assert calls["failure_reason"].to_list() == ["no_v_hit"] * len(seqs), calls.select("sequence_id", "v_call", "v_score", "failure_reason")
+
+
+def _check_floors(measured, path):
     if os.environ.get("ABSTAR_WRITE_FLOORS"):
         lines = []
         for s, cells in measured.items():
             lines.append(f"[{s}]")
             lines += [f'"{k}" = {max(0.0, min(TARGET, a - 0.005)):.4f}' for k, (a, n) in cells.items() if n >= MIN_N]
             lines.append("")
-        FLOORS.write_text("\n".join(lines))
-    floors = tomllib.loads(FLOORS.read_text())
+        path.write_text("\n".join(lines))
+    floors = tomllib.loads(path.read_text())
     bad = []
     print(f"\n{'set':<11} {'field/subset':<44} {'n':>5} {'measured':>9} {'target':>7} {'floor':>7}")
     for s, cells in measured.items():

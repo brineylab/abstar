@@ -7,8 +7,8 @@ use crate::align::{align_protein, blosum62, Alignment, Op, ProteinScoring};
 use crate::assign::tiebreak_cmp;
 use abstar_germline::{Allele, Locus};
 
-pub const MIN_V_SCORE_AA: i32 = 100; // starting value; Task 8 calibrates
-pub const MIN_J_SCORE_AA: i32 = 25; // starting value; Task 8 calibrates
+pub const MIN_V_SCORE_AA: i32 = 50; // calibrated 2026-11-23: aa gate (test_accuracy.py SETS), true v/j/junction accuracy
+pub const MIN_J_SCORE_AA: i32 = 15; // calibrated 2026-11-23: aa gate (test_accuracy.py SETS), true v/j/junction accuracy
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct AaHit {
