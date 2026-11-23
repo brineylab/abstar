@@ -51,10 +51,14 @@ abstar run fastqs/ out/ --format parquet       # a directory, searched recursive
 abstar run reads.fastq.gz > reads.tsv          # no OUTPUT_DIR: TSV on stdout
 abstar run reads.fasta out/ -g c57bl6 --locus IGH
 abstar run --seq CAGGTGCAGCTGGTGCAGTCTGGG       # one sequence
+abstar run antibodies.fasta out/ --sequence-type aa   # protein sequences
 ```
 
 FASTA and FASTQ are accepted, gzipped or not, in either orientation (reverse
-reads are detected per read). `abstar run --help` lists every option.
+reads are detected per read). Protein input (`--sequence-type aa`, or
+`sequence_type="aa"` in Python), such as sequences from structures or patents,
+gets V and J calls, IMGT regions, the junction and amino-acid mutations; the
+nucleotide-only fields are null (`abstar manual conventions`). `abstar run --help` lists every option.
 
 From Python:
 

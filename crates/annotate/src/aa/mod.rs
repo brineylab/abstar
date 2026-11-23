@@ -26,8 +26,8 @@ fn invalid_aa(seq: &str) -> Option<&'static str> {
     }
 }
 
-/// `_score` (BLOSUM62, affine gaps) and `_identity` (identical over aligned residues) of a
-/// segment's reported columns; `None` without an aligned residue.
+/// `_score` (BLOSUM62, affine gaps) and `_identity` (identical over aligned residues; `X` is
+/// never identical, as in the aligner) of a segment's reported columns; `None` without an aligned residue.
 fn score(q: &[u8], g: &[u8], cols: &[Col], s: &ProteinScoring) -> (Option<f64>, Option<f64>) {
     let (mut score, mut same, mut aligned) = (0, 0, 0);
     let mut prev = None; // the previous column's gap kind: Some(true) inserted, Some(false) deleted
@@ -35,7 +35,7 @@ fn score(q: &[u8], g: &[u8], cols: &[Col], s: &ProteinScoring) -> (Option<f64>, 
         let gap = match (i, u) {
             (Some(i), Some(u)) => {
                 score += blosum62(q[i], g[u]);
-                same += (q[i] == g[u]) as i32;
+                same += (q[i] == g[u] && q[i] != b'X') as i32;
                 aligned += 1;
                 None
             }

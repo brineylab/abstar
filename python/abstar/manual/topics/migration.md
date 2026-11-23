@@ -24,7 +24,7 @@ How abstar 0.x options map to this version. Every option of the old `abstar run`
 | `--debug` | Removed: there are no temporary files to keep. Errors carry stable codes (`abstar manual errors`). |
 | `--started_from_cli` (hidden) | Removed. |
 
-New: `--seq`, `--json`, `--locus`, `--include-nonfunctional` (non-functional alleles are no longer searched by default; decision 0038).
+New: `--seq`, `--json`, `--locus`, `--sequence-type` (`aa` annotates protein input; decision 0039), `--include-nonfunctional` (non-functional alleles are no longer searched by default; decision 0038).
 
 ## `abstar build_germline_database`
 
@@ -69,4 +69,5 @@ New: `--overwrite` (replaces an existing database only), `abstar germline list`,
 
 - Failed records are no longer dropped into `logs/`: every input record is one output row, with `annotation_status` and `failure_reason` (`abstar manual conventions`).
 - `logs/run.json` is now `<OUTPUT_DIR>/run.json`.
+- `sequence` is nullable in the output schema, for nucleotide runs too (decision 0039). Nucleotide runs always fill it; protein runs (`--sequence-type aa`) leave it, the nucleotide coordinates and the other nucleotide fields null, so their output does not pass a strict AIRR validator.
 - Field definitions: `abstar manual fields`.
