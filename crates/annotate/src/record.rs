@@ -25,7 +25,7 @@ pub fn invalid_input(seq: &str) -> Option<&'static str> {
 pub fn failed(id: &str, seq: &str, status: &str, reason: &str) -> Record {
     Record {
         sequence_id: id.into(),
-        sequence: seq.into(),
+        sequence: Some(seq.into()),
         annotation_status: status.into(),
         failure_reason: Some(reason.into()),
         ..Default::default()
@@ -125,7 +125,7 @@ fn region(q: &[u8], frame: usize, x: Option<(usize, usize)>) -> Region {
 fn with_v(id: &str, seq: &str, read: &Oriented, v: &VHit, alleles: &[Allele]) -> Record {
     let mut r = Record {
         sequence_id: id.into(),
-        sequence: seq.into(),
+        sequence: Some(seq.into()),
         annotation_status: "annotated".into(),
         rev_comp: Some(read.rev_comp),
         locus: Some(alleles[v.primary].locus.to_string()),

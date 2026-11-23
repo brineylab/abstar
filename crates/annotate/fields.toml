@@ -12,11 +12,11 @@ decision = ""
 [[field]]
 name = "sequence"
 type = "string"
-nullable = false
+nullable = true
 origin = "airr-required"
 coordinates = ""
-description = "The query nucleotide sequence."
-decision = ""
+description = "The query nucleotide sequence. Null for amino-acid input (sequence_type aa), whose input is in sequence_aa."
+decision = "0039"
 
 [[field]]
 name = "rev_comp"
@@ -33,7 +33,7 @@ type = "bool"
 nullable = true
 origin = "airr-required"
 coordinates = ""
-description = "True if the V(D)J sequence is predicted to be productive."
+description = "True if the V(D)J sequence is predicted to be productive. For amino-acid input: junction present, no stop, junction_aa starts with C and ends with W or F, and has no X."
 decision = ""
 
 [[field]]
@@ -294,7 +294,7 @@ type = "bool"
 nullable = true
 origin = "airr-optional"
 coordinates = ""
-description = "True when the junction length is a multiple of 3 and the J anchor is in the V reading frame. Null when the junction is undefined."
+description = "True when the junction length is a multiple of 3 and the J anchor is in the V reading frame. Null when the junction is undefined. For amino-acid input: null."
 decision = ""
 
 [[field]]
@@ -303,7 +303,7 @@ type = "bool"
 nullable = true
 origin = "airr-optional"
 coordinates = ""
-description = "True when the V-frame translation of sequence_vdj contains a stop codon (constant region excluded). Null when sequence_vdj is null."
+description = "True when the V-frame translation of sequence_vdj contains a stop codon (constant region excluded). Null when sequence_vdj is null. For amino-acid input: a * in sequence_vdj_aa."
 decision = ""
 
 [[field]]
@@ -582,7 +582,7 @@ type = "string"
 nullable = true
 origin = "airr-optional"
 coordinates = ""
-description = "Translation of the whole sequence in the V reading frame (codons in phase with the first V base IMGT position), dropping partial codons at either end. Null when there is no V alignment."
+description = "Translation of the whole sequence in the V reading frame (codons in phase with the first V base IMGT position), dropping partial codons at either end. Null when there is no V alignment. For amino-acid input: the input, uppercased."
 decision = ""
 
 [[field]]
@@ -600,7 +600,7 @@ type = "string"
 nullable = true
 origin = "airr-optional"
 coordinates = ""
-description = "Amino acid translation of germline_alignment. Null when germline_alignment is null."
+description = "Amino acid translation of germline_alignment. Null when germline_alignment is null. For amino-acid input: as in nucleotide mode, but with no D residues, so the CDR3 middle is non-germline."
 decision = ""
 
 [[field]]
@@ -987,7 +987,7 @@ type = "string"
 nullable = true
 origin = "abstar"
 coordinates = ""
-description = "The gene_segment_mask character of each codon's 3rd base. One character per codon of sequence_vdj_aa (the V(D)J region only); null when the matching nt mask is null."
+description = "The gene_segment_mask character of each codon's 3rd base. One character per codon of sequence_vdj_aa (the V(D)J region only); null when the matching nt mask is null. For amino-acid input: segments are V, N and J only (no D residues)."
 decision = "0034"
 
 [[field]]
@@ -1043,6 +1043,24 @@ origin = "abstar"
 coordinates = "germline: IMGT-gapped nt position (aa: IMGT codon number)"
 description = "Deletions from V, as \"IMGT{pos}:del:BASES\", POS the first deleted germline position; BASES are the deleted germline bases. Placed where it minimizes read-vs-germline mismatches over the segment, leftmost on ties (rulings A17, A18); searched only where indels can occur (V at least 3 nt upstream of Cys104, J at least 3 nt downstream of Trp/Phe118, never in CDR3). The segment mutation lists, counts and frequencies come from this same alignment. Null when there is no V alignment."
 decision = "0033"
+
+[[field]]
+name = "v_insertions_aa"
+type = "list<string>"
+nullable = true
+origin = "abstar"
+coordinates = "germline: IMGT residue number (V), J residue number from the Trp/Phe118 frame (J)"
+description = "Insertions in V relative to the germline protein, as \"IMGT{pos}:ins:RESIDUES\", POS the germline residue the insertion follows. Amino-acid input only; null for nucleotide input."
+decision = "0039"
+
+[[field]]
+name = "v_deletions_aa"
+type = "list<string>"
+nullable = true
+origin = "abstar"
+coordinates = "germline: IMGT residue number (V), J residue number from the Trp/Phe118 frame (J)"
+description = "Deletions from V relative to the germline protein, as \"IMGT{pos}:del:RESIDUES\", POS the first deleted germline residue. Amino-acid input only; null for nucleotide input."
+decision = "0039"
 
 [[field]]
 name = "v_mutation_count"
@@ -1187,6 +1205,24 @@ origin = "abstar"
 coordinates = "germline: 1-based ungapped allele"
 description = "Deletions from J, as \"{pos}:del:BASES\", POS the first deleted germline position; BASES are the deleted germline bases. Placed where it minimizes read-vs-germline mismatches over the segment, leftmost on ties (rulings A17, A18); searched only where indels can occur (V at least 3 nt upstream of Cys104, J at least 3 nt downstream of Trp/Phe118, never in CDR3). The segment mutation lists, counts and frequencies come from this same alignment. Null when there is no J alignment."
 decision = "0033"
+
+[[field]]
+name = "j_insertions_aa"
+type = "list<string>"
+nullable = true
+origin = "abstar"
+coordinates = "germline: IMGT residue number (V), J residue number from the Trp/Phe118 frame (J)"
+description = "Insertions in J relative to the germline protein, as \"{pos}:ins:RESIDUES\", POS the germline residue the insertion follows. Amino-acid input only; null for nucleotide input."
+decision = "0039"
+
+[[field]]
+name = "j_deletions_aa"
+type = "list<string>"
+nullable = true
+origin = "abstar"
+coordinates = "germline: IMGT residue number (V), J residue number from the Trp/Phe118 frame (J)"
+description = "Deletions from J relative to the germline protein, as \"{pos}:del:RESIDUES\", POS the first deleted germline residue. Amino-acid input only; null for nucleotide input."
+decision = "0039"
 
 [[field]]
 name = "j_mutation_count"

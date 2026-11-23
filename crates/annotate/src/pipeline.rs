@@ -98,7 +98,7 @@ fn annotate_guarded(f: Annotator, id: &str, seq: &str) -> Record {
             .unwrap_or_else(|| "unknown panic".into());
         Record {
             sequence_id: id.into(),
-            sequence: seq.into(),
+            sequence: Some(seq.into()),
             annotation_status: "error".into(),
             failure_reason: Some(format!("internal_error: {msg}")),
             ..Default::default()
@@ -180,7 +180,7 @@ fn run_input(
                     } else {
                         Record {
                             sequence_id: id.clone(),
-                            sequence: seq.clone(),
+                            sequence: Some(seq.clone()),
                             annotation_status: "invalid_input".into(),
                             failure_reason: Some("invalid_encoding".into()),
                             ..Default::default()
@@ -192,7 +192,9 @@ fn run_input(
         for r in &mut recs {
             r.source_file = source_file.clone();
             tsv_safe(&mut r.sequence_id);
-            tsv_safe(&mut r.sequence);
+            if let Some(s) = r.sequence.as_mut() {
+                tsv_safe(s);
+            }
             match r.annotation_status.as_str() {
                 "annotated" => counts.annotated += 1,
                 "unassigned" => counts.unassigned += 1,

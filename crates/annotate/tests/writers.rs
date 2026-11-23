@@ -14,7 +14,7 @@ fn toml_names() -> Vec<String> {
 fn rec(id: &str) -> Record {
     Record {
         sequence_id: id.into(),
-        sequence: "ACGT".into(),
+        sequence: Some("ACGT".into()),
         annotation_status: "ok".into(),
         ..Default::default()
     }
@@ -35,8 +35,11 @@ fn schema_matches_toml() {
     assert_eq!(names, toml_names());
     assert!(!s.field_with_name("annotation_status").unwrap().is_nullable());
     assert!(!s.field_with_name("sequence_id").unwrap().is_nullable());
-    assert!(!s.field_with_name("sequence").unwrap().is_nullable());
-    assert_eq!(s.fields().iter().filter(|f| !f.is_nullable()).count(), 3);
+    assert!(s.field_with_name("sequence").unwrap().is_nullable());
+    assert_eq!(s.fields().iter().filter(|f| !f.is_nullable()).count(), 2);
+    for f in ["v_insertions_aa", "v_deletions_aa", "j_insertions_aa", "j_deletions_aa"] {
+        assert!(matches!(s.field_with_name(f).unwrap().data_type(), DataType::List(_)), "{f}");
+    }
     let t = s.field_with_name("v_call_ties").unwrap().data_type().clone();
     match t {
         DataType::List(f) => assert_eq!(f.data_type(), &DataType::Utf8),
@@ -74,7 +77,7 @@ fn tsv_header_only_for_zero_rows() {
 #[should_panic(expected = "sequence")]
 fn tsv_rejects_tab() {
     let mut r = rec("a");
-    r.sequence = "AC\tGT".into();
+    r.sequence = Some("AC\tGT".into());
     tsv(&[r]);
 }
 
