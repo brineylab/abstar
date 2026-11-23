@@ -14,6 +14,8 @@ A model is a versioned TOML file (`format_version = 1`) with strict keys; unknow
 
 Allele probability is the gene probability times the model's `allele_usage` split, or an equal split across the gene's generatable alleles. Only V and J alleles with an anchor can be generated; an anchorless allele's share goes to its gene's anchored alleles. D alleles need no anchor. A gene with no generatable allele is dropped with a warning naming it, and the remaining mass is renormalized (per J row for D).
 
+*Amended 2026-11-23 (record 0038): by default, known non-functional alleles (`P`, `NF`) are neither drawn nor candidates, and a gene dropped only because all its alleles are excluded is not warned about. With `include_nonfunctional`, this paragraph and the one above apply as written.*
+
 Binding fails with `MODEL_INVALID`, listing the dropped genes, if less than 0.90 of the model's V, D or J mass (D weighted by J usage) is retained. Every allele of the locus and species, anchored or not, is a candidate for later equal-answer comparison; V candidates must have a gapped sequence containing `.`, otherwise binding fails (this rejects databases without IMGT gaps, such as macaque).
 
 Known limits: V alleles are compared at their IMGT-gapped positions, so a V allele whose gapping is shifted (e.g. human IGLV3-2*03, issue #138) is compared at the wrong positions and may be under-counted in truth sets. Macaque is rejected until its V genes are regapped (#137).

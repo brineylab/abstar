@@ -4,7 +4,7 @@ version = 4
 
 [[package]]
 name = "abstar_annotate"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "abstar_generate",
  "abstar_germline",
@@ -24,7 +24,7 @@ dependencies = [
 
 [[package]]
 name = "abstar_generate"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "abstar_germline",
  "abstar_table",
@@ -45,7 +45,7 @@ dependencies = [
 
 [[package]]
 name = "abstar_germline"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "needletail",
  "rayon",
@@ -59,7 +59,7 @@ dependencies = [
 
 [[package]]
 name = "abstar_py"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "abstar_annotate",
  "abstar_generate",
@@ -72,7 +72,7 @@ dependencies = [
 
 [[package]]
 name = "abstar_table"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "arrow-array",
  "arrow-schema",

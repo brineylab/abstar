@@ -42,14 +42,14 @@ fn inputs(paths: Vec<String>) -> Vec<Input> {
     paths.into_iter().map(|p| if p == "-" { Input::Stdin } else { Input::File(p.into()) }).collect()
 }
 
-fn options(threads: Option<usize>, strict: bool, loci: Option<Vec<String>>) -> PyResult<RunOptions> {
+fn options(threads: Option<usize>, strict: bool, loci: Option<Vec<String>>, include_nonfunctional: bool) -> PyResult<RunOptions> {
     let parse = |s: &String| {
         s.parse::<Locus>().map_err(|_| {
             err("INVALID_ARGUMENT", format!("unknown locus {s:?}; valid loci: {}", Locus::NAMES.join(", ")))
         })
     };
     let loci = loci.map(|l| l.iter().map(parse).collect::<PyResult<Vec<_>>>()).transpose()?;
-    Ok(RunOptions { threads, strict, loci, ..Default::default() })
+    Ok(RunOptions { threads, strict, loci, include_nonfunctional, ..Default::default() })
 }
 
 fn counts_dict<'py>(py: Python<'py>, c: &StatusCounts) -> PyResult<Bound<'py, PyDict>> {
@@ -178,12 +178,13 @@ fn run_to_files<'py>(
     threads: Option<usize>,
     strict: bool,
     loci: Option<Vec<String>>,
+    include_nonfunctional: bool,
 ) -> PyResult<Bound<'py, PyDict>> {
     let mut ins = self::inputs(inputs);
     if !records.is_empty() {
         ins.push(Input::Records(records));
     }
-    let opts = options(threads, strict, loci)?;
+    let opts = options(threads, strict, loci, include_nonfunctional)?;
     let formats =
         formats.iter().map(|f| f.parse::<Format>()).collect::<Result<Vec<_>, _>>().map_err(|e| err("INVALID_ARGUMENT", e))?;
     let s = py.detach(|| {
@@ -205,12 +206,13 @@ fn run_to_stdout<'py>(
     threads: Option<usize>,
     strict: bool,
     loci: Option<Vec<String>>,
+    include_nonfunctional: bool,
 ) -> PyResult<Bound<'py, PyDict>> {
     let mut ins = self::inputs(inputs);
     if !records.is_empty() {
         ins.push(Input::Records(records));
     }
-    let opts = options(threads, strict, loci)?;
+    let opts = options(threads, strict, loci, include_nonfunctional)?;
     let c = py.detach(|| {
         let db = load(&db_path)?;
         abstar_annotate::pipeline::run_to_writer(&ins, &db, &opts, std::io::stdout().lock()).map_err(run_err)
@@ -220,6 +222,7 @@ fn run_to_stdout<'py>(
 
 /// Annotations as an Arrow table (exposes `__arrow_c_stream__`).
 #[pyfunction]
+#[allow(clippy::too_many_arguments)]
 fn run_in_memory(
     py: Python<'_>,
     inputs: Vec<String>,
@@ -228,12 +231,13 @@ fn run_in_memory(
     threads: Option<usize>,
     strict: bool,
     loci: Option<Vec<String>>,
+    include_nonfunctional: bool,
 ) -> PyResult<PyTable> {
     let mut ins = self::inputs(inputs);
     if !records.is_empty() {
         ins.push(Input::Records(records));
     }
-    let opts = options(threads, strict, loci)?;
+    let opts = options(threads, strict, loci, include_nonfunctional)?;
     let batches = py.detach(|| {
         let db = load(&db_path)?;
         abstar_annotate::pipeline::run_in_memory(&ins, &db, &opts).map_err(run_err)
@@ -293,6 +297,7 @@ fn gen_params(d: &Bound<'_, PyDict>) -> PyResult<(gen::GenerateParams, Option<St
             "constant" => p.constant_len = Some(opt(k, &v)?),
             "isotype_weights" => p.isotype_weights = opt(k, &v)?,
             "productive_only" => p.productive_only = opt(k, &v)?,
+            "include_nonfunctional" => p.include_nonfunctional = opt(k, &v)?,
             "shm_table" => p.shm_table = Some(opt(k, &v)?),
             "shm_model" => p.shm_model = Some(opt(k, &v)?),
             _ => {
@@ -301,7 +306,7 @@ fn gen_params(d: &Bound<'_, PyDict>) -> PyResult<(gen::GenerateParams, Option<St
                     format!(
                         "unknown option {k:?}; valid: mutation, long_cdr3_weight, indels, frameshift_indels, \
                          indel_duplication, truncate_5p, truncate_3p, constant, isotype_weights, productive_only, \
-                         shm_table, shm_model"
+                         include_nonfunctional, shm_table, shm_model"
                     ),
                 ))
             }
@@ -311,13 +316,13 @@ fn gen_params(d: &Bound<'_, PyDict>) -> PyResult<(gen::GenerateParams, Option<St
 }
 
 /// Load the model, check it is for `locus`, and bind it to the database.
-fn gen_bind(db_path: &str, model_path: &str, locus: Option<Locus>) -> PyResult<(gen::Bound, Database)> {
+fn gen_bind(db_path: &str, model_path: &str, locus: Option<Locus>, nonfunctional: bool) -> PyResult<(gen::Bound, Database)> {
     let model = gen::load_model(model_path.as_ref()).map_err(gen_err)?;
     if let Some(l) = locus.filter(|l| *l != model.locus) {
         return Err(err("INVALID_ARGUMENT", format!("model '{}' is for {}, not {l}", model.name, model.locus)));
     }
     let db = load(db_path)?;
-    Ok((gen::bind(model, &db).map_err(gen_err)?, db))
+    Ok((gen::bind_alleles(model, &db, nonfunctional).map_err(gen_err)?, db))
 }
 
 fn gen_summary<'py>(py: Python<'py>, s: &gen::GenerateSummary) -> PyResult<Bound<'py, PyDict>> {
@@ -373,7 +378,7 @@ fn generate_to_files<'py>(
     let formats =
         formats.iter().map(|f| f.parse::<Format>()).collect::<Result<Vec<_>, _>>().map_err(|e| err("INVALID_ARGUMENT", e))?;
     let s = py.detach(|| {
-        let (bound, db) = gen_bind(&db_path, &model_path, locus)?;
+        let (bound, db) = gen_bind(&db_path, &model_path, locus, p.include_nonfunctional)?;
         let meta = gen::GenerateMeta {
             abstar_version: VERSION.into(),
             germline_db: db.manifest.name.clone(),
@@ -397,7 +402,7 @@ fn generate_fasta_to_stdout<'py>(
 ) -> PyResult<Bound<'py, PyDict>> {
     let (p, _, locus) = gen_params(&params)?;
     let s = py.detach(|| {
-        let (bound, _) = gen_bind(&db_path, &model_path, locus)?;
+        let (bound, _) = gen_bind(&db_path, &model_path, locus, p.include_nonfunctional)?;
         gen::generate_fasta_to_writer(&bound, &p, std::io::stdout().lock()).map_err(gen_err)
     })?;
     gen_summary(py, &s)
@@ -413,7 +418,7 @@ fn generate_in_memory<'py>(
 ) -> PyResult<PyTable> {
     let (p, _, locus) = gen_params(&params)?;
     let batches = py.detach(|| {
-        let (bound, _) = gen_bind(&db_path, &model_path, locus)?;
+        let (bound, _) = gen_bind(&db_path, &model_path, locus, p.include_nonfunctional)?;
         gen::generate_in_memory(&bound, &p).map_err(gen_err)
     })?;
     PyTable::try_new(batches, gen::arrow_schema())

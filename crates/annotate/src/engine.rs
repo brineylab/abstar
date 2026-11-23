@@ -16,6 +16,8 @@ pub trait Annotate: Sync {
 pub struct EngineOptions {
     /// Search only these loci (all of the database's when `None`).
     pub loci: Option<Vec<Locus>>,
+    /// Also search known non-functional alleles (P, NF; record 0038).
+    pub include_nonfunctional: bool,
 }
 
 /// The database's alleles and their V, D, J and C indexes, built once per run.
@@ -30,7 +32,7 @@ pub struct Engine<'a> {
 
 impl<'a> Engine<'a> {
     pub fn new(db: &'a Database, opts: &EngineOptions) -> Result<Engine<'a>, RunError> {
-        let index = |s| SegmentIndex::for_loci(&db.alleles, s, opts.loci.as_deref());
+        let index = |s| SegmentIndex::for_loci(&db.alleles, s, opts.loci.as_deref(), opts.include_nonfunctional);
         Ok(Engine {
             alleles: &db.alleles,
             v: index(Segment::V),

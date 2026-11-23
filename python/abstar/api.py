@@ -104,6 +104,7 @@ def run(
     *,
     germline_db: str = "human",
     locus: str | list[str] | None = None,
+    include_nonfunctional: bool = False,
     formats: str | Iterable[str] = ("airr",),
     threads: int | None = None,
     strict: bool = False,
@@ -123,6 +124,10 @@ def run(
     With `output_dir=None` a Polars DataFrame is returned and `formats` is
     ignored. Otherwise files are written (`formats` from `airr`, `parquet`) and a
     `RunSummary` is returned. `threads` is None or >= 1.
+
+    Alleles the database marks non-functional (pseudogene `P`, OGRDB `NF`) are
+    not searched unless `include_nonfunctional` is true; `F`, `ORF` and
+    `unknown` alleles always are.
     """
     fmts = [formats] if isinstance(formats, str) else list(formats)
     if not fmts or not set(fmts) <= _FORMATS:
@@ -139,8 +144,8 @@ def run(
         if output_dir is None:
             import polars as pl
 
-            return pl.DataFrame(_core.run_in_memory(inputs, records, db_path, threads, strict, loci))
-        d = _core.run_to_files(inputs, records, str(output_dir), db_path, fmts, threads, strict, loci)
+            return pl.DataFrame(_core.run_in_memory(inputs, records, db_path, threads, strict, loci, bool(include_nonfunctional)))
+        d = _core.run_to_files(inputs, records, str(output_dir), db_path, fmts, threads, strict, loci, bool(include_nonfunctional))
     except _core.CoreError as e:
         raise from_core(e) from None
     return RunSummary(

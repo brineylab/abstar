@@ -25,6 +25,8 @@ A recombination model gives gene usage, P(D|J), trims, N lengths and composition
 - `--model` also takes a path to a `model.toml` or a directory holding one. The format is in decision 0023.
 - `abstar model list` and `abstar model info NAME` show them (Python: `abstar.model.list()`, `abstar.model.info(name)`). A user model that fails to load is still listed, with its error.
 
+Non-functional alleles (`P`, `NF`) are not drawn, and truth's equally valid answers leave them out, matching what `abstar run` searches. `--include-nonfunctional` (`include_nonfunctional=True`) draws them too (decision 0038).
+
 A model that does not fit the database (less than 90 % of its V, D or J mass maps to database alleles) is `MODEL_INVALID`. Genes it drops are listed as warnings.
 
 ## Presets

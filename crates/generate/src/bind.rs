@@ -92,15 +92,28 @@ fn check_coverage(seg: &str, kept: f64, dropped: &BTreeSet<String>) -> Result<()
     Ok(())
 }
 
-fn warn(warnings: &mut Vec<String>, seg: &str, dropped: &BTreeSet<String>) {
-    for g in dropped {
+/// Warns about each dropped gene except those in `excluded` (dropped because the run leaves out
+/// their non-functional alleles, record 0038).
+fn warn(warnings: &mut Vec<String>, seg: &str, dropped: &BTreeSet<String>, excluded: &BTreeSet<&str>) {
+    for g in dropped.iter().filter(|g| !excluded.contains(g.as_str())) {
         warnings.push(format!("{seg} gene {g} has no generatable allele in the germline database; dropped"));
     }
 }
 
+/// `bind_alleles` without known non-functional alleles (the default, record 0038).
 pub fn bind(model: Model, db: &Database) -> Result<Bound, GenerateError> {
-    let alleles: Vec<&Allele> =
-        db.alleles.iter().filter(|a| a.species == model.species && a.locus == model.locus).collect();
+    bind_alleles(model, db, false)
+}
+
+/// Binds `model` to the database's alleles of its species and locus; known non-functional
+/// alleles (P, NF) are drawn and compared against only when `nonfunctional`.
+pub fn bind_alleles(model: Model, db: &Database, nonfunctional: bool) -> Result<Bound, GenerateError> {
+    let (alleles, left_out): (Vec<&Allele>, Vec<&Allele>) = db
+        .alleles
+        .iter()
+        .filter(|a| a.species == model.species && a.locus == model.locus)
+        .partition(|a| nonfunctional || !a.functionality.is_nonfunctional());
+    let excluded: BTreeSet<&str> = left_out.iter().map(|a| a.gene.as_str()).collect();
     let of = |s: Segment| alleles.iter().filter(|a| a.segment == s).map(|a| (*a).clone()).collect::<Vec<_>>();
     let candidates =
         Candidates::new(of(Segment::V), of(Segment::D), of(Segment::J), of(Segment::C));
@@ -122,12 +135,12 @@ pub fn bind(model: Model, db: &Database) -> Result<Bound, GenerateError> {
     let (v, kept, dropped) = ctx.table(&model.v_usage, Segment::V);
     let dropped: BTreeSet<_> = dropped.into_iter().collect();
     check_coverage("V", kept, &dropped)?;
-    warn(&mut warnings, "V", &dropped);
+    warn(&mut warnings, "V", &dropped, &excluded);
 
     let (j, kept, dropped) = ctx.table(&model.j_usage, Segment::J);
     let dropped: BTreeSet<_> = dropped.into_iter().collect();
     check_coverage("J", kept, &dropped)?;
-    warn(&mut warnings, "J", &dropped);
+    warn(&mut warnings, "J", &dropped, &excluded);
 
     let mut d_given_j = BTreeMap::new();
     if !model.d_given_j.is_empty() {
@@ -154,7 +167,7 @@ pub fn bind(model: Model, db: &Database) -> Result<Bound, GenerateError> {
             return Err(GenerateError::ModelInvalid(format!("d_given_j.{jg}: missing row for J gene {jg}")));
         }
         check_coverage("D", if weight > 0.0 { mass / weight } else { 1.0 }, &dropped)?;
-        warn(&mut warnings, "D", &dropped);
+        warn(&mut warnings, "D", &dropped, &excluded);
     }
 
     Ok(Bound { v, d_given_j, j, candidates, warnings, model })

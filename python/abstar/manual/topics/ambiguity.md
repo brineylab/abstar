@@ -16,6 +16,10 @@ For each of V, D, J and C (shown for V):
 - There is no ambiguity flag. A call is ambiguous when `len(v_call_ties) > 1`.
 - The name `v_calls` is deliberately avoided: it is one letter from `v_call`.
 
+## Which alleles are searched
+
+Alleles the database marks non-functional (IMGT pseudogene `P`, OGRDB `NF`) are not searched, so they never appear in calls or ties. `F`, `ORF` and `unknown` alleles always are. `--include-nonfunctional` (`abstar.run(..., include_nonfunctional=True)`) searches them too, e.g. for genomic-DNA repertoires or genotyping (decision 0038).
+
 ## Choosing the primary call
 
 `v_call` is picked among the ties by these tie-breakers, in order:

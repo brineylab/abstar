@@ -20,12 +20,14 @@ pub struct RunOptions {
     pub threads: Option<usize>,
     pub strict: bool,
     pub loci: Option<Vec<Locus>>,
+    /// Also search known non-functional alleles (P, NF; record 0038).
+    pub include_nonfunctional: bool,
     pub batch_size: usize,
 }
 
 impl Default for RunOptions {
     fn default() -> Self {
-        Self { threads: None, strict: false, loci: None, batch_size: 4096 }
+        Self { threads: None, strict: false, loci: None, include_nonfunctional: false, batch_size: 4096 }
     }
 }
 
@@ -141,7 +143,7 @@ fn tsv_safe(s: &mut String) {
 }
 
 fn engine_options(opts: &RunOptions) -> EngineOptions {
-    EngineOptions { loci: opts.loci.clone() }
+    EngineOptions { loci: opts.loci.clone(), include_nonfunctional: opts.include_nonfunctional }
 }
 
 /// Runs one opened input; `counts` is updated as batches complete so callers keep partial counts on error.
@@ -341,6 +343,7 @@ fn run_to_files_with(
             "threads": opts.threads,
             "strict": opts.strict,
             "loci": opts.loci.as_ref().map(|l| l.iter().map(|l| l.to_string()).collect::<Vec<_>>()),
+            "include_nonfunctional": opts.include_nonfunctional,
         },
         "database": {"name": db.manifest.name, "alleles_sha256": db.manifest.alleles_sha256},
         "inputs": summaries.iter().map(|s| serde_json::json!({

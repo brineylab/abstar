@@ -101,6 +101,8 @@ pub struct GenerateParams {
     /// C gene name → weight; empty ⇒ uniform over the locus's C alleles.
     pub isotype_weights: BTreeMap<String, f64>,
     pub productive_only: bool,
+    /// Also draw (and compare truth against) known non-functional alleles (P, NF; record 0038).
+    pub include_nonfunctional: bool,
     /// Overrides the model's `shm_model` ("motif" | "none").
     pub shm_model: Option<String>,
     /// S5F directory; replaces the motif model wherever the model mutates.
@@ -125,6 +127,7 @@ pub fn preset(name: &str) -> Result<GenerateParams, GenerateError> {
         constant_len: None,
         isotype_weights: BTreeMap::new(),
         productive_only: false,
+        include_nonfunctional: false,
         shm_model: None,
         shm_table: None,
         threads: None,

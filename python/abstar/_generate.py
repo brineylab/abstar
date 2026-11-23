@@ -85,8 +85,10 @@ def generate(
     memory, bnab, tcr) sets the starting parameters and `options` override them:
     `mutation`, `long_cdr3_weight`, `indels`, `frameshift_indels`,
     `indel_duplication`, `truncate_5p`, `truncate_3p`, `constant` (nt of constant
-    region, or None), `isotype_weights`, `productive_only`, `shm_table` (a
-    directory of S5F CSVs) and `shm_model`. `mutation` takes a number or `fixed:X`,
+    region, or None), `isotype_weights`, `productive_only`,
+    `include_nonfunctional` (also draw pseudogene `P` and non-functional `NF`
+    alleles, off by default), `shm_table` (a directory of S5F CSVs) and
+    `shm_model`. `mutation` takes a number or `fixed:X`,
     `uniform:LO-HI`, `beta:A,B`; the truncations (nt) a number, `fixed:N` or
     `uniform:LO-HI`. Without `seed` one is
     drawn (and recorded in generate.json).

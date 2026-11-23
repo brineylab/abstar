@@ -10,7 +10,7 @@ mod schema;
 mod shm;
 mod truth;
 
-pub use bind::{bind, Bound, Candidates};
+pub use bind::{bind, bind_alleles, Bound, Candidates};
 pub use error::GenerateError;
 pub use model::{load_model, Dist, Model, Source, TrimSet, Trims};
 pub use params::{preset, GenerateParams, Spec, PRESETS};

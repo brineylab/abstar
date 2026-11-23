@@ -1,4 +1,5 @@
 import gzip
+import json
 import tomllib
 from pathlib import Path
 
@@ -190,3 +191,25 @@ def test_latin1_header_is_invalid_encoding(tmp_path):
     assert df["sequence_id"].to_list() == ["caf�", "ok"]
     assert df["failure_reason"].to_list() == ["invalid_encoding", "no_v_hit"]
     assert df["annotation_status"].to_list() == ["invalid_input", "unassigned"]
+
+
+def kv229_read() -> str:
+    """IGKV2-29*01 (NF: TGA at Cys104) with TGT there + CCC + IGKJ1*01, in frame (record 0038)."""
+    al = pl.read_csv(Path(abstar.__file__).parent / "germline_dbs/human/alleles.tsv", separator="\t", infer_schema_length=0)
+    gapped = al.filter(pl.col("id") == "IGKV2-29*01")["sequence_gapped"][0]
+    c = len(gapped[:309].replace(".", ""))
+    v = gapped.replace(".", "")
+    j = al.filter(pl.col("id") == "IGKJ1*01")["sequence_gapped"][0]
+    return v[:c] + "TGT" + v[c + 3:] + "CCC" + j
+
+
+def test_nonfunctional_alleles_only_on_request(tmp_path):
+    # Record 0038: the read is called to a functional allele by default; include_nonfunctional
+    # searches IGKV2-29*01 too, which then wins.
+    read = [("k", kv229_read())]
+    default = abstar.run(read).row(0, named=True)
+    assert default["v_call"] != "IGKV2-29*01" and "IGKV2-29*01" not in default["v_call_ties"]
+    assert default["junction_aa"] == "CMQGIHLPPPWTF"
+    assert abstar.run(read, include_nonfunctional=True)["v_call"][0] == "IGKV2-29*01"
+    s = abstar.run(read, tmp_path / "out", include_nonfunctional=True)
+    assert json.loads(s.run_json.read_text())["parameters"]["include_nonfunctional"] is True

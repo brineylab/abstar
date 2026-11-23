@@ -38,13 +38,17 @@ pub struct SegmentIndex {
 }
 
 impl SegmentIndex {
+    /// Every allele of `segment` except known non-functional ones (record 0038).
     pub fn new(alleles: &[Allele], segment: Segment) -> SegmentIndex {
-        SegmentIndex::for_loci(alleles, segment, None)
+        SegmentIndex::for_loci(alleles, segment, None, false)
     }
 
-    /// `new` restricted to alleles of `loci` (all loci when `None`).
-    pub fn for_loci(alleles: &[Allele], segment: Segment, loci: Option<&[Locus]>) -> SegmentIndex {
-        let keep = |a: &Allele| a.segment == segment && loci.is_none_or(|l| l.contains(&a.locus));
+    /// `new` restricted to alleles of `loci` (all loci when `None`), with known non-functional
+    /// alleles (P, NF) only when `nonfunctional`.
+    pub fn for_loci(alleles: &[Allele], segment: Segment, loci: Option<&[Locus]>, nonfunctional: bool) -> SegmentIndex {
+        let keep = |a: &Allele| {
+            a.segment == segment && loci.is_none_or(|l| l.contains(&a.locus)) && (nonfunctional || !a.functionality.is_nonfunctional())
+        };
         let ids: Vec<usize> = (0..alleles.len()).filter(|&i| keep(&alleles[i])).collect();
         let seqs: Vec<Vec<u8>> = ids.iter().map(|&i| alleles[i].sequence().to_ascii_uppercase().into_bytes()).collect();
         let gapped: Vec<Vec<u8>> = ids.iter().map(|&i| alleles[i].sequence_gapped.to_ascii_uppercase().into_bytes()).collect();

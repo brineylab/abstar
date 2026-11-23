@@ -7,7 +7,7 @@ use std::collections::{BTreeSet, HashMap};
 use std::path::Path;
 
 use abstar_generate::{
-    bind, generate_to_files, load_model, preset, productivity, replay, seed_for, truth, Bound, Dist, GenerateMeta,
+    bind, bind_alleles, generate_to_files, load_model, preset, productivity, replay, seed_for, truth, Bound, Dist, GenerateMeta,
     GenerateParams, Simulated, Simulator,
 };
 use common::oracle;
@@ -456,13 +456,23 @@ fn neutral_output_pinned() {
         model_path: root.join("models/human-igh/model.toml"),
         preset: Some("memory".into()),
     };
-    let p = GenerateParams { n: 300, seed: 42, indel_rate: 0.2, ..preset("memory").unwrap() };
-    let dir = tempfile::tempdir().unwrap();
-    generate_to_files(&bound("human-igh"), &p, dir.path(), "pin", &[abstar_table::writers::Format::Airr], &meta).unwrap();
-    let hash = |f: &str| {
-        let bytes = std::fs::read(dir.path().join(f)).unwrap();
-        Sha256::digest(&bytes).iter().map(|b| format!("{b:02x}")).collect::<String>()
+    let hashes = |b: &Bound, nonfunctional: bool| {
+        let p = GenerateParams { n: 300, seed: 42, indel_rate: 0.2, include_nonfunctional: nonfunctional, ..preset("memory").unwrap() };
+        let dir = tempfile::tempdir().unwrap();
+        generate_to_files(b, &p, dir.path(), "pin", &[abstar_table::writers::Format::Airr], &meta).unwrap();
+        ["pin.fasta", "pin.truth.tsv"].map(|f| {
+            let bytes = std::fs::read(dir.path().join(f)).unwrap();
+            Sha256::digest(&bytes).iter().map(|b| format!("{b:02x}")).collect::<String>()
+        })
     };
-    assert_eq!(hash("pin.fasta"), "1e60db4508fc6450f63399da818ee460cb64ecadd31c696dcb5b315157585ef9");
-    assert_eq!(hash("pin.truth.tsv"), "9ce0e41c99caede06fa9f6bd5f4e6210b09b78b1c5a79b5fa9d8b006b6b02887");
+    let [fasta, truth] = hashes(&bound("human-igh"), false);
+    assert_eq!(fasta, "415d44100eb001076ce907a830caade2798652b62510d82be9cd089555ee78ea");
+    assert_eq!(truth, "57e8fbd3bd96e0dca8c4ecd983c29b101805321eddf446ef5cfc07e93a383055");
+    // With non-functional alleles (record 0038's opt-in), the output is 1.0.0's, byte for byte.
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../python/abstar");
+    let db = abstar_germline::load(&root.join("germline_dbs/human")).unwrap();
+    let all = bind_alleles(load_model(&root.join("models/human-igh/model.toml")).unwrap(), &db, true).unwrap();
+    let [fasta, truth] = hashes(&all, true);
+    assert_eq!(fasta, "1e60db4508fc6450f63399da818ee460cb64ecadd31c696dcb5b315157585ef9");
+    assert_eq!(truth, "9ce0e41c99caede06fa9f6bd5f4e6210b09b78b1c5a79b5fa9d8b006b6b02887");
 }

@@ -272,3 +272,21 @@ def test_output_dir_is_a_file(tmp_path):
     p = abstar("run", fa, fa)
     assert p.returncode == 2 and p.stderr.startswith("error[INVALID_ARGUMENT]: "), p.stderr
     assert fa.read_text() == FA
+
+
+def test_include_nonfunctional_flags(tmp_path):
+    from test_run_api import kv229_read
+
+    def v_call(*flags):
+        p = abstar("run", "--seq", kv229_read(), *flags)
+        assert p.returncode == 0, p.stderr
+        head, row = (line.split("\t") for line in p.stdout.splitlines())
+        return dict(zip(head, row))["v_call"]
+
+    assert v_call() != "IGKV2-29*01" and v_call("--include-nonfunctional") == "IGKV2-29*01"
+    p = abstar("run", "--seq", kv229_read(), tmp_path / "run", "--include-nonfunctional", "-q")
+    assert p.returncode == 0, p.stderr
+    assert json.loads((tmp_path / "run" / "run.json").read_text())["parameters"]["include_nonfunctional"] is True
+    p = abstar("generate", tmp_path / "gen", "--n", "3", "--locus", "IGH", "--seed", "1", "--include-nonfunctional", "-q")
+    assert p.returncode == 0, p.stderr
+    assert json.loads((tmp_path / "gen" / "generate.json").read_text())["parameters"]["include_nonfunctional"] is True
