@@ -299,3 +299,12 @@ def test_run_sequence_type_aa():
     assert p.returncode == 0, p.stderr
     head, row = (line.split("\t") for line in p.stdout.splitlines())
     assert dict(zip(head, row))["v_gene"] == "IGHV1-2"
+
+
+def test_run_sequence_type_case_insensitive():
+    from test_run_api import IGH_AA
+
+    p = abstar("run", "--seq", IGH_AA, "--sequence-type", "AA")
+    assert p.returncode == 0, p.stderr
+    head, row = (line.split("\t") for line in p.stdout.splitlines())
+    assert dict(zip(head, row))["v_gene"] == "IGHV1-2"

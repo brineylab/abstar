@@ -66,6 +66,7 @@ def run(
     verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Print the database and inputs to stderr.")] = False,
 ) -> None:
     """Annotate sequences. Without OUTPUT_DIR, TSV streams to stdout."""
+    sequence_type = sequence_type.lower()
     if seq is not None and sequences is not None:
         if output_dir is not None or (os.path.exists(sequences) and not os.path.isdir(sequences)):
             raise AbstarError("INVALID_ARGUMENT", "SEQUENCES and --seq are mutually exclusive")

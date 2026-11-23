@@ -228,7 +228,7 @@ def test_aa_string_is_a_sequence():
 def test_aa_string_rejected_in_nt_mode():
     with pytest.raises(AbstarError) as e:
         abstar.run(IGH_AA)
-    assert e.value.code == "INPUT_NOT_FOUND"
+    assert e.value.code == "INPUT_NOT_FOUND" and e.value.message.endswith("(protein? use sequence_type='aa')")
 
 
 def test_bad_sequence_type():

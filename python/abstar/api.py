@@ -74,7 +74,8 @@ def _classify(item, aa: bool = False) -> tuple[str, object]:
     if item and _exists(Path(item)):
         return "path", Path(item)
     if not (_AA if aa else _NT).issuperset(item):
-        raise AbstarError("INPUT_NOT_FOUND", f"{item}: not an existing file and not {'an amino-acid' if aa else 'a nucleotide'} sequence")
+        hint = " (protein? use sequence_type='aa')" if not aa and _AA.issuperset(item) else ""
+        raise AbstarError("INPUT_NOT_FOUND", f"{item}: not an existing file and not {'an amino-acid' if aa else 'a nucleotide'} sequence{hint}")
     return "seq", item
 
 
@@ -133,7 +134,7 @@ def run(
     not searched unless `include_nonfunctional` is true; `F`, `ORF` and
     `unknown` alleles always are.
 
-    `sequence_type` is `"nt"` (default) or `"aa"`; anything else raises
+    `sequence_type` is `"nt"` (default) or `"aa"`, any case; anything else raises
     `INVALID_ARGUMENT`.
     """
     fmts = [formats] if isinstance(formats, str) else list(formats)
@@ -141,6 +142,7 @@ def run(
         raise AbstarError("INVALID_ARGUMENT", f"formats must be a non-empty subset of {sorted(_FORMATS)}, got {fmts!r}")
     if threads is not None and (isinstance(threads, bool) or not isinstance(threads, int) or threads < 1):
         raise AbstarError("INVALID_ARGUMENT", f"threads must be None or an integer >= 1, got {threads!r}")
+    sequence_type = sequence_type.lower() if isinstance(sequence_type, str) else sequence_type
     if sequence_type not in ("nt", "aa"):
         raise AbstarError("INVALID_ARGUMENT", f"sequence_type must be 'nt' or 'aa', got {sequence_type!r}")
     loci = [locus] if isinstance(locus, str) else (list(locus) if locus is not None else None)
