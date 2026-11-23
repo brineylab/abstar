@@ -1,8 +1,8 @@
 format_version = 1
 name = "human+c57bl6"
 description = "Human (Homo sapiens) and C57BL/6 mouse (Mus musculus) IG germline genes. Human IGH, IGK and IGL V, D and J: OGRDB Homo sapiens germline sets IGH_VDJ_extended rev 9, IGKappa_VJ_extended rev 4 and IGLambda_VJ_extended rev 3 (released 2024-10-12); human constant regions: IMGT GENE-DB. Mouse IGH V, D and J: OGRDB Mus musculus C57BL/6 IGH rev 3 (2022-06-02); IGKV and IGLV: OGRDB Mus musculus C57BL/6J IGKV rev 1 and IGLV rev 1 (2022-05-03); IGKJ and IGLJ: OGRDB Mus musculus IGKJ (all strains) and IGLJ (all strains) rev 1 (2022-05-31); mouse constant regions: IMGT GENE-DB Mus musculus (downloaded 2024-08-19)."
-abstar_version = "1.0.0-dev.0"
-built = "2026-11-20"
+abstar_version = "1.0.0"
+built = "2026-11-23"
 alleles_sha256 = "40af9ba49a3567b52398faff0f06529d6665642ba3624394ab82baeb862f4daf"
 species = ["human", "mouse"]
 loci = ["IGH", "IGK", "IGL"]
