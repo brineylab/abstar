@@ -158,3 +158,15 @@ fn alignment_strings() {
     let dashes: Vec<usize> = g.bytes().enumerate().filter(|x| x.1 == b'-').map(|x| x.0).collect();
     assert_eq!(dashes, (n0..n0 + 13).collect::<Vec<_>>());
 }
+
+#[test]
+fn mutated_first_residue_extends_v() {
+    // Q>P at IMGT 1 is cut by the trim; the 5' extension (record 0029) brings it back.
+    let q = format!("P{}", &IGH_AA[1..]);
+    let q = q.as_bytes();
+    let (c, reg) = regions(q);
+    assert_eq!(c.v.aln.q_start, 0);
+    assert_eq!(reg.fwr1, Some((0, 25)));
+    let [v, _] = aa_mutations(q, &c, &r().v, &r().j);
+    assert!(v.unwrap().nt.contains(&"IMGT1:Q>P".to_string()));
+}

@@ -97,3 +97,19 @@ fn overlap_cut_earliest() {
     assert_eq!((c.v.aln.q_end, j.aln.q_start), (n, n - 2));
     assert_eq!((c.v_end, c.j_start), (n - 2, n - 2));
 }
+
+#[test]
+fn leader_not_pulled_into_v() {
+    let q = format!("MDWTWRILFLVAAATGAHS{IGH_AA}");
+    assert_eq!(call(q.as_bytes()).unwrap().v.aln.q_start, 19);
+}
+
+#[test]
+fn long_extension_without_identity_not_taken() {
+    // QVQL -> WWWW: every column scores below zero, so the trim cuts all four, and a
+    // 4-residue extension with no residue identical to the allele is not taken.
+    let q = format!("WWWW{}", &IGH_AA[4..]);
+    let c = call(q.as_bytes()).unwrap();
+    assert_eq!(a(c.v.primary).gene, "IGHV1-2");
+    assert_eq!(c.v.aln.q_start, 4);
+}

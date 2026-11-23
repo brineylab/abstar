@@ -10,6 +10,13 @@ use abstar_germline::{Allele, Locus};
 pub const MIN_V_SCORE_AA: i32 = 50; // calibrated 2026-11-23: aa gate (test_accuracy.py SETS), true v/j/junction accuracy
 pub const MIN_J_SCORE_AA: i32 = 15; // calibrated 2026-11-23: aa gate (test_accuracy.py SETS), true v/j/junction accuracy
 
+/// V's 5' end extends to the query's or the allele's start when that is at most this many
+/// residues away on the alignment's first diagonal (record 0029; nucleotide `MAX_START_EXT` = 20 nt) ...
+const MAX_START_EXT_AA: usize = 7;
+/// ... and the extension is at most this long or has a residue identical to the allele
+/// (nucleotide `FREE_START_EXT` = 3 nt).
+const FREE_START_EXT_AA: usize = 2;
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct AaHit {
     /// Database index of the primary allele (record 0008); `ties[0]`.
@@ -104,6 +111,31 @@ fn trim_protein(aln: &Alignment, q: &[u8], g: &[u8], s: &ProteinScoring, keep_en
     Alignment { score: best.max(0), q_start: cols[start].q, q_end, g_start: cols[start].g, g_end, ops }
 }
 
+/// `aln` extended along its first diagonal to the query's or the allele's start, whichever comes
+/// first (record 0029, as nucleotide V's `extend_start`): the trim cuts mutated first V residues.
+/// A leader before FWR1 reaches the allele's start first, so it is never pulled in.
+fn extend_start(aln: Alignment, q: &[u8], g: &[u8]) -> Alignment {
+    let k = aln.q_start.min(aln.g_start);
+    if k == 0 || k > MAX_START_EXT_AA {
+        return aln;
+    }
+    let (q_start, g_start) = (aln.q_start - k, aln.g_start - k);
+    let same = |x: usize| q[q_start + x] != b'X' && q[q_start + x] == g[g_start + x];
+    let cols: Vec<Op> = (0..k).map(|x| if same(x) { Op::Match } else { Op::Mismatch }).collect();
+    if k > FREE_START_EXT_AA && !cols.contains(&Op::Match) {
+        return aln;
+    }
+    let score = aln.score + (0..k).map(|x| blosum62(q[q_start + x], g[g_start + x])).sum::<i32>();
+    let mut ops: Vec<(Op, u32)> = Vec::new();
+    for (op, n) in cols.into_iter().map(|op| (op, 1)).chain(aln.ops.iter().copied()) {
+        match ops.last_mut() {
+            Some((last, m)) if *last == op => *m += n,
+            _ => ops.push((op, n)),
+        }
+    }
+    Alignment { score, q_start, g_start, ops, ..aln }
+}
+
 /// Mismatched and gapped columns of `aln` inside query `lo..hi` (a deletion counts when it
 /// falls between two residues of the range), plus residues of the range `aln` doesn't cover.
 fn differences(aln: &Alignment, lo: usize, hi: usize) -> usize {
@@ -162,16 +194,21 @@ fn hit(q: &[u8], from: usize, seg: &AaSegment, locus: Option<Locus>, alleles: &[
         return None;
     }
     let locus = seg.groups[*best].locus;
-    let t = trim_protein(ba, q, &seg.groups[*best].seq, s, keep_end);
-    let diffs: Vec<(usize, usize)> =
-        alns.iter().filter(|(k, _)| seg.groups[*k].locus == locus).map(|(k, a)| (*k, differences(a, t.q_start, t.q_end))).collect();
+    // V only (J keeps its end, and its start is the junction): extend 5' after the trim.
+    let ext = |a: Alignment, k: usize| if keep_end { a } else { extend_start(a, q, &seg.groups[k].seq) };
+    let t = ext(trim_protein(ba, q, &seg.groups[*best].seq, s, keep_end), *best);
+    let diffs: Vec<(usize, usize)> = alns
+        .iter()
+        .filter(|(k, _)| seg.groups[*k].locus == locus)
+        .map(|(k, a)| (*k, differences(&ext(a.clone(), *k), t.q_start, t.q_end)))
+        .collect();
     let fewest = diffs.iter().map(|x| x.1).min()?;
     let mut ties: Vec<usize> = diffs.iter().filter(|x| x.1 == fewest).flat_map(|x| seg.groups[x.0].alleles.iter().copied()).collect();
     // ties[0] is `primary_by_tiebreak(&ties, alleles)`.
     ties.sort_by(|&x, &y| tiebreak_cmp(&alleles[x], &alleles[y]).then(x.cmp(&y)));
     let primary = ties[0];
     let (group, ga) = alns.iter().find(|(k, _)| seg.groups[*k].alleles.contains(&primary))?;
-    let aln = trim_protein(ga, q, &seg.groups[*group].seq, s, keep_end);
+    let aln = ext(trim_protein(ga, q, &seg.groups[*group].seq, s, keep_end), *group);
     Some(AaHit { primary, ties, group: *group, aln })
 }
 

@@ -77,6 +77,7 @@ def _grade_aa(truth, calls):
         cells |= {f: r[f] == r[f"{f}_c"] for f in ("locus", "productive", "stop_codon")}
         gated = {**{reg: ok["v"] for reg in V_REGIONS}, "fwr4": ok["j"], "cdr3": ok["v"] and ok["j"]}
         cells |= {f"{reg}{x}": r[f"{reg}{x}"] == r[f"{reg}{x}_c"] for reg, g in gated.items() if g for x in ("_aa", "_length")}
+        # junction_length is not graded: truth gives it in nucleotides and aa mode leaves it null.
         if ok["v"] and ok["j"]:
             cells["junction_aa"] = r["junction_aa"] == r["junction_aa_c"]
         if ok["v"]:

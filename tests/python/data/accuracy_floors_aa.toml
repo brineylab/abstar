@@ -31,8 +31,8 @@
 "locus" = 0.9950
 "productive" = 0.9934
 "stop_codon" = 0.9950
-"fwr1_aa" = 0.8998
-"fwr1_length" = 0.8998
+"fwr1_aa" = 0.9933
+"fwr1_length" = 0.9933
 "cdr1_aa" = 0.9950
 "cdr1_length" = 0.9950
 "fwr2_aa" = 0.9950
@@ -46,18 +46,18 @@
 "cdr3_aa" = 0.9554
 "cdr3_length" = 0.9554
 "junction_aa" = 0.9554
-"v_mutations_aa" = 0.8581
+"v_mutations_aa" = 0.9499
 
 [igh_bnab]
-"v_call" = 0.8210
+"v_call" = 0.8215
 "j_call" = 0.8395
-"v_gene" = 0.8965
+"v_gene" = 0.8970
 "j_gene" = 0.8440
 "locus" = 0.9950
 "productive" = 0.9865
 "stop_codon" = 0.9950
-"fwr1_aa" = 0.7190
-"fwr1_length" = 0.7190
+"fwr1_aa" = 0.9454
+"fwr1_length" = 0.9454
 "cdr1_aa" = 0.9859
 "cdr1_length" = 0.9865
 "fwr2_aa" = 0.9835
@@ -71,7 +71,7 @@
 "cdr3_aa" = 0.9915
 "cdr3_length" = 0.9915
 "junction_aa" = 0.9915
-"v_mutations_aa" = 0.5452
+"v_mutations_aa" = 0.7095
 
 [igk]
 "v_call" = 0.9950
@@ -179,10 +179,10 @@
 "v_gene" = 0.9917
 "j_gene" = 0.9689
 "locus" = 0.9950
-"productive" = 0.9885
-"stop_codon" = 0.9885
-"fwr1_aa" = 0.8997
-"fwr1_length" = 0.8997
+"productive" = 0.9934
+"stop_codon" = 0.9934
+"fwr1_aa" = 0.9883
+"fwr1_length" = 0.9883
 "cdr1_aa" = 0.9950
 "cdr1_length" = 0.9950
 "fwr2_aa" = 0.9950
@@ -196,18 +196,18 @@
 "cdr3_aa" = 0.9589
 "cdr3_length" = 0.9589
 "junction_aa" = 0.9589
-"v_mutations_aa" = 0.8428
+"v_mutations_aa" = 0.9231
 
 [igh_bnab_c]
-"v_call" = 0.8250
+"v_call" = 0.8255
 "j_call" = 0.8265
-"v_gene" = 0.8905
+"v_gene" = 0.8910
 "j_gene" = 0.8320
 "locus" = 0.9950
 "productive" = 0.9905
 "stop_codon" = 0.9950
-"fwr1_aa" = 0.7257
-"fwr1_length" = 0.7257
+"fwr1_aa" = 0.9450
+"fwr1_length" = 0.9450
 "cdr1_aa" = 0.9866
 "cdr1_length" = 0.9866
 "fwr2_aa" = 0.9751
@@ -216,7 +216,7 @@
 "cdr2_length" = 0.9751
 "fwr3_aa" = 0.9830
 "fwr3_length" = 0.9830
-"v_mutations_aa" = 0.5408
+"v_mutations_aa" = 0.6916
 "fwr4_aa" = 0.9896
 "fwr4_length" = 0.9896
 "cdr3_aa" = 0.9928
