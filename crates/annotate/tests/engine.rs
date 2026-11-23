@@ -58,7 +58,7 @@ fn engine_end_to_end_igh() {
     assert_eq!(read.len(), 379);
     let r = engine().annotate("r1", &read);
     assert_eq!((r.annotation_status.as_str(), r.failure_reason.as_deref()), ("annotated", None));
-    assert_eq!((r.sequence_id.as_str(), r.sequence.as_str()), ("r1", read.as_str()));
+    assert_eq!((r.sequence_id.as_str(), r.sequence.as_deref().unwrap()), ("r1", read.as_str()));
     assert_eq!((r.rev_comp, r.locus.as_deref()), (Some(false), Some("IGH")));
     // calls
     assert_eq!((r.v_call.as_deref(), r.v_gene.as_deref(), r.v_species.as_deref()), (Some("IGHV1-2*02"), Some("IGHV1-2"), Some("human")));

@@ -26,6 +26,9 @@ abstar run reads.fasta out/ -g c57bl6 --locus IGH --locus IGK --threads 8
 
 # Machine-readable summary; fail with exit 3 on any record error
 abstar run reads.fasta out/ --json --strict
+
+# Protein input (one residue per letter); sequence_aa holds the input, sequence is null
+abstar run antibodies.fasta out/ --sequence-type aa
 ```
 
 SEQUENCES is always a file, a directory or `-`; use `--seq` for a sequence.

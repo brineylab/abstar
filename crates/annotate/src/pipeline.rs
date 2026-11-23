@@ -1,4 +1,5 @@
 //! Streaming run pipeline: read batches, annotate in parallel, write in input order.
+use crate::aa::AaEngine;
 use crate::engine::{Annotate, Engine, EngineOptions};
 use crate::error::RunError;
 use crate::input::{Input, Source};
@@ -15,6 +16,34 @@ use std::panic::{self, AssertUnwindSafe};
 use std::path::{Path, PathBuf};
 use std::sync::Once;
 
+/// Whether a run's sequences are nucleotide or amino-acid (protein); one run is one type.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum SequenceType {
+    #[default]
+    Nt,
+    Aa,
+}
+
+impl std::str::FromStr for SequenceType {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, String> {
+        match s {
+            "nt" => Ok(Self::Nt),
+            "aa" => Ok(Self::Aa),
+            _ => Err(format!("sequence_type must be 'nt' or 'aa', got {s:?}")),
+        }
+    }
+}
+
+impl std::fmt::Display for SequenceType {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        f.write_str(match self {
+            Self::Nt => "nt",
+            Self::Aa => "aa",
+        })
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct RunOptions {
     pub threads: Option<usize>,
@@ -23,11 +52,12 @@ pub struct RunOptions {
     /// Also search known non-functional alleles (P, NF; record 0038).
     pub include_nonfunctional: bool,
     pub batch_size: usize,
+    pub sequence_type: SequenceType,
 }
 
 impl Default for RunOptions {
     fn default() -> Self {
-        Self { threads: None, strict: false, loci: None, include_nonfunctional: false, batch_size: 4096 }
+        Self { threads: None, strict: false, loci: None, include_nonfunctional: false, batch_size: 4096, sequence_type: SequenceType::Nt }
     }
 }
 
@@ -96,13 +126,7 @@ fn annotate_guarded(f: Annotator, id: &str, seq: &str) -> Record {
             .map(|s| s.to_string())
             .or_else(|| p.downcast_ref::<String>().cloned())
             .unwrap_or_else(|| "unknown panic".into());
-        Record {
-            sequence_id: id.into(),
-            sequence: seq.into(),
-            annotation_status: "error".into(),
-            failure_reason: Some(format!("internal_error: {msg}")),
-            ..Default::default()
-        }
+        f.failed(id, seq, "error", &format!("internal_error: {msg}"))
     })
 }
 
@@ -142,8 +166,13 @@ fn tsv_safe(s: &mut String) {
     }
 }
 
-fn engine_options(opts: &RunOptions) -> EngineOptions {
-    EngineOptions { loci: opts.loci.clone(), include_nonfunctional: opts.include_nonfunctional }
+/// The run's annotator: `Engine` or `AaEngine` by `opts.sequence_type`.
+fn engine<'a>(db: &'a Database, opts: &RunOptions) -> Result<Box<dyn Annotate + 'a>, RunError> {
+    let o = EngineOptions { loci: opts.loci.clone(), include_nonfunctional: opts.include_nonfunctional };
+    Ok(match opts.sequence_type {
+        SequenceType::Nt => Box::new(Engine::new(db, &o)?),
+        SequenceType::Aa => Box::new(AaEngine::new(db, &o)?),
+    })
 }
 
 /// Runs one opened input; `counts` is updated as batches complete so callers keep partial counts on error.
@@ -178,13 +207,7 @@ fn run_input(
                     if *utf8 {
                         annotate_guarded(ann, id, seq)
                     } else {
-                        Record {
-                            sequence_id: id.clone(),
-                            sequence: seq.clone(),
-                            annotation_status: "invalid_input".into(),
-                            failure_reason: Some("invalid_encoding".into()),
-                            ..Default::default()
-                        }
+                        ann.failed(id, seq, "invalid_input", "invalid_encoding")
                     }
                 })
                 .collect()
@@ -192,7 +215,9 @@ fn run_input(
         for r in &mut recs {
             r.source_file = source_file.clone();
             tsv_safe(&mut r.sequence_id);
-            tsv_safe(&mut r.sequence);
+            for s in [&mut r.sequence, &mut r.sequence_aa].into_iter().flatten() {
+                tsv_safe(s);
+            }
             match r.annotation_status.as_str() {
                 "annotated" => counts.annotated += 1,
                 "unassigned" => counts.unassigned += 1,
@@ -251,8 +276,8 @@ pub fn run_to_files(
     meta: &RunMeta,
 ) -> Result<RunSummary, RunError> {
     validate(db, opts)?;
-    let engine = Engine::new(db, &engine_options(opts))?;
-    run_to_files_with(inputs, output_dir, db, formats, opts, meta, &engine)
+    let engine = engine(db, opts)?;
+    run_to_files_with(inputs, output_dir, db, formats, opts, meta, &*engine)
 }
 
 fn run_to_files_with(
@@ -344,6 +369,7 @@ fn run_to_files_with(
             "strict": opts.strict,
             "loci": opts.loci.as_ref().map(|l| l.iter().map(|l| l.to_string()).collect::<Vec<_>>()),
             "include_nonfunctional": opts.include_nonfunctional,
+            "sequence_type": opts.sequence_type.to_string(),
         },
         "database": {"name": db.manifest.name, "alleles_sha256": db.manifest.alleles_sha256},
         "inputs": summaries.iter().map(|s| serde_json::json!({
@@ -364,7 +390,7 @@ pub fn run_to_writer<W: Write>(
     out: W,
 ) -> Result<StatusCounts, RunError> {
     validate(db, opts)?;
-    let engine = Engine::new(db, &engine_options(opts))?;
+    let engine = engine(db, opts)?;
     let pool = pool(opts)?;
     let pipe = |e: &std::io::Error| e.kind() == ErrorKind::BrokenPipe;
     let mut w = match TsvWriter::new(BufWriter::with_capacity(1 << 16, out)) {
@@ -376,7 +402,7 @@ pub fn run_to_writer<W: Write>(
     let mut closed = false;
     for input in inputs {
         let mut c = StatusCounts::default();
-        let r = run_input(input, Source::open(input)?, opts, &pool, &engine, &mut c, &mut |b| match w.write(b) {
+        let r = run_input(input, Source::open(input)?, opts, &pool, &*engine, &mut c, &mut |b| match w.write(b) {
             Err(e) if pipe(&e) => {
                 closed = true;
                 Err(RunError::Io("broken pipe".into()))
@@ -397,8 +423,8 @@ pub fn run_to_writer<W: Write>(
 
 pub fn run_in_memory(inputs: &[Input], db: &Database, opts: &RunOptions) -> Result<Vec<RecordBatch>, RunError> {
     validate(db, opts)?;
-    let engine = Engine::new(db, &engine_options(opts))?;
-    in_memory(inputs, opts, &engine)
+    let engine = engine(db, opts)?;
+    in_memory(inputs, opts, &*engine)
 }
 
 /// Same as `run_in_memory` with an injected annotator (tests).

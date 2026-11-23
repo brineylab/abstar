@@ -14,6 +14,7 @@ mod translate;
 pub use alignment::{alignments, Alignments};
 pub use masks::{masks, Masks};
 pub use mutations::{mutations, segments, SegmentMutations};
+pub(crate) use mutations::segment;
 pub use productivity::{productivity, Productivity};
 pub use regions::{regions, Regions};
 pub use translate::{region_aa, translate};
@@ -30,7 +31,7 @@ pub type Col = (Option<usize>, Option<usize>);
 /// The columns of `aln` over read positions `span`. Positions of `span` outside the alignment
 /// continue its first or last diagonal, as the junction step extends V and J (record 0030). A
 /// deletion is kept only between two positions of `span`.
-fn columns(aln: &Alignment, span: Range<usize>) -> Vec<Col> {
+pub(crate) fn columns(aln: &Alignment, span: Range<usize>) -> Vec<Col> {
     let mut out: Vec<Col> = (span.start..aln.q_start.min(span.end))
         .filter_map(|i| (aln.g_start + i).checked_sub(aln.q_start).map(|u| (Some(i), Some(u))))
         .collect();

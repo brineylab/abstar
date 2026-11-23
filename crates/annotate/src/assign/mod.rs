@@ -16,6 +16,7 @@ pub use j::{assign_j, JHit};
 pub use junction::{resolve_junction, DHit, Junction};
 pub use orient::{orient, reverse_complement, Oriented};
 pub use ties::primary_by_tiebreak;
+pub(crate) use ties::tiebreak_cmp;
 pub use v::{assign_v, VHit, MIN_V_SCORE};
 
 use crate::align::{KmerIndex, Scoring};
