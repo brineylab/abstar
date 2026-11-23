@@ -410,23 +410,19 @@ fn mutated_j_start_cannot_pass_a_held_anchor() {
 
 #[test]
 fn trp_placed_when_j_starts_past_it() {
-    // #162: real Jaffe chains whose J alignment starts 1-15 nt past the Trp/Phe118 codon (mutated,
-    // inserted or duplicated J 5' ends, and spurious J indels next to the codon); realigning J
-    // places the codon and the junction is legacy abstar's. `junction=-`: J is deleted through
-    // its codon and legacy took a D-encoded Trp 6 nt upstream; no junction is placed.
+    // #162: real Jaffe chains whose J alignment starts 1-15 nt past the Trp/Phe118 codon: mutated,
+    // inserted or duplicated J 5' ends, spurious J indels next to the codon, codons inserted after
+    // the Trp (one a TTT, which an IGHJ's Trp118 cannot be), and Js deleted through their Trp
+    // with a D- or N-encoded Trp before them. The junction is legacy abstar's.
     let fasta = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/j_past_anchor.fasta")).unwrap();
     let mut n = 0;
     for rec in fasta.split('>').skip(1) {
         let (head, seq) = rec.split_once('\n').unwrap();
         let (id, want) = head.split_once(" junction=").unwrap();
         let r = engine().annotate(id, seq.trim());
-        if want == "-" {
-            assert_eq!((r.junction.as_deref(), r.failure_reason.as_deref()), (None, Some("junction_undefined")), "{id}");
-        } else {
-            assert_eq!((r.junction.as_deref(), r.annotation_status.as_str()), (Some(want), "annotated"), "{id}");
-            assert_eq!(r.productive, Some(true), "{id}");
-        }
+        assert_eq!((r.junction.as_deref(), r.annotation_status.as_str()), (Some(want), "annotated"), "{id}");
+        assert_eq!(r.productive, Some(true), "{id}");
         n += 1;
     }
-    assert_eq!(n, 9);
+    assert_eq!(n, 15);
 }

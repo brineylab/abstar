@@ -1,5 +1,4 @@
 use super::{imgt_of, Col, Layout};
-use crate::align::{align_semiglobal, Op, Scoring};
 use crate::assign::{CHit, JHit, Junction, Oriented, VHit};
 use abstar_germline::Allele;
 
@@ -12,10 +11,9 @@ const FWR4: usize = 6;
 /// Furthest the Cys104 codon is projected past V's last base (ruling B2): the bnab truth set's
 /// projections reach 49 nt, all at truth's anchor.
 const MAX_PROJECTION: usize = 50;
-/// Furthest the realigned Trp/Phe118 codon is placed from J's first diagonal when J starts past
-/// it (#162): 15 reaches a 15-nt tandem duplication in a kappa FWR4; on the 1,356 such Jaffe
-/// chains the placement finds legacy abstar's codon in 1,342 (record 0032).
-const MAX_TRP_SHIFT: usize = 15;
+/// Most codons between the Trp/Phe118 codon and where J's last diagonal projects it, when J starts
+/// past it (#162): 5 reaches a 15-nt tandem duplication in a kappa FWR4 (record 0032).
+const MAX_TRP_LOOKBACK: usize = 5;
 const NAMES: [&str; 7] = ["fwr1", "cdr1", "fwr2", "cdr2", "fwr3", "cdr3", "fwr4"];
 
 /// IMGT regions, junction and assembled-sequence extents of a read (record 0032). A region is
@@ -77,7 +75,7 @@ fn by_read(cols: &[Col], len: usize) -> Vec<Option<usize>> {
 /// - CDR3 is `None` when the V anchor's first base is not in V, the J has no anchor or its
 ///   alignment starts past it with no codon placed; it is partial when the read stops inside it (ruling A4).
 /// - The junction needs both anchor bases in their segments and the Trp/Phe118 codon in the
-///   read. A J starting past its anchor has the codon placed by realigning J from it (#162).
+///   read. A J starting past its anchor has the codon placed from J's diagonals (#162).
 pub fn regions(read: &Oriented, v: &VHit, j: Option<(&JHit, &Junction)>, c: Option<&CHit>, alleles: &[Allele]) -> Regions {
     let len = read.seq.len();
     let l = Layout::new(read, v, j);
@@ -102,24 +100,29 @@ pub fn regions(read: &Oriented, v: &VHit, j: Option<(&JHit, &Junction)>, c: Opti
         }
     }
     let j_first = l.j.iter().find_map(|c| c.1);
-    // J starts past its anchor (a mutated or inserted J 5' end): the Trp/Phe118 codon is the
-    // TGG, TTT or TTC that J's first diagonal projects to, else the one J's anchor lands on when J
-    // (anchor through alignment end) is realigned to the read after the Cys104 codon, gaps
-    // anywhere, if it is in the V frame, at most MAX_TRP_SHIFT nt from the projection and
-    // followed by an aligned J base before any gap (a TGG then an insertion is as likely N or D).
-    // FWR4 starts there even if V's alignment reached into it by chance (#162)
+    // J starts past its anchor (a mutated, inserted or deleted J 5' end): the Trp/Phe118 codon is
+    // the codon J's first diagonal projects the anchor to, if it encodes the J allele's own residue
+    // (W or F: IGH J ends in W, IGK/IGL J in F, most TR J in F); else, when J's last diagonal
+    // projects the anchor into the V frame, the nearest such codon there or up to
+    // MAX_TRP_LOOKBACK codons before it, the codons between being an insertion after Trp/Phe
+    // (or a D- or N-encoded Trp/Phe before a J deleted through its own). Either way after the
+    // Cys104 codon. FWR4 starts there even if V's alignment reached into it by chance (#162)
     let mut trp = None;
-    if let (Some(c), Some((jh, _)), Some(b), Some((i, u))) = (cys, j, jb, l.j.iter().find_map(|&(i, u)| i.zip(u))) {
+    let aligned = || l.j.iter().filter_map(|&(i, u)| i.zip(u));
+    if let (Some(c), Some((jh, _)), Some(b), Some((i, u)), Some((il, ul))) = (cys, j, jb, aligned().next(), aligned().next_back()) {
         if u > b && c >= 0 {
             let from = c as usize + 3;
-            let codon = |q: usize| q >= from && q + 3 <= l.end && matches!(&read.seq[q..q + 3], b"TGG" | b"TTT" | b"TTC");
-            let p = i as i64 - (u - b) as i64;
+            let g = alleles[jh.primary].sequence().to_ascii_uppercase();
+            let own: &[&[u8]] = match g.as_bytes().get(b..b + 3) {
+                Some(b"TGG") => &[b"TGG"],
+                Some(b"TTT" | b"TTC") => &[b"TTT", b"TTC"],
+                _ => &[b"TGG", b"TTT", b"TTC"],
+            };
+            let codon = |q: usize| q >= from && q + 3 <= l.end && own.contains(&&read.seq[q..q + 3]);
+            let (p, pm) = (i as i64 - (u - b) as i64, il as i64 - (ul - b) as i64);
             trp = usize::try_from(p).ok().filter(|&q| codon(q)).or_else(|| {
-                let g = alleles[jh.primary].sequence();
-                let a = align_semiglobal(&read.seq[from.min(l.end)..l.end], &g.as_bytes()[b..jh.aln.g_end], &Scoring::default());
-                let q = from + a.q_start;
-                let run: u32 = a.ops.iter().take_while(|o| matches!(o.0, Op::Match | Op::Mismatch)).map(|o| o.1).sum();
-                (a.g_start == 0 && run > 3 && (q - from).is_multiple_of(3) && (q as i64 - p).unsigned_abs() <= MAX_TRP_SHIFT as u64 && codon(q)).then_some(q)
+                let pm = usize::try_from(pm).ok().filter(|&q| q >= from && (q - from).is_multiple_of(3))?;
+                (0..=MAX_TRP_LOOKBACK).map(|k| pm.checked_sub(3 * k)).take_while(|q| q.is_some_and(|q| q >= from)).flatten().find(|&q| codon(q))
             });
         }
     }
