@@ -96,7 +96,7 @@ type = "string"
 nullable = true
 origin = "airr-required"
 coordinates = ""
-description = "Amino acid translation of the junction."
+description = "Amino acid translation of the junction. For amino-acid input: the Cys104 through Trp/Phe118 residues of the input; null unless both are found."
 decision = ""
 
 [[field]]
@@ -357,7 +357,7 @@ type = "float64"
 nullable = true
 origin = "airr-optional"
 coordinates = ""
-description = "Score of the reported V alignment (v_sequence_start to v_sequence_end, the columns v_identity and the V mutations use): +2 per match, -3 per mismatch (a non-ACGT base mismatches), -10 to open and -1 to extend a gap. Null when there is no V alignment."
+description = "Score of the reported V alignment (v_sequence_start to v_sequence_end, the columns v_identity and the V mutations use): +2 per match, -3 per mismatch (a non-ACGT base mismatches), -10 to open and -1 to extend a gap. Null when there is no V alignment. For amino-acid input: BLOSUM62, -11 to open and -1 to extend a gap, over the reported V residues."
 decision = "0035"
 
 [[field]]
@@ -366,7 +366,7 @@ type = "float64"
 nullable = true
 origin = "airr-optional"
 coordinates = ""
-description = "Fraction of aligned V bases that match the called allele; inserted and deleted bases are not counted. Null when there is no V alignment."
+description = "Fraction of aligned V bases that match the called allele; inserted and deleted bases are not counted. Null when there is no V alignment. For amino-acid input: identical residues over aligned V residues (inserted and deleted residues are not counted)."
 decision = ""
 
 [[field]]
@@ -465,7 +465,7 @@ type = "float64"
 nullable = true
 origin = "airr-optional"
 coordinates = ""
-description = "Score of the reported J alignment (j_sequence_start to j_sequence_end, the columns j_identity and the J mutations use): +2 per match, -3 per mismatch (a non-ACGT base mismatches), -10 to open and -1 to extend a gap. Null when there is no J alignment."
+description = "Score of the reported J alignment (j_sequence_start to j_sequence_end, the columns j_identity and the J mutations use): +2 per match, -3 per mismatch (a non-ACGT base mismatches), -10 to open and -1 to extend a gap. Null when there is no J alignment. For amino-acid input: BLOSUM62, -11 to open and -1 to extend a gap, over the reported J residues."
 decision = "0035"
 
 [[field]]
@@ -474,7 +474,7 @@ type = "float64"
 nullable = true
 origin = "airr-optional"
 coordinates = ""
-description = "Fraction of aligned J bases that match the called allele; inserted and deleted bases are not counted. Null when there is no J alignment."
+description = "Fraction of aligned J bases that match the called allele; inserted and deleted bases are not counted. Null when there is no J alignment. For amino-acid input: identical residues over aligned J residues (inserted and deleted residues are not counted)."
 decision = ""
 
 [[field]]
@@ -591,7 +591,7 @@ type = "string"
 nullable = true
 origin = "airr-optional"
 coordinates = ""
-description = "Amino acid translation of sequence_alignment. Null when sequence_alignment is null."
+description = "Amino acid translation of sequence_alignment. Null when sequence_alignment is null. For amino-acid input: the V(D)J residues of the input with the primary V allele's IMGT gaps as '.', a residue deleted from the germline as '-'."
 decision = ""
 
 [[field]]
@@ -600,7 +600,7 @@ type = "string"
 nullable = true
 origin = "airr-optional"
 coordinates = ""
-description = "Amino acid translation of germline_alignment. Null when germline_alignment is null. For amino-acid input: as in nucleotide mode, but with no D residues, so the CDR3 middle is non-germline."
+description = "Amino acid translation of germline_alignment. Null when germline_alignment is null. For amino-acid input: the germline residues aligned to sequence_alignment_aa (inserted and N residues are '-'); there are no D residues, so the CDR3 middle is non-germline."
 decision = ""
 
 [[field]]
@@ -618,7 +618,7 @@ type = "string"
 nullable = true
 origin = "airr-optional"
 coordinates = ""
-description = "Translation of fwr1 in the continuous V(D)J reading frame of sequence_vdj: a codon crossing a region boundary belongs to the downstream region; partial codons are not translated. Null when fwr1 is null."
+description = "Translation of fwr1 in the continuous V(D)J reading frame of sequence_vdj: a codon crossing a region boundary belongs to the downstream region; partial codons are not translated. Null when fwr1 is null. For amino-acid input: the FWR1 residues of the input, filled although fwr1 is null."
 decision = ""
 
 [[field]]
@@ -645,7 +645,7 @@ type = "int64"
 nullable = true
 origin = "abstar"
 coordinates = ""
-description = "Length of fwr1_aa in amino acids. Null when fwr1 is null."
+description = "Length of fwr1_aa in amino acids. Null when fwr1 is null. For amino-acid input: the residue count of fwr1_aa, filled although fwr1 is null."
 decision = "0032"
 
 [[field]]
@@ -663,7 +663,7 @@ type = "string"
 nullable = true
 origin = "airr-optional"
 coordinates = ""
-description = "Translation of cdr1 in the continuous V(D)J reading frame of sequence_vdj: a codon crossing a region boundary belongs to the downstream region; partial codons are not translated. Null when cdr1 is null."
+description = "Translation of cdr1 in the continuous V(D)J reading frame of sequence_vdj: a codon crossing a region boundary belongs to the downstream region; partial codons are not translated. Null when cdr1 is null. For amino-acid input: the CDR1 residues of the input, filled although cdr1 is null."
 decision = ""
 
 [[field]]
@@ -690,7 +690,7 @@ type = "int64"
 nullable = true
 origin = "abstar"
 coordinates = ""
-description = "Length of cdr1_aa in amino acids. Null when cdr1 is null."
+description = "Length of cdr1_aa in amino acids. Null when cdr1 is null. For amino-acid input: the residue count of cdr1_aa, filled although cdr1 is null."
 decision = "0032"
 
 [[field]]
@@ -708,7 +708,7 @@ type = "string"
 nullable = true
 origin = "airr-optional"
 coordinates = ""
-description = "Translation of fwr2 in the continuous V(D)J reading frame of sequence_vdj: a codon crossing a region boundary belongs to the downstream region; partial codons are not translated. Null when fwr2 is null."
+description = "Translation of fwr2 in the continuous V(D)J reading frame of sequence_vdj: a codon crossing a region boundary belongs to the downstream region; partial codons are not translated. Null when fwr2 is null. For amino-acid input: the FWR2 residues of the input, filled although fwr2 is null."
 decision = ""
 
 [[field]]
@@ -735,7 +735,7 @@ type = "int64"
 nullable = true
 origin = "abstar"
 coordinates = ""
-description = "Length of fwr2_aa in amino acids. Null when fwr2 is null."
+description = "Length of fwr2_aa in amino acids. Null when fwr2 is null. For amino-acid input: the residue count of fwr2_aa, filled although fwr2 is null."
 decision = "0032"
 
 [[field]]
@@ -753,7 +753,7 @@ type = "string"
 nullable = true
 origin = "airr-optional"
 coordinates = ""
-description = "Translation of cdr2 in the continuous V(D)J reading frame of sequence_vdj: a codon crossing a region boundary belongs to the downstream region; partial codons are not translated. Null when cdr2 is null."
+description = "Translation of cdr2 in the continuous V(D)J reading frame of sequence_vdj: a codon crossing a region boundary belongs to the downstream region; partial codons are not translated. Null when cdr2 is null. For amino-acid input: the CDR2 residues of the input, filled although cdr2 is null."
 decision = ""
 
 [[field]]
@@ -780,7 +780,7 @@ type = "int64"
 nullable = true
 origin = "abstar"
 coordinates = ""
-description = "Length of cdr2_aa in amino acids. Null when cdr2 is null."
+description = "Length of cdr2_aa in amino acids. Null when cdr2 is null. For amino-acid input: the residue count of cdr2_aa, filled although cdr2 is null."
 decision = "0032"
 
 [[field]]
@@ -798,7 +798,7 @@ type = "string"
 nullable = true
 origin = "airr-optional"
 coordinates = ""
-description = "Translation of fwr3 in the continuous V(D)J reading frame of sequence_vdj: a codon crossing a region boundary belongs to the downstream region; partial codons are not translated. Null when fwr3 is null."
+description = "Translation of fwr3 in the continuous V(D)J reading frame of sequence_vdj: a codon crossing a region boundary belongs to the downstream region; partial codons are not translated. Null when fwr3 is null. For amino-acid input: the FWR3 residues of the input, filled although fwr3 is null."
 decision = ""
 
 [[field]]
@@ -825,7 +825,7 @@ type = "int64"
 nullable = true
 origin = "abstar"
 coordinates = ""
-description = "Length of fwr3_aa in amino acids. Null when fwr3 is null."
+description = "Length of fwr3_aa in amino acids. Null when fwr3 is null. For amino-acid input: the residue count of fwr3_aa, filled although fwr3 is null."
 decision = "0032"
 
 [[field]]
@@ -843,7 +843,7 @@ type = "string"
 nullable = true
 origin = "airr-optional"
 coordinates = ""
-description = "Translation of cdr3 in the continuous V(D)J reading frame of sequence_vdj: a codon crossing a region boundary belongs to the downstream region; partial codons are not translated. Null when cdr3 is null."
+description = "Translation of cdr3 in the continuous V(D)J reading frame of sequence_vdj: a codon crossing a region boundary belongs to the downstream region; partial codons are not translated. Null when cdr3 is null. For amino-acid input: the CDR3 residues of the input, filled although cdr3 is null."
 decision = ""
 
 [[field]]
@@ -870,7 +870,7 @@ type = "int64"
 nullable = true
 origin = "abstar"
 coordinates = ""
-description = "Length of cdr3_aa in amino acids. Null when cdr3 is null."
+description = "Length of cdr3_aa in amino acids. Null when cdr3 is null. For amino-acid input: the residue count of cdr3_aa, filled although cdr3 is null."
 decision = "0032"
 
 [[field]]
@@ -888,7 +888,7 @@ type = "string"
 nullable = true
 origin = "airr-optional"
 coordinates = ""
-description = "Translation of fwr4 in the continuous V(D)J reading frame of sequence_vdj: a codon crossing a region boundary belongs to the downstream region; partial codons are not translated. Null when fwr4 is null."
+description = "Translation of fwr4 in the continuous V(D)J reading frame of sequence_vdj: a codon crossing a region boundary belongs to the downstream region; partial codons are not translated. Null when fwr4 is null. For amino-acid input: the FWR4 residues of the input, filled although fwr4 is null."
 decision = ""
 
 [[field]]
@@ -915,7 +915,7 @@ type = "int64"
 nullable = true
 origin = "abstar"
 coordinates = ""
-description = "Length of fwr4_aa in amino acids. Null when fwr4 is null."
+description = "Length of fwr4_aa in amino acids. Null when fwr4 is null. For amino-acid input: the residue count of fwr4_aa, filled although fwr4 is null."
 decision = "0032"
 
 [[field]]
@@ -933,7 +933,7 @@ type = "string"
 nullable = true
 origin = "abstar"
 coordinates = ""
-description = "Translation of sequence_vdj in the V reading frame, dropping partial codons."
+description = "Translation of sequence_vdj in the V reading frame, dropping partial codons. For amino-acid input: the input from the first V residue through the last J residue (through the input's end without J)."
 decision = "0028"
 
 [[field]]
@@ -969,7 +969,7 @@ type = "string"
 nullable = true
 origin = "abstar"
 coordinates = ""
-description = "The cdr_mask character of each codon's 3rd base (a codon crossing a boundary belongs to the downstream region). One character per codon of sequence_vdj_aa (the V(D)J region only); null when the matching nt mask is null."
+description = "The cdr_mask character of each codon's 3rd base (a codon crossing a boundary belongs to the downstream region). One character per codon of sequence_vdj_aa (the V(D)J region only); null when the matching nt mask is null. For amino-acid input: one character per residue of sequence_vdj_aa, from the residue's region; null when cdr3_aa is null."
 decision = "0034"
 
 [[field]]
@@ -987,7 +987,7 @@ type = "string"
 nullable = true
 origin = "abstar"
 coordinates = ""
-description = "The gene_segment_mask character of each codon's 3rd base. One character per codon of sequence_vdj_aa (the V(D)J region only); null when the matching nt mask is null. For amino-acid input: segments are V, N and J only (no D residues)."
+description = "The gene_segment_mask character of each codon's 3rd base. One character per codon of sequence_vdj_aa (the V(D)J region only); null when the matching nt mask is null. For amino-acid input: one character per residue of sequence_vdj_aa (an inserted residue takes its segment); segments are V, N and J only (no D residues)."
 decision = "0034"
 
 [[field]]
@@ -1005,7 +1005,7 @@ type = "string"
 nullable = true
 origin = "abstar"
 coordinates = ""
-description = "1 when any base of the codon is N, P or inserted, or its amino acid differs from the germline translation, else 0. One character per codon of sequence_vdj_aa (the V(D)J region only); null when the matching nt mask is null."
+description = "1 when any base of the codon is N, P or inserted, or its amino acid differs from the germline translation, else 0. One character per codon of sequence_vdj_aa (the V(D)J region only); null when the matching nt mask is null. For amino-acid input: one character per residue of sequence_vdj_aa: 1 for N, inserted and mismatched residues, else 0."
 decision = "0034"
 
 [[field]]
@@ -1023,7 +1023,7 @@ type = "list<string>"
 nullable = true
 origin = "abstar"
 coordinates = "germline: IMGT-gapped nt position (aa: IMGT codon number)"
-description = "Amino acid changes, as \"IMGT{aa_pos}:REF>ALT\" (codon number in the allele), over germline codons whose three bases are all aligned. Null when there is no V alignment."
+description = "Amino acid changes, as \"IMGT{aa_pos}:REF>ALT\" (codon number in the allele), over germline codons whose three bases are all aligned. Null when there is no V alignment. For amino-acid input: residue substitutions over every aligned V residue, as \"IMGT{pos}:REF>ALT\" with pos the IMGT residue number."
 decision = "0033"
 
 [[field]]
@@ -1077,7 +1077,7 @@ type = "int64"
 nullable = true
 origin = "abstar"
 coordinates = ""
-description = "Length of v_mutations_aa. Null when v_mutations_aa is null."
+description = "Length of v_mutations_aa. Null when v_mutations_aa is null. For amino-acid input: the number of V residue substitutions."
 decision = "0033"
 
 [[field]]
@@ -1095,7 +1095,7 @@ type = "float64"
 nullable = true
 origin = "abstar"
 coordinates = ""
-description = "v_mutation_count_aa divided by the germline codons counted for v_mutations_aa. Null when that is null or no codon is counted."
+description = "v_mutation_count_aa divided by the germline codons counted for v_mutations_aa. Null when that is null or no codon is counted. For amino-acid input: v_mutation_count_aa divided by the aligned V germline residues."
 decision = "0033"
 
 [[field]]
@@ -1185,7 +1185,7 @@ type = "list<string>"
 nullable = true
 origin = "abstar"
 coordinates = "germline: 1-based ungapped allele"
-description = "Amino acid changes, as \"{codon_pos}:REF>ALT\" (codon number in the allele), over germline codons whose three bases are all aligned. Null when there is no J alignment."
+description = "Amino acid changes, as \"{codon_pos}:REF>ALT\" (codon number in the allele), over germline codons whose three bases are all aligned. Null when there is no J alignment. For amino-acid input: residue substitutions over every aligned J residue, as \"{pos}:REF>ALT\" with pos the 1-based residue number of the J allele translated in its Trp/Phe118 reading frame."
 decision = "0033"
 
 [[field]]
@@ -1239,7 +1239,7 @@ type = "int64"
 nullable = true
 origin = "abstar"
 coordinates = ""
-description = "Length of j_mutations_aa. Null when j_mutations_aa is null."
+description = "Length of j_mutations_aa. Null when j_mutations_aa is null. For amino-acid input: the number of J residue substitutions."
 decision = "0033"
 
 [[field]]
@@ -1257,7 +1257,7 @@ type = "float64"
 nullable = true
 origin = "abstar"
 coordinates = ""
-description = "j_mutation_count_aa divided by the germline codons counted for j_mutations_aa. Null when that is null or no codon is counted."
+description = "j_mutation_count_aa divided by the germline codons counted for j_mutations_aa. Null when that is null or no codon is counted. For amino-acid input: j_mutation_count_aa divided by the aligned J germline residues."
 decision = "0033"
 
 [[field]]

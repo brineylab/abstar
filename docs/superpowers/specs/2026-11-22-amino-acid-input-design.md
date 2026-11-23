@@ -201,7 +201,7 @@ by design: there are no D residues, so the CDR3 middle is non-germline.
   break the single-sourced `fields.toml` (record 0012). The decision record notes this for
   Parquet readers that check schemas strictly.
 - Failure records (`invalid_input`, `invalid_encoding`, panics in `annotate_guarded`) put the
-  raw input in `sequence_aa` in amino-acid mode. Suggested: give `Annotate` a `failed(id, seq,
+  input, uppercased, in `sequence_aa` in amino-acid mode. Suggested: give `Annotate` a `failed(id, seq,
   status, reason)` method that `Engine` and `AaEngine` each implement, so the pipeline stays
   mode-blind.
 - Amino-acid output does not pass `airr` validation (null `sequence`). Documented, not tested.
