@@ -1,4 +1,5 @@
 //! Annotation engine.
+pub mod aa;
 pub mod align;
 pub mod assign;
 pub mod derive;

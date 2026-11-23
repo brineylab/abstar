@@ -213,3 +213,32 @@ def test_nonfunctional_alleles_only_on_request(tmp_path):
     assert abstar.run(read, include_nonfunctional=True)["v_call"][0] == "IGKV2-29*01"
     s = abstar.run(read, tmp_path / "out", include_nonfunctional=True)
     assert json.loads(s.run_json.read_text())["parameters"]["include_nonfunctional"] is True
+
+
+IGH_AA = "QVQLVQSGAEVKKPGASVKVSCKASGYTFTGYYMHWVRQAPGQGLGWMGWINPNSGGTNYAQKFQGRVTMTRDTSISTAYMELSRLRSDDTAVYYCARDRITIFGVVIIPDYFDYWGQGTLVTVSS"
+
+
+def test_aa_string_is_a_sequence():
+    df = abstar.run(IGH_AA, sequence_type="aa")
+    assert df.height == 1
+    row = df.row(0, named=True)
+    assert row["v_gene"] == "IGHV1-2" and row["sequence"] is None and row["cdr3_aa"] == "ARDRITIFGVVIIPDYFDY"
+
+
+def test_aa_string_rejected_in_nt_mode():
+    with pytest.raises(AbstarError) as e:
+        abstar.run(IGH_AA)
+    assert e.value.code == "INPUT_NOT_FOUND" and e.value.message.endswith("(if this is a protein sequence, use sequence_type='aa')")
+
+
+def test_bad_sequence_type():
+    with pytest.raises(AbstarError) as e:
+        abstar.run(IGH_AA, sequence_type="protein")
+    assert e.value.code == "INVALID_ARGUMENT"
+
+
+def test_aa_files_run_json(tmp_path):
+    fa = tmp_path / "in.fasta"
+    _fa(fa, [("p1", IGH_AA)])
+    s = abstar.run(fa, tmp_path / "out", sequence_type="aa")
+    assert json.loads(s.run_json.read_text())["parameters"]["sequence_type"] == "aa"

@@ -148,6 +148,7 @@ fn stems_and_run_json() {
     assert_eq!(c["unassigned"].as_u64().unwrap() + c["invalid_input"].as_u64().unwrap(), 7 + 2 + 1);
     assert_eq!(j["airr_version"], "2.0");
     assert_eq!(j["database"]["alleles_sha256"], "abc");
+    assert_eq!(j["parameters"]["sequence_type"], "nt");
     assert_eq!(j["inputs"].as_array().unwrap().len(), 3);
     assert!(j["started"].as_str().unwrap().ends_with('Z'));
     // re-run overwrites
