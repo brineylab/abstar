@@ -1,4 +1,5 @@
 use super::{imgt_of, Col, Layout};
+use crate::align::{align_semiglobal, Op, Scoring};
 use crate::assign::{CHit, JHit, Junction, Oriented, VHit};
 use abstar_germline::Allele;
 
@@ -11,9 +12,10 @@ const FWR4: usize = 6;
 /// Furthest the Cys104 codon is projected past V's last base (ruling B2): the bnab truth set's
 /// projections reach 49 nt, all at truth's anchor.
 const MAX_PROJECTION: usize = 50;
-/// Furthest the Trp/Phe118 codon is placed from J's first diagonal when J starts past it (#162):
-/// on the 1,356 such Jaffe chains it finds legacy abstar's codon in 1,334 (record 0032).
-const MAX_TRP_SHIFT: usize = 12;
+/// Furthest the realigned Trp/Phe118 codon is placed from J's first diagonal when J starts past
+/// it (#162): 15 reaches a 15-nt tandem duplication in a kappa FWR4; on the 1,356 such Jaffe
+/// chains the placement finds legacy abstar's codon in 1,342 (record 0032).
+const MAX_TRP_SHIFT: usize = 15;
 const NAMES: [&str; 7] = ["fwr1", "cdr1", "fwr2", "cdr2", "fwr3", "cdr3", "fwr4"];
 
 /// IMGT regions, junction and assembled-sequence extents of a read (record 0032). A region is
@@ -75,7 +77,7 @@ fn by_read(cols: &[Col], len: usize) -> Vec<Option<usize>> {
 /// - CDR3 is `None` when the V anchor's first base is not in V, the J has no anchor or its
 ///   alignment starts past it with no codon placed; it is partial when the read stops inside it (ruling A4).
 /// - The junction needs both anchor bases in their segments and the Trp/Phe118 codon in the
-///   read. A J starting past its anchor has the codon placed near J's first diagonal (#162).
+///   read. A J starting past its anchor has the codon placed by realigning J from it (#162).
 pub fn regions(read: &Oriented, v: &VHit, j: Option<(&JHit, &Junction)>, c: Option<&CHit>, alleles: &[Allele]) -> Regions {
     let len = read.seq.len();
     let l = Layout::new(read, v, j);
@@ -101,20 +103,23 @@ pub fn regions(read: &Oriented, v: &VHit, j: Option<(&JHit, &Junction)>, c: Opti
     }
     let j_first = l.j.iter().find_map(|c| c.1);
     // J starts past its anchor (a mutated or inserted J 5' end): the Trp/Phe118 codon is the
-    // TGG, TTT or TTC that J's first diagonal projects to, else the V-frame codon nearest it (at
-    // most MAX_TRP_SHIFT nt away) that starts the FWR4 motif [WF]G.G; either after the Cys104
-    // codon. FWR4 starts there even if V's alignment reached into it by chance (#162)
+    // TGG, TTT or TTC that J's first diagonal projects to, else the one J's anchor lands on when J
+    // (anchor through alignment end) is realigned to the read after the Cys104 codon, gaps
+    // anywhere, if it is in the V frame, at most MAX_TRP_SHIFT nt from the projection and
+    // followed by an aligned J base before any gap (a TGG then an insertion is as likely N or D).
+    // FWR4 starts there even if V's alignment reached into it by chance (#162)
     let mut trp = None;
-    if let (Some(c), Some(b), Some((i, u))) = (cys, jb, l.j.iter().find_map(|&(i, u)| i.zip(u))) {
+    if let (Some(c), Some((jh, _)), Some(b), Some((i, u))) = (cys, j, jb, l.j.iter().find_map(|&(i, u)| i.zip(u))) {
         if u > b && c >= 0 {
-            let codon = |q: usize| q >= c as usize + 3 && q + 3 <= l.end && matches!(&read.seq[q..q + 3], b"TGG" | b"TTT" | b"TTC");
-            let gg = |k: usize| read.seq.get(k..k + 2) == Some(b"GG");
+            let from = c as usize + 3;
+            let codon = |q: usize| q >= from && q + 3 <= l.end && matches!(&read.seq[q..q + 3], b"TGG" | b"TTT" | b"TTC");
             let p = i as i64 - (u - b) as i64;
             trp = usize::try_from(p).ok().filter(|&q| codon(q)).or_else(|| {
-                (c as usize + 3..l.end)
-                    .step_by(3)
-                    .filter(|&q| (q as i64 - p).unsigned_abs() <= MAX_TRP_SHIFT as u64 && codon(q) && gg(q + 3) && gg(q + 9))
-                    .min_by_key(|&q| ((q as i64 - p).unsigned_abs(), q))
+                let g = alleles[jh.primary].sequence();
+                let a = align_semiglobal(&read.seq[from.min(l.end)..l.end], &g.as_bytes()[b..jh.aln.g_end], &Scoring::default());
+                let q = from + a.q_start;
+                let run: u32 = a.ops.iter().take_while(|o| matches!(o.0, Op::Match | Op::Mismatch)).map(|o| o.1).sum();
+                (a.g_start == 0 && run > 3 && (q - from) % 3 == 0 && (q as i64 - p).unsigned_abs() <= MAX_TRP_SHIFT as u64 && codon(q)).then_some(q)
             });
         }
     }
