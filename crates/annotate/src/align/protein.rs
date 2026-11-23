@@ -44,8 +44,20 @@ const BLOSUM62: [[i8; 24]; 24] = [
     [-4,-4,-4,-4,-4,-4,-4,-4,-4,-4,-4,-4,-4,-4,-4,-4,-4,-4,-4,-4,-4,-4,-4, 1],
 ];
 
+/// Byte -> `ORDER` index, case-insensitive; any other byte -> 22 (`X`).
+const IDX: [u8; 256] = {
+    let mut t = [22u8; 256];
+    let mut k = 0;
+    while k < ORDER.len() {
+        t[ORDER[k] as usize] = k as u8;
+        t[ORDER[k].to_ascii_lowercase() as usize] = k as u8;
+        k += 1;
+    }
+    t
+};
+
 fn idx(c: u8) -> usize {
-    ORDER.iter().position(|&o| o == c.to_ascii_uppercase()).unwrap_or(22) // unknown -> X
+    IDX[c as usize] as usize
 }
 
 /// NCBI BLOSUM62, case-insensitive; `J`, `O`, `U` and any other byte score as `X`.
@@ -160,6 +172,13 @@ mod tests {
             for b in 0..24 {
                 assert_eq!(BLOSUM62[a][b], BLOSUM62[b][a]);
             }
+        }
+    }
+
+    #[test]
+    fn idx_matches_a_case_insensitive_scan() {
+        for c in 0..=255u8 {
+            assert_eq!(idx(c), ORDER.iter().position(|&o| o == c.to_ascii_uppercase()).unwrap_or(22), "{c}");
         }
     }
 }

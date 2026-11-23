@@ -73,7 +73,7 @@ impl Annotate for AaEngine<'_> {
     fn annotate(&self, id: &str, seq: &str) -> Record {
         let up = seq.to_ascii_uppercase();
         if let Some(reason) = invalid_aa(&up) {
-            return self.failed(id, seq, "invalid_input", reason);
+            return self.failed(id, &up, "invalid_input", reason);
         }
         let (q, a, v, j, s) = (up.as_bytes(), self.alleles, &self.v, &self.j, &self.scoring);
         let Some(c) = assign_aa(q, v, j, a, s) else {
@@ -136,8 +136,9 @@ impl Annotate for AaEngine<'_> {
         r
     }
 
-    /// The raw input goes in `sequence_aa`; `sequence` stays null.
+    /// The input, uppercased, goes in `sequence_aa` (also for the pipeline's `invalid_encoding`
+    /// and panic records); `sequence` stays null.
     fn failed(&self, id: &str, seq: &str, status: &str, reason: &str) -> Record {
-        Record { sequence: None, sequence_aa: Some(seq.into()), ..failed(id, seq, status, reason) }
+        Record { sequence: None, sequence_aa: Some(seq.to_ascii_uppercase()), ..failed(id, seq, status, reason) }
     }
 }

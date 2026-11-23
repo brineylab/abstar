@@ -143,6 +143,9 @@ fn aa_statuses() {
     let r = ann("QVQ-LV");
     assert_eq!(status(&r), ("invalid_input", Some("invalid_characters")));
     assert_eq!((r.sequence_aa.as_deref(), r.sequence.as_deref()), (Some("QVQ-LV"), None));
+    let r = ann("qvq-lv");
+    assert_eq!(status(&r), ("invalid_input", Some("invalid_characters")));
+    assert_eq!(r.sequence_aa.as_deref(), Some("QVQ-LV"));
     let ubiquitin = "MQIFVKTLTGKTITLEVEPSDTIENVKAKIQDKEGIPPDQQRLIFAGKQLEDGRTLSDYNIQKESTLHLVLRLRGG";
     let r = ann(ubiquitin);
     assert_eq!(status(&r), ("unassigned", Some("no_v_hit")));
