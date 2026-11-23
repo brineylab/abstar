@@ -4,6 +4,7 @@
 //! Coordinates are 0-based half-open. `query` is the (oriented) read, `germline` the allele.
 mod aligner;
 mod kmer;
+mod protein;
 // The scalar backend is the fallback for x86_64 CPUs without AVX2 and other architectures;
 // aarch64 always has NEON.
 #[cfg_attr(target_arch = "aarch64", allow(dead_code))]
@@ -13,6 +14,7 @@ mod simd;
 
 pub use aligner::{align_semiglobal, collapse_gap_pairs, cut_query_end, place_gaps, score_semiglobal, MAX_PAIR_SPAN};
 pub use kmer::KmerIndex;
+pub use protein::{align_protein, blosum62, ProteinScoring};
 
 /// One alignment column type. `Ins` = base in the query only; `Del` = base in the germline only.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
