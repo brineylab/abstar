@@ -92,7 +92,7 @@ pub fn mutations(read: &Oriented, v: &VHit, j: Option<(&JHit, &Junction)>, c: Op
     })
 }
 
-fn segment(q: &[u8], cols: &[Col], g: &[u8], label: impl Fn(usize) -> String, codons: Option<Vec<(String, usize)>>) -> Option<SegmentMutations> {
+pub(crate) fn segment(q: &[u8], cols: &[Col], g: &[u8], label: impl Fn(usize) -> String, codons: Option<Vec<(String, usize)>>) -> Option<SegmentMutations> {
     // read position aligned to each germline position
     let mut at = vec![None; g.len()];
     for &(i, u) in cols {
